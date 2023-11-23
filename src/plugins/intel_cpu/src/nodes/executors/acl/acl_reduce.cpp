@@ -15,7 +15,7 @@ static arm_compute::ReductionOperation getAclReductionOperationByAlgorithm(Algor
         case Algorithm::ReduceMin:  return arm_compute::ReductionOperation::MIN;
         case Algorithm::ReduceSum:  return arm_compute::ReductionOperation::SUM;
         case Algorithm::ReduceProd: return arm_compute::ReductionOperation::PROD;
-        default:                    IE_THROW() << "Unsupported reduction operation: " << static_cast<int>(algorithm);
+        default:                    OPENVINO_THROW("Unsupported reduction operation: ", static_cast<int>(algorithm));
     }
 }
 
@@ -86,7 +86,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
             break;
         }
         default:
-            IE_THROW() << "Unsupported operation type for ACL Reduce executor: " << static_cast<int>(reduceAttrs.operation);
+            OPENVINO_THROW("Unsupported operation type for ACL Reduce executor: ", static_cast<int>(reduceAttrs.operation));
     }
     ifunc = exec_func();
     return true;

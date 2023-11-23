@@ -130,7 +130,7 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
         auto normalized_rfftn_splitted = std::make_shared<v1::Split>(normalized_rfftn, const_neg_1, 2);
         auto rfftn_outs = rfftn_op->get_users();
         bool rval = false;
-        for (auto out : rfftn_outs) {
+        for (auto& out : rfftn_outs) {
             if (auto real_op = cast_fw_node(out, "aten::real")) {
                 auto squeezed = std::make_shared<v0::Squeeze>(normalized_rfftn_splitted->output(0), const_neg_1);
                 copy_runtime_info({rfftn_op, real_op}, squeezed);

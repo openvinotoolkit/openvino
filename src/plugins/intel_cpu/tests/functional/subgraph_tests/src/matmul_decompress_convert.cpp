@@ -136,14 +136,14 @@ public:
 protected:
     template<typename T>
     void transposeShape(T& shape) {
-        IE_ASSERT(shape.size() > 1);
+        OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
     void CheckFCWeightsPrecision(ElementType expectedWeiElemType) const {
         auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
@@ -209,7 +209,6 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
@@ -217,7 +216,7 @@ protected:
         }
         expectedWeiConstElemType = weiConstElemType;
 
-        auto matMul = builder::makeMatMul(paramOuts[0], inputB, transpA, transpB);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], inputB, transpA, transpB);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
     }
@@ -380,11 +379,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
 
 } // namespace
 
-
-/* In case of Convert has 2 or more consumers there is a problem with memory allocation in CPU plug-in (see Edge::init() method).
-   Maybe we can just remove the check (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) and everything will be OK,
-   But this solution should be additionally checked. For now, for these cases we will not be doing CF on the CPU side and it should be done
-   on the ngraph side.
+/* In case of Convert has 2 or more consumers there is a problem with memory allocation in CPU plug-in (see Edge::init()
+ method). Maybe we can just remove the check (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant())
+ and everything will be OK, But this solution should be additionally checked. For now, for these cases we will not be
+ doing CF on the CPU side and it should be done on the ngraph side.
 
  * Graph before:
    ------------              ------------            ------------
@@ -399,9 +397,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
     |       MatMul        |               |       MatMul        |
     -----------------------               -----------------------
                       |                       |
-                   --------------------------------- 
-                   |             Concat            | 
-                   --------------------------------- 
+                   ---------------------------------
+                   |             Concat            |
+                   ---------------------------------
                                    |
                                 --------
                                 |Output|
@@ -416,9 +414,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
     |       MatMul        |               |       MatMul        |
     -----------------------               -----------------------
                       |                       |
-                   --------------------------------- 
-                   |             Concat            | 
-                   --------------------------------- 
+                   ---------------------------------
+                   |             Concat            |
+                   ---------------------------------
                                    |
                                 --------
                                 |Output|
@@ -494,7 +492,6 @@ protected:
         for (auto&& shape : {inShapeFC0, inShapeFC1}) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputWeights = builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputWeights = std::make_shared<opset1::Convert>(inputWeights, convertOutType);
@@ -503,10 +500,10 @@ protected:
         // In this test, convert must be folded on the ngraph side, so the constant with fp32 precision is expected
         expectedWeiConstElemType = ElementType::f32;
 
-        auto matMul0 = builder::makeMatMul(paramOuts[0], inputWeights, transpA, transpB);
-        auto matMul1 = builder::makeMatMul(paramOuts[1], inputWeights, transpA, transpB);
+        auto matMul0 = std::make_shared<ov::op::v0::MatMul>(params[0], inputWeights, transpA, transpB);
+        auto matMul1 = std::make_shared<ov::op::v0::MatMul>(params[1], inputWeights, transpA, transpB);
 
-        auto concat = builder::makeConcat({matMul0, matMul1}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul0, matMul1}, 0);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, concat, cpuNodeType);
     }

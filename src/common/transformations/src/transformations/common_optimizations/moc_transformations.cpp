@@ -95,10 +95,16 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // To avoid issues with dynamism we make ov::Model dynamic and after we apply all
     // transformations we restore original shapes to the ov::Model back
     std::unordered_map<ov::op::v0::Parameter*, PartialShape> input_shapes;
+    std::unordered_map<ov::op::util::Variable*, PartialShape> variable_shapes;
     if (!m_use_shapes) {
         for (auto&& param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
             param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+        }
+        for (const auto& variable : f->get_variables()) {
+            const auto& var_info = variable->get_info();
+            variable_shapes[variable.get()] = var_info.data_shape;
+            variable->update_partial_shape(PartialShape::dynamic(var_info.data_shape.rank()));
         }
         f->validate_nodes_and_infer_types();
     }
@@ -170,7 +176,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
     // because it replaces pattern that may contain Transposes which must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)
+    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion, m_use_shapes)
 
     REGISTER_PASS(manager, TransposeMatMul)
 
@@ -262,6 +268,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         // Restore original shapes to the ov::Model
         for (auto&& param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
+        }
+
+        for (const auto& variable : f->get_variables()) {
+            variable->update_partial_shape(variable_shapes.at(variable.get()));
         }
     }
     f->validate_nodes_and_infer_types();

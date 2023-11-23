@@ -34,6 +34,8 @@ public:
     void clear(const std::string& id = {}) override;
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
+    void execute_task_by_streams_executor(ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
+                                          ov::threading::Task task) override;
 
 private:
     void reset_tbb();
@@ -173,6 +175,18 @@ void ExecutorManagerImpl::clear(const std::string& id) {
                                return it.first._name == id;
                            }),
             cpuStreamsExecutors.end());
+    }
+}
+
+void ExecutorManagerImpl::execute_task_by_streams_executor(
+    ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
+    ov::threading::Task task) {
+    ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor");
+    streamsConfig.update_executor_config(1, 1, core_type, false);
+    if (!streamsConfig._streams_info_table.empty()) {
+        auto taskExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
+        std::vector<Task> tasks{std::move(task)};
+        taskExecutor->run_and_wait(tasks);
     }
 }
 

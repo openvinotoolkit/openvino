@@ -4,9 +4,9 @@
 
 #include "swap_convert_transpose.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
 

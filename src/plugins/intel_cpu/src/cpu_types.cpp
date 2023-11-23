@@ -201,6 +201,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "ExtractImagePatches", Type::ExtractImagePatches},
             { "NonMaxSuppression", Type::NonMaxSuppression},
             { "NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
+            { "NMSRotated", Type::NonMaxSuppression},
             { "MatrixNms", Type::MatrixNms},
             { "MulticlassNms", Type::MulticlassNms},
             { "MulticlassNmsIEInternal", Type::MulticlassNms},
@@ -211,7 +212,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "Interaction", Type::Interaction},
             { "MHA", Type::MHA},
             { "Unique", Type::Unique},
-            { "Ngram", Type::Ngram}
+            { "Ngram", Type::Ngram},
+            { "ScaledDotProductAttention", Type::ScaledDotProductAttention},
+            { "RoPE", Type::RoPE},
     };
     return type_to_name_tbl;
 }
@@ -325,6 +328,8 @@ std::string NameFromType(const Type type) {
         CASE(RandomUniform);
         CASE(Unique);
         CASE(Ngram);
+        CASE(ScaledDotProductAttention);
+        CASE(RoPE);
         CASE(Unknown);
     }
 #undef CASE

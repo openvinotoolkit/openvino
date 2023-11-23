@@ -64,12 +64,52 @@ repository <https://github.com/isl-org/VI-Depth>`__ for the
 pre-processing, model transformations and basic utility code. A part of
 it has already been kept as it is in the `utils <utils>`__ directory. At
 the same time we will learn how to perform `model
-conversion <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+conversion <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
 for converting a model in a different format to the standard OpenVINO™
 IR model representation *via* another format.
 
+**Table of contents:**
+
+-  `Imports <#imports>`__
+-  `Loading models and checkpoints <#loading-models-and-checkpoints>`__
+
+   -  `Cleaning up the model
+      directory <#cleaning-up-the-model-directory>`__
+   -  `Transformation of models <#transformation-of-models>`__
+
+      -  `Dummy input creation <#dummy-input-creation>`__
+      -  `Conversion of depth model to OpenVINO IR
+         format <#conversion-of-depth-model-to-openvino-ir-format>`__
+
+         -  `Select inference device <#select-inference-device>`__
+         -  `Compilation of depth model <#compilation-of-depth-model>`__
+         -  `Computation of scale and shift
+            parameters <#computation-of-scale-and-shift-parameters>`__
+
+      -  `Conversion of Scale Map Learner model to OpenVINO IR
+         format <#conversion-of-scale-map-learner-model-to-openvino-ir-format>`__
+
+         -  `Select inference device <#select-inference-device>`__
+         -  `Compilation of the ScaleMapLearner(SML)
+            model <#compilation-of-the-scalemaplearnersml-model>`__
+
+      -  `Storing and visualizing dummy results
+         obtained <#storing-and-visualizing-dummy-results-obtained>`__
+
+   -  `Running inference on a test
+      image <#running-inference-on-a-test-image>`__
+   -  `Store and visualize Inference
+      results <#store-and-visualize-inference-results>`__
+
+      -  `Cleaning up the data
+         directory <#cleaning-up-the-data-directory>`__
+
+   -  `Concluding notes <#concluding-notes>`__
+
 Imports
 ~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -81,27 +121,29 @@ Imports
         
     # Download the correct version of the PyTorch deep learning library associated with image models
     # alongside the lightning module
-    !pip install -q lightning timm==0.6.12
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "pytorch-lightning" "timm==0.6.12" "openvino>=2023.1.0" 
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnx 1.14.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
-    paddlepaddle 2.5.0rc0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+    onnx 1.15.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    paddlepaddle 2.5.2 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
-    
+    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
     import numpy as np
-    import openvino
+    import openvino as ov
     import torch
     import torchvision
-    from openvino.runtime import Core
     from pathlib import Path
     from shutil import rmtree
     from typing import Optional, Tuple
@@ -125,6 +167,8 @@ Imports
 Loading models and checkpoints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 The complete pipeline here requires only two models: one for depth
 estimation and a ScaleMapLearner model which is responsible for
 regressing a dense scale map. The table of models which has been given
@@ -140,27 +184,25 @@ link address”. We shall use this link in the next cell to download the
 ScaleMapLearner model. *Interestingly*, the ScaleMapLearner decides the
 depth prediction model as you will see.
 
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Depth Predictor  | SML on VOID 150                                                                                                                 | SML on VOID 500                                                                                                                 | SML on VOID 1500                                                                                                                 |
++==================+=================================================================================================================================+=================================================================================================================================+==================================================================================================================================+
+| DPT-BEiT-Large   | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.150.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.500.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.1500.ckpt>`__  |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-SwinV2-Large | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.150.ckpt>`__ | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.500.ckpt>`__ | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.1500.ckpt>`__ |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-Large        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.150.ckpt>`__           | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.500.ckpt>`__           | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.1500.ckpt>`__           |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-Hybrid       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.ckpt>`__\ \*      | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt>`__          | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.1500.ckpt>`__          |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-SwinV2-Tiny  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.150.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.500.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.1500.ckpt>`__  |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-LeViT        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.150.ckpt>`__       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.500.ckpt>`__       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.1500.ckpt>`__       |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| MiDaS-small      | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.150.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.500.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.1500.ckpt>`__         |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Depth Predictor  | SML on VOID 150                                                                                                                 | SML on VOID 500                                                                                                                  | SML on VOID 1500                                                                                                                  |
-+==================+=================================================================================================================================+==================================================================================================================================+===================================================================================================================================+
-| DPT-BEiT-Large   | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.150.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.500.ckpt>`__   | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.1500.ckpt>`__   |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| DPT-SwinV2-Large | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.150.ckpt>`__ | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.500.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.1500.ckpt>`__  |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| DPT-Large        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.150.ckpt>`__           | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.500.ckpt>`__            | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.1500.ckpt>`__            |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| DPT-Hybrid       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.ckpt>`__ \*       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt>`__           | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.1500.ckpt>`__           |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| DPT-SwinV2-Tiny  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.150.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.500.ckpt>`__   | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.1500.ckpt>`__   |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| DPT-LeViT        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.150.ckpt>`__       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.500.ckpt>`__        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.1500.ckpt>`__        |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| MiDaS-small      | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.150.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.500.ckpt>`__          | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.1500.ckpt>`__          |
-+------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-
-
-\* Also available with pre-training on TartanAir:
+\*Also available with pre-training on TartanAir:
 `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.pretrained.ckpt>`__
 
 .. code:: ipython3
@@ -239,7 +281,7 @@ depth prediction model as you will see.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/hub.py:267: UserWarning: You are about to download and run code from an untrusted repository. In a future release, this won't be allowed. To add the repository to your trusted list, change the command to {calling_fn}(..., trust_repo=False) and a command prompt will appear asking for an explicit confirmation of trust, or load(..., trust_repo=True), which will assume that the prompt is to be answered with 'yes'. You can also use load(..., trust_repo='check') which will only prompt for confirmation if the repo is not already trusted. This will eventually be the default behaviour
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/hub.py:267: UserWarning: You are about to download and run code from an untrusted repository. In a future release, this won't be allowed. To add the repository to your trusted list, change the command to {calling_fn}(..., trust_repo=False) and a command prompt will appear asking for an explicit confirmation of trust, or load(..., trust_repo=True), which will assume that the prompt is to be answered with 'yes'. You can also use load(..., trust_repo='check') which will only prompt for confirmation if the repo is not already trusted. This will eventually be the default behaviour
       warnings.warn(
     Downloading: "https://github.com/rwightman/gen-efficientnet-pytorch/zipball/master" to model/master.zip
     Downloading: "https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/tf_efficientnet_lite3-b733e338.pth" to model/checkpoints/tf_efficientnet_lite3-b733e338.pth
@@ -254,6 +296,8 @@ depth prediction model as you will see.
 
 Cleaning up the model directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 From the verbose of the previous step it is obvious that
 `torch.hub.load <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
@@ -276,6 +320,8 @@ process.
 Transformation of models
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 Each of the models need an appropriate transformation which can be
 invoked by the ``get_model_transforms`` function. It needs only the
 ``depth_predictor`` parameter and ``NSAMPLES`` defined above to work.
@@ -286,7 +332,7 @@ model are always in direct correspondence with each other.
 
     # Define important custom types
     type_transform_compose = torchvision.transforms.transforms.Compose
-    type_compiled_model = openvino.runtime.ie_api.CompiledModel
+    type_compiled_model = ov.CompiledModel
 
 .. code:: ipython3
 
@@ -311,8 +357,10 @@ model are always in direct correspondence with each other.
 Dummy input creation
 ^^^^^^^^^^^^^^^^^^^^
 
+
+
 Dummy inputs are necessary for `PyTorch to
-ONNX <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
+ONNX <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
 conversion. Although
 `torch.onnx.export <https://pytorch.org/docs/stable/onnx.html>`__
 accepts any dummy input for a single pass through the model and thereby
@@ -392,8 +440,10 @@ dataset
     # Transform the dummy input image for the depth model
     transformed_dummy_image = transform_image_for_depth(input_image=dummy_input, depth_model_transform=depth_model_transform)
 
-Conversion of depth model to OpenVINO™ IR format
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Conversion of depth model to OpenVINO IR format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 The OpenVINO™ toolkit doesn’t provide any direct method of converting
 PyTorch models to the intermediate representation format. To have a
@@ -404,7 +454,7 @@ we shall follow the following steps:
    models and checkpoints* stage.
 2. Export the model to ``.onnx`` format using the transformed dummy
    input created earlier.
-3. Use the serialize function from OpenVINO to create equivalent
+3. Use the save model function from OpenVINO to create equivalent
    ``.xml`` and ``.bin`` files and obtain compiled models in the same
    step. Alternatively serialization procedure may be avoided and
    compiled model may be obtained by directly using OpenVINO’s
@@ -423,29 +473,31 @@ we shall follow the following steps:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/246-depth-estimation-videpth/model/rwightman_gen-efficientnet-pytorch_master/geffnet/conv2d_layers.py:47: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/notebooks/246-depth-estimation-videpth/model/rwightman_gen-efficientnet-pytorch_master/geffnet/conv2d_layers.py:47: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
 Select inference device
 '''''''''''''''''''''''
 
-Select device from dropdown list for running inference using OpenVINO:
+
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -468,6 +520,8 @@ Select device from dropdown list for running inference using OpenVINO:
 Compilation of depth model
 ''''''''''''''''''''''''''
 
+
+
 Now we can go ahead and compile our depth models from the ``.onnx`` file
 path. We will not perform serialization because we don’t plan to re-read
 the file again within this tutorial. Therefore we will use the compiled
@@ -476,7 +530,6 @@ depth estimation model as it is.
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    core = Core()
     depth_model = core.read_model(MODEL_DIR / 'depth_model.onnx')
     compiled_depth_model = core.compile_model(model=depth_model, device_name=device.value)
 
@@ -527,6 +580,8 @@ depth estimation model as it is.
 
 Computation of scale and shift parameters
 '''''''''''''''''''''''''''''''''''''''''
+
+
 
 Computation of these parameters required the depth estimation model
 output from the previous step. These are the regression based parameters
@@ -633,8 +688,10 @@ purpose has already been created.
                                                                     scale_map_learner_transform=scale_map_learner_transform,
                                                                     int_depth=d_depth, int_scales=d_scales)
 
-Conversion of Scale Map Learner model to OpenVINO™ IR format
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Conversion of Scale Map Learner model to OpenVINO IR format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 The OpenVINO™ toolkit doesn’t provide any direct method of converting
 PyTorch models to the intermediate representation format. To have the
@@ -646,7 +703,7 @@ it, we shall follow the following steps:
    passing the downloaded checkpoint earlier as an argument.
 2. Export the model to ``.onnx`` format using the transformed dummy
    inputs created earlier.
-3. Use the serialize function from OpenVINO to create equivalent
+3. Use the save model function from OpenVINO to create equivalent
    ``.xml`` and ``.bin`` files and obtain compiled models in the same
    step. Alternatively serialization procedure may be avoided and
    compiled model may be obtained by directly using OpenVINO’s
@@ -655,14 +712,14 @@ it, we shall follow the following steps:
 If the name of the ``.ckpt`` file is too much to handle, here is the
 common format of all checkpoint files from the model releases.
 
--  sml_model.dpredictor.<DEPTH_PREDICTOR>.nsamples.<NSAMPLES>.ckpt
--  Replace <DEPTH_PREDICTOR> and <NSAMPLES> with the depth estimation
-   model name and the no. of levels of depth density the SML model
-   has been trained on
--  E.g. sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt will be the
-   file name corresponding to the SML model based on the dpt_hybrid
-   depth predictor and has been trained on 500 points of the density
-   level on the depth map
+   -  sml_model.dpredictor.<DEPTH_PREDICTOR>.nsamples.<NSAMPLES>.ckpt
+   -  Replace <DEPTH_PREDICTOR> and <NSAMPLES> with the depth estimation
+      model name and the no. of levels of depth density the SML model
+      has been trained on
+   -  E.g. sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt will be the
+      file name corresponding to the SML model based on the dpt_hybrid
+      depth predictor and has been trained on 500 points of the density
+      level on the depth map
 
 .. code:: ipython3
 
@@ -710,23 +767,25 @@ common format of all checkpoint files from the model releases.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/246-depth-estimation-videpth/model/rwightman_gen-efficientnet-pytorch_master/geffnet/conv2d_layers.py:47: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/notebooks/246-depth-estimation-videpth/model/rwightman_gen-efficientnet-pytorch_master/geffnet/conv2d_layers.py:47: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
 Select inference device
 '''''''''''''''''''''''
 
-Select device from dropdown list for running inference using OpenVINO:
+
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -743,6 +802,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
 Compilation of the ScaleMapLearner(SML) model
 '''''''''''''''''''''''''''''''''''''''''''''
+
+
 
 Now we can go ahead and compile our SML model from the ``.onnx`` file
 path. We will not perform serialization because we don’t plan to re-read
@@ -806,6 +867,8 @@ SML model as it is.
 Storing and visualizing dummy results obtained
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+
+
 .. code:: ipython3
 
     # Base directory in which outputs would be stored as a pathlib.Path variable
@@ -860,6 +923,8 @@ Storing and visualizing dummy results obtained
 
 Running inference on a test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now role of both the dummy inputs i.e. the dummy image as well as its
 associated depth map is now over. Since we have access to the compiled
@@ -952,6 +1017,8 @@ present*\ `here <https://drive.google.com/uc?id=1bbN46kR_hcH3GG8-jGRqAI433uddYrn
 Store and visualize Inference results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 .. code:: ipython3
 
     # Store the depth and SML predictions
@@ -999,6 +1066,8 @@ Store and visualize Inference results
 Cleaning up the data directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+
+
 We will *follow suit* for the directory in which we downloaded images
 and depth maps from another repo. We shall move remove the unnecessary
 directories and files which were created during the download process.
@@ -1011,17 +1080,19 @@ directories and files which were created during the download process.
 Concluding notes
 ~~~~~~~~~~~~~~~~
 
-1. The code for this tutorial is adapted from the `VI-Depth
-   repository <https://github.com/isl-org/VI-Depth>`__.
-2. Users may choose to download the original and raw datasets from
-   the `VOID
-   dataset <https://github.com/alexklwong/void-dataset/>`__.
-3. The `isl-org/VI-Depth <https://github.com/isl-org/VI-Depth>`__
-   works on a slightly older version of released model assets from
-   its `MiDaS sibling
-   repository <https://github.com/isl-org/MiDaS>`__. However, the new
-   releases beginning from
-   `v3.1 <https://github.com/isl-org/MiDaS/releases/tag/v3_1>`__
-   directly have OpenVINO™ ``.xml`` and ``.bin`` model files as their
-   assets thereby rendering the **major pre-processing and model
-   compilation step irrelevant**.
+
+
+   1. The code for this tutorial is adapted from the `VI-Depth
+      repository <https://github.com/isl-org/VI-Depth>`__.
+   2. Users may choose to download the original and raw datasets from
+      the `VOID
+      dataset <https://github.com/alexklwong/void-dataset/>`__.
+   3. The `isl-org/VI-Depth <https://github.com/isl-org/VI-Depth>`__
+      works on a slightly older version of released model assets from
+      its `MiDaS sibling
+      repository <https://github.com/isl-org/MiDaS>`__. However, the new
+      releases beginning from
+      `v3.1 <https://github.com/isl-org/MiDaS/releases/tag/v3_1>`__
+      directly have OpenVINO™ ``.xml`` and ``.bin`` model files as their
+      assets thereby rendering the **major pre-processing and model
+      compilation step irrelevant**.

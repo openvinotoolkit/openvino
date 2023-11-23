@@ -254,8 +254,8 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
 protected:
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 
     size_t count = 0;
     size_t byte_offset = 0;
@@ -364,7 +364,7 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
     size_t aux_gprs_count() const override;
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
@@ -430,7 +430,7 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::i8}, {element::bf16}};
     }
 
@@ -469,7 +469,7 @@ public:
                    const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
