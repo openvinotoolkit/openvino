@@ -6,16 +6,13 @@ import os
 import shutil
 
 import gc
-import tarfile
 import tempfile
 import pytest
 import tensorflow as tf
 import openvino as ov
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-import tensorflow_text  # do not delete, needed for text models
 import numpy as np
-import json
 
 from models_hub_common.test_performance_model import TestModelPerformance
 from models_hub_common.utils import get_models_list
