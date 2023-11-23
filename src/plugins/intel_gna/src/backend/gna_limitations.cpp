@@ -677,7 +677,8 @@ constexpr uint32_t Limitations::kBytesPerCropElement;
 constexpr uint32_t Limitations::kBytesPerConcatElement;
 constexpr uint32_t Limitations::kMemoryPageSize;
 
-thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};
+std::unordered_map<std::thread::id, std::shared_ptr<Limitations>> Limitations::kInstances;
+std::mutex Limitations::kInstancesMtx;
 
 Limitations::Limitations(const DeviceVersion& target) {
     m_use_only_16bit_conv_weights =
@@ -689,7 +690,18 @@ Limitations::Limitations(const DeviceVersion& target) {
 }
 
 void Limitations::init(const DeviceVersion& compile_target) {
-    k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
+    std::lock_guard<std::mutex> lock(kInstancesMtx);
+    auto thread_id = std::this_thread::get_id();
+    kInstances[thread_id] = std::shared_ptr<Limitations>(new Limitations(compile_target));
+}
+
+void Limitations::deinit() {
+    std::lock_guard<std::mutex> lock(kInstancesMtx);
+    auto thread_id = std::this_thread::get_id();
+    auto iter = kInstances.find(thread_id);
+    if (iter != kInstances.end()) {
+        kInstances.erase(thread_id);
+    }
 }
 
 size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input) {
