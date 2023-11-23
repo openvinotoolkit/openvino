@@ -74,10 +74,10 @@ void apply_scale_shift(T* out,
     const auto data_size = shape_size(data_shape);
 
     if (scale_size == 1) {  // per tensor scale, probably for activation
-        T s = scale[0];
-        T o = shift[0];
+        T scale_val = scale[0];
+        T shift_val = shift[0];
         for (size_t j = 0; j < data_size; ++j) {
-            out[j] = scale_shift_func(data[j], s, o);
+            out[j] = scale_shift_func(data[j], scale_val, shift_val);
         }
         return;
     }
@@ -91,10 +91,10 @@ void apply_scale_shift(T* out,
 
         for (size_t bs = 0; bs < data_shape[0]; ++bs) {
             for (size_t i = 0; i < scale_size; i++) {
-                T s = scale[i];
-                T o = shift[i];
+                T scale_val = scale[i];
+                T shift_val = shift[i];
                 for (size_t j = 0; j < step; ++j) {
-                    out[j] = scale_shift_func(data[j], s, o);
+                    out[j] = scale_shift_func(data[j], scale_val, shift_val);
                 }
                 data += step;
                 out += step;
