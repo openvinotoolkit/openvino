@@ -64,6 +64,7 @@ OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
+OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -330,6 +331,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::embedding", op::translate_embedding},
         {"aten::embedding_bag", op::translate_embedding_bag},
         {"aten::empty", op::translate_empty},
+        {"aten::empty_like", op::translate_empty_like},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erf_", op::inplace_op<op::translate_erf>},
