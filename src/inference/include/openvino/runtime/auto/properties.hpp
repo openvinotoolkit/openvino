@@ -70,7 +70,7 @@ inline std::istream& operator>>(std::istream& is, SchedulePolicy& policy) {
 
 /**
  * @brief High-level OpenVINO model policy hint
- * Defines what model should be provided with more performant bounded resource first
+ * Defines what scheduling policy should be used in AUTO CUMULATIVE_THROUGHPUT or MULTI case
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
