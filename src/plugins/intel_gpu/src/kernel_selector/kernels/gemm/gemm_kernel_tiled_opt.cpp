@@ -69,6 +69,9 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         auto n_size = output.X().v;
         auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
 
+        GPU_DEBUG_COUT << "[" << m_size << ", " << n_size << ", " << k_size << "], "
+            << params.transpose_input0 << ", " << params.transpose_input1 << std::endl;
+
         auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
         tuning_data.simd_size = 8;
 
