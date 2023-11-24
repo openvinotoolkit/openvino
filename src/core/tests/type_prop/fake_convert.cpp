@@ -130,7 +130,7 @@ TEST(type_prop, fake_convert_basic_unsupported_type) {
     OV_EXPECT_THROW(
         const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
         Exception,
-        testing::HasSubstr("The element type of the input tensor must be a bf16, f16, f32 or dynamic (got f64)."));
+        testing::HasSubstr("The element type of the input tensor must be a bf16, f16, f32 but got: f64"));
 }
 
 TEST(type_prop, fake_convert_basic_unsupported_shape_scale_shift) {
@@ -140,7 +140,7 @@ TEST(type_prop, fake_convert_basic_unsupported_shape_scale_shift) {
 
     OV_EXPECT_THROW(const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
                     AssertFailure,
-                    testing::HasSubstr("FakeConvert scale shape: [1] is not compatible with shift shape: []"));
+                    testing::HasSubstr("FakeConvert scale shape is not compatible with shift shape."));
 }
 
 TEST(type_prop, fake_convert_basic_unsupported_shape_not_broadcastable) {
