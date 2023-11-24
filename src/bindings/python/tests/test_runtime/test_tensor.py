@@ -9,7 +9,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-import openvino.runtime.opset11 as ops
+import openvino.runtime.opset13 as ops
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
