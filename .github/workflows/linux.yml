@@ -1359,7 +1359,7 @@ jobs:
 
   TensorFlow_Hub_Performance_Models_Tests:
     name: TensorFlow Hub Performance Models tests
-    needs: Build
+    needs: [Build, Smart_CI]
     defaults:
       run:
         shell: bash
