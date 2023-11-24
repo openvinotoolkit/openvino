@@ -76,6 +76,12 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnGetTensorAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.wait());
 }
 
+TEST_P(OVInferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    ASSERT_THROW(req.wait_for(std::chrono::milliseconds{-1}), ov::Exception);
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
