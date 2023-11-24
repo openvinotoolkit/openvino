@@ -166,7 +166,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Clean sccache stats
-        run: sccache --zero-stats
+        run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
@@ -1576,8 +1576,19 @@ jobs:
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
 
+  GPU_Stub:
+    needs: [Build, Smart_CI]
+    runs-on: ubuntu-latest
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    steps:
+      - name: GPU stub
+        run: |
+          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI. 
+          It will help us to estimate hardware requirements"
+        shell: bash
+
   Overall_Status:
-    name: ci/gha_linux
+    name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
             CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
     if: ${{ always() }}
