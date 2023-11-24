@@ -50,6 +50,9 @@ protected:
     get_ordered_nodes(const ov::NodeVector& start_node_vec);
     std::vector<ov::NodeVector>
     post_process_patterns(const std::vector<std::vector<NodePair>>& patterns);
+    void
+    get_node_queque(ov::NodeVector& queue,
+                    const std::shared_ptr<ov::Node>& node);
 
 };
 

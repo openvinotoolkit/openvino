@@ -125,13 +125,13 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
     if (!same_op_type(node, ref)) {
         return false;
     }
+    if (!match_attrs(node, ref) && !ov::util::is_node_to_skip(node)) {
+        return false;
+    }
     if (!match_inputs(node, ref)) {
         return false;
     }
     if (!match_outputs(node, ref)) {
-        return false;
-    }
-    if (!match_attrs(node, ref) && !ov::util::is_node_to_skip(node)) {
         return false;
     }
     return true;

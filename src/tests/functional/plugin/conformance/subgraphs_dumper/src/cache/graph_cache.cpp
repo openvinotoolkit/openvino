@@ -132,12 +132,13 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                             m_graph_cache.erase(subgraph);
                             m_graph_cache.insert({graph, meta});
                             m_graph_cache_bytesize += (graph->get_graph_size() - subgraph->get_graph_size());
+                        } else {
+                            m_graph_cache[cached_model.first].update(model_path,
+                                                                     subgraph_in_info,
+                                                                     model_op_cnt,
+                                                                     this_op_cnt,
+                                                                     extractor_name);
                         }
-                        m_graph_cache[cached_model.first].update(model_path,
-                                                                subgraph_in_info,
-                                                                model_op_cnt,
-                                                                this_op_cnt,
-                                                                extractor_name);
                         return;
                     }
                 }
@@ -158,8 +159,10 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     if (pattern_model_size < cached_model_size) {
         m_graph_cache_bytesize -= (cached_model_size - pattern_model_size);
         auto meta = m_graph_cache[model_to_update];
+        auto matched_ops = m_model_comparator->get_matched_ops(model_to_update, extracted_model);
         auto new_in_info = ov::util::align_input_info(model_to_update, extracted_model,
-                                                      m_graph_cache.at(model_to_update).get_input_info(), input_info);
+                                                      m_graph_cache.at(model_to_update).get_input_info(), input_info,
+                                                      matched_ops);
         meta.set_input_info(new_in_info);
         m_graph_cache.erase(model_to_update);
         model_to_update = extracted_model;

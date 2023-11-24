@@ -24,10 +24,10 @@ inline ModelComparator::IsSubgraphTuple
 prepare_is_subgraph_result(bool is_subgraph,
                            const std::shared_ptr<ov::Model>& subgraph,
                            const std::shared_ptr<ov::Model>& graph,
-                           const std::map<std::string, std::string>& matched_ops) {
+                           const std::unordered_map<std::string, std::string>& matched_ops) {
     return is_subgraph ?
            std::make_tuple(is_subgraph, subgraph, graph, matched_ops) :
-           std::make_tuple(is_subgraph, nullptr, nullptr, std::map<std::string, std::string>());
+           std::make_tuple(is_subgraph, nullptr, nullptr, std::unordered_map<std::string, std::string>());
 }
 
 ModelComparator::IsSubgraphTuple
@@ -49,17 +49,8 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
         graph = ref_model;
         subgraph = model;
     }
-    std::map<std::string, std::string> matched_op_names;
-
-    auto graph_it = graph_to_check_ops.begin(), subgraph_it = subgraph_to_check_ops.begin();
-    while (graph_it != graph_to_check_ops.end() && subgraph_it != subgraph_to_check_ops.end()) {
-        if (m_manager.match(*graph_it, *subgraph_it)) {
-            matched_op_names.insert({ (*subgraph_it)->get_friendly_name(), (*graph_it)->get_friendly_name()});
-            ++subgraph_it;
-        }
-        ++graph_it;
-    }
-    return prepare_is_subgraph_result(subgraph_it == subgraph_to_check_ops.end(), subgraph, graph, matched_op_names);
+    auto matched_op_names = get_matched_ops(subgraph, graph);
+    return prepare_is_subgraph_result(matched_op_names.size() == subgraph_to_check_ops.size(), subgraph, graph, matched_op_names);
 }
 
 bool
@@ -114,11 +105,32 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
             throw std::runtime_error("Generated models are incompatible with original ones!");
         }
         try {
-            subgraph_in_info = ov::util::align_input_info(subgraph, graph, subgraph_in_info, graph_in_info);
+            subgraph_in_info = ov::util::align_input_info(subgraph, graph,
+                                                          subgraph_in_info, graph_in_info,
+                                                          get_matched_ops(subgraph, graph));
             return { true, subgraph, graph, subgraph_in_info, graph_in_info };
         } catch(std::exception) {}
     }
     return { false, nullptr, nullptr, {}, {} };
+}
+
+std::unordered_map<std::string, std::string>
+ModelComparator::get_matched_ops(const std::shared_ptr<ov::Model>& subgraph,
+                                 const std::shared_ptr<ov::Model>& graph) const {
+    std::unordered_map<std::string, std::string> matched_op_names;
+    std::set<std::string> checked_op;
+    const auto subgraph_to_check_ops = subgraph->get_ordered_ops();
+    const auto graph_to_check_ops = graph->get_ordered_ops();
+    for (const auto& subgraph_op : subgraph_to_check_ops) {
+        for (const auto& graph_op : graph_to_check_ops) {
+            if (m_manager.match(subgraph_op, graph_op) && !checked_op.count(graph_op->get_friendly_name())) {
+                matched_op_names.insert({subgraph_op->get_friendly_name(), graph_op->get_friendly_name()});
+                checked_op.insert(graph_op->get_friendly_name());
+                break;
+            }
+        }
+    }
+    return matched_op_names;
 }
 
 std::pair<bool, std::map<std::string, ov::conformance::InputInfo>>
@@ -128,7 +140,9 @@ ModelComparator::match(const std::shared_ptr<ov::Model> &model,
                        const std::map<std::string, InputInfo> &in_info_ref) {
     try {
         if (match(model, model_ref)) {
-            auto new_input_info = ov::util::align_input_info(model, model_ref, in_info, in_info_ref);
+            auto new_input_info = ov::util::align_input_info(model, model_ref,
+                                                             in_info, in_info_ref,
+                                                             get_matched_ops(model, model_ref));
             return {true, new_input_info};
         }
     } catch (std::exception) {}

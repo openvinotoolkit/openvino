@@ -78,6 +78,11 @@ TEST_F(RepeatPatternExtractorFuncTest, extract_0) {
 
 TEST_F(RepeatPatternExtractorFuncTest, extract_1) {
     auto test_model = Model_1();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(
+    "/Users/iefode/repo/openvino/src/tests/functional/plugin/conformance/subgraphs_dumper/tests/test_models/test.xml",
+    "/Users/iefode/repo/openvino/src/tests/functional/plugin/conformance/subgraphs_dumper/tests/test_models/test.bin");
+    manager.run_passes(test_model.get());
     auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
@@ -157,5 +162,14 @@ TEST_F(RepeatPatternExtractorUnitTest, get_ordered_nodes) {
     auto repeats = this->post_process_patterns(ordered_pattern);
     auto repeats_ref = test_model.get_repeats();
     ASSERT_EQ(repeats, repeats_ref);
+}
+
+TEST_F(RepeatPatternExtractorUnitTest, get_node_queque) {
+    auto test_model = Model_3();
+    auto start_ops = test_model.get_start_ops();
+    ov::NodeVector nodes_queue;
+    this->get_node_queque(nodes_queue, start_ops.front());
+    auto nodes_queue_ref = test_model.get_queue();
+    ASSERT_EQ(nodes_queue, nodes_queue_ref);
 }
 }  // namespace

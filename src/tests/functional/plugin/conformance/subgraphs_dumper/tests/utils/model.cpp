@@ -30,9 +30,8 @@ TEST_F(ModelUtilsTest, generate_0) {
     Model_0 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
-        std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = ov::util::generate_model(func_ops, checked_ops);
+        auto model_with_in_info = ov::util::generate_model(func_ops);
         recovered_model = std::get<0>(model_with_in_info);
     }
     {
@@ -44,9 +43,8 @@ TEST_F(ModelUtilsTest, generate_1) {
     Model_1 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
-        std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = ov::util::generate_model(func_ops, checked_ops);
+        auto model_with_in_info = ov::util::generate_model(func_ops);
         recovered_model = std::get<0>(model_with_in_info);
     }
     {
@@ -58,9 +56,8 @@ TEST_F(ModelUtilsTest, generate_2) {
     Model_2 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
-        std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = ov::util::generate_model(func_ops, checked_ops);
+        auto model_with_in_info = ov::util::generate_model(func_ops);
         recovered_model = std::get<0>(model_with_in_info);
         auto in_info = std::get<1>(model_with_in_info);
     }
@@ -74,10 +71,11 @@ TEST_F(ModelUtilsTest, align_input_info) {
     auto in_info_0 = ov::util::get_input_info_by_model(test_model_0.get());
     auto in_info_1 = ov::util::get_input_info_by_model(test_model_1.get());
     ASSERT_NE(in_info_0, in_info_1);
+    std::unordered_map<std::string, std::string> a;
     ASSERT_NO_THROW(ov::util::align_input_info(test_model_0.get(), test_model_1.get(),
-                                               in_info_0, in_info_1));
+                                               in_info_0, in_info_1, a));
     auto in_info_ref = ov::util::align_input_info(test_model_0.get(), test_model_1.get(),
-                                                  in_info_0, in_info_1);
+                                                  in_info_0, in_info_1, a);
     ASSERT_EQ(in_info_1, in_info_ref);
 }
 
@@ -88,7 +86,7 @@ TEST_F(ModelUtilsTest, align_input_info_for_subgraphs) {
     auto in_info_0 = ov::util::get_input_info_by_model(test_model_0);
     auto in_info_1 = ov::util::get_input_info_by_model(test_model_1);
     ASSERT_NE(in_info_0, in_info_1);
-    std::map<std::string, std::string> matched_ops;
+    auto matched_ops = ov::util::ModelComparator::get()->get_matched_ops(test_model_0, test_model_1);
     auto params_0 = test_model_0->get_parameters();
     auto params_1 = test_model_1->get_parameters();
     size_t params_cnt = params_0.size();
@@ -96,9 +94,9 @@ TEST_F(ModelUtilsTest, align_input_info_for_subgraphs) {
         matched_ops.insert({params_0[param_id]->get_friendly_name(),
                             params_1[param_id]->get_friendly_name()});
     }
-    ASSERT_NO_THROW(ov::util::align_input_info(test_model_0, test_model_1,
-                                               in_info_0, in_info_1,
-                                               matched_ops));
+    // ASSERT_NO_THROW(ov::util::align_input_info(test_model_0, test_model_1,
+    //                                            in_info_0, in_info_1,
+    //                                            matched_ops));
     auto ref = ov::util::align_input_info(test_model_0, test_model_1,
                                           in_info_0, in_info_1, matched_ops);
     ASSERT_EQ(in_info_1, ref);

@@ -21,6 +21,7 @@ protected:
     using PatternBorders = ov::tools::subgraph_dumper::RepeatPatternExtractor::PatternBorders;
     std::shared_ptr<ov::Model> model;
     ov::NodeVector start_ops;
+    ov::NodeVector node_queue;
     std::vector<std::vector<std::pair<std::shared_ptr<ov::Node>, std::vector<size_t>>>> ordered_patterns;
     std::vector<ov::NodeVector> repeats;
 
@@ -134,6 +135,10 @@ public:
             { relu_0, split_1, relu_2 },
             { relu_2, split_4, relu_5 },
         };
+        node_queue = {
+            relu_0, split_1, relu_2, split_4, relu_5, clamp_6,
+            add_7, concat_8, clamp_3, multiply_9, add_10, multiply_11,
+        };
     }
 
     std::shared_ptr<ov::Model> get() {
@@ -148,4 +153,7 @@ public:
 
     std::vector<ov::NodeVector>
     get_repeats() { return repeats; }
+
+    ov::NodeVector
+    get_queue() { return node_queue; }
 };
