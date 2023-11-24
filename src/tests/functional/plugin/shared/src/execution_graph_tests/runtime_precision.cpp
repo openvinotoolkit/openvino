@@ -16,6 +16,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/node_builders/binary_convolution.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 #include "execution_graph_tests/runtime_precision.hpp"
 
@@ -39,12 +40,11 @@ std::shared_ptr<ov::Model> makeEltwiseFunction(const std::vector<ov::element::Ty
 std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::element::Type>& inputPrecisions) {
     IE_ASSERT(inputPrecisions.size() == 1);
 
-    ov::ParameterVector inputs{
-        std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
-    auto inputLowNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
-    auto inputHighNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {255});
-    auto outputLowNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
-    auto outputHighNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {255});
+    ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
+    auto inputLowNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
+    auto inputHighNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {255});
+    auto outputLowNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
+    auto outputHighNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {255});
     auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 256);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
@@ -58,12 +58,11 @@ std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::el
 std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<ov::element::Type> &inputPrecisions) {
     IE_ASSERT(inputPrecisions.size() == 1);
 
-    ov::ParameterVector inputs{
-        std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
-    auto inputLowNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
-    auto inputHighNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
-    auto outputLowNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
-    auto outputHighNode = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
+    ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
+    auto inputLowNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
+    auto inputHighNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
+    auto outputLowNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
+    auto outputHighNode = ov::test::utils::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
     auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 2);
     fakeQuantize->set_friendly_name("FakeQuantize");
 

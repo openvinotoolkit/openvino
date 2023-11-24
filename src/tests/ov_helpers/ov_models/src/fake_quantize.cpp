@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
@@ -20,10 +21,13 @@ std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        const std::vector<float>& inputHighData,
                                        const std::vector<float>& outputLowData,
                                        const std::vector<float>& outputHighData) {
-    auto inputLowNode = makeConstant(constantType, constShapes, inputLowData, inputLowData.empty());
-    auto inputHighNode = makeConstant(constantType, constShapes, inputHighData, inputHighData.empty());
-    auto outputLowNode = makeConstant(constantType, constShapes, outputLowData, outputLowData.empty());
-    auto outputHighNode = makeConstant(constantType, constShapes, outputHighData, outputHighData.empty());
+    auto inputLowNode = ov::test::utils::make_constant(constantType, constShapes, inputLowData, inputLowData.empty());
+    auto inputHighNode =
+        ov::test::utils::make_constant(constantType, constShapes, inputHighData, inputHighData.empty());
+    auto outputLowNode =
+        ov::test::utils::make_constant(constantType, constShapes, outputLowData, outputLowData.empty());
+    auto outputHighNode =
+        ov::test::utils::make_constant(constantType, constShapes, outputHighData, outputHighData.empty());
 
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(in,
                                                          inputLowNode,
@@ -78,13 +82,13 @@ std::shared_ptr<ov::Node> makeFakeQuantize(const ov::Output<ov::Node>& in,
     }
 
     auto inputLowNode =
-        ngraph::builder::makeConstant(type, constShapes, inputLowData, inputLowData.empty(), 10.f, 1.f, seed);
+        ov::test::utils::make_constant(type, constShapes, inputLowData, inputLowData.empty(), 10.f, 1.f, seed);
     auto inputHighNode =
-        ngraph::builder::makeConstant(type, constShapes, inputHighData, inputHighData.empty(), 10.f, 1.f, seed);
+        ov::test::utils::make_constant(type, constShapes, inputHighData, inputHighData.empty(), 10.f, 1.f, seed);
     auto outputLowNode =
-        ngraph::builder::makeConstant(type, constShapes, outputLowData, outputLowData.empty(), 10.f, 1.f, seed);
+        ov::test::utils::make_constant(type, constShapes, outputLowData, outputLowData.empty(), 10.f, 1.f, seed);
     auto outputHighNode =
-        ngraph::builder::makeConstant(type, constShapes, outputHighData, outputHighData.empty(), 10.f, 1.f, seed);
+        ov::test::utils::make_constant(type, constShapes, outputHighData, outputHighData.empty(), 10.f, 1.f, seed);
 
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(in,
                                                          inputLowNode,

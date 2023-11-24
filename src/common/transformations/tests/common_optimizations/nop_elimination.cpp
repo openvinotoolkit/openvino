@@ -12,6 +12,7 @@
 #include <string>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
@@ -1013,7 +1014,7 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
         constant = op::v0::Constant::create(constant_type, shape2, {1});
         break;
     case ConstantKind::RANDOM:
-        constant = ngraph::builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+        constant = ov::test::utils::make_constant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
         break;
     }
 

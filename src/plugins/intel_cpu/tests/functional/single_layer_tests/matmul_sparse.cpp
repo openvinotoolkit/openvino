@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpu/cpu_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -133,7 +134,7 @@ protected:
             ov::op::v0::MatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
-        auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
+        auto matrixB = ov::test::utils::make_constant<int8_t>(weiType, inShapeB.get_shape(), weiData);
 
         auto matMul = matMulRelaxed->copy_with_new_inputs({A, matrixB});
 

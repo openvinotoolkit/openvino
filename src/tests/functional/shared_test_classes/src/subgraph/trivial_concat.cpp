@@ -5,6 +5,8 @@
 #include "shared_test_classes/subgraph/trivial_concat.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace SubgraphTestsDefinitions {
 
 std::string TrivialConcatLayerTest::getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple> &obj) {
@@ -38,7 +40,7 @@ void TrivialConcatLayerTest::SetUp() {
     auto input = std::make_shared<ov::op::v1::Reshape>(input_relu, input_reshape_pattern, false);
 
     auto constant_values = ov::test::utils::generate_float_numbers(total_size, 15.5f, 16.1f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>({1, total_size}), constant_values);
+    auto constant = ov::test::utils::make_constant(ngPrc, std::vector<size_t>({1, total_size}), constant_values);
 
     auto first_reshape = std::make_shared<ov::op::v1::Reshape>(constant, input_reshape_pattern, false);
 

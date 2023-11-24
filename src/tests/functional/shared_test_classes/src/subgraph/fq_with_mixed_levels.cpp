@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/fq_with_mixed_levels.hpp"
 #include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -42,7 +43,7 @@ void FqWithMixedLevelsTest::SetUp() {
         auto constant = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{shapes[1][0], shapes[1][1]}, weights);
         auto fake2 = ngraph::builder::makeFakeQuantize(constant, ngPrc, level2, { 1 }, data2[0], data2[1], data2[2], data2[3]);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(fake1, fake2, false, true);
-        auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{shapes[0][0], shapes[1][0]}, std::vector<float>{ 1.0 });
+        auto bias = ov::test::utils::make_constant(ngPrc, std::vector<size_t>{shapes[0][0], shapes[1][0]}, std::vector<float>{ 1.0 });
         auto add = ov::test::utils::make_eltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
         return ngraph::builder::makeFakeQuantize(add, ngPrc, level3, { 1 }, data3[0], data3[1], data3[2], data3[3]);
     };

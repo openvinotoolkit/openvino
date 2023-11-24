@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -130,12 +131,12 @@ protected:
         if (quantizedHiddenState) {
             H = makeDataFQ(inputParams[1]);
         } else {
-            H = ngraph::builder::makeConstant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
+            H = ov::test::utils::make_constant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
 
-        auto W = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
+        auto W = ov::test::utils::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
+        auto R = ov::test::utils::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
+        auto B = ov::test::utils::make_constant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;

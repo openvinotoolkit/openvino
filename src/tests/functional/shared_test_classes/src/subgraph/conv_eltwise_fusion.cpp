@@ -9,6 +9,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
@@ -58,10 +59,10 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ngraph::builder::makeConstant<float>(precision,
+        auto weights = ov::test::utils::make_constant<float>(precision,
                                                             weights_shape,
                                                             std::vector<float>(shape_size(weights_shape), 2));
-        auto eltwise_const = ngraph::builder::makeConstant<float>(precision,
+        auto eltwise_const = ov::test::utils::make_constant<float>(precision,
                                                                   const_shape,
                                                                   std::vector<float>(shape_size(const_shape), 3));
         std::shared_ptr<Node> conv;
@@ -143,7 +144,7 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ngraph::builder::makeConstant<float>(precision,
+        auto weights = ov::test::utils::make_constant<float>(precision,
                                                             weights_shape,
                                                             std::vector<float>(shape_size(weights_shape), 6));
         std::shared_ptr<Node> conv;

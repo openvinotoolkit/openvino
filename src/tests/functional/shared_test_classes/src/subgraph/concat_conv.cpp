@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/concat_conv.hpp"
 #include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -66,7 +67,7 @@ void ConcatConvTest::SetUp() {
     auto relu1 = std::make_shared<ov::op::v0::Relu>(params[0]);
 
     auto const_values = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, inputShape, const_values);
+    auto constant = ov::test::utils::make_constant(ngPrc, inputShape, const_values);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{constant, relu1}, 1);
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, 2 * inputShape[0] * inputShape[1] / inputChannels};

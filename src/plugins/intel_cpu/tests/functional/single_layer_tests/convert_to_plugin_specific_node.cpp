@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -55,7 +56,7 @@ protected:
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));
-        const auto constNode = ngraph::builder::makeConstant(prc, constShape, std::vector<float>{}, true);
+        const auto constNode = ov::test::utils::make_constant(prc, constShape, std::vector<float>{}, true);
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;

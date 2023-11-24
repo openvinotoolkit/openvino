@@ -3,6 +3,7 @@
 //
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
@@ -46,8 +47,8 @@ void ActivationConcatsEltwise::SetUp() {
 
     auto concat_vals_1 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
     auto concat_vals_2 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
-    auto concat_const_1 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
-    auto concat_const_2 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
+    auto concat_const_1 = ov::test::utils::make_constant(ngPrc, {1, concatSize}, concat_vals_1);
+    auto concat_const_2 = ov::test::utils::make_constant(ngPrc, {1, concatSize}, concat_vals_2);
 
     auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_const_1, relu}, 1);
     auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_const_2, relu}, 1);
