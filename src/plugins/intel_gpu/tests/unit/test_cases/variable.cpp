@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "test_utils.h"
@@ -40,7 +41,8 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, engine, network->get_shape_predictor());
+        auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+        auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, context, network->get_shape_predictor());
         network->set_variable("v0", variable);
         network->set_input_data("input", input_data);
 
@@ -53,7 +55,11 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
             ASSERT_EQ(output_count, param.values.size()) << "inference " << inference;
 
             for (size_t i = 0; i < output_count; ++i) {
-                ASSERT_EQ(output_ptr[i], inference * param.values[i]) << "inference " << inference;
+                if (ov::element::Type(output->get_layout().data_type).is_real()) {
+                    ASSERT_FLOAT_EQ(output_ptr[i], (inference + 1) * param.values[i]) << "inference " << inference;
+                } else {
+                    ASSERT_EQ(output_ptr[i], (inference + 1) * param.values[i]) << "inference " << inference;
+                }
             }
         }
     }
@@ -129,7 +135,8 @@ void test_exception_on_wrong_layout(bool is_caching_test) {
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, engine, network->get_shape_predictor());
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, context, network->get_shape_predictor());
     network->set_variable("v0", variable);
     network->set_input_data("input", input_data);
     network->set_input_data("wrong_input", wrong_input_data);
@@ -152,12 +159,12 @@ template <typename T>
 void test_different_output_data_type(bool is_caching_test) {
     auto& engine = get_test_engine();
 
-    const layout in_layout{data_types::f32, format::bfyx, tensor{1}};
+    const layout in_layout{{ 1 }, data_types::f32, format::bfyx};
     const auto input_data = engine.allocate_memory(in_layout);
     std::vector<float> inputs = { 70.0f };
     set_values(input_data, inputs);
 
-    const layout variable_layout{data_types::f16, format::bfyx, tensor{1}};
+    const layout variable_layout{{ 1 }, data_types::f16, format::bfyx};
 
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));
@@ -166,8 +173,8 @@ void test_different_output_data_type(bool is_caching_test) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-
-    auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, engine, network->get_shape_predictor());
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, context, network->get_shape_predictor());
     network->set_variable("v0", variable);
     network->set_input_data("input", input_data);
 
@@ -222,10 +229,10 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-
-    auto variable1 = std::make_shared<VariableState>(VariableStateInfo{"v1", variable_layout}, engine, network->get_shape_predictor());
-    auto variable2 = std::make_shared<VariableState>(VariableStateInfo{"v2", variable_layout}, engine, network->get_shape_predictor());
-    auto variable3 = std::make_shared<VariableState>(VariableStateInfo{"v_result", variable_layout}, engine, network->get_shape_predictor());
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable1 = std::make_shared<VariableState>(VariableStateInfo{"v1", variable_layout}, context, network->get_shape_predictor());
+    auto variable2 = std::make_shared<VariableState>(VariableStateInfo{"v2", variable_layout}, context, network->get_shape_predictor());
+    auto variable3 = std::make_shared<VariableState>(VariableStateInfo{"v_result", variable_layout}, context, network->get_shape_predictor());
     network->set_variable("v1", variable1);
     network->set_variable("v2", variable2);
     network->set_variable("v_result", variable3);
@@ -233,7 +240,7 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     network->set_input_data("input_2", input_2);
 
     // set variables with assign on 1st inference, read with read_values on 2nd one
-    // network->execute();
+    network->execute();
     const auto outputs = network->execute();
     const auto output = outputs.at("read_result").get_memory();
     const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());

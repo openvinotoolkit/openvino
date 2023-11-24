@@ -271,8 +271,6 @@ void primitive_inst::update_shape() {
             _impl_params->state_layout = new_layout;
             input_shape_changed = true;
         }
-
-        input_shape_changed = true;
     }
 
     if (input_shape_changed)

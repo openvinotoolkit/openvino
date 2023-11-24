@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/make_tensor.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
@@ -14,12 +15,12 @@
 namespace ov {
 namespace intel_gpu {
 
-VariableState::VariableState(const VariableStateInfo& info, cldnn::engine& engine, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
+VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
     : ov::IVariableState {info.m_id}
     , m_layout(info.m_layout)
-    , m_engine(engine)
+    , m_context(context)
     , m_shape_predictor(shape_predictor) {
-    m_state = ov::make_tensor(m_layout.data_type, get_tensor_shape(m_layout.get_partial_shape()));
+    m_state = m_context->create_host_tensor(m_layout.data_type, get_tensor_shape(m_layout.get_partial_shape()));
     update_device_buffer();
 }
 
@@ -54,11 +55,10 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     update_device_buffer();
     if (remote_ptr != nullptr) {
         auto user_memory = remote_ptr->get_memory();
-        cldnn::mem_lock<uint8_t> lock(user_memory, m_engine.get_service_stream());
-        m_memory->copy_from(m_engine.get_service_stream(), lock.data(), blocking);
+        m_memory->copy_from(m_context->get_engine().get_service_stream(), *user_memory, blocking);
     } else {
         auto data = state->data();
-        m_memory->copy_from(m_engine.get_service_stream(), data, blocking);
+        m_memory->copy_from(m_context->get_engine().get_service_stream(), data, blocking);
     }
     set();
 }
@@ -68,20 +68,20 @@ void VariableState::update_device_buffer() {
         return;
 
     if (actual_size < m_layout.bytes_count()) {
-        const auto alloc_type = m_engine.use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
+        const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
         const auto current_shape = get_tensor_shape(m_layout.get_partial_shape());
         const auto alloc_shape = predict_shape(m_name, current_shape, m_layout.data_type, *m_shape_predictor);
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
-        m_memory = m_engine.allocate_memory(alloc_layout, alloc_type, false);
+        m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
-    m_memory = m_engine.reinterpret_buffer(*m_memory, m_layout);
+    m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {
     const bool blocking = true;
     m_state->set_shape(m_memory->get_layout().get_shape());
-    m_memory->copy_to(m_engine.get_service_stream(), m_state->data(), blocking);
+    m_memory->copy_to(m_context->get_engine().get_service_stream(), m_state->data(), blocking);
 
     return m_state;
 }

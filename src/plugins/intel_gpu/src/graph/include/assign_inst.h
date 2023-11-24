@@ -44,6 +44,8 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const override;
     void load(cldnn::BinaryInputBuffer& ib) override;
+
+    void on_execute() override;
 };
 
 using assign_inst = typed_primitive_inst<assign>;
