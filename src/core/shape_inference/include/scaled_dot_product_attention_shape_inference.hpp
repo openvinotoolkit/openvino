@@ -4,7 +4,6 @@
 #pragma once
 
 #include "openvino/op/scaled_dot_product_attention.hpp"
-
 #include "utils.hpp"
 
 namespace ov {
@@ -26,8 +25,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std:
     const auto query = input_shapes[0];
     if (query.rank().is_static()) {
         OPENVINO_ASSERT(query.rank().get_length() >= 3);
-        OPENVINO_ASSERT(
-            TRShape::merge_into(n_dims, TRShape(std::vector<Dimension>(query.begin(), query.end() - 2))));
+        OPENVINO_ASSERT(TRShape::merge_into(n_dims, TRShape(std::vector<Dimension>(query.begin(), query.end() - 2))));
         OPENVINO_ASSERT(Dimension::merge(l_dim, l_dim, *(query.end() - 2)));
         OPENVINO_ASSERT(Dimension::merge(e_dim, e_dim, *(query.end() - 1)));
     }
@@ -35,8 +33,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std:
     const auto key = input_shapes[1];
     if (key.rank().is_static()) {
         OPENVINO_ASSERT(key.rank().get_length() >= 3);
-        OPENVINO_ASSERT(
-            TRShape::merge_into(n_dims, TRShape(std::vector<Dimension>(key.begin(), key.end() - 2))));
+        OPENVINO_ASSERT(TRShape::merge_into(n_dims, TRShape(std::vector<Dimension>(key.begin(), key.end() - 2))));
         OPENVINO_ASSERT(Dimension::merge(s_dim, s_dim, *(key.end() - 2)));
         OPENVINO_ASSERT(Dimension::merge(e_dim, e_dim, *(key.end() - 1)));
     }
@@ -44,8 +41,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std:
     const auto value = input_shapes[2];
     if (value.rank().is_static()) {
         OPENVINO_ASSERT(value.rank().get_length() >= 3);
-        OPENVINO_ASSERT(
-            TRShape::merge_into(n_dims, TRShape(std::vector<Dimension>(value.begin(), value.end() - 2))));
+        OPENVINO_ASSERT(TRShape::merge_into(n_dims, TRShape(std::vector<Dimension>(value.begin(), value.end() - 2))));
         OPENVINO_ASSERT(Dimension::merge(s_dim, s_dim, *(value.end() - 2)));
         OPENVINO_ASSERT(Dimension::merge(ev_dim, ev_dim, *(value.end() - 1)));
     }
@@ -54,9 +50,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std:
         const auto attention_mask = input_shapes[3];
         if (attention_mask.rank().is_static() && attention_mask.rank() != 0) {
             OPENVINO_ASSERT(attention_mask.rank().get_length() >= 3);
-            OPENVINO_ASSERT(TRShape::merge_into(
-                                m_dims,
-                                TRShape(std::vector<Dimension>(attention_mask.begin(), attention_mask.end() - 2))));
+            OPENVINO_ASSERT(
+                TRShape::merge_into(m_dims,
+                                    TRShape(std::vector<Dimension>(attention_mask.begin(), attention_mask.end() - 2))));
             OPENVINO_ASSERT(Dimension::merge(l_dim, l_dim, *(attention_mask.end() - 2)));
             OPENVINO_ASSERT(Dimension::merge(s_dim, s_dim, *(attention_mask.end() - 1)));
             OPENVINO_ASSERT(TRShape::broadcast_merge_into(m_dims, n_dims, AutoBroadcastType::NUMPY));
