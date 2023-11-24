@@ -219,7 +219,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             // To pass check_memory_to_set in input_layout::set_data for this case, Set constDims to [N, 1, 1, 1]
             // when constDims is one dim and user op is Loop or TensorIterator.
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v0::Result>(outOp) && !p.use_new_shape_infer()) {
+        } else if (ov::is_type<ov::op::v0::Result>(outOp) && !p.use_new_shape_infer() && p.is_inner_program()) {
             // When IF-operation generates branch-true and branch-false,
             // simple nodes for both can be created such as Parameter->Result, Constant->Result
             // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces layout mismatch error.
