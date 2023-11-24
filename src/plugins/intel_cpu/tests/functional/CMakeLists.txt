@@ -46,8 +46,18 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64)
+         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64
+	 ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64)
 endif()
+
+# does need to disable all custom tests for RISCV64?
+# currently only disable test_utils/RISCV64/filter_cpu_info.cpp
+if(NOT RISCV64)
+    list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/RISCV64)
+endif()
+
+MESSAGE(STATUS "EXCLUDED_SOURCE_PATHS:${EXCLUDED_SOURCE_PATHS}")
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
