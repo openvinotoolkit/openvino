@@ -15,12 +15,13 @@
 
 using namespace cldnn;
 using namespace ::tests;
+using namespace ov::op::v0;
 
 namespace {
 struct space_to_depth_params {
     tensor input_size;
     tensor output_size;
-    space_to_depth::depth_mode mode;
+    SpaceToDepth::SpaceToDepthMode mode;
     data_types input_type;
     format input_format;
     size_t block_size;
@@ -63,14 +64,14 @@ public:
 /* -------------------------------- SpaceToDepth cases ------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-#define CASE_SPACE_TO_DEPTH_F32_1 { 2, 2, 8, 10 }, { 2, 8, 4, 5 }, space_to_depth::depth_mode::blocks_first, data_types::f32, format::bfyx, 2, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_F32_2 { 1, 2, 6, 6, 6 },  { 1, 54, 2, 2, 2 }, space_to_depth::depth_mode::depth_first, data_types::f32, format::bfzyx, 3, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_F16_1 { 1, 3, 6, 6 },  { 1, 12, 3, 3 }, space_to_depth::depth_mode::blocks_first, data_types::f16, format::bfyx, 2, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_F16_2 { 2, 1, 3, 3 },  { 2, 9, 1, 1 }, space_to_depth::depth_mode::blocks_first, data_types::f16, format::b_fs_yx_fsv16, 3, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_U8_1  { 2, 2, 8, 10 }, { 2, 8, 4, 5 }, space_to_depth::depth_mode::blocks_first, data_types::u8, format::bfyx, 2, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_U8_2  { 1, 2, 6, 6, 6 },  { 1, 54, 2, 2, 2 }, space_to_depth::depth_mode::depth_first, data_types::u8, format::bfzyx, 3, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_I8_1  { 1, 3, 6, 6 },  { 1, 12, 3, 3 }, space_to_depth::depth_mode::blocks_first, data_types::i8, format::bfyx, 2, data_types::f32, format::bfyx
-#define CASE_SPACE_TO_DEPTH_I8_2  { 2, 1, 3, 3 },  { 2, 9, 1, 1 }, space_to_depth::depth_mode::blocks_first, data_types::i8, format::b_fs_yx_fsv16, 3, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_F32_1 { 2, 2, 8, 10 }, { 2, 8, 4, 5 }, SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, data_types::f32, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_F32_2 { 1, 2, 6, 6, 6 },  { 1, 54, 2, 2, 2 }, SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, data_types::f32, format::bfzyx, 3, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_F16_1 { 1, 3, 6, 6 },  { 1, 12, 3, 3 }, SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, data_types::f16, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_F16_2 { 2, 1, 3, 3 },  { 2, 9, 1, 1 }, SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, data_types::f16, format::b_fs_yx_fsv16, 3, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_U8_1  { 2, 2, 8, 10 }, { 2, 8, 4, 5 }, SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, data_types::u8, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_U8_2  { 1, 2, 6, 6, 6 },  { 1, 54, 2, 2, 2 }, SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, data_types::u8, format::bfzyx, 3, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_I8_1  { 1, 3, 6, 6 },  { 1, 12, 3, 3 }, SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, data_types::i8, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_DEPTH_I8_2  { 2, 1, 3, 3 },  { 2, 9, 1, 1 }, SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, data_types::i8, format::b_fs_yx_fsv16, 3, data_types::f32, format::bfyx
 
 class space_to_depth_quantize_i8 : public SpaceToDepthFusingsTest {};
 TEST_P(space_to_depth_quantize_i8, basic) {
