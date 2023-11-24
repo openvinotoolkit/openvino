@@ -38,6 +38,5 @@ const auto params3D = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
-}  // namespace GroupConvolutionConcat
-
+} // namespace ConvConcat
 } // namespace SubgraphTestsDefinitions
