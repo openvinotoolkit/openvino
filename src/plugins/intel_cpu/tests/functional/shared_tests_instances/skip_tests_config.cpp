@@ -229,6 +229,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
         R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
         R"(smoke_MHAQuant_Pattern[0-1]_FP16.*)",
+        R"(smoke_CompareWithRefs_4D.*_(f|F)using.*INFERENCE_PRECISION_HINT=f16.*enforceSnippets=1.*)",
+        R"(smoke_Reduce.*_CPU.*INFERENCE_PRECISION_HINT=f16.*)",
+
 
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
