@@ -19,20 +19,24 @@ std::vector<CPUSpecificParams> filterCPUInfo(const std::vector<CPUSpecificParams
 }
 
 std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecificParams>& CPUParams) {
-    std::vector<CPUSpecificParams> resCPUParams;
+    std::vector<CPUSpecificParams> aclResCPUParams;
+    std::vector<CPUSpecificParams> refResCPUParams;
     const int selectedTypeIndex = 3;
 
     for (auto param : CPUParams) {
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
 
-        if (selectedTypeStr.find("acl") == std::string::npos &&
-            selectedTypeStr.find("ref") == std::string::npos)
+        if (selectedTypeStr.find("acl") != std::string::npos) {
+            aclResCPUParams.push_back(param);
             continue;
-
-        resCPUParams.push_back(param);
+        }
+        if (selectedTypeStr.find("ref") != std::string::npos) {
+            refResCPUParams.push_back(param);
+            continue;
+        }
     }
-
-    return resCPUParams;
+    // if acl type is found then ref types are not going to be tested
+    return aclResCPUParams.empty() ? refResCPUParams : aclResCPUParams;
 }
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
