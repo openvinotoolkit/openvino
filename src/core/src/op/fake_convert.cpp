@@ -4,8 +4,8 @@
 
 #include "openvino/op/fake_convert.hpp"
 
-#include "fake_convert_shape_inference.hpp"
 #include "element_visitor.hpp"
+#include "fake_convert_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/fake_convert.hpp"
@@ -83,8 +83,7 @@ void FakeConvert::validate_and_infer_types() {
     case element::dynamic:
         break;
     default:
-        OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ",
-                       out_type);
+        OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", out_type);
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
@@ -115,7 +114,6 @@ void FakeConvert::validate_destination_type() const {
     const auto is_supported_type =
         std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end();
     OPENVINO_ASSERT(is_supported_type, "Bad format for f8 conversion type: ", m_destination_type);
-
 }
 
 bool FakeConvert::has_evaluate() const {

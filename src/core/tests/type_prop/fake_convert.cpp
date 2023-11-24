@@ -127,10 +127,9 @@ TEST(type_prop, fake_convert_basic_unsupported_type) {
     const auto scale = std::make_shared<Parameter>(element::f64, PartialShape{});
     const auto shift = std::make_shared<Parameter>(element::f64, PartialShape{});
 
-    OV_EXPECT_THROW(
-        const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
-        Exception,
-        testing::HasSubstr("The element type of the input tensor must be a bf16, f16, f32 but got: f64"));
+    OV_EXPECT_THROW(const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
+                    Exception,
+                    testing::HasSubstr("The element type of the input tensor must be a bf16, f16, f32 but got: f64"));
 }
 
 TEST(type_prop, fake_convert_basic_unsupported_shape_scale_shift) {
