@@ -40,10 +40,11 @@ class TestTorchConvertModel(TestConvertModel):
         return None
 
     def prepare_inputs(self, inputs_info):
-        if isinstance(self.example, dict):
-            return dict((k, v.numpy()) for k, v in self.example.items())
+        inputs = getattr(self, "inputs", self.example)
+        if isinstance(inputs, dict):
+            return dict((k, v.numpy()) for k, v in inputs.items())
         else:
-            return [i.numpy() for i in self.example]
+            return [i.numpy() for i in inputs]
 
     def convert_model(self, model_obj):
         ov_model = convert_model(
