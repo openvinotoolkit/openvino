@@ -21,7 +21,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "performance_heuristics.hpp"
 #include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
