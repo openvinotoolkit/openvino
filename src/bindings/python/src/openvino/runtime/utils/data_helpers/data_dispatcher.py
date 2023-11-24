@@ -182,17 +182,11 @@ def create_shared(
 @create_shared.register(dict)
 @create_shared.register(list)
 @create_shared.register(tuple)
+@create_shared.register(OVDict)
 def _(
     inputs: ContainerTypes,
     request: _InferRequestWrapper,
 ) -> dict:
-    request._inputs_data = normalize_arrays(inputs, is_shared=True)
-    return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
-
-
-@create_shared.register(OVDict)
-def _(inputs: OVDict,
-    request: _InferRequestWrapper) -> dict:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
     return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
 
