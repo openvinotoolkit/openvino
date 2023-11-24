@@ -8,7 +8,7 @@ from typing import Any, Dict, Union, Optional
 import numpy as np
 
 from openvino._pyopenvino import ConstOutput, Tensor, Type
-from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper
+from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
 ContainerTypes = Union[dict, list, tuple]
 ScalarTypes = Union[np.number, int, float]
@@ -125,6 +125,7 @@ def normalize_arrays(
 
 
 @normalize_arrays.register(dict)
+@normalize_arrays.register(OVDict)
 def _(
     inputs: dict,
     is_shared: bool = False,
@@ -180,6 +181,13 @@ def _(
 ) -> dict:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
     return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
+
+
+@create_shared.register(OVDict)
+def _(inputs: OVDict,
+    request: _InferRequestWrapper) -> dict:
+    request._inputs_data = normalize_arrays(inputs, is_shared=True)
+    return {k.any_name: value_to_tensor(v, request=request, is_shared=True, key=k.any_name) for k, v in request._inputs_data.items()}
 
 
 @create_shared.register(np.ndarray)
@@ -300,7 +308,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
 @singledispatch
 def create_copied(
-    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes],
+    inputs: Union[ContainerTypes, OVDict, np.ndarray, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> Union[dict, None]:
     # Check the special case of the array-interface
@@ -314,8 +322,9 @@ def create_copied(
 @create_copied.register(dict)
 @create_copied.register(list)
 @create_copied.register(tuple)
+@create_copied.register(OVDict)
 def _(
-    inputs: ContainerTypes,
+    inputs: Union[ContainerTypes, OVDict],
     request: _InferRequestWrapper,
 ) -> dict:
     return update_inputs(normalize_arrays(inputs, is_shared=False), request)
@@ -346,7 +355,7 @@ def _(
 
 def _data_dispatch(
     request: _InferRequestWrapper,
-    inputs: Union[ContainerTypes, Tensor, np.ndarray, ScalarTypes] = None,
+    inputs: Union[ContainerTypes, OVDict, Tensor, np.ndarray, ScalarTypes] = None,
     is_shared: bool = False,
 ) -> Union[dict, Tensor]:
     if inputs is None:
