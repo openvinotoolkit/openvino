@@ -85,11 +85,7 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<double>>& adapter) override;
 
     bool contains_attribute(const std::string& name) {
-        if (m_attributes.contains(name)) {
-            return true;
-        } else {
-            return false;
-        }
+        return m_attributes.contains(name);
     }
 
     template <typename T>
