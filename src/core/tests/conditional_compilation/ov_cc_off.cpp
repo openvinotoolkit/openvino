@@ -46,6 +46,7 @@ TEST(conditional_compilation, all_ops_enabled_in_opset) {
     EXPECT_NE(opset.create_insensitive("Constant"), nullptr);
 }
 
+namespace {
 struct TestVisitor : public ov::element::NoAction<bool> {
     using ov::element::NoAction<bool>::visit;
 
@@ -54,6 +55,7 @@ struct TestVisitor : public ov::element::NoAction<bool> {
         return true;
     }
 };
+}  // namespace
 
 TEST(conditional_compilation, IF_TYPE_OF_action_for_supported_element) {
     using namespace ov::element;

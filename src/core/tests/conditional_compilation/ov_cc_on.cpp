@@ -50,6 +50,7 @@ TEST(conditional_compilation, disabled_Constant_in_opset) {
 #undef ov_opset_test_opset3_Abs
 }
 
+namespace {
 struct TestVisitor : public ov::element::NoAction<bool> {
     using ov::element::NoAction<bool>::visit;
 
@@ -58,6 +59,7 @@ struct TestVisitor : public ov::element::NoAction<bool> {
         return true;
     }
 };
+}  // namespace
 
 TEST(conditional_compilation, IF_TYPE_OF_element_type_on_cc_list) {
 #define TYPE_LIST_ov_eval_enabled_test_1 1

@@ -52,6 +52,7 @@ TEST(conditional_compilation, collect_ops_in_opset) {
 #undef ov_opset_test_opset1_Abs
 }
 
+namespace {
 struct TestVisitor : public ov::element::NoAction<bool> {
     using ov::element::NoAction<bool>::visit;
 
@@ -60,6 +61,7 @@ struct TestVisitor : public ov::element::NoAction<bool> {
         return true;
     }
 };
+}  // namespace
 
 TEST(conditional_compilation, IF_TYPE_OF_collect_action_for_supported_element) {
     using namespace ov::element;
