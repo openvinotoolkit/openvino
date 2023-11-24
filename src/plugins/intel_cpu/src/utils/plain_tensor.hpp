@@ -131,11 +131,11 @@ struct PlainTensor {
     size_t size(int i) const {
         if (i < 0)
             i += m_rank;
-        assert(i < m_rank);
+        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_dims[i];
     }
     size_t stride(int i) const {
-        assert(i < m_rank);
+        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_strides[i];
     }
     PlainTensor(MemoryPtr mem) {
@@ -244,7 +244,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     PlainTensor<DT> slice(int axis, int start, int end, int step = 1) const {
         PlainTensor<DT> sub_tensor;
-        assert(axis < m_rank);
+        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {

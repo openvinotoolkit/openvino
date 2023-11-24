@@ -390,7 +390,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::Eye> &node
                                                        batch,
                                                        ov::element::f32);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye)};
-    return std::make_shared<ov::Model>(results, ngraph::ParameterVector{rows}, "Eye");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{rows}, "Eye");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::FakeQuantize> &node) {
@@ -1566,7 +1566,7 @@ std::shared_ptr<ov::Model> generateBinaryEltwiseLogical(const std::shared_ptr<ov
     }
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
-    return std::make_shared<ov::Model>(results, ngraph::ParameterVector{params}, "BinaryEltwiseLogicalGraph");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "BinaryEltwiseLogicalGraph");
 }
 
 std::shared_ptr<ov::Model> generateBroadcast(const std::shared_ptr<ov::op::Op> &node) {
