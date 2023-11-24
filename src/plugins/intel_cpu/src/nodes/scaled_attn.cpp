@@ -77,7 +77,7 @@ struct MHAKernel {
     }
 
     PlainTensor<uint8_t> causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor<uint8_t> mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
@@ -232,7 +232,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     }
 
     PlainTensor<uint8_t> causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor<uint8_t> mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
@@ -303,7 +303,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     }
 
     PlainTensor<uint8_t> causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor<uint8_t> mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
@@ -342,6 +342,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
 
         parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
             size_t thread_id = static_cast<size_t>(parallel_get_thread_num());
+            if (thread_id < 0)
+                OPENVINO_THROW("The calling thread isn't initialized!");
             auto& qk_buf = qk_buffers[thread_id];
 
             auto m_start = m_blk * m_block_size;
@@ -452,7 +454,7 @@ struct MHASingleToken {
     MHASingleToken() : m_attn_w(true), m_temp(true) {}
 
     PlainTensor<uint8_t> causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0  = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor<uint8_t> mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
