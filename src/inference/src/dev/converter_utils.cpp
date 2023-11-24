@@ -42,7 +42,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "remote_context_wrapper.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef PROXY_PLUGIN_ENABLED

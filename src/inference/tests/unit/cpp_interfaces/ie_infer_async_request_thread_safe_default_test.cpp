@@ -17,8 +17,6 @@
 
 using namespace ::testing;
 using namespace std;
-// using namespace InferenceEngine;
-// using namespace InferenceEngine::details;
 using namespace ov::threading;
 
 struct DeferedExecutor : public ITaskExecutor {
