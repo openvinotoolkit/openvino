@@ -674,7 +674,7 @@ def test_infer_queue_get_idle_handle(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
 
-    from openvino.runtime import Tensor
+    from openvino import Tensor
     from openvino.runtime.utils.types import get_dtype
 
     model = create_model_with_memory(input_shape, data_type)
