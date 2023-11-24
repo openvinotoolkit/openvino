@@ -1190,7 +1190,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
 
     if (subgraph_sink.get_tensor().has_and_set_bound()) {
         const auto& lower = subgraph_sink.get_tensor().get_lower_value();
-        return std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());
+        return std::make_shared<ov::op::v0::Constant>(lower);
     }
 
     if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
