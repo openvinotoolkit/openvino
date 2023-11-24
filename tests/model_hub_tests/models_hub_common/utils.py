@@ -13,6 +13,7 @@ def get_models_list(file_name: str):
     models = []
     with open(file_name) as f:
         for model_info in f:
+            model_info = model_info.strip()
             # skip comment in model scope file
             if model_info.startswith('#'):
                 continue
