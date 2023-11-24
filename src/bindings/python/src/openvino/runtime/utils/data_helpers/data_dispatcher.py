@@ -125,12 +125,19 @@ def normalize_arrays(
 
 
 @normalize_arrays.register(dict)
-@normalize_arrays.register(OVDict)
 def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> dict:
     return {k: to_c_style(v) if is_shared else v for k, v in inputs.items()}
+
+
+@normalize_arrays.register(OVDict)
+def _(
+    inputs: dict,
+    is_shared: bool = False,
+) -> dict:
+    return {k.any_name: to_c_style(v) if is_shared else v for k, v in inputs.items()}
 
 
 @normalize_arrays.register(list)
@@ -187,7 +194,7 @@ def _(
 def _(inputs: OVDict,
     request: _InferRequestWrapper) -> dict:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
-    return {k.any_name: value_to_tensor(v, request=request, is_shared=True, key=k.any_name) for k, v in request._inputs_data.items()}
+    return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
 
 
 @create_shared.register(np.ndarray)
