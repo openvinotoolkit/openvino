@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
-from openvino.runtime import PartialShape, opset8
+from openvino import PartialShape
+from openvino.runtime import opset13 as ops
 from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput
 from openvino.runtime.passes import (
     consumers_count,
@@ -31,53 +32,53 @@ def test_wrap_type_pattern_type():
 
     # Generic negative test cases
     expect_exception(lambda: WrapType(""))
-    expect_exception(lambda: WrapType("opset8"))
+    expect_exception(lambda: WrapType("ops"))
     expect_exception(lambda: WrapType("Parameter"))
     expect_exception(lambda: WrapType("opset.Parameter"))
-    expect_exception(lambda: WrapType("opset8,Parameter"))
-    expect_exception(lambda: WrapType("Parameter.opset8"))
+    expect_exception(lambda: WrapType("ops,Parameter"))
+    expect_exception(lambda: WrapType("Parameter.ops"))
 
 
 def test_wrap_type_ctors():
-    param = opset8.parameter(PartialShape([1, 3, 22, 22]))
-    relu = opset8.relu(param.output(0))
-    slope = opset8.parameter(PartialShape([]))
-    prelu = opset8.prelu(param.output(0), slope.output(0))
+    param = ops.parameter(PartialShape([1, 3, 22, 22]))
+    relu = ops.relu(param.output(0))
+    slope = ops.parameter(PartialShape([]))
+    prelu = ops.prelu(param.output(0), slope.output(0))
 
-    matcher = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"]), "FindActivation")
+    matcher = Matcher(WrapType(["opset13.Relu", "opset13.PRelu"]), "FindActivation")
     assert matcher.match(relu)
     assert matcher.match(prelu)
 
-    matcher = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"],
-                      WrapType("opset8.Parameter").output(0)), "FindActivation")
+    matcher = Matcher(WrapType(["opset13.Relu", "opset13.PRelu"],
+                      WrapType("opset13.Parameter").output(0)), "FindActivation")
     assert matcher.match(relu)
 
 
 def test_or():
-    param = opset8.parameter(PartialShape([1, 3, 22, 22]))
-    relu = opset8.relu(param.output(0))
-    slope = opset8.parameter(PartialShape([]))
-    prelu = opset8.prelu(param.output(0), slope.output(0))
+    param = ops.parameter(PartialShape([1, 3, 22, 22]))
+    relu = ops.relu(param.output(0))
+    slope = ops.parameter(PartialShape([]))
+    prelu = ops.prelu(param.output(0), slope.output(0))
 
-    matcher = Matcher(Or([WrapType("opset8.Relu"), WrapType("opset8.PRelu")]), "FindActivation")
+    matcher = Matcher(Or([WrapType("opset13.Relu"), WrapType("opset13.PRelu")]), "FindActivation")
     assert matcher.match(relu)
     assert matcher.match(prelu)
 
 
 def test_any_input():
-    param = opset8.parameter(PartialShape([1, 3, 22, 22]))
-    relu = opset8.relu(param.output(0))
-    slope = opset8.parameter(PartialShape([]))
-    prelu = opset8.prelu(param.output(0), slope.output(0))
+    param = ops.parameter(PartialShape([1, 3, 22, 22]))
+    relu = ops.relu(param.output(0))
+    slope = ops.parameter(PartialShape([]))
+    prelu = ops.prelu(param.output(0), slope.output(0))
 
-    matcher = Matcher(WrapType("opset8.PRelu", [AnyInput(), AnyInput()]), "FindActivation")
+    matcher = Matcher(WrapType("opset13.PRelu", [AnyInput(), AnyInput()]), "FindActivation")
     assert not matcher.match(relu)
     assert matcher.match(prelu)
 
 
 def test_any_input_predicate():
-    param = opset8.parameter(PartialShape([1, 3, 22, 22]))
-    slope = opset8.parameter(PartialShape([]))
+    param = ops.parameter(PartialShape([1, 3, 22, 22]))
+    slope = ops.parameter(PartialShape([]))
 
     matcher = Matcher(AnyInput(lambda output: len(output.get_shape()) == 4), "FindActivation")
     assert matcher.match(param)
@@ -85,33 +86,33 @@ def test_any_input_predicate():
 
 
 def test_all_predicates():
-    static_param = opset8.parameter(PartialShape([1, 3, 22, 22]), np.float32)
-    dynamic_param = opset8.parameter(PartialShape([-1, 6]), np.compat.long)
-    fully_dynamic_param = opset8.parameter(PartialShape.dynamic())
+    static_param = ops.parameter(PartialShape([1, 3, 22, 22]), np.float32)
+    dynamic_param = ops.parameter(PartialShape([-1, 6]), np.compat.long)
+    fully_dynamic_param = ops.parameter(PartialShape.dynamic())
 
-    assert Matcher(WrapType("opset8.Parameter", consumers_count(0)), "Test").match(static_param)
-    assert not Matcher(WrapType("opset8.Parameter", consumers_count(1)), "Test").match(static_param)
+    assert Matcher(WrapType("opset13.Parameter", consumers_count(0)), "Test").match(static_param)
+    assert not Matcher(WrapType("opset13.Parameter", consumers_count(1)), "Test").match(static_param)
 
-    assert Matcher(WrapType("opset8.Parameter", has_static_dim(1)), "Test").match(static_param)
-    assert not Matcher(WrapType("opset8.Parameter", has_static_dim(0)), "Test").match(dynamic_param)
+    assert Matcher(WrapType("opset13.Parameter", has_static_dim(1)), "Test").match(static_param)
+    assert not Matcher(WrapType("opset13.Parameter", has_static_dim(0)), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter", has_static_dims([0, 3])), "Test").match(static_param)
-    assert not Matcher(WrapType("opset8.Parameter", has_static_dims([0, 1])), "Test").match(dynamic_param)
+    assert Matcher(WrapType("opset13.Parameter", has_static_dims([0, 3])), "Test").match(static_param)
+    assert not Matcher(WrapType("opset13.Parameter", has_static_dims([0, 1])), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter", has_static_shape()), "Test").match(static_param)
-    assert not Matcher(WrapType("opset8.Parameter", has_static_shape()), "Test").match(dynamic_param)
+    assert Matcher(WrapType("opset13.Parameter", has_static_shape()), "Test").match(static_param)
+    assert not Matcher(WrapType("opset13.Parameter", has_static_shape()), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter", has_static_rank()), "Test").match(dynamic_param)
-    assert not Matcher(WrapType("opset8.Parameter", has_static_rank()), "Test").match(fully_dynamic_param)
+    assert Matcher(WrapType("opset13.Parameter", has_static_rank()), "Test").match(dynamic_param)
+    assert not Matcher(WrapType("opset13.Parameter", has_static_rank()), "Test").match(fully_dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter",
+    assert Matcher(WrapType("opset13.Parameter",
                             type_matches(get_element_type(np.float32))), "Test").match(static_param)
-    assert not Matcher(WrapType("opset8.Parameter",
+    assert not Matcher(WrapType("opset13.Parameter",
                                 type_matches(get_element_type(np.float32))), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter",  # noqa: ECE001
+    assert Matcher(WrapType("opset13.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
                                               get_element_type(np.compat.long)])), "Test").match(static_param)
-    assert Matcher(WrapType("opset8.Parameter",  # noqa: ECE001
+    assert Matcher(WrapType("opset13.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
                                               get_element_type(np.compat.long)])), "Test").match(dynamic_param)

@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 from sys import platform
-from openvino.runtime import compile_model, Model
+from openvino import compile_model, Model
 import openvino.runtime.opset8 as ov
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory

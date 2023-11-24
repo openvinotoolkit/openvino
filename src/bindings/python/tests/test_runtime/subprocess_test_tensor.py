@@ -4,7 +4,7 @@
 
 import numpy as np
 
-from openvino.runtime import Tensor, Type
+from openvino import Tensor, Type
 
 
 def test_run():

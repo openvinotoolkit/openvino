@@ -12,8 +12,8 @@ from sys import platform
 from pathlib import Path
 
 import openvino
+from openvino import Model, Core, Shape
 import openvino.runtime.opset13 as ops
-from openvino.runtime import Model, Core, Shape
 
 
 def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
@@ -172,7 +172,7 @@ def get_model_with_template_extension():
     return core, core.read_model(ir)
 
 
-def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.runtime.Model:
+def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     param = ops.parameter(input_shape, input_dtype, name="data")
@@ -188,7 +188,7 @@ def generate_relu_compiled_model(
     device,
     input_shape: List[int] = None,
     input_dtype=np.float32,
-) -> openvino.runtime.CompiledModel:
+) -> openvino.CompiledModel:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     model = get_relu_model(input_shape, input_dtype)

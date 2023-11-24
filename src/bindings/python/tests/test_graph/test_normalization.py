@@ -4,7 +4,7 @@
 
 import numpy as np
 
-from openvino.runtime import Type
+from openvino import Type
 import openvino.runtime.opset13 as ov
 
 

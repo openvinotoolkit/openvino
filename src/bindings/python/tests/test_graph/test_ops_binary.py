@@ -7,7 +7,7 @@ import operator
 import numpy as np
 import pytest
 
-from openvino.runtime import Type
+from openvino import Type
 import openvino.runtime.opset13 as ov
 
 

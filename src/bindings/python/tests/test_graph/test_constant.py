@@ -4,9 +4,8 @@
 
 import numpy as np
 
-import openvino.runtime as ov
 import openvino.runtime.opset13 as ops
-from openvino.runtime import Type
+from openvino import Type
 from openvino.runtime.op import Constant
 from openvino.helpers import pack_data, unpack_data
 
@@ -39,18 +38,18 @@ class DataGetter(Enum):
 @pytest.mark.parametrize(
     ("dst_dtype"),
     [
-        (ov.Type.f32),
-        (ov.Type.f64),
-        (ov.Type.f16),
-        (ov.Type.i8),
-        (ov.Type.u8),
-        (ov.Type.i32),
-        (ov.Type.u32),
-        (ov.Type.i16),
-        (ov.Type.u16),
-        (ov.Type.i64),
-        (ov.Type.u64),
-        (ov.Type.boolean),
+        (Type.f32),
+        (Type.f64),
+        (Type.f16),
+        (Type.i8),
+        (Type.u8),
+        (Type.i32),
+        (Type.u32),
+        (Type.i16),
+        (Type.u16),
+        (Type.i64),
+        (Type.u64),
+        (Type.boolean),
         (np.float16),
         (np.float32),
         (np.float64),
@@ -92,7 +91,7 @@ def test_init_with_array(src_dtype, dst_dtype, shared_flag, data_getter):
     # Check shape and element type of Constant class
     assert isinstance(ov_const, Constant)
     assert np.all(tuple(ov_const.shape) == data.shape)
-    # Additionally check if Constant type matches dst_type if ov.Type was passed:
+    # Additionally check if Constant type matches dst_type if Type was passed:
     if isinstance(dst_dtype, Type):
         assert ov_const.get_element_type() == dst_dtype
     # Convert to dtype if OpenVINO Type
@@ -139,18 +138,18 @@ def test_init_with_array(src_dtype, dst_dtype, shared_flag, data_getter):
 @pytest.mark.parametrize(
     ("dst_dtype"),
     [
-        (ov.Type.f32),
-        (ov.Type.f64),
-        (ov.Type.f16),
-        (ov.Type.i8),
-        (ov.Type.u8),
-        (ov.Type.i32),
-        (ov.Type.u32),
-        (ov.Type.i16),
-        (ov.Type.u16),
-        (ov.Type.i64),
-        (ov.Type.u64),
-        (ov.Type.boolean),
+        (Type.f32),
+        (Type.f64),
+        (Type.f16),
+        (Type.i8),
+        (Type.u8),
+        (Type.i32),
+        (Type.u32),
+        (Type.i16),
+        (Type.u16),
+        (Type.i64),
+        (Type.u64),
+        (Type.boolean),
         (np.float16),
         (np.float32),
         (np.float64),
@@ -187,7 +186,7 @@ def test_init_with_scalar(init_value, src_dtype, dst_dtype, shared_flag, data_ge
     # Check shape and element type of Constant class
     assert isinstance(ov_const, Constant)
     assert np.all(list(ov_const.shape) == [])
-    # Additionally check if Constant type matches dst_type if ov.Type was passed:
+    # Additionally check if Constant type matches dst_type if Type was passed:
     if isinstance(dst_dtype, Type):
         assert ov_const.get_element_type() == dst_dtype
     # Convert to dtype if OpenVINO Type
@@ -263,10 +262,10 @@ def test_init_bf16(src_dtype, shared_flag, data_getter):
 @pytest.mark.parametrize(
     ("low", "high", "ov_type", "src_dtype"),
     [
-        (0, 2, ov.Type.u1, np.uint8),
-        (0, 16, ov.Type.u4, np.uint8),
-        (-8, 7, ov.Type.i4, np.int8),
-        (0, 16, ov.Type.nf4, np.uint8),
+        (0, 2, Type.u1, np.uint8),
+        (0, 16, Type.u4, np.uint8),
+        (-8, 7, Type.i4, np.int8),
+        (0, 16, Type.nf4, np.uint8),
     ],
 )
 @pytest.mark.parametrize(

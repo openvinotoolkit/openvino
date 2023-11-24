@@ -5,7 +5,7 @@
 import openvino.runtime as ov
 import pytest
 from openvino._pyopenvino.util import deprecation_warning
-from openvino.runtime import Shape
+from openvino import Shape
 
 
 def test_get_constant_from_source_success():
