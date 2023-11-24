@@ -282,8 +282,14 @@ void regmodule_properties(py::module m) {
     py::module m_intel_auto =
         m_properties.def_submodule("intel_auto",
                                    "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+    // Submodule intel_auto - enums
+    py::enum_<ov::intel_auto::SchedulePolicy>(m_intel_auto, "SchedulePolicy", py::arithmetic())
+        .value("DEFAULT", ov::intel_auto::SchedulePolicy::DEFAULT)
+        .value("DEVICE_PRIORITY", ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY)
+        .value("ROUND_ROBIN", ov::intel_auto::SchedulePolicy::ROUND_ROBIN);
 
     wrap_property_RW(m_intel_auto, ov::intel_auto::device_bind_buffer, "device_bind_buffer");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
 }
