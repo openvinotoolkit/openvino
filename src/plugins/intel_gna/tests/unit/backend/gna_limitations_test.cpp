@@ -287,6 +287,10 @@ protected:
         ASSERT_TRUE(validator);
     }
 
+    void TearDown() override {
+        Limitations::deinit();
+    }
+
     std::shared_ptr<cnn2d::AbstractValidator> validator;
 };
 

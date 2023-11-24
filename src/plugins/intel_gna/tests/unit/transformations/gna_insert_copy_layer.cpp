@@ -44,6 +44,7 @@ public:
         return result.str();
     }
     void SetUp() override;
+    void TearDown() override;
     virtual void Validate();
     virtual void Run();
 
@@ -63,6 +64,9 @@ void InsertCopyLayerTest::Validate() {
 void InsertCopyLayerTest::SetUp() {
     std::tie(m_device_ver, m_axis, m_inputs_num) = this->GetParam();
     Limitations::init(m_device_ver);
+}
+void InsertCopyLayerTest::TearDown() {
+    Limitations::deinit();
 }
 
 void InsertCopyLayerTest::Run() {
@@ -212,6 +216,7 @@ public:
 
     void TearDown() override {
         m_func.reset();
+        Limitations::deinit();
     }
 
     void RunPasses(ngraph::pass::Manager& m) {

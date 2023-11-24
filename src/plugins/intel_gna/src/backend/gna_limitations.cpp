@@ -698,8 +698,8 @@ void Limitations::init(const DeviceVersion& compile_target) {
 void Limitations::deinit() {
     std::lock_guard<std::mutex> lock(kInstancesMtx);
     auto thread_id = std::this_thread::get_id();
-    auto iter = kInstances.find(thread_id);
-    if (iter != kInstances.end()) {
+    auto instance_iter = kInstances.find(thread_id);
+    if (instance_iter != kInstances.end()) {
         kInstances.erase(thread_id);
     }
 }

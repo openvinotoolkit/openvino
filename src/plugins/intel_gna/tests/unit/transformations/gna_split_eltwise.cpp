@@ -134,6 +134,7 @@ class SplitEltwiseTestSuiteFixture : public ov::test::TestsCommon,
                                      public ::testing::WithParamInterface<EltwiseSplitParams> {
 public:
     void SetUp() override;
+    void TearDown() override;
 
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
@@ -149,6 +150,10 @@ void SplitEltwiseTestSuiteFixture::SetUp() {
     Limitations::init(device_ver);
     function = createFunction(shape, with_const, with_fq, type, false);
     reference_function = createFunction(shape, with_const, with_fq, type, true);
+}
+
+void SplitEltwiseTestSuiteFixture::TearDown() {
+    Limitations::deinit();
 }
 
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {

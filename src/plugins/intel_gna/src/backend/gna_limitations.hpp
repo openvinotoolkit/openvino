@@ -322,11 +322,11 @@ private:
 inline std::shared_ptr<Limitations> Limitations::get_instance() {
     std::lock_guard<std::mutex> lock(kInstancesMtx);
     auto thread_id = std::this_thread::get_id();
-    auto iter = kInstances.find(thread_id);
-    if (iter == kInstances.end() || !iter->second) {
+    auto instance_iter = kInstances.find(thread_id);
+    if (instance_iter == kInstances.end() || !instance_iter->second) {
         THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
     }
-    return iter->second;
+    return instance_iter->second;
 }
 
 inline bool Limitations::is_crop_affined_offset(size_t numberOfElements) const {
