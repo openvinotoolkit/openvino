@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "tests_common.hpp"
-#include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 #ifdef _WIN32
 # ifndef NOMINMAX
@@ -65,11 +65,11 @@ void TestsCommon::SetUp() {
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << getVmSizeInKB() << "KB\n";
     }
-    InferenceEngine::executorManager()->clear();
+    ov::threading::executor_manager()->clear();
 }
 
 void TestsCommon::TearDown() {
-    InferenceEngine::executorManager()->clear();
+    ov::threading::executor_manager()->clear();
 }
 
 /**
