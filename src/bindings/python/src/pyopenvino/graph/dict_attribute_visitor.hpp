@@ -87,9 +87,9 @@ public:
     template <typename T>
     T get_attribute(const std::string& name) {
         OPENVINO_ASSERT(m_attributes.contains(name),
-                     "Couldn't find attribute \"",
-                     name,
-                     "\" in serialized node attribute dictionary.");
+                        "Couldn't find attribute \"",
+                        name,
+                        "\" in serialized node attribute dictionary.");
         return m_attributes[name.c_str()].cast<T>();
     }
 
