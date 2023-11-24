@@ -207,8 +207,8 @@ OutputVector translate_empty(const NodeContext& context) {
 
 OutputVector translate_empty_like(const NodeContext& context) {
     // aten::empty_like(Tensor self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
-    // pin_memory=None, MemoryFormat? memory_format=None) -> Tensor aten::empty_like.out(Tensor self, *, MemoryFormat?
-    // memory_format=None, Tensor(a!) out) -> Tensor(a!)
+    // pin_memory=None, MemoryFormat? memory_format=None) -> Tensor
+    // aten::empty_like.out(Tensor self, *, MemoryFormat? memory_format=None, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
