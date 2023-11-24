@@ -13,7 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
@@ -22,7 +22,7 @@
 
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <cpu/x64/cpu_isa_traits.hpp>
