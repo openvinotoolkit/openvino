@@ -566,16 +566,6 @@ inline void FUNC(swap)(__global BOX_INFO* a, __global BOX_INFO* b)
     *b = temp;
 }
 
-#ifdef ROTATION
-inline void FUNC(reverseOutputBoxList)(__global BOX_INFO *outBoxes, int boxNum)
-{
-    for (int i = 0; i < boxNum / 2; ++i) {
-        FUNC_CALL(swap)(&outBoxes[i], &outBoxes[boxNum - 1 - i]);
-    }
-}
-
-#else
-
 inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNum)
 {
     for (int i = 0; i < boxNum - 1; ++i) {
@@ -597,7 +587,6 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
             break;
     }
 }
-#endif // ROTATION
 
 
 #ifdef NMS_STAGE_0
@@ -880,11 +869,7 @@ KERNEL (non_max_suppression_ref_stage_3)(
     }
 
 #if SORT_RESULT_DESCENDING == 1
-#ifdef ROTATION
-    FUNC_CALL(reverseOutputBoxList)(sortedBoxList, outputIdx);
-#else
     FUNC_CALL(sortOutputBoxList)(sortedBoxList, outputIdx);
-#endif
 #endif
 
     unroll_for (int i = 0; i < outputIdx; i++) {
