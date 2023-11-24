@@ -5,7 +5,7 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Type
+from openvino import Type
 
 
 def test_ctc_loss_props():

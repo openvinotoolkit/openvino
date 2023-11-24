@@ -12,6 +12,8 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_prod(const NodeContext& context) {
+    // aten::prod.dim_int(Tensor self, int dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
+    // aten::prod(Tensor self, *, ScalarType? dtype=None) -> Tensor
     num_inputs_check(context, 2, 4);
     auto input = context.get_input(0);
     bool keepdim;
