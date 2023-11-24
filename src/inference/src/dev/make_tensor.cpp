@@ -213,7 +213,7 @@ public:
 private:
     void destroy() {
         if (get_element_type() == element::Type_t::string) {
-            auto num_elements = get_byte_size() / sizeof(std::string);  // TODO: a more native way?
+            auto num_elements = get_size();
             auto data = static_cast<std::string*>(m_ptr);
             for (size_t ind = 0; ind < num_elements; ++ind) {
                 using std::string;
