@@ -43,36 +43,42 @@ StatefulSDPFusion::StatefulSDPFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        auto find_assign = [&](const ov::Output<ov::Node>& out) -> opset6::Assign* {
+        auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
             if (present_to.size() != 2)
-                return nullptr;
+                return;
             for (auto& to : present_to) {
                 auto to_node = to.get_node();
                 if (auto convert = dynamic_cast<opset1::Convert*>(to_node)) {
                     auto cvt_targets = convert->get_output_target_inputs(0);
                     if (cvt_targets.size() == 1) {
                         to_node = cvt_targets.begin()->get_node();
+                        cvt = convert;
                     }
                 }
-                if (auto assign = dynamic_cast<opset6::Assign*>(to_node))
-                    return assign;
+                assign = dynamic_cast<opset6::Assign*>(to_node);
             }
-            return nullptr;
         };
 
+        std::shared_ptr<opset1::Convert> read_cvt_k_node, read_cvt_v_node;
         const auto sdp_node = ov::as_type_ptr<opset13::ScaledDotProductAttention>(root);
         const auto past_k_node = ov::as_type_ptr<opset6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
         const auto past_v_node = ov::as_type_ptr<opset6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
         const auto concat_k_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
-        auto* assign_k_node = find_assign(concat_k_node);
+        if (pattern_map.count(convert_past_k)) {
+            read_cvt_k_node = ov::as_type_ptr<opset1::Convert>(pattern_map.at(convert_past_k).get_node_shared_ptr());
+            read_cvt_v_node = ov::as_type_ptr<opset1::Convert>(pattern_map.at(convert_past_v).get_node_shared_ptr());
+        }
+        opset6::Assign* assign_k_node = nullptr, *assign_v_node = nullptr;
+        opset1::Convert* assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;
+        find_assign(concat_k_node, assign_k_node, assign_cvt_k_node);
         if (!assign_k_node)
             return false;
         if (past_k_node->get_variable_id() != assign_k_node->get_variable_id())
             return false;
 
-        auto* assign_v_node = find_assign(concat_v_node);
+        find_assign(concat_v_node, assign_v_node, assign_cvt_v_node);
         if (!assign_v_node)
             return false;
         if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
@@ -81,8 +87,8 @@ StatefulSDPFusion::StatefulSDPFusion() {
         auto args = sdp_node->input_values();
         args[1] = concat_k_node->input_value(1);
         args[2] = concat_v_node->input_value(1);
-        args.push_back(past_k_node->output(0));
-        args.push_back(past_v_node->output(0));
+        args.push_back(read_cvt_k_node ? read_cvt_k_node->output(0) : past_k_node->output(0));
+        args.push_back(read_cvt_v_node ? read_cvt_v_node->output(0) : past_v_node->output(0));
         ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
 
         config.is_causal = sdp_node->get_causal();
@@ -92,8 +98,15 @@ StatefulSDPFusion::StatefulSDPFusion() {
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::replace_node(old_node, {new_node->output(0)});
-        assign_k_node->set_arguments({new_node->output(1)});
-        assign_v_node->set_arguments({new_node->output(2)});
+        if (assign_cvt_k_node)
+            assign_cvt_k_node->set_arguments({new_node->output(1)});
+        else
+            assign_k_node->set_arguments({new_node->output(1)});
+
+        if (assign_cvt_v_node)
+            assign_cvt_v_node->set_arguments({new_node->output(2)});
+        else
+            assign_v_node->set_arguments({new_node->output(2)});
 
         return true;
     };

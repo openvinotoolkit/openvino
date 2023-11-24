@@ -591,8 +591,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     PlainTensor<T> m_query_emb;  // query with RoPE position embedding
     size_t B, H, L1, L0, S;
 
-    ScaledDotProductAttentionStub::Config config;
-    AttentionExecutor(const ScaledDotProductAttentionStub::Config& _config) : config(_config) {}
+    Config config;
+    AttentionExecutor(const Config& _config) : config(_config) {}
 
     void prepare_attn_mask(MemoryPtr attn_input) {
         attn_mask.resize(attn_input->getStaticDims());
@@ -607,7 +607,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                        const PlainTensor<T>& v_input,
                        PlainTensor<T>& past_k_output,
                        PlainTensor<T>& past_v_output) {
-        if (config.fuse_concat) {
+        if (config.config.fuse_concat) {
             auto past_k_idx = inputs.size() - 2;
             auto past_k_mem = inputs[past_k_idx + 0];
             L0 = past_k_mem->getStaticDims()[2];
@@ -624,14 +624,29 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                             &v_input.at({b, h, m, 0}),
                             S * sizeof(T));
             });
+            if (!config.skipPastKVCopy) {
+                PlainTensor<T> past_k_input, past_v_input;
+                past_k_input.resize({L0, B, H, S}, static_cast<T*>(past_k_mem->getData()));
+                past_v_input.resize({L0, B, H, S}, static_cast<T*>(inputs[past_k_idx + 1]->getData()));
+                past_k_input = past_k_input.permute({1, 2, 0, 3});
+                past_v_input = past_v_input.permute({1, 2, 0, 3});
+                parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+                    memcpy(&past_k_output.at({b, h, m, 0}),
+                        &past_k_input.at({b, h, m, 0}),
+                        S * sizeof(T));
+                    memcpy(&past_v_output.at({b, h, m, 0}),
+                        &past_v_input.at({b, h, m, 0}),
+                        S * sizeof(T));
+                });
+            }
         }
     }
 
     void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) override {
-        bool has_out_transpose = config.output_BLHxS;
-        bool fuse_causal_attn = config.fuse_causal_attn;
-        bool is_causal = config.is_causal;
-        const bool fuse_concat = config.fuse_concat;
+        bool has_out_transpose = config.config.output_BLHxS;
+        bool fuse_causal_attn = config.config.fuse_causal_attn;
+        bool is_causal = config.config.is_causal;
+        const bool fuse_concat = config.config.fuse_concat;
         auto input_num = inputs.size() - (fuse_concat ? 2 : 0);
 
         q_input.reset(inputs[0]);
@@ -725,10 +740,10 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
 
     const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
     if (node) {
-        m_config.is_causal = node->get_causal();
+        m_config.config.is_causal = node->get_causal();
     } else {
         const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionStub>(op);
-        m_config = node->get_config();
+        m_config.config = node->get_config();
     }
 }
 
@@ -750,7 +765,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     }
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.fuse_concat ? 2 : 0);
+    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
     config.inConfs.resize(getOriginalInputsNumber());
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
@@ -775,7 +790,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             ov::element::f32, getInputShapeAtPort(nextPortIdx)));
     }
-    if (m_config.fuse_concat) {
+    if (m_config.config.fuse_concat) {
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
         config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
@@ -785,7 +800,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
 
-    if (m_config.fuse_concat) {
+    if (m_config.config.fuse_concat) {
         config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(orginSDPInputNumber + 0);
@@ -794,6 +809,30 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
+    // may fallback to abcd without inplace
+    if (m_config.config.fuse_concat) {
+        config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getOutputShapeAtPort(1)));
+        config.outConfs[1].inPlace(-1);
+        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getOutputShapeAtPort(2)));
+        config.outConfs[2].inPlace(-1);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
+    }
+}
+
+void ScaledDotProductAttention::createPrimitive() {
+    if (m_config.config.fuse_concat) {
+        auto desc = getSelectedPrimitiveDescriptor();
+        if (desc == nullptr)
+            OPENVINO_THROW("has unidentified preferable primitive descriptor");
+        
+        m_config.skipPastKVCopy = desc->getConfig().outConfs[1].inPlace() >= 0;
+    }
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {

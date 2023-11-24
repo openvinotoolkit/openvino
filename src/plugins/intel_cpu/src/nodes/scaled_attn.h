@@ -36,6 +36,7 @@ public:
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
+    void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
@@ -45,7 +46,12 @@ private:
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
     };
 
-    ScaledDotProductAttentionStub::Config m_config;
+    struct Config {
+        ScaledDotProductAttentionStub::Config config;
+        bool skipPastKVCopy = false;
+    };
+
+    struct Config m_config;
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
 };

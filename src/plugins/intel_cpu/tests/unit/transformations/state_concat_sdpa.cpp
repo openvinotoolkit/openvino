@@ -33,6 +33,10 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
         ov::op::util::VariableInfo{inputShape, element::f32, "pastv"});
     std::shared_ptr<ov::Node> pastv = std::make_shared<ov::op::v6::ReadValue>(v, var_v);
     Output<ov::Node> concatK, concatV, sdp;
+    if (hasConvert) {
+        pastk = std::make_shared<ov::op::v0::Convert>(pastk, element::f32);
+        pastv = std::make_shared<ov::op::v0::Convert>(pastv, element::f32);
+    }
     if (isRef) {
         ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
         config.fuse_concat = true;
@@ -41,17 +45,13 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
         concatK = new_node->output(1);
         concatV = new_node->output(2);
     } else {
-        if (hasConvert) {
-            pastk = std::make_shared<ov::op::v0::Convert>(pastk, element::f32);
-            pastv = std::make_shared<ov::op::v0::Convert>(pastv, element::f32);
-        }
         concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, k}, 2);
         concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, v}, 2);
         sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concatK, concatV, false);
-        if (hasConvert) {
-            concatK = std::make_shared<ov::op::v0::Convert>(concatK, element::f32);
-            concatV = std::make_shared<ov::op::v0::Convert>(concatV, element::f32);
-        }
+    }
+    if (hasConvert) {
+        concatK = std::make_shared<ov::op::v0::Convert>(concatK, element::f32);
+        concatV = std::make_shared<ov::op::v0::Convert>(concatV, element::f32);
     }
     auto pastk_assign = std::make_shared<op::v6::Assign>(concatK, var_k);
     auto pastv_assign = std::make_shared<op::v6::Assign>(concatV, var_v);
