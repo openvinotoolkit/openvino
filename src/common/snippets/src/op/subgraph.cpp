@@ -35,6 +35,8 @@
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#include "snippets/lowered/pass/serialize_data_flow.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
@@ -531,16 +533,6 @@ void Subgraph::print() const {
         }
         remark(13) << std::endl;
     }
-}
-
-
-void Subgraph::serialize() const {
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_model(body_ptr());
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
-    std::cout << m_model << std::endl;
 }
 
 } // namespace op

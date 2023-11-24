@@ -19,14 +19,16 @@ namespace op {
  */
 class SerializationNode : public ov::op::Op {
 public:
-    OPENVINO_OP("SerializationNode", "SnippetsOpset");
-
     SerializationNode() = default;
     SerializationNode(const ov::OutputVector& args, const std::shared_ptr<lowered::Expression>& expr);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
     bool visit_attributes(AttributeVisitor &visitor) override;
+
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {
+        return m_expr->get_node()->get_type_info();
+    }
 
 private:
     std::shared_ptr<lowered::Expression> m_expr;

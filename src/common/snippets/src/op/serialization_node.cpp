@@ -11,14 +11,11 @@ namespace op {
 
 SerializationNode::SerializationNode(const ov::OutputVector& args, const std::shared_ptr<lowered::Expression>& expr)
     : Op(args), m_expr(expr) {
-    if (!m_expr || !m_expr->get_node())
-        OPENVINO_THROW("SerializationNode requires a valid expression with non-null node pointer");
-    const auto &node = expr->get_node();
+    OPENVINO_ASSERT(m_expr && m_expr->get_node(), "SerializationNode requires a valid expression with non-null node pointer");
+    const auto& node = expr->get_node();
+    set_friendly_name(node->get_friendly_name());
     std::string type = node->get_type_name();
-    std::string name = node->get_friendly_name();
-    // If node is a parameter, show another type name, so the node will be displayed correctly
     get_rt_info()["layerType"] = type == "Parameter" ? "ParameterLowered" : type;
-    set_friendly_name(name);
     constructor_validate_and_infer_types();
 }
 
