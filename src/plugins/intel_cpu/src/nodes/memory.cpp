@@ -260,17 +260,6 @@ MemoryInputBase::MemoryInputBase(const std::string id,
     // this is their responsibility to link the input/output nodes properly
 }
 
-void MemoryInputBase::createPrimitive() {
-    Input::createPrimitive();
-    if (!inputShapes.empty()) {
-        auto parentEdge = getParentEdgeAt(0);
-
-        if (parentEdge->getParent()->isConstant()) {
-            Input::resetMemoryPtr(parentEdge->getMemoryPtr());
-        }
-    }
-}
-
 void MemoryInputBase::resolveInPlaceEdges(Edge::LOOK look) {
     if (!(look & Edge::LOOK_UP)) {
         Node::resolveInPlaceEdges(look);
@@ -308,6 +297,12 @@ MemoryOutput& MemoryInputBase::getOutputNode() {
 void MemoryInputBase::assignState(MemStatePtr newState) {
     assignedMem = newState->input_mem();
 
+    if (!getParentEdges().empty() && newState->is_reset_state()) {
+        isExecutableFlag = true;
+    } else {
+        isExecutableFlag = false;
+    }
+
     OPENVINO_ASSERT(assignedMem,
         "MemoryInput ",
         getName(),
@@ -342,20 +337,42 @@ void MemoryInputBase::assignState(MemStatePtr newState) {
         memMngr->reset();
     }
 
-    const auto& edges = getChildEdgesAtPort(0);
-    if (isDynamicNode()) {
-        for (auto&& edge : edges) {
-            edge->getMemoryPtr()->redefineDesc(internDesc);
+    if (!isExecutableFlag) {
+        const auto& edges = getChildEdgesAtPort(0);
+        if (isDynamicNode()) {
+            for (auto&& edge : edges) {
+                edge->getMemoryPtr()->redefineDesc(internDesc);
+            }
+        }
+
+        auto outMem = edges.front()->getMemoryPtr();
+
+        if (outMem->getData() != assignedMem->getData()) {
+            outMem->load(*assignedMem);
         }
     }
 
-    auto outMem = edges.front()->getMemoryPtr();
-
-    if (outMem->getData() != assignedMem->getData()) {
-        outMem->load(*assignedMem);
-    }
-
     getOutputNode().assignExtMemory(newState->output_mem(), newState->internal_desc());
+}
+
+bool MemoryInputBase::needShapeInfer() const {
+    return isExecutableFlag;
+}
+
+bool MemoryInputBase::isExecutable() const {
+    return isExecutableFlag && Node::isExecutable();
+}
+
+void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
+}
+
+void MemoryInputBase::execute(dnnl::stream strm) {
+    if (!isExecutableFlag) return;
+
+    auto&& src = getParentEdgeAt(0)->getMemory();
+    auto&& dst = getChildEdgesAtPort(0).front()->getMemoryPtr();
+    dst->load(src);
 }
 
 void MemoryInputBase::registerOutputNode(MemoryOutput* node) {
@@ -514,8 +531,7 @@ MemStatePtr MemoryInput::makeState() const {
     return std::make_shared<VariableStateDoubleBuffer>(state_name,
         std::make_shared<Memory>(eng, mem_desc),
         std::make_shared<Memory>(eng, mem_desc),
-        original_desc,
-        getMemoryPtr());
+        original_desc);
 }
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -605,10 +621,10 @@ MemStatePtr MemoryInputSDPA::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    return std::make_shared<VariableStateSingleBuffer>(state_name,
-        std::make_shared<Memory>(eng, mem_desc, std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrRealloc>())),
-        original_desc,
-        getMemoryPtr());
+    auto internal_memory =
+        std::make_shared<Memory>(eng, mem_desc, std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrRealloc>()));
+
+    return std::make_shared<VariableStateSingleBuffer>(state_name, internal_memory, original_desc);
 }
 
 }   // namespace node

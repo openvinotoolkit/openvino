@@ -48,10 +48,8 @@ protected:
     static MemoryDescPtr to_static(const MemoryDescPtr& desc);
     static const dnnl::engine& get_engine();
 
-protected:
-    MemoryDescPtr m_external_desc;
-
 private:
+    MemoryDescPtr m_external_desc;
     bool reset_state_flag = true;
 };
 
@@ -60,8 +58,7 @@ public:
     VariableStateDoubleBuffer(const std::string& name,
                               const MemoryPtr& first_buffer,
                               const MemoryPtr& second_buffer,
-                              const MemoryDescPtr& external_desc,
-                              const MemoryCPtr& init_val);
+                              const MemoryDescPtr& external_desc);
 
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;
@@ -100,8 +97,7 @@ class VariableStateSingleBuffer : public VariableStateBase {
 public:
     VariableStateSingleBuffer(const std::string& name,
                               const MemoryPtr& buffer,
-                              const MemoryDescPtr& external_desc,
-                              const MemoryCPtr& init_val);
+                              const MemoryDescPtr& external_desc);
 
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;

@@ -98,8 +98,7 @@ void VariableStateBase::commit() {
 VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
                                                      const MemoryPtr& first_buffer,
                                                      const MemoryPtr& second_buffer,
-                                                     const MemoryDescPtr& external_desc,
-                                                     const MemoryCPtr& init_val) :
+                                                     const MemoryDescPtr& external_desc) :
     VariableStateBase(name, external_desc) {
     OPENVINO_ASSERT(first_buffer && second_buffer);
     reset_prime_mem(first_buffer);
@@ -109,11 +108,7 @@ VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
-        if (init_val) {
-            prime_mem()->load(*init_val);
-        } else {
-            prime_mem()->nullify();
-        }
+        prime_mem()->nullify();
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
         auto new_desc = to_static(m_internal_desc);
@@ -153,8 +148,7 @@ MemoryPtr VariableStateDoubleBuffer::internal_state_mem() const {
 
 VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
                                                      const MemoryPtr& buffer,
-                                                     const MemoryDescPtr& external_desc,
-                                                     const MemoryCPtr& init_val) :
+                                                     const MemoryDescPtr& external_desc) :
     VariableStateBase(name, external_desc) {
     OPENVINO_ASSERT(buffer);
     m_internal_mem = buffer;
@@ -163,11 +157,7 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
-        if (init_val) {
-            m_internal_mem->load(*init_val);
-        } else {
-            m_internal_mem->nullify();
-        }
+        m_internal_mem->nullify();
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
         auto new_desc = to_static(m_internal_desc);
