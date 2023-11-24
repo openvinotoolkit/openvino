@@ -663,8 +663,7 @@ def test_infer_queue_get_idle_handle(device):
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,
-                          # issue after ConvertPrecision transformation, ticket: TBA
-                          # np.float16
+                          np.float16
                           ])
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
@@ -673,9 +672,9 @@ def test_infer_queue_get_idle_handle(device):
     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
     "Memory layers fully supported only on CPU",
 )
-def test_query_state_write_buffer(device, input_shape, data_type, mode):
+def test_query_state_write_buffer(input_shape, data_type, mode):
     core = Core()
-
+    device = "CPU"
     from openvino.runtime import Tensor
     from openvino.runtime.utils.types import get_dtype
 
