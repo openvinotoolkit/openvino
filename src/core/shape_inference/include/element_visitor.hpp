@@ -58,7 +58,7 @@ struct IfTypeOf<> {
         return Visitor::visit();
     }
 #endif
-    };
+};
 
 /**
  * @brief Applies visitor action for supported element type defined by template parameters.
@@ -153,8 +153,8 @@ private:
 #define OV_PP_ET_LIST(...) OV_PP_EMPTY __VA_ARGS__
 
 // Helpers to implement eat or expand if symbol exists
-#define OV_PP_ET_LIST_OR_EMPTY_0(...) OV_PP_EAT(__VA_ARGS__)
-#define OV_PP_ET_LIST_OR_EMPTY_1(...) OV_PP_EXP(__VA_ARGS__)
+#define OV_PP_ET_LIST_OR_EMPTY_0(...) OV_PP_IGNORE(__VA_ARGS__)
+#define OV_PP_ET_LIST_OR_EMPTY_1(...) OV_PP_EXPAND(__VA_ARGS__)
 
 // Check if ET list defined and use it for `IfTypeOf` class or make empty list
 #define OV_PP_ET_LIST_OR_EMPTY(region)                                                                                \

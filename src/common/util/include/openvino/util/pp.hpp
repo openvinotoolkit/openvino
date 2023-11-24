@@ -13,7 +13,7 @@
 #define OV_PP_TOSTRING(...)  OV_PP_TOSTRING_(__VA_ARGS__)
 #define OV_PP_TOSTRING_(...) #__VA_ARGS__
 
-#define OV_PP_EXPAND(X) X
+#define OV_PP_EXPAND(...) __VA_ARGS__
 
 #define OV_PP_NARG(...)                         OV_PP_EXPAND(OV_PP_NARG_(__VA_ARGS__, OV_PP_RSEQ_N()))
 #define OV_PP_NARG_(...)                        OV_PP_EXPAND(OV_PP_ARG_N(__VA_ARGS__))
@@ -52,8 +52,5 @@
 // Empty symbol
 #define OV_PP_EMPTY
 
-// Eats inputs
-#define OV_PP_EAT(...)
-
-// Expand input
-#define OV_PP_EXP(...) __VA_ARGS__
+// Ignores inputs
+#define OV_PP_IGNORE(...)
