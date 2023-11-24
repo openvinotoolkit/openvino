@@ -95,8 +95,8 @@ struct Evaluate : public element::NoAction<bool> {
                              Tensor& output,
                              const Shape& data_shape,
                              const Shape& indices_shape,
-                             const int64_t normalized_axis,
-                             const op::v12::ScatterElementsUpdate::Reduction reduction_type,
+                             const int64_t axis,
+                             const op::v12::ScatterElementsUpdate::Reduction reduction,
                              const bool use_init_value
 
     ) {
@@ -108,8 +108,8 @@ struct Evaluate : public element::NoAction<bool> {
                                                                                             output.data<DT>(),
                                                                                             data_shape,
                                                                                             indices_shape,
-                                                                                            normalized_axis,
-                                                                                            reduction_type,
+                                                                                            axis,
+                                                                                            reduction,
                                                                                             use_init_value);
     }
 
@@ -124,74 +124,64 @@ private:
                                  DT* const output,
                                  const Shape& data_shape,
                                  const Shape& indices_shape,
-                                 const int64_t normalized_axis,
-                                 const op::v12::ScatterElementsUpdate::Reduction reduction_type,
+                                 const int64_t axis,
+                                 const op::v12::ScatterElementsUpdate::Reduction reduction,
                                  const bool use_init_value) {
             reference::scatter_elem_update(data,
                                            indices.data<IT>(),
                                            updates,
-                                           normalized_axis,
+                                           axis,
                                            output,
                                            data_shape,
                                            indices_shape,
-                                           reduction_type,
+                                           reduction,
                                            use_init_value);
             return true;
         }
     };
 };
+namespace {
+bool evaluate(TensorVector& outputs,
+              const TensorVector& inputs,
+              const int64_t axis,
+              const op::v12::ScatterElementsUpdate::Reduction reduction,
+              const bool use_init_value) {
+    OPENVINO_ASSERT(inputs.size() == 4);
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    const auto& data = inputs[0];
+    const auto& indices = inputs[1];
+    const auto& updates = inputs[2];
+    auto& output = outputs[0];
+    const auto& data_shape = data.get_shape();
+    const auto& indices_shape = indices.get_shape();
+    output.set_shape(data_shape);
+    using namespace ov::element;
+    return IfTypeOf<boolean, f16, f32, i16, i32, i64, u32, u64>::apply<scatter_elements_update::Evaluate>(
+        data.get_element_type(),
+        data,
+        indices,
+        updates,
+        output,
+        data_shape,
+        indices_shape,
+        axis,
+        reduction,
+        use_init_value);
+}
+}  // namespace
 }  // namespace scatter_elements_update
 
 bool op::v3::ScatterElementsUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
-    OPENVINO_ASSERT(inputs.size() == 4);
-    OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto& data = inputs[0];
-    const auto& indices = inputs[1];
-    const auto& updates = inputs[2];
-    auto& output = outputs[0];
-    const auto& data_shape = data.get_shape();
-    const auto& indices_shape = indices.get_shape();
-    output.set_shape(data_shape);
-    using namespace ov::element;
-    return IfTypeOf<boolean, f16, f32, i16, i32, i64, u32, u64>::apply<scatter_elements_update::Evaluate>(
-        data.get_element_type(),
-        data,
-        indices,
-        updates,
-        output,
-        data_shape,
-        indices_shape,
-        get_normalized_axis(inputs),
-        op::v12::ScatterElementsUpdate::Reduction::NONE,
-        false);
+    constexpr auto reduction = op::v12::ScatterElementsUpdate::Reduction::NONE;
+    constexpr auto use_init_value = false;
+    return scatter_elements_update::evaluate(outputs, inputs, get_normalized_axis(inputs), reduction, use_init_value);
 }
 
 bool op::v12::ScatterElementsUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_evaluate);
-    OPENVINO_ASSERT(inputs.size() == 4);
-    OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto& data = inputs[0];
-    const auto& indices = inputs[1];
-    const auto& updates = inputs[2];
-    auto& output = outputs[0];
-    const auto& data_shape = data.get_shape();
-    const auto& indices_shape = indices.get_shape();
-    output.set_shape(data_shape);
-    using namespace ov::element;
-    return IfTypeOf<boolean, f16, f32, i16, i32, i64, u32, u64>::apply<scatter_elements_update::Evaluate>(
-        data.get_element_type(),
-        data,
-        indices,
-        updates,
-        output,
-        data_shape,
-        indices_shape,
-        get_normalized_axis(inputs),
-        m_reduction,
-        m_use_init_val);
+    return scatter_elements_update::evaluate(outputs, inputs, get_normalized_axis(inputs), m_reduction, m_use_init_val);
 }
 
 template <>
