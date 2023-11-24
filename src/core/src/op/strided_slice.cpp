@@ -9,9 +9,6 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"  // tbr
-#include "ngraph/util.hpp"                 // tbr
-#include "ngraph/validation_util.hpp"      // tbr
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -23,9 +20,8 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/strided_slice.hpp"
 #include "strided_slice_shape_inference.hpp"
+#include "utils.hpp"
 #include "validation_util.hpp"
-
-using namespace ngraph;
 
 namespace ov {
 namespace op {
@@ -193,21 +189,21 @@ std::shared_ptr<Node> StridedSlice::clone_with_new_inputs(const OutputVector& ne
 
 namespace strided_slice {
 namespace {
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool evaluate_strided_slice(const HostTensorPtr& in,
-                            const HostTensorPtr& begin,
-                            const HostTensorPtr& end,
-                            const HostTensorPtr& stride,
+bool evaluate_strided_slice(const Tensor& data,
+                            const Tensor& begin,
+                            const Tensor& end,
+                            const Tensor& stride,
                             const AxisSet& begin_mask,
                             const AxisSet& end_mask,
                             const AxisSet& new_axis_mask,
                             const AxisSet& shrink_axis_mask,
                             const AxisSet& ellipsis_mask,
-                            const HostTensorPtr& out) {
-    std::vector<int64_t> begin_const = host_tensor_2_vector<int64_t>(begin);
-    std::vector<int64_t> end_const = host_tensor_2_vector<int64_t>(end);
-    std::vector<int64_t> stride_const = host_tensor_2_vector<int64_t>(stride);
-    const auto slice_plan = util::make_slice_plan(in->get_shape(),
+                            Tensor& output) {
+    const auto begin_const = get_tensor_data_as<int64_t>(begin);
+    const auto end_const = get_tensor_data_as<int64_t>(end);
+    const auto stride_const = get_tensor_data_as<int64_t>(stride);
+    const auto& data_shape = data.get_shape();
+    const auto slice_plan = util::make_slice_plan(data_shape,
                                                   begin_const,
                                                   end_const,
                                                   stride_const,
@@ -216,36 +212,32 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
                                                   new_axis_mask,
                                                   shrink_axis_mask,
                                                   ellipsis_mask);
-    auto in_shape = in->get_shape();
-    out->set_shape(slice_plan.reshape_out_shape);
-    reference::strided_slice(in->get_data_ptr<char>(),
-                             out->get_data_ptr<char>(),
-                             in_shape,
+    output.set_shape(slice_plan.reshape_out_shape);
+    reference::strided_slice(reinterpret_cast<const char*>(data.data()),
+                             reinterpret_cast<char*>(output.data()),
+                             data_shape,
                              slice_plan,
-                             in->get_element_type().size());
+                             data.get_element_type().size());
     return true;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 }  // namespace strided_slice
 
-bool StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
+bool StridedSlice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 4));
-    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return strided_slice::evaluate_strided_slice(input_values[0],
-                                                 input_values[1],
-                                                 input_values[2],
-                                                 input_values[3],
+    OPENVINO_ASSERT(inputs.size() == 4);
+    OPENVINO_ASSERT(outputs.size() == 1);
+    return strided_slice::evaluate_strided_slice(inputs[0],
+                                                 inputs[1],
+                                                 inputs[2],
+                                                 inputs[3],
                                                  convert_mask_to_axis_set(get_begin_mask()),
                                                  convert_mask_to_axis_set(get_end_mask()),
                                                  convert_mask_to_axis_set(get_new_axis_mask()),
                                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
                                                  convert_mask_to_axis_set(get_ellipsis_mask()),
-                                                 output_values[0]);
+                                                 outputs[0]);
 }
 
 bool StridedSlice::has_evaluate() const {
