@@ -937,7 +937,6 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     for (auto& op : model->get_ops()) {
         if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
             std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
-            LOG_INFO_TAG("stateful mode, try deployed to CPU");
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }
@@ -947,7 +946,14 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     }
 
     // disable CPU_HELP if model is stateful
-    load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
+    if (load_config.get_property(ov::intel_auto::enable_startup_fallback)) {
+        LOG_WARNING_TAG("Setting property ov::intel_auto::enable_startup_fallback to false for stateful model.");
+        load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
+    }
+    if (load_config.get_property(ov::intel_auto::enable_runtime_fallback)) {
+        LOG_WARNING_TAG("Setting property ov::intel_auto::enable_running_fallback to false for stateful model.");
+        load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
+    }
     if (meta_devices.size() == 1)
         return meta_devices;
 
