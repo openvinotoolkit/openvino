@@ -3,6 +3,7 @@
 //
 
 #include "subgraph_tests/src/classes/conv_concat.hpp"
+#include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/filter_cpu_info.hpp"
 #include "ov_models/builders.hpp"
