@@ -23,7 +23,8 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                          inGenData.range,                        \
                          inGenData.start_from,                   \
                          inGenData.resolution,                   \
-                         inGenData.seed);
+                         inGenData.seed);                        \
+    break;
 
     switch (element_type) {
         CASE(ov::element::boolean)

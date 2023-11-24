@@ -189,18 +189,18 @@ void inline fill_data_random(T* pointer,
     const uint32_t k_range = k * range;  // range with respect to k
     random.Generate(k_range);
 
-    uint32_t k_start = k * start_from;  // start_from with respect to k
+    int32_t k_start = k * start_from;  // start_from with respect to k
     if (k_start < 0 && !std::numeric_limits<T>::is_signed) {
         k_start = 0;
     }
 
     if (1 == k) {
         for (std::size_t i = 0; i < size; i++) {
-            pointer[i] = static_cast<T>(random.Generate(k_range) - k_start);
+            pointer[i] = static_cast<T>(random.Generate(k_range)) + static_cast<T>(k_start);
         }
     } else {
         for (std::size_t i = 0; i < size; i++) {
-            pointer[i] = static_cast<T>(static_cast<double>(random.Generate(k_range) - k_start) / k);
+            pointer[i] = static_cast<T>((static_cast<double>(random.Generate(k_range)) + static_cast<double>(k_start)) / k);
         }
     }
 }
