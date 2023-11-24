@@ -3,10 +3,16 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -24,14 +30,14 @@ OutputVector translate_direct_reduce_op(const NodeContext& node) {
     return {reduce_op};
 }
 
-template OutputVector translate_direct_reduce_op<ReduceLogicalOr>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceLogicalAnd>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceMax>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceMean>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceMin>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceProd>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceSum>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<ReduceL2>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceLogicalOr>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceLogicalAnd>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceMax>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceMean>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceMin>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceProd>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v1::ReduceSum>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<v4::ReduceL2>(const NodeContext& node);
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

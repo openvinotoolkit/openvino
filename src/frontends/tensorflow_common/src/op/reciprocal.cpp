@@ -3,11 +3,11 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/power.hpp"
 #include "utils.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -19,7 +19,7 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Reciprocal"});
     auto x = node.get_input(0);
     auto minus_one_const = create_same_type_const_scalar<int32_t>(x, -1);
-    auto reciprocal = make_shared<Power>(x, minus_one_const);
+    auto reciprocal = make_shared<v1::Power>(x, minus_one_const);
     set_node_name(node.get_name(), reciprocal);
     return {reciprocal};
 }

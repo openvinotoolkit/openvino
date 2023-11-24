@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/split.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -19,7 +21,7 @@ OutputVector translate_split_op(const NodeContext& node) {
     auto value = node.get_input(1);
     auto num_split = node.get_attribute<int64_t>("num_split");
 
-    auto split = make_shared<Split>(value, axis, num_split);
+    auto split = make_shared<v1::Split>(value, axis, num_split);
     set_node_name(node.get_name(), split);
     return split->outputs();
 }
@@ -30,7 +32,7 @@ OutputVector translate_split_v_op(const NodeContext& node) {
     auto size_splits = node.get_input(1);
     auto axis = node.get_input(2);
 
-    auto splitv = make_shared<VariadicSplit>(value, axis, size_splits);
+    auto splitv = make_shared<v1::VariadicSplit>(value, axis, size_splits);
     set_node_name(node.get_name(), splitv);
     return splitv->outputs();
 }
