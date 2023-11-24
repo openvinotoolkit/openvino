@@ -15,7 +15,7 @@
 #                         IntelSEAPI statistics files in CSV format
 #   --out cc.h            C++ header file to be generated
 
-import argparse, csv, os
+import argparse, csv
 from glob import glob
 from pathlib import Path
 from abc import ABC, abstractmethod
@@ -84,9 +84,9 @@ class TypeList(IScope):
         self.types.add(type)
 
     def generate(self, f, module):
-        type_list = self.et_sep.join([self.et_namespace + t for t in self.types])
-        f.write(f"#define {module}_enabled_{self.name} 1{os.linesep}")
-        f.write(f"#define {module}_{self.name} {type_list}{os.linesep}")
+        type_list = self.et_sep.join((self.et_namespace + t for t in self.types))
+        f.write(f"#define {module}_enabled_{self.name} 1\n")
+        f.write(f"#define {module}_{self.name} {type_list}\n")
 
 
 class Module:
@@ -158,9 +158,9 @@ class Stat:
 
                         # Type list generator filter, returns tuple of (domain, (region, type))
                         type_list_filter = (
-                            (domain, region.strip().split("$"))
-                            for domain, region, *_ in rows
-                            if Domain[3] in domain
+                            (row[0], row[1].strip().split("$"))
+                            for row in rows
+                            if len(row) > 1 and row[0].startswith(Domain[3])
                         )
 
                         for domain, (region, type) in type_list_filter:
