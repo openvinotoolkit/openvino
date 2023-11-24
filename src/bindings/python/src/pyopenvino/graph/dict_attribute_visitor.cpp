@@ -272,7 +272,7 @@ util::DictAttributeSerializer::DictAttributeSerializer(const std::shared_ptr<ov:
 }
 void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (m_attributes.contains(name)) {
-        OPENVINO_ASSERT("No AttributeVisitor support for accessing attribute named: ", name);
+        OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
     }
 }
 void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) {
