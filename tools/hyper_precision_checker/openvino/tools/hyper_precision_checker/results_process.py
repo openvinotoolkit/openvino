@@ -31,15 +31,16 @@ class OV_Result:
                 infer_request.get_output_tensor(it[0]).data))
         return
 
+
 class ResultChecker():
     def __init__(self) -> None:
         self.target_outputs = []
-    
+
     def set_outputs(self, namelist):
         self.target_outputs = []
         for it in namelist:
             self.target_outputs.append(it)
-    
+
     def compare_result(self, it1, it2, target, index):
         batchsize1 = len(it1)
         batchsize2 = len(it2)
@@ -58,7 +59,6 @@ class ResultChecker():
                     return 3
         return 0
 
-
     def compare_results(self, res1: OV_Result, res2: OV_Result):
         # total results count
         size1 = len(res1.results)
@@ -73,7 +73,7 @@ class ResultChecker():
             bEqual = True
             for target in self.target_outputs:
                 ret = self.compare_result(it1[target], it2[target], target, i)
-                if ret > 0 :
+                if ret > 0:
                     # print(f"compare result got {ret}")
                     bEqual = False
                     break

@@ -102,20 +102,6 @@ def static_vars(**kwargs):
 def percentile(values, percent):
     return values[ceil(len(values) * percent / 100) - 1]
 
-
-can_run_bf16_ops = {"Convolution", "FullyConnected", "RNNCell", "RNNSeq",
-                    "MatMul", "MulAdd", "Add", "ROIPooling", "Interpolate",
-                    "MVN", "MaxPool"}
-
-
-def generate_bf16_ops_list(bf16list):
-    ops_list = []
-    for it in bf16list:
-        # print(f"item={it}")
-        if it[1] in can_run_bf16_ops:
-            ops_list.append(it[0])
-    return ops_list
-
 def get_element_type(precision):
     format_map = {
       'bool'    : Type.boolean,
