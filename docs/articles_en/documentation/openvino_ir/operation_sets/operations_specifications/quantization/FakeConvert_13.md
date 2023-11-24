@@ -22,6 +22,15 @@ The FP8 types were introduced in the following paper: `FP8 Formats for Deep Lear
 
 *Fake* in *FakeConvert* means that the output tensor preserve the same element type as an original type of the input tensor, not the ``destination_type``.
 
+Each element of the output is defined as the result of the following expression:
+
+.. code-block:: py
+   :force:
+
+    data = (data + shift) / scale
+    ConvertLike(Convert(data, destination_type), data)
+    data = data * scale - shift
+
 
 **Attributes**
 
@@ -37,7 +46,7 @@ The FP8 types were introduced in the following paper: `FP8 Formats for Deep Lear
 
 * **1**: `data` - tensor of type *T_F* and arbitrary shape. **Required.**
 * **2**: `scale` - tensor of type *T_F* with a scale factor for the *data* input value. The shape must be numpy-broadcastable to the shape of *data*. **Required.**
-* **3**: `shift` - tensor of type *T_F* with value to subtract before and add after conversion of the *data* input value. The shape must be numpy-broadcastable to the shape of *data*, and match the shape of the ``scale`` input. **Optional.**
+* **3**: `shift` - tensor of type *T_F* with value to subtract before and add after conversion of the *data* input value. The shape must be numpy-broadcastable to the shape of *data*, and match the shape of the *scale* input. **Optional.**
 
 
 **Outputs**:
