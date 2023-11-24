@@ -5,6 +5,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include "itt.hpp"
+#include "scaled_dot_product_attention_shape_inference.hpp"
 
 using namespace std;
 namespace ov {
@@ -38,25 +39,22 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
 
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 3 && get_input_size() <= 5);
-    // TODO: More checks and accurate deduction of dimensions in case when various
-    // dynamic combinations appear.
-    auto query = get_input_partial_shape(0);
-    auto key = get_input_partial_shape(1);
-    auto value = get_input_partial_shape(2);
 
-    // using particular dimensions from query and value, to do that need to have them statically ranked
-    if (query.rank().is_dynamic() || value.rank().is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-        return;
+    for (size_t i = 0; i < get_input_size(); i++) {
+        // TODO bool allowed for inp idx 4 Attn mask
+        // TODO merge type for floats? Check transform
+        OPENVINO_ASSERT(get_input_element_type(i).is_real() || get_input_element_type(i).is_dynamic(),
+                        "The element type of the input tensor on index ",
+                        i,
+                        " must be a floating-point or dynamic (got ",
+                        get_input_element_type(i),
+                        ").");
     }
-
-    OPENVINO_ASSERT(query.rank().get_length() >= 3);
-    OPENVINO_ASSERT(value.rank().get_length() >= 3);
-
-    auto dimensions = std::vector<Dimension>(query.begin(), query.end() - 1);
-    dimensions.push_back(*(value.end() - 1));
-    set_output_type(0, get_input_element_type(0), PartialShape(dimensions));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {
