@@ -46,6 +46,8 @@ public:
     virtual void emit_data() const {}
 
     virtual ~Emitter() = default;
+
+    virtual void set_custom_segfault_detector(const bool is_enable) {}
 };
 
 } // namespace snippets

@@ -203,7 +203,7 @@ void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
     emit_impl(in, out);
@@ -364,7 +364,7 @@ void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
     emit_impl(in, out);
@@ -423,7 +423,7 @@ void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
     emit_impl(in, out);
@@ -630,7 +630,7 @@ StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr&
 void StoreEmitter::emit_impl(const std::vector<size_t>& in,
                              const std::vector<size_t>& out) const {
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         memory_track(out[0]);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
@@ -678,7 +678,7 @@ LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
 void LoadEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& out) const {
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         memory_track(in[0]);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
@@ -725,7 +725,7 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, cons
 void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& out) const {
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         memory_track(in[0]);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
@@ -774,7 +774,7 @@ LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const Ex
 void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
                                    const std::vector<size_t>& out) const {
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         memory_track(in[0]);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
@@ -822,7 +822,7 @@ StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const 
 void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out) const {
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         memory_track(out[0]);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {

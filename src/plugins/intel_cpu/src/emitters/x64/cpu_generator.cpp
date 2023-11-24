@@ -171,6 +171,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_end_emitter);
+    DebugCapsConfig debugCaps;
+    custom_segfault_detector = !debugCaps.snippets_segfault_detector.empty();
 #endif
 }
 
@@ -217,14 +219,7 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
-#ifdef CPU_DEBUG_CAPS
-    DebugCapsConfig debugCaps;
-    segfault_detector = !debugCaps.snippets_segfault_detector.empty();
-#else
-    segfault_detector = false;
-#endif
-}
+intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {}
 
 std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
     const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);

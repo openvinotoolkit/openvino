@@ -44,7 +44,6 @@ public:
 protected:
     bool uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& emitter) const override;
     opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override;
-    bool segfault_detector = false;
 };
 
 }   // namespace intel_cpu

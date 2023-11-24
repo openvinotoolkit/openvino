@@ -55,7 +55,7 @@ size_t jit_dnnl_emitter::get_inputs_num() const { return 1; }
 void jit_dnnl_emitter::emit_code(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
     if (host_isa_ == cpu::x64::sse41) {

@@ -51,7 +51,9 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
+#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
 std::mutex err_print_lock;
+#endif
 
 struct SnippetKey {
     Snippet::SnippetAttrs attrs;
@@ -523,7 +525,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
+            if (auto err_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
                 err_emitter->print_debug_info();
             auto tid = parallel_get_thread_num();
             OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));
@@ -548,7 +550,7 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
+            if (auto err_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
                 err_emitter->print_debug_info();
             auto tid = parallel_get_thread_num();
             OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));

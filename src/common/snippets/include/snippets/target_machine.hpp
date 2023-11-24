@@ -63,6 +63,7 @@ public:
      */
     bool has(const ov::DiscreteTypeInfo& type) const;
     virtual ~TargetMachine() = default;
+    bool custom_segfault_detector = false;
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;

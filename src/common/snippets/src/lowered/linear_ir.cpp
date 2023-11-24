@@ -159,6 +159,11 @@ void LinearIR::init_emitters(const std::shared_ptr<TargetMachine>& target) {
         if (!expr->get_emitter())
             expr->m_emitter = target->get(expr->get_node()->get_type_info())(expr);
     }
+    if (target->custom_segfault_detector) {
+        for (auto& expr : m_expressions) {
+            expr->m_emitter->set_custom_segfault_detector(true);
+        }
+    }
 }
 
 const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) const {

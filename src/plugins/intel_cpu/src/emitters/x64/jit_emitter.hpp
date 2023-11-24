@@ -24,7 +24,7 @@ namespace ov {
 namespace intel_cpu {
 
 class jit_emitter;
-extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_snippets_err_handler;
+extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_custom_segfault_handler;
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -44,10 +44,7 @@ public:
                 ov::element::Type exec_prc = ov::element::f32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
-#ifdef CPU_DEBUG_CAPS
-        DebugCapsConfig debugCaps;
-        m_snippets_segfault_detector = !debugCaps.snippets_segfault_detector.empty();
-#endif
+        m_custom_emitter_segfault_detector = false;
     }
 
     void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -65,6 +62,9 @@ public:
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
+    void set_custom_segfault_detector(const bool is_enable) override {
+        m_custom_emitter_segfault_detector = is_enable;
+    }
     virtual void print_debug_info() const {
         std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
     }
@@ -152,7 +152,7 @@ protected:
 
     void build_debug_info() const;
     static void set_local_handler(jit_emitter* emitter_address);
-    bool m_snippets_segfault_detector = false;
+    bool m_custom_emitter_segfault_detector = false;
 
     std::string get_type_name(const jit_emitter* emitter) const {
         std::string name = typeid(*emitter).name();

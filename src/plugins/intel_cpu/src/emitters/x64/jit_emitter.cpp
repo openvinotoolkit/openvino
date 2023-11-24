@@ -14,7 +14,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
-std::shared_ptr<ThreadLocal<jit_emitter*>> g_snippets_err_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
+std::shared_ptr<ThreadLocal<jit_emitter*>> g_custom_segfault_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
@@ -212,7 +212,7 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
 #ifdef CPU_DEBUG_CAPS
-    if (m_snippets_segfault_detector)
+    if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
 
@@ -235,7 +235,7 @@ void jit_emitter::build_debug_info() const {
 }
 
 void jit_emitter::set_local_handler(jit_emitter* emitter_address) {
-    g_snippets_err_handler->local() = emitter_address;
+    g_custom_segfault_handler->local() = emitter_address;
 }
 
 void jit_emitter::internal_call_preamble() const {
