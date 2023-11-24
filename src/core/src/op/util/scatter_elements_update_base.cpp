@@ -8,6 +8,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
@@ -108,9 +109,11 @@ int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const TensorVector&
     const auto& axis_input = inputs[3];
     OPENVINO_ASSERT(axis_input.get_element_type().is_integral_number(), "axis element type is not integral data type");
 
-    const auto axis = v0::Constant{axis_input}.cast_vector<int64_t>()[0];
+    const auto axis = get_tensor_data_as<int64_t>(axis_input)[0];
     const auto data_rank = static_cast<int64_t>(inputs[0].get_shape().size());
-    return ov::util::normalize(axis, data_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return ov::normalize_axis(this, axis, data_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace op
 }  // namespace ov
