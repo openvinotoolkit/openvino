@@ -79,7 +79,7 @@ void ConvolutionLayerCPUTest::checkBiasFusing(ov::CompiledModel& execNet) const 
         const auto& rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
@@ -178,7 +178,7 @@ void ConvolutionLayerCPUTest::SetUp() {
     ov::ParameterVector inputParams;
     for (auto&& shape : inputDynamicShapes)
         inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
-    auto convolutionNode = ngraph::builder::makeConvolution(inputParams[0], netType, kernel, stride, padBegin,
+    auto convolutionNode = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
                                                             padEnd, dilation, padType, convOutChannels);
 
     function = makeNgraphFunction(netType, inputParams, convolutionNode, "Convolution");

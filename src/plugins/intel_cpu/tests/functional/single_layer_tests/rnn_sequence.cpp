@@ -100,9 +100,9 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
-        if (selectedType.find("BF16") != std::string::npos) {
+        if (selectedType.find("bf16") != std::string::npos) {
             rel_threshold = 5e-2;
-        } else if (selectedType.find("FP32") != std::string::npos) {
+        } else if (selectedType.find("f32") != std::string::npos) {
             rel_threshold = 1e-4;
         }
 

@@ -332,6 +332,6 @@ Next Steps
 ----------------------------------------------------
 
 Open the
-`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize.ipynb>`__
+`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize-with-output.html>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.

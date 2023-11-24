@@ -64,7 +64,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
 
         if (found == sharedWeights.end()
             || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
-            IE_THROW() << "Unknown shared memory with key " << key;
+            OPENVINO_THROW("Unknown shared memory with key ", key);
     }
     return std::make_shared<SharedMemory>(ptr->valid.load(std::memory_order_relaxed)
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
@@ -80,14 +80,14 @@ SocketsWeights::SocketsWeights() {
 WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) {
     auto found = _cache_map.find(socket_id);
     if (found == _cache_map.end())
-        IE_THROW() << "Unknown socket id " << socket_id;
+        OPENVINO_THROW("Unknown socket id ", socket_id);
     return found->second;
 }
 
 const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
     auto found = _cache_map.find(socket_id);
     if (found == _cache_map.end())
-        IE_THROW() << "Unknown socket id " << socket_id;
+        OPENVINO_THROW("Unknown socket id ", socket_id);
     return found->second;
 }
 
