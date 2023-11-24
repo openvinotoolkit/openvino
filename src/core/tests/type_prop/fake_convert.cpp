@@ -71,6 +71,57 @@ TEST(type_prop, fake_convert_dynamic_shape) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
+TEST(type_prop, fake_convert_label) {
+    PartialShape data_shape{2, 1, Dimension::dynamic(), 6};
+    set_shape_labels(data_shape, 10);
+    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
+    const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{});
+    const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, Dimension::dynamic(), 6}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
+}
+
+TEST(type_prop, fake_convert_example_0) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 1, 3, 6});
+    const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{1, 1, 3, 1});
+    const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{1, 1, 3, 1});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 3, 6}));
+}
+
+TEST(type_prop, fake_convert_example_1) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 1, 3, 6});
+    const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{3, 1});
+    const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{3, 1});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 3, 6}));
+}
+TEST(type_prop, fake_convert_example_2) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 1, {3, 5}, 6});
+    const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{3, 1});
+    const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{3, 1});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 3, 6}));
+}
+TEST(type_prop, fake_convert_example_3) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{4, {2, 5}, 6});
+    const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{4, 3, 1});
+    const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{4, 3, 1});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, 6}));
+}
+
 TEST(type_prop, fake_convert_basic_unsupported_type) {
     const auto data = std::make_shared<Parameter>(element::f64, PartialShape{2, 3, 8, 6});
     const auto scale = std::make_shared<Parameter>(element::f64, PartialShape{});
