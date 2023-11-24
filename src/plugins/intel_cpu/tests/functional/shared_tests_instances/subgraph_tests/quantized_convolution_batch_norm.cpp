@@ -4,7 +4,7 @@
 
 #include "subgraph_tests/quantized_convolution_batch_norm.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
 
