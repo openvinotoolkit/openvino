@@ -81,6 +81,25 @@ unset(protobuf_lite_installed CACHE)
 unset(protobuf_installed CACHE)
 
 #
+# ov_frontend_group_files(<ROOT_DIR>  # Root path for scanning
+#                         <REL_PATH>  # Relative path (in ROOT_DIR) is used for scanning
+#                         <FILE_EXT>) # File extension for grouping
+#
+macro(ov_frontend_group_files root_dir rel_path file_mask)
+   file(GLOB items RELATIVE ${root_dir}/${rel_path} ${root_dir}/${rel_path}/*)
+   foreach(item ${items})
+        if(IS_DIRECTORY ${root_dir}/${rel_path}/${item})
+            ov_frontend_group_files(${root_dir} ${rel_path}/${item} ${file_mask})
+        else()
+            if(${item} MATCHES ".*\.${file_mask}$")
+                string(REPLACE "/" "\\" groupname ${rel_path})
+                source_group(${groupname} FILES ${root_dir}/${rel_path}/${item})
+            endif()
+        endif()
+   endforeach()
+endmacro()
+
+#
 # ov_add_frontend(NAME <IR|ONNX|...>
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
@@ -121,7 +140,8 @@ macro(ov_add_frontend)
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
 
-    source_group("src" FILES ${LIBRARY_SRC})
+    ov_frontend_group_files(${frontend_root_dir}/ "src" "cpp")
+    ov_frontend_group_files(${frontend_root_dir}/ "src" "proto")
     source_group("include" FILES ${LIBRARY_HEADERS})
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
