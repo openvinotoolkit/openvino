@@ -117,6 +117,9 @@ RepeatPatternExtractor::get_node_queque(ov::NodeVector& queue,
                 const std::shared_ptr<ov::Node>& node) {
     if (queue.empty()) {
         queue.push_back(node);
+    if (node->get_friendly_name() == "ShapeOf_1658") {
+        auto a = 0;
+    }
     }
     for (size_t out_idx = 0; out_idx < node->outputs().size(); ++out_idx) {
         for (const auto& out : node->get_output_target_inputs(out_idx)) {
@@ -135,6 +138,7 @@ RepeatPatternExtractor::get_node_queque(ov::NodeVector& queue,
             get_node_queque(queue, output_node);
         }
     }
+    return;
 }
 
 std::vector<std::vector<RepeatPatternExtractor::NodePair>>
@@ -223,7 +227,7 @@ RepeatPatternExtractor::post_process_patterns(const std::vector<std::vector<Node
         }
     }
 
-    std::vector<ov::NodeVector> result_pattern;
+    std::vector<ov::NodeVector> tmp_result_pattern;
     {
         std::map<size_t, std::vector<ov::NodeVector>> b;
         for (size_t i = 0; i < pattern_cnt; ++i) {
@@ -243,18 +247,72 @@ RepeatPatternExtractor::post_process_patterns(const std::vector<std::vector<Node
         }
         for (const auto a : b) {
             if (a.second.size() > 1) {
-                result_pattern.insert(result_pattern.end(), a.second.begin(), a.second.end());
+                tmp_result_pattern.insert(tmp_result_pattern.begin(), a.second.begin(), a.second.end());
             }
         }
     }
-    for (const auto& p : result_pattern) {
-        std::cout << p.size() << std::endl;
-        for (const auto& n : p) {
-            std::cout << n << std::endl;
+
+    auto pattern_size = tmp_result_pattern.size();
+    std::vector<ov::NodeVector> result_pattern(pattern_size);
+    for (size_t i = 0; i < pattern_size; ++i) {
+        const auto& pattern = tmp_result_pattern[i];
+
+        ov::NodeVector max_pattern, max_pattern_ref;
+        auto max_pattern_size = 0;
+        for (size_t j = 0; j < pattern_size; ++j) {
+            if (i == j) {
+                continue;
+            }
+
+            const auto& pattern_ref = tmp_result_pattern[j];
+            auto max_nodes = std::min(pattern.size(), pattern_ref.size());
+            if (max_nodes < max_pattern_size) {
+                if (result_pattern[j].size() < max_pattern_size) {
+                    result_pattern[j] = max_pattern_ref;
+                }
+                break;
+            }
+            for (size_t k = 0; k < max_nodes; ++k) {
+                if (!model_comparator->match(pattern[k], pattern_ref[k]) && k > max_pattern_size) {
+                    max_pattern.clear();
+                    max_pattern_ref.clear();
+
+                    auto it_end = pattern.begin();
+                    std::advance(it_end, k);
+                    max_pattern.insert(max_pattern.end(), pattern.begin(), it_end);
+
+                    it_end = pattern_ref.begin();
+                    std::advance(it_end, k);
+                    max_pattern_ref.insert(max_pattern_ref.end(), pattern_ref.begin(), it_end);
+                    max_pattern_size = k;
+                }
+            }
         }
-        std::cout << "==============================" << std::endl;
+        if (result_pattern[i].size() < max_pattern_size) {
+            result_pattern[i] = max_pattern;
+        }
     }
-    return result_pattern;
+    std::vector<ov::NodeVector> r;
+    for (size_t i = 0; i < pattern_size; ++i) {
+        auto min_subgraph = result_pattern[i];
+        size_t min_subgraph_len = result_pattern[i].size();
+
+        for (size_t j = i + 1; j < pattern_size; ++j) {
+            auto it = result_pattern[j].begin();
+            while (it != result_pattern[j].end() &&
+                   std::find(result_pattern[i].begin(), result_pattern[i].end(), *it) != result_pattern[i].end()) {
+                ++it;
+            }
+            if (it == result_pattern[j].end()) {
+                if (min_subgraph_len > result_pattern[j].size()) {
+                    min_subgraph = result_pattern[j];
+                    min_subgraph_len = result_pattern[j].size();
+                }
+            }
+        }
+        r.push_back(min_subgraph);
+    }
+    return r;
 }
 
 std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>
@@ -306,10 +364,10 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
                 if (extracted_model == nullptr) {
                     continue;
                 }
-                // if (is_recursive_extraction && nodes_vector.size() > 20) {
+                // if (is_recursive_extraction && nodes_vector.size() > 10) {
                 //     auto secondary_patterns = find_repeat_patterns(extracted_model, is_save_borders_only);
                 //     if (!secondary_patterns.empty()) {
-                //         tmp_checked_op_pattern.clear();
+                //         // tmp_checked_op_pattern.clear();
                 //         update_extractor_cache(extracted_patterns, secondary_patterns);
                 //     } else {
                 //         update_extractor_cache(extracted_patterns,

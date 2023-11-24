@@ -140,6 +140,14 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                                                                      extractor_name);
                         }
                         return;
+                    } else {
+                        auto is_subgraph_ch = m_model_comparator->is_subgraph(extracted_model, cached_model.first);
+                        auto matched_ops = std::get<3>(is_subgraph_ch);
+                        auto graph = std::get<2>(is_subgraph_ch);
+                        auto subgraph = std::get<1>(is_subgraph_ch);
+                        if (matched_ops.size() >= subgraph->get_ops().size() * 0.8) {
+                            return;
+                        }
                     }
                 }
             }

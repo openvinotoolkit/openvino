@@ -25,9 +25,7 @@ prepare_is_subgraph_result(bool is_subgraph,
                            const std::shared_ptr<ov::Model>& subgraph,
                            const std::shared_ptr<ov::Model>& graph,
                            const std::unordered_map<std::string, std::string>& matched_ops) {
-    return is_subgraph ?
-           std::make_tuple(is_subgraph, subgraph, graph, matched_ops) :
-           std::make_tuple(is_subgraph, nullptr, nullptr, std::unordered_map<std::string, std::string>());
+    return std::make_tuple(is_subgraph, subgraph, graph, matched_ops);
 }
 
 ModelComparator::IsSubgraphTuple
