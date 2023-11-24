@@ -452,3 +452,125 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
+
+ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
+    MATCHER_SCOPE(RoPEFusionChatGLM);
+
+    auto qkv_linear = makePattern("f32[?,?,?]");  //  f32[seq_length, batch_size, 4608]
+    auto seq_length = makePattern("i32[1]");
+    auto cos_sin_cache = makePattern("f32[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
+
+    auto ndims = Symbol("ndims");
+    auto head_cnt = Symbol("head_cnt");
+    auto head_size = Symbol("head_size");
+    auto total_size_q = Symbol("total_size_q");
+    auto total_size_k = Symbol("total_size_k");
+    auto total_size_v = Symbol("total_size_v");
+
+    auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
+    qkv_proj->set_output_size(3);
+
+    // get key [L, B, Hkv, S]
+    auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
+                                                {{"special_zero", true}});
+
+    auto slice_Slice_437 = makePattern<opset1::StridedSlice>({cur_key, {0, 0, 0, 0}, {0, 0, 0, ndims}, {1, 1, 1, 1}},
+                                                             {{"begin_mask", {1, 1, 1, 0}},
+                                                              {"end_mask", {1, 1, 1, 0}},
+                                                              {"new_axis_mask", {}},
+                                                              {"shrink_axis_mask", {}},
+                                                              {"ellipsis_mask", {}}});
+
+    // rotate half
+    auto ListConstruct_452_Concat =
+        makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
+    auto ListConstruct_379_Concat =
+        makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
+
+    auto reshape_Reshape_453 =
+        makePattern<opset1::Reshape>({slice_Slice_437, ListConstruct_452_Concat}, {{"special_zero", false}});
+    auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
+    auto slice_Slice_449 = makePattern<opset1::StridedSlice>({cos_sin_cache, {0}, seq_length, {1}},
+                                                             {{"begin_mask", {0}},
+                                                              {"end_mask", {0}},
+                                                              {"new_axis_mask", {}},
+                                                              {"shrink_axis_mask", {}},
+                                                              {"ellipsis_mask", {}}});
+    auto view_Reshape_460 =
+        makePattern<opset1::Reshape>({slice_Slice_449, ListConstruct_379_Concat}, {{"special_zero", false}});
+    auto cos_tab = makePattern<opset8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
+    auto x_even_cos = makePattern<opset1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
+    auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
+    auto sin_tab = makePattern<opset8::Gather>({view_Reshape_460, 1, -1}, {{"batch_dims", 0}});
+    auto x_odd_sin = makePattern<opset1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
+    auto neg_x_odd_sin = makePattern<opset1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
+    auto sub_Subtract_469 = makePattern<opset1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
+
+    auto y_even = makePattern<opset1::Unsqueeze>({sub_Subtract_469, -1});
+    auto x_odd_cos = makePattern<opset1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
+    auto x_even_sin = makePattern<opset1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
+    auto add_Add_476 = makePattern<opset1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
+    auto y_odd = makePattern<opset1::Unsqueeze>({add_Add_476, -1});
+
+    auto stack_481 = makePattern<opset1::Concat>({y_even, y_odd}, {{"axis", -1}});
+
+    auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
+    auto flatten_Slice_497 = makePattern<opset1::StridedSlice>({ShapeOf_135133, {0}, {3}, {1}},
+                                                               {{"begin_mask", {0}},
+                                                                {"end_mask", {0}},
+                                                                {"new_axis_mask", {}},
+                                                                {"shrink_axis_mask", {}},
+                                                                {"ellipsis_mask", {}}});
+    auto flatten_Concat_500 = makePattern<opset1::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
+    auto flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500}, {{"special_zero", true}});
+    auto slice_Slice_443 =
+        makePattern<opset1::StridedSlice>({cur_key, {0, 0, 0, ndims}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                          {{"begin_mask", {1, 1, 1, 0}},
+                                           {"end_mask", {1, 1, 1, 0}},
+                                           {"new_axis_mask", {}},
+                                           {"shrink_axis_mask", {}},
+                                           {"ellipsis_mask", {}}});
+    auto cat_Concat_505 = makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443}, {{"axis", -1}});
+
+    auto result = cat_Concat_505;
+
+    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+
+        RoPENode::Config config;
+        OutputVector new_args;
+        config.rotary_ndims = validator["ndims"];
+        config.is_chatglm = true;
+        config.head_cnt = validator["head_cnt"];
+        config.head_size = validator["head_size"];
+
+        if (split_output_id == 0) {
+            // query : split_output_id == 0
+            config.slice_start = 0;
+            config.slice_stop = validator["total_size_q"];
+        } else {
+            // key : split_output_id == 1
+            config.slice_start = validator["total_size_q"];
+            config.slice_stop = config.slice_start + validator["total_size_k"];
+        }
+
+        new_args.push_back(pattern_map.at(qkv_linear));
+        new_args.push_back(pattern_map.at(cos_sin_cache));
+        new_args.push_back(pattern_map.at(cos_sin_cache));
+
+        auto old_node = root;
+
+        auto new_node = std::make_shared<RoPENode>(new_args, config);
+        new_node->set_friendly_name(old_node->get_friendly_name());
+        ov::replace_node(old_node, new_node);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}

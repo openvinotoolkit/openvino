@@ -22,6 +22,18 @@ void ov::intel_cpu::RoPENode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(RoPENode_validate_and_infer_types);
     auto input_pshape = get_input_partial_shape(0);
     auto input_slice_size = m_config.slice_stop - m_config.slice_start;
+
+    if (m_config.is_chatglm) {
+        // chatGLM specific RoPE
+        // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
+        // output [length, batch_size, head_cnt, hidden_states_k]
+        set_output_type(
+            0,
+            get_input_element_type(0),
+            {input_pshape[0], input_pshape[1], ov::Dimension(m_config.head_cnt), ov::Dimension(m_config.head_size)});
+        return;
+    }
+
     if (input_slice_size > 0) {
         input_pshape[3] = input_slice_size;
     }
@@ -44,6 +56,9 @@ bool ov::intel_cpu::RoPENode::visit_attributes(ngraph::AttributeVisitor& visitor
     visitor.on_attribute("input_trans0213", m_config.input_trans0213);
     visitor.on_attribute("is_interleaved", m_config.is_interleaved);
     visitor.on_attribute("rotary_ndims", m_config.rotary_ndims);
+    visitor.on_attribute("is_chatglm", m_config.is_chatglm);
+    visitor.on_attribute("head_cnt", m_config.head_cnt);
+    visitor.on_attribute("head_size", m_config.head_size);
     visitor.on_attribute("gather_position_arg_id", m_config.gather_position_arg_id);
     visitor.finish_structure();
     return true;

@@ -70,6 +70,9 @@ public:
         bool input_trans0213 = false;  // transpose input dim 1&2
         bool is_interleaved = false;   // interleaved mode, implies trans0213 happens after RoPE
         size_t rotary_ndims = 0;       // dimensions to be embedded (d in the description)
+        bool is_chatglm = false;       // chatglm is special which overrides other setting
+        size_t head_cnt = 0;
+        size_t head_size = 0;
         int gather_position_arg_id =
             0;  // arg id of position tensor, ==3 when gather from sin/cos inputs according to position is required
     };

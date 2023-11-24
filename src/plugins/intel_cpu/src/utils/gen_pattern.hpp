@@ -357,7 +357,7 @@ struct AttrAny {
         return any.as<std::vector<T>>();
     }
 
-    template<typename T>
+    template <typename T>
     std::vector<T> as_T_vector() {
         if (any.empty())
             return {};
@@ -574,6 +574,10 @@ public:
     bool match_value(ov::pass::pattern::Matcher* matcher,
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override {
+        // strictly requires pattern & graph value to come from output port with same index,
+        // this is absolute necessary when pattern contains split node connections.
+        if (pattern_value.get_index() != graph_value.get_index())
+            return false;
         if (m_predicate(graph_value)) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
@@ -858,7 +862,7 @@ public:
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::CoordinateDiff>>(&adapter)) {
             is_matched = m_attr_map[name].equal_to<int64_t, int>(a->get());
         } else {
-            OPENVINO_THROW("AttrSetter met unsupported AttributeAdapter");
+            OPENVINO_THROW("AttrMatcher met unsupported AttributeAdapter ", name);
         }
         add_match_result(name, is_matched);
     }
@@ -1198,7 +1202,7 @@ public:
                 auto byte_size =
                     shape_size(vconst_node->get_output_shape(0)) * vconst_node->get_output_element_type(0).size();
                 if (std::memcmp(pconst_node->get_data_ptr(), vconst_node->get_data_ptr(), byte_size) != 0) {
-                    _VERBOSE_LOG("Constant value mismatch.");
+                    _VERBOSE_LOG("Constant value mismatch on ", pconst_node, " vs ", vconst_node);
                     return false;
                 }
                 continue;
