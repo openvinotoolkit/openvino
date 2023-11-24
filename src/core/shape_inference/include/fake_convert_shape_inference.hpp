@@ -25,7 +25,7 @@ std::vector<TRShape> shape_infer(const FakeConvert* op, const std::vector<T>& in
     TRShape output_pshape = input_shapes[0];
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           TRShape::broadcast_merge_into(output_pshape, scales_shape, op::AutoBroadcastType::NUMPY),
+                           T::broadcast_merge_into(output_pshape, scales_shape, op::AutoBroadcastType::NUMPY),
                            "Argument shapes are inconsistent.");
     NODE_SHAPE_INFER_CHECK(
         op,
