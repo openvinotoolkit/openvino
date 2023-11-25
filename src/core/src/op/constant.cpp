@@ -79,6 +79,14 @@ Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
         constructor_validate_and_infer_types();
         allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
+        if (m_element_type == ov::element::string) {
+            // we need to re-initialize memory with separate (newly created) std::string objects with the same values
+            auto size = shape_size(m_shape);
+            auto string_ptr = static_cast<std::string*>(get_data_ptr_nc());
+            std::transform(string_ptr, string_ptr + size, string_ptr, [](std::string value) {
+                return value;
+            });
+        }
     }
     constructor_validate_and_infer_types();
 }
@@ -94,7 +102,6 @@ Constant::Constant(const Tensor& tensor)
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
     : Constant(false, type, shape) {
-    // TODO: Rework code as this is a modified duplicate of another templated ctor
     NODE_VALIDATION_CHECK(this,
                           values.size() == 1 || values.size() == shape_size(m_shape),
                           "Did not get the expected number of literals for a constant of shape ",
@@ -135,13 +142,25 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 
 void Constant::allocate_buffer(bool memset_allocation) {
     m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
-    if (memset_allocation) {
+
+    if (m_element_type == ov::element::string) {
+        auto size = shape_size(m_shape);
+        auto string_ptr = static_cast<std::string*>(get_data_ptr_nc());
+        std::uninitialized_fill_n(string_ptr, size, std::string());
+    } else if (memset_allocation) {
         std::memset(m_data->get_ptr(), 0, m_data->size());
     }
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(false, type, shape) {
-    std::memcpy(get_data_ptr_nc(), data, mem_size());
+    if (m_element_type == ov::element::string) {
+        auto num_elements = shape_size(m_shape);
+        const std::string* dst_strings = static_cast<const std::string*>(data);
+        std::string* src_strings = static_cast<std::string*>(get_data_ptr_nc());
+        std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
+    } else {
+        std::memcpy(get_data_ptr_nc(), data, mem_size());
+    }
 }
 
 Constant::Constant(const Constant& other)
@@ -319,6 +338,9 @@ bool Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::u64:
         all_identical = test_bitwise_identical(get_data_ptr<uint64_t>(), shape_size(m_shape));
         break;
+    case element::Type_t::string:
+        all_identical = test_bitwise_identical(get_data_ptr<std::string>(), shape_size(m_shape));
+        break;
     default:
         all_identical = false;
         break;
@@ -354,7 +376,15 @@ bool Constant::evaluate(TensorVector& outputs, const TensorVector& inputs) const
         outputs.emplace_back(m_element_type, m_shape);
     else
         outputs[0].set_shape(m_shape);
-    std::memcpy(outputs[0].data(), get_data_ptr(), outputs[0].get_byte_size());
+    if (m_element_type == ov::element::string) {
+        auto num_elements = shape_size(m_shape);
+        const std::string* src_strings = static_cast<const std::string*>(get_data_ptr());
+        std::string* dst_strings = static_cast<std::string*>(outputs[0].data());
+        std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
+    } else {
+        std::memcpy(outputs[0].data(), get_data_ptr(), outputs[0].get_byte_size());
+    }
+
     return true;
 }
 
