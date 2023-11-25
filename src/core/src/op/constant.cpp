@@ -155,8 +155,8 @@ void Constant::allocate_buffer(bool memset_allocation) {
 Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(false, type, shape) {
     if (m_element_type == ov::element::string) {
         auto num_elements = shape_size(m_shape);
-        const std::string* dst_strings = static_cast<const std::string*>(data);
-        std::string* src_strings = static_cast<std::string*>(get_data_ptr_nc());
+        const std::string* src_strings = static_cast<const std::string*>(data);
+        std::string* dst_strings = static_cast<std::string*>(get_data_ptr_nc());
         std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
     } else {
         std::memcpy(get_data_ptr_nc(), data, mem_size());
