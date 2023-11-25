@@ -75,6 +75,7 @@ OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
+OP_CONVERTER(translate_fmod);
 OP_CONVERTER(translate_frobenius_norm);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
@@ -140,6 +141,7 @@ OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
 OP_CONVERTER(translate_pow);
+OP_CONVERTER(translate_prod);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
 OP_CONVERTER(translate_quantize_per_tensor);
@@ -350,6 +352,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
         {"aten::floordiv", op::translate_floor_divide},
+        {"aten::fmod", op::translate_fmod},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
@@ -446,6 +449,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
+        {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::rand", op::translate_rand},

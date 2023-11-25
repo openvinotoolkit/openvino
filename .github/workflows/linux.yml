@@ -1357,6 +1357,91 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
 
+  TensorFlow_Hub_Performance_Models_Tests:
+    name: TensorFlow Hub Performance Models tests
+    needs: [Build, Smart_CI]
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
+    env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+
+    steps:
+      - name: Check sudo
+        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Install OpenVINO Python wheels
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+
+      - name: Install TF Hub tests requirements
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
+
+      - name: Install Hub Performance tests requirements
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/performance_tests/requirements.txt
+
+      - name: Performance Hub Tests
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/performance_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_performance.html --self-contained-html -v
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-tensorflow-hub-performance-models
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+          if-no-files-found: 'error'
+
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: [Build, Smart_CI]
@@ -1576,10 +1661,21 @@ jobs:
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
 
+  GPU_Stub:
+    needs: [Build, Smart_CI]
+    runs-on: ubuntu-latest
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    steps:
+      - name: GPU stub
+        run: |
+          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI. 
+          It will help us to estimate hardware requirements"
+        shell: bash
+
   Overall_Status:
-    name: ci/gha_linux
+    name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
-            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
+            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, TensorFlow_Hub_Performance_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
