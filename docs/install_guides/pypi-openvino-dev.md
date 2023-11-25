@@ -107,7 +107,7 @@ For example, to install and configure the components for working with TensorFlow
 
 - To verify that OpenVINO Runtime from the **runtime package** is available, run the command below:
    ```sh
-   python -c "from openvino.runtime import Core; print(Core().available_devices)"
+   python -c "from openvino import Core; print(Core().available_devices)"
    ```
    If installation was successful, you will see a list of available devices.
 
