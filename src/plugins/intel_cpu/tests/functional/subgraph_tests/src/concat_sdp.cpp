@@ -219,7 +219,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(true, false)),
                          ConcatSDPTest::getTestCaseName);

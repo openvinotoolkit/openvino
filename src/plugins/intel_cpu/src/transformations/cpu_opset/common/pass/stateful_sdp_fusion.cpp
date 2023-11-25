@@ -57,6 +57,8 @@ StatefulSDPFusion::StatefulSDPFusion() {
                     }
                 }
                 assign = dynamic_cast<opset6::Assign*>(to_node);
+                if (assign)
+                    return;
             }
         };
 

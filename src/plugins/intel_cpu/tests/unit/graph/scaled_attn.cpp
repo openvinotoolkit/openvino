@@ -95,7 +95,7 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
         for (auto& node : graph.GetNodes()) {
             if (node->isDynamicNode()) {
                 node->updateShapes();
-                node->updateDynamicParams();                
+                node->updateDynamicParams();
             }
         }
         graph.Infer();
@@ -118,7 +118,7 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
             auto p = reinterpret_cast<float*>(memory->getData());
             ASSERT_EQ(std::all_of(p, p + size, [&](float v) { return is_same(v, expected.at(name).first); }), true);
             ASSERT_EQ(memory->getShape(), ov::intel_cpu::Shape(expected.at(name).second));
-        };
+        }
     };
 
     auto find_node_type = [](const Graph& graph, Type type) -> NodePtr {

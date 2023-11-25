@@ -830,7 +830,7 @@ void ScaledDotProductAttention::createPrimitive() {
         auto desc = getSelectedPrimitiveDescriptor();
         if (desc == nullptr)
             OPENVINO_THROW("has unidentified preferable primitive descriptor");
-        
+
         m_config.skipPastKVCopy = desc->getConfig().outConfs[1].inPlace() >= 0;
     }
 }
