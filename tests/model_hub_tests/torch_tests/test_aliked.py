@@ -1,19 +1,19 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import sys
 import math
-import tempfile
-import torch
-import pytest
+import os
 import subprocess
+import sys
+import tempfile
+
+import numpy as np
+import openvino.runtime.opset12 as ops
+import pytest
+import torch
 from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model, Model, PartialShape, Type
-import openvino.runtime.opset12 as ops
 from openvino.frontend import ConversionExtension
-import numpy as np
-
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
@@ -65,7 +65,7 @@ def read_image(path, idx):
 
     img_path = os.path.join(path, f"{idx}.jpg")
     img_ref = cv2.imread(img_path)
-    img_ref = cv2.resize(img_ref, (640,640))
+    img_ref = cv2.resize(img_ref, (640, 640))
     img_rgb = cv2.cvtColor(img_ref, cv2.COLOR_BGR2RGB)
     img_tensor = ToTensor()(img_rgb)
     return img_tensor.unsqueeze_(0)
@@ -78,7 +78,7 @@ class TestAlikedConvertModel(TestConvertModel):
             f"git clone https://github.com/mvafin/ALIKED.git {self.repo_dir.name}")
         subprocess.check_call(["git", "checkout", "6008af43942925eec7e32006814ef41fbd0858d8"], cwd=self.repo_dir.name)
         subprocess.check_call([sys.executable, "-m", "pip", "install",
-                              "-r", os.path.join(self.repo_dir.name, "requirements.txt")])
+                               "-r", os.path.join(self.repo_dir.name, "requirements.txt")])
         subprocess.check_call(["sh", "build.sh"], cwd=os.path.join(
             self.repo_dir.name, "custom_ops"))
 

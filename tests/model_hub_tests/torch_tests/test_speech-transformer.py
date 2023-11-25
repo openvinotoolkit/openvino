@@ -2,15 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import subprocess
 import sys
 import tempfile
-import torch
-import pytest
-import subprocess
 
+import pytest
+import torch
 from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model
-
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)

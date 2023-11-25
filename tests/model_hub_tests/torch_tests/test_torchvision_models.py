@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import tempfile
+
 import pytest
 import torch
-import tempfile
 import torchvision.transforms.functional as F
-from openvino import convert_model
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
+from openvino import convert_model
 
 
 def get_all_models() -> list:
@@ -115,7 +116,8 @@ class TestTorchHubConvertModel(TestConvertModel):
         self.run(model_name, None, ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r
+                              in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

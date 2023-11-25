@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pytest
 import torch
 from huggingface_hub import model_info
-from models_hub_common.test_convert_model import TestConvertModel
-from openvino import convert_model
-from models_hub_common.utils import get_models_list, cleanup_dir
 from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.test_convert_model import TestConvertModel
+from models_hub_common.utils import get_models_list, cleanup_dir
+from openvino import convert_model
 
 
 def flattenize_tuples(list_input):
@@ -110,7 +111,7 @@ class TestTransformersModel(TestConvertModel):
             model = Wav2Vec2ForSequenceClassification.from_pretrained(name, torchscript=True)
             processor = AutoFeatureExtractor.from_pretrained(name)
             input_values = processor(torch.randn(16000).numpy(), sampling_rate=16_000, return_tensors="pt")
-            example =  {"input_values": input_values.input_values}
+            example = {"input_values": input_values.input_values}
         elif "retribert" in mi.tags:
             from transformers import RetriBertTokenizer
             text = "How many cats are there?"
@@ -231,13 +232,13 @@ class TestTransformersModel(TestConvertModel):
                             "Number of movies": ["87", "53", "69"]}
                     queries = ["What is the name of the first actor?",
                                "How many movies has George Clooney played in?",
-                               "What is the total number of movies?",]
+                               "What is the total number of movies?", ]
                     answer_coordinates = [[(0, 0)], [(2, 1)], [
                         (0, 1), (1, 1), (2, 1)]]
                     answer_text = [["Brad Pitt"], ["69"], ["209"]]
                     table = pd.DataFrame.from_dict(data)
                     encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
-                                              answer_text=answer_text, padding="max_length", return_tensors="pt",)
+                                              answer_text=answer_text, padding="max_length", return_tensors="pt", )
                     example = dict(input_ids=encoded_input["input_ids"],
                                    token_type_ids=encoded_input["token_type_ids"],
                                    attention_mask=encoded_input["attention_mask"])
@@ -313,7 +314,9 @@ class TestTransformersModel(TestConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(
+                                 reason=r)) if m else n for n, _, m, r in
+                              get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)
