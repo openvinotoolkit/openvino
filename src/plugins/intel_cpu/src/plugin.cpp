@@ -16,7 +16,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "performance_heuristics.hpp"
 #include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
@@ -166,6 +165,10 @@ Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
+    // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
+    get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
+        dnnl::impl::cpu::x64::cpu();
+    });
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();

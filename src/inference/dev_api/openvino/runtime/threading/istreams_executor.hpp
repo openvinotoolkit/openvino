@@ -59,6 +59,11 @@ static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMA
 class OPENVINO_RUNTIME_API IStreamsExecutor : virtual public ITaskExecutor {
 public:
     /**
+     * A shared pointer to IStreamsExecutor interface
+     */
+    using Ptr = std::shared_ptr<IStreamsExecutor>;
+
+    /**
      * @brief Defines inference thread binding type
      */
     enum ThreadBindingType : std::uint8_t {
