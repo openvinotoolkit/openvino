@@ -18,21 +18,25 @@ namespace CPULayerTestsDefinitions {
 std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnCPUTestParams>& obj) {
     CPUSpecificParams cpuParams;
     ElementType inType;
-    InputShape inputShape;
+    std::vector<InputShape> inputShapes;
     bool is_causal;
     bool has_attn;
     bool has_scale;
     std::string targetDevice;
-    std::tie(inType, inputShape, is_causal, has_attn, has_scale, targetDevice, cpuParams) = obj.param;
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
-    result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+    result << "IS=";
+    for (const auto& inputShape : inputShapes) {
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+    }
     result << "TS=";
-    for (const auto& shape : inputShape.second) {
-        result << "(";
-        result << ov::test::utils::vec2str(shape);
-        result << ")_";
+    for (const auto& shapes : inputShapes) {
+        for (const auto& shape : shapes.second) {
+            result << ov::test::utils::vec2str(shape);
+            result << "_";
+        }
     }
     result << "is_causal=" << is_causal << "_";
     result << "has_attn=" << has_attn << "_";
@@ -46,8 +50,8 @@ std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo
 void ScaledAttnLayerCPUTest::SetUp() {
     ElementType inType;
     CPUSpecificParams cpuParams;
-    InputShape inputShape;
-    std::tie(inType, inputShape, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
+    std::vector<InputShape> inputShapes;
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
@@ -58,12 +62,12 @@ void ScaledAttnLayerCPUTest::SetUp() {
         rel_threshold = 2e-2f;
     }
     selectedType = makeSelectedTypeStr(selectedType, inType);
-    init_input_shapes({inputShape});
+    init_input_shapes(inputShapes);
     ov::ParameterVector inputParams;
     // q,k,v
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
-    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
-    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
+    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]));
+    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]));
     inputParams[0]->set_friendly_name("q");
     inputParams[1]->set_friendly_name("k");
     inputParams[2]->set_friendly_name("v");
@@ -77,9 +81,7 @@ void ScaledAttnLayerCPUTest::SetUp() {
         inputParams.back()->set_friendly_name("scale");
     } else {
         if (has_attn) {
-            // attention_mask：[B, 1, 1, L0+L1]
-            ov::PartialShape attnShape{inputDynamicShapes[0][0], 1, 1, -1};
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, attnShape));
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[2]));
             inputParams.back()->set_friendly_name("attention_mask");
         }
         if (has_scale) {
@@ -106,14 +108,14 @@ void ScaledAttnLayerCPUTest::SetUp() {
 void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     std::vector<ov::Shape> shapes(3);
     shapes[0] = targetInputStaticShapes[0];
-    shapes[1] = targetInputStaticShapes[0];
-    shapes[2] = targetInputStaticShapes[0];
+    shapes[1] = targetInputStaticShapes[1];
+    shapes[2] = targetInputStaticShapes[1];
     if (!has_attn && has_scale) {
         shapes.push_back(ov::Shape{});
         shapes.push_back(ov::Shape{1});
     } else {
         if (has_attn) {
-            shapes.push_back(ov::Shape{targetInputStaticShapes[0][0], 1, 1, targetInputStaticShapes[0][2]});
+            shapes.push_back(targetInputStaticShapes[2]);
         }
         if (has_scale) {
             shapes.push_back(ov::Shape{1});
