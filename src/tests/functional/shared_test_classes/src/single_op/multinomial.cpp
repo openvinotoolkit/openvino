@@ -17,19 +17,14 @@ std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<M
     ov::test::ElementType convert_type;
     bool with_replacement;
     bool log_probs;
-    uint64_t global_seed;
-    uint64_t op_seed;
+    std::pair<uint64_t, uint64_t> global_op_seed;
     std::string device_name;
 
-    std::tie(test_type,
-             probs,
-             num_samples,
-             convert_type,
-             with_replacement,
-             log_probs,
-             global_seed,
-             op_seed,
-             device_name) = obj.param;
+    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, device_name) =
+        obj.param;
+
+    uint64_t global_seed = global_op_seed.first;
+    uint64_t op_seed = global_op_seed.second;
 
     const char separator = '_';
     std::ostringstream result;
@@ -59,21 +54,16 @@ void MultinomialLayerTest::SetUp() {
     ov::test::ElementType convert_type;
     bool with_replacement;
     bool log_probs;
-    uint64_t global_seed;
-    uint64_t op_seed;
+    std::pair<uint64_t, uint64_t> global_op_seed;
 
-    std::tie(test_type,
-             probs,
-             num_samples,
-             convert_type,
-             with_replacement,
-             log_probs,
-             global_seed,
-             op_seed,
-             targetDevice) = GetParam();
+    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, targetDevice) =
+        GetParam();
 
     m_probs = probs;
     m_num_samples = num_samples;
+
+    uint64_t global_seed = global_op_seed.first;
+    uint64_t op_seed = global_op_seed.second;
 
     InputShape probs_shape;
     InputShape num_samples_shape;

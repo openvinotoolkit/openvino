@@ -10,15 +10,14 @@
 namespace ov {
 namespace test {
 
-typedef std::tuple<std::string,            // test type
-                   ov::Tensor,             // probs
-                   ov::Tensor,             // num_samples
-                   ov::test::ElementType,  // convert_type
-                   bool,                   // with_replacement
-                   bool,                   // log_probs
-                   uint64_t,               // global_seed
-                   uint64_t,               // op_seed
-                   std::string             // device_name
+typedef std::tuple<std::string,                    // test type
+                   ov::Tensor,                     // probs
+                   ov::Tensor,                     // num_samples
+                   ov::test::ElementType,          // convert_type
+                   bool,                           // with_replacement
+                   bool,                           // log_probs
+                   std::pair<uint64_t, uint64_t>,  // global_op_seed
+                   std::string                     // device_name
                    >
     MultinomialTestParams;
 

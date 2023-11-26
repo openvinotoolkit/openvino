@@ -11,8 +11,7 @@ namespace {
 
 using ov::test::MultinomialLayerTest;
 
-const int GLOBAL_SEED = 1;
-const int OP_SEED = 2;
+std::vector<std::pair<uint64_t, uint64_t>> global_op_seed = {{1ul, 2ul}, {0ul, 0ul}};
 
 std::vector<float> probs_4x4_f32 = {0.00001f,
                                     0.001f,
@@ -79,9 +78,8 @@ const auto params_static = ::testing::Combine(::testing::Values("static"),
                                               ::testing::ValuesIn(num_samples),
                                               ::testing::ValuesIn(convert_type),
                                               ::testing::ValuesIn(with_replacement),
-                                              ::testing::Values(false),        // log_probs
-                                              ::testing::Values(GLOBAL_SEED),  // global_seed
-                                              ::testing::Values(OP_SEED),      // op_seed
+                                              ::testing::Values(false),  // log_probs
+                                              ::testing::ValuesIn(global_op_seed),
                                               ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto params_static_log = ::testing::Combine(::testing::Values("static"),
@@ -89,9 +87,8 @@ const auto params_static_log = ::testing::Combine(::testing::Values("static"),
                                                   ::testing::ValuesIn(num_samples),
                                                   ::testing::ValuesIn(convert_type),
                                                   ::testing::ValuesIn(with_replacement),
-                                                  ::testing::Values(true),         // log_probs
-                                                  ::testing::Values(GLOBAL_SEED),  // global_seed
-                                                  ::testing::Values(OP_SEED),      // op_seed
+                                                  ::testing::Values(true),  // log_probs
+                                                  ::testing::ValuesIn(global_op_seed),
                                                   ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
@@ -99,9 +96,8 @@ const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
                                                ::testing::ValuesIn(num_samples),
                                                ::testing::ValuesIn(convert_type),
                                                ::testing::ValuesIn(with_replacement),
-                                               ::testing::Values(false),        // log_probs
-                                               ::testing::Values(GLOBAL_SEED),  // global_seed
-                                               ::testing::Values(OP_SEED),      // op_seed
+                                               ::testing::Values(false),  // log_probs
+                                               ::testing::ValuesIn(global_op_seed),
                                                ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto params_dynamic_log = ::testing::Combine(::testing::Values("dynamic"),
@@ -109,9 +105,8 @@ const auto params_dynamic_log = ::testing::Combine(::testing::Values("dynamic"),
                                                    ::testing::ValuesIn(num_samples),
                                                    ::testing::ValuesIn(convert_type),
                                                    ::testing::ValuesIn(with_replacement),
-                                                   ::testing::Values(true),         // log_probs
-                                                   ::testing::Values(GLOBAL_SEED),  // global_seed
-                                                   ::testing::Values(OP_SEED),      // op_seed
+                                                   ::testing::Values(true),  // log_probs
+                                                   ::testing::ValuesIn(global_op_seed),
                                                    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialStatic,
