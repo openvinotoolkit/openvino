@@ -24,15 +24,15 @@ public:
 
     template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
     void NormalizeImage(const Shape &inputShape, T *input, InferenceEngine::Layout layout) {
-        IE_ASSERT(input != nullptr);
+        OPENVINO_ASSERT(input != nullptr);
 
         const auto inputDims = inputShape.getStaticDims();
         if (inputDims.size() != 4) {
-            IE_THROW() << "Expecting input as 4 dimension blob with format NxCxHxW.";
+            OPENVINO_THROW("Expecting input as 4 dimension blob with format NxCxHxW.");
         }
 
         if (layout != InferenceEngine::NCHW && layout != InferenceEngine::NHWC) {
-            IE_THROW() << "Expecting input layout NCHW or NHWC.";
+            OPENVINO_THROW("Expecting input layout NCHW or NHWC.");
         }
 
         int MB = inputDims[0];
@@ -54,7 +54,7 @@ public:
 
             for (int c = 0; c < C; c++) {
                 if (stdScales[c] != 1)
-                    IE_THROW() << "Preprocessing error: fractional normalization is not supported for integer data. ";
+                    OPENVINO_THROW("Preprocessing error: fractional normalization is not supported for integer data. ");
             }
 
             if (layout == InferenceEngine::NCHW) {
@@ -77,7 +77,7 @@ public:
                 });
             }
         } else {
-            IE_THROW() << "Preprocessing error: meanValues and stdScales arrays are inconsistent.";
+            OPENVINO_THROW("Preprocessing error: meanValues and stdScales arrays are inconsistent.");
         }
     }
 

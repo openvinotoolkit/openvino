@@ -38,7 +38,7 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     params->get_output_tensor(0).set_names({"input_tensor_0"});
     params->set_friendly_name("param_0");
     auto concat_const = ngraph::builder::makeConstant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
-    auto concat = ngraph::builder::makeConcat({params, concat_const}, 0 /*axis*/);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{params, concat_const}, 0 /*axis*/);
     auto eltwise_const = ngraph::builder::makeConstant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
     auto eltwise = ngraph::builder::makeEltwise(concat, eltwise_const, ngraph::helpers::EltwiseTypes::ADD);
     concat->get_output_tensor(0).set_names({"result_tensor_0"});

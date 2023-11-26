@@ -33,7 +33,9 @@ void InputSplitConcatTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
+
     auto relu1 = std::make_shared<ngraph::opset3::Relu>(split->output(0));
 
     auto const_vals = ov::test::utils::generate_float_numbers(inputShape[1], -5.0f, 5.0f);
