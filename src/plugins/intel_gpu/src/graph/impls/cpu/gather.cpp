@@ -42,11 +42,13 @@ struct gather_impl : public typed_primitive_impl<gather> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << axis;
         ob << batch_dims;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> axis;
         ib >> batch_dims;
     }

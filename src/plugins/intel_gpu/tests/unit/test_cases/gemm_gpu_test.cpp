@@ -130,21 +130,21 @@ public:
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, tp, get_test_default_config(engine));
-                process_program(_network.get_program());
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
+                program::build_program(engine, tp, get_test_default_config(engine))->save(ob);
             }
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
+                auto imported_prog = std::make_shared<cldnn::program>(engine, get_test_default_config(engine));
+                imported_prog->load(ib);
+                network = std::make_shared<cldnn::network>(imported_prog);
             }
         } else {
             network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
-            process_program(network->get_program());
         }
+        process_program(network->get_program());
 
         for (auto &input : network_inputs) {
             network->set_input_data(input.first, input.second);

@@ -1683,3 +1683,198 @@ void program::cancel_compilation_context() {
     if (_compilation_context != nullptr)
         _compilation_context->cancel();
 }
+
+void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    std::list<std::pair<primitive_id, primitive_id>> shared_mem_nodes;
+    ob << nodes_map.size();
+    for (auto& node : nodes_map) {
+        ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
+
+        if (node.second->is_type<data>() && node.second->as<data>().get_primitive()->mem == nullptr) {
+            auto& data_node = node.second->as<data>();
+            if (data_node.get_attached_memory_ptr() == nullptr) {
+                ob << false;
+                continue;
+            } else {
+                node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
+            }
+        }
+        ob << true;
+
+        ob << node.second->desc;
+
+        // TopK
+        if (node.second->is_type<mutable_data>()) {
+            std::string md_write = "_md_write";
+            if (node.first.length() > md_write.length() &&
+                node.first.compare(node.first.length() - md_write.length(), md_write.length(), md_write) == 0) {
+                primitive_id argmax_mutable_id_r = node.first.substr(0, node.first.length() - md_write.length()) + ".out1";
+
+                if (has_node(argmax_mutable_id_r) && get_node_ptr(argmax_mutable_id_r)->is_type<mutable_data>()) {
+                    auto& w_mem = node.second->as<mutable_data>().get_primitive()->mem;
+                    auto& r_mem = get_node_ptr(argmax_mutable_id_r)->as<mutable_data>().get_primitive()->mem;
+
+                    if (get_engine().is_the_same_buffer(*w_mem, *r_mem)) {
+                        shared_mem_nodes.push_back({node.first, argmax_mutable_id_r});
+                    }
+                }
+            }
+        }
+    }
+
+    ob << shared_mem_nodes.size();
+    for (auto& shared_mem_pair : shared_mem_nodes) {
+        ob << shared_mem_pair.first;
+        ob << shared_mem_pair.second;
+    }
+
+    for (auto& node : nodes_map) {
+        ob << node.first;
+        node.second->save(ob);
+        ob << node.second->get_dependant_shape_of_nodes().size();
+        for (auto& dep_node : node.second->get_dependant_shape_of_nodes()) {
+            ob << dep_node->id();
+        }
+    }
+
+    ob << inputs.size();
+    for (auto& input : inputs) {
+        ob << input->id();
+    }
+
+    ob << outputs.size();
+    for (auto& output : outputs) {
+        ob << output->id();
+    }
+
+    ob << _is_body_program;
+    ob << _can_be_optimized;
+    get_processing_order().save(ob);
+
+    {
+        auto& kernels_cache = get_kernels_cache();
+        std::vector<primitive_id> impl_ids;
+        for (auto& node : get_processing_order()) {
+            if (node->get_selected_impl() != nullptr) {
+                impl_ids.emplace_back(node->id());
+                kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
+            }
+        }
+        ob << kernels_cache;
+        ob << impl_ids;
+        for (auto& impl_id : impl_ids) {
+            ob << get_node_ptr(impl_id)->get_selected_impl()->is_dynamic();
+            if (get_node_ptr(impl_id)->get_selected_impl()->is_dynamic() == false) {
+                if (get_node_ptr(impl_id)->get_preferred_impl_type() == impl_types::onednn) {
+                    auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+                    ob.setKernelImplParams(params.get());
+                    ob << get_node_ptr(impl_id)->selected_impl;
+                } else {
+                    ob << get_node_ptr(impl_id)->selected_impl;
+                }
+            }
+            ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
+        }
+    }
+}
+
+void program::load(cldnn::BinaryInputBuffer& ib) {
+    init_program();
+
+    size_t num_nodes;
+    ib >> num_nodes;
+    bool is_valid_data_node;
+    for (size_t i = 0; i < num_nodes; ++i) {
+        ib >> is_valid_data_node;
+        if (!is_valid_data_node)
+            continue;
+
+        std::shared_ptr<cldnn::primitive> prim;
+        ib >> prim;
+        get_or_create(prim);
+    }
+
+    size_t num_shared_mem_nodes;
+    ib >> num_shared_mem_nodes;
+    for (size_t i = 0; i < num_shared_mem_nodes; ++i) {
+        primitive_id w_id, r_id;
+        ib >> w_id;
+        ib >> r_id;
+
+        auto& w_node = get_node(w_id).as<mutable_data>();
+        auto& r_node = get_node(r_id).as<mutable_data>();
+
+        r_node.typed_desc()->mem = w_node.typed_desc()->mem;
+        r_node.replace_memory(r_node.typed_desc()->mem);
+    }
+
+    for (size_t i = 0; i < num_nodes; ++i) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        auto& p_node = get_node(prim_id);
+        p_node.load(ib);
+        size_t num_dep_nodes;
+        ib >> num_dep_nodes;
+        for (size_t i = 0; i < num_dep_nodes; ++i) {
+            ib >> prim_id;
+            auto& dep_node = get_node(prim_id);
+            p_node.add_dependant_shape_of_node(&dep_node);
+        }
+    }
+
+    ib >> num_nodes;
+    inputs.clear();
+    for (size_t i = 0; i < num_nodes; ++i) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        auto& p_node = get_node(prim_id);
+        inputs.emplace_back(&p_node);
+    }
+
+    ib >> num_nodes;
+    outputs.clear();
+    for (size_t i = 0; i < num_nodes; ++i) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        auto& p_node = get_node(prim_id);
+        outputs.emplace_back(&p_node);
+    }
+
+    ib >> _is_body_program;
+    ib >> _can_be_optimized;
+
+    get_processing_order().load(ib, *this);
+
+    {
+        auto& kernels_cache = get_kernels_cache();
+        ib >> kernels_cache;
+
+        std::vector<primitive_id> impl_ids;
+        ib >> impl_ids;
+
+        for (auto& impl_id : impl_ids) {
+            auto& p_node = get_node(impl_id);
+
+            bool is_dynamic_impl;
+            ib >> is_dynamic_impl;
+
+            if (is_dynamic_impl) {
+                auto p_impl = p_node.type()->choose_impl(p_node);
+                p_impl->set_node_params(p_node);
+                p_node.set_selected_impl(std::move(p_impl));
+            } else {
+                if (p_node.get_preferred_impl_type() == impl_types::onednn) {
+                    auto params = p_node.get_kernel_impl_params();
+                    ib.setKernelImplParams(params.get());
+                    ib >> p_node.selected_impl;
+                } else {
+                    ib >> p_node.selected_impl;
+                }
+            }
+
+            std::vector<std::string> cached_kernel_ids;
+            ib >> cached_kernel_ids;
+            p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
+        }
+    }
+}

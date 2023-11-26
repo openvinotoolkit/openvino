@@ -98,6 +98,9 @@ public:
             _processing_order.erase(i);
         }
 
+        void save(cldnn::BinaryOutputBuffer& ob) const;
+        void load(cldnn::BinaryInputBuffer& ib, program& p);
+
     private:
         list_of_nodes _processing_order;
         std::map<program_node*, node_iterator> processing_order_iterators;
@@ -281,6 +284,9 @@ public:
 
     static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
     static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
 
 private:
     uint32_t prog_id = 0;

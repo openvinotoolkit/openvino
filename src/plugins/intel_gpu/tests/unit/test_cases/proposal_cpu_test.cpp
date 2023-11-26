@@ -93,15 +93,16 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
     if (is_caching_test) {
         membuf mem_buf;
         {
-            cldnn::network _network(get_test_engine(), _topology);
             std::ostream out_mem(&mem_buf);
             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
+            program::build_program(get_test_engine(), _topology, {})->save(ob);
         }
         {
             std::istream in_mem(&mem_buf);
             BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-            _network.reset(new network(ib, get_test_stream_ptr(), get_test_engine(), true, 0));
+            auto imported_prog = std::make_shared<cldnn::program>(get_test_engine());
+            imported_prog->load(ib);
+            _network.reset(new network(imported_prog));
         }
     } else {
         _network.reset(new network(get_test_engine(), _topology));

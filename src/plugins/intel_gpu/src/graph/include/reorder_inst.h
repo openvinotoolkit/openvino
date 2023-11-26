@@ -103,9 +103,6 @@ public:
         return req_reinterpr;
     }
 
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
-
 private:
     void on_execute() override;
 

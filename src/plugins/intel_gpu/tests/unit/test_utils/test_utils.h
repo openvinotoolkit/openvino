@@ -588,15 +588,16 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
     if (is_caching_test) {
         cldnn::membuf mem_buf;
         {
-            cldnn::network _network(engine, topology, config);
             std::ostream out_mem(&mem_buf);
             cldnn::BinaryOutputBuffer ob = cldnn::BinaryOutputBuffer(out_mem);
-            _network.save(ob);
+            cldnn::program::build_program(engine, topology, config, nullptr, false)->save(ob);
         }
         {
             std::istream in_mem(&mem_buf);
             cldnn::BinaryInputBuffer ib = cldnn::BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, config, stream, engine, true, 0);
+            auto imported_prog = std::make_shared<cldnn::program>(engine, config);
+            imported_prog->load(ib);
+            network = std::make_shared<cldnn::network>(imported_prog);
         }
     } else {
         network = std::make_shared<cldnn::network>(engine, topology, config);

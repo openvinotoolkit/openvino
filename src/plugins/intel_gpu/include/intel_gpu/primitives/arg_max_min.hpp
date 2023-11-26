@@ -121,8 +121,6 @@ struct arg_max_min : public primitive_base<arg_max_min> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<arg_max_min>::save(ob);
-        ob << input;
-        ob << num_outputs;
         ob << make_data(&mode, sizeof(ov::op::TopKMode));
         ob << top_k;
         ob << axis;
@@ -133,8 +131,6 @@ struct arg_max_min : public primitive_base<arg_max_min> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<arg_max_min>::load(ib);
-        ib >> input;
-        ib >> num_outputs;
         ib >> make_data(&mode, sizeof(ov::op::TopKMode));
         ib >> top_k;
         ib >> axis;

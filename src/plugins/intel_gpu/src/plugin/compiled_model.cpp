@@ -80,7 +80,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     }
 }
 
-CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
+CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
@@ -168,10 +168,9 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
         }
     }
 
-    auto pos = ib.tellg();
+    auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, n);
+        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
 }
@@ -195,9 +194,6 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     cldnn::BinaryOutputBuffer ob(model);
 
-    bool is_dynamic = get_graph(0)->get_network()->is_dynamic();
-
-    ob << is_dynamic;
     // Inputs
     {
         const auto& params = inputs();
@@ -237,12 +233,7 @@ void CompiledModel::export_model(std::ostream& model) const {
         }
     }
 
-    if (is_dynamic) {
-        ov::pass::StreamSerialize serializer(model, {}, ov::pass::Serialize::Version::UNSPECIFIED);
-        serializer.run_on_model(m_model);
-    } else {
-        get_graph(0)->export_model(ob);
-    }
+    get_graph(0)->export_model(ob);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

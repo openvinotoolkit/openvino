@@ -18,7 +18,7 @@ struct memory;
 class BinaryOutputBuffer : public OutputBuffer<BinaryOutputBuffer> {
 public:
     BinaryOutputBuffer(std::ostream& stream)
-    : OutputBuffer<BinaryOutputBuffer>(this), stream(stream), _impl_params(nullptr) {}
+    : OutputBuffer<BinaryOutputBuffer>(this), stream(stream), _impl_params(nullptr), _strm(nullptr) {}
 
     void write(void const * data, std::streamsize size) {
         auto const written_size = stream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
@@ -28,16 +28,20 @@ public:
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
+    void set_stream(void* strm) { _strm = strm; }
+    void* get_stream() const { return _strm; }
 
 private:
     std::ostream& stream;
     void* _impl_params;
+    void* _strm;
 };
 
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer(this, engine), _stream(stream), _impl_params(nullptr) {}
+    : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
+    //   , _strm(nullptr), _is_primary_stream(false), _local_net_id(0) {}
 
     void read(void* const data, std::streamsize size) {
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
@@ -47,25 +51,37 @@ public:
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
-    void addConstData(const uint32_t net_id, const std::string& prim_id, const std::shared_ptr<memory> mem_ptr) {
-        while (_const_data_map.size() <= net_id) {
-            _const_data_map.emplace_back(std::unordered_map<std::string, std::shared_ptr<memory>>());
-        }
-        OPENVINO_ASSERT(_const_data_map[net_id].find(prim_id) == _const_data_map[net_id].end(), "[GPU] duplicated primitive id " + prim_id);
-        _const_data_map[net_id][prim_id] = mem_ptr;
-    }
-    std::shared_ptr<memory> getConstData(const uint32_t net_id, const std::string& prim_id) {
-        OPENVINO_ASSERT(_const_data_map[net_id].find(prim_id) != _const_data_map[net_id].end(), "[GPU] Not found primitive id " + prim_id);
-        return _const_data_map[net_id][prim_id];
-    }
+    // void addConstData(const uint32_t net_id, const std::string& prim_id, const std::shared_ptr<memory> mem_ptr) {
+    //     while (_const_data_map.size() <= net_id) {
+    //         _const_data_map.emplace_back(std::unordered_map<std::string, std::shared_ptr<memory>>());
+    //     }
+    //     OPENVINO_ASSERT(_const_data_map[net_id].find(prim_id) == _const_data_map[net_id].end(), "[GPU] duplicated primitive id " + prim_id);
+    //     _const_data_map[net_id][prim_id] = mem_ptr;
+    // }
+    // std::shared_ptr<memory> getConstData(const uint32_t net_id, const std::string& prim_id) {
+    //     OPENVINO_ASSERT(_const_data_map[net_id].find(prim_id) != _const_data_map[net_id].end(), "[GPU] Not found primitive id " + prim_id);
+    //     return _const_data_map[net_id][prim_id];
+    // }
 
     std::streampos tellg() { return _stream.tellg(); }
     void seekg(std::streampos pos) { _stream.seekg(pos); }
 
+    // void set_stream(void* strm, bool is_primary_stream, uint32_t local_net_id) {
+    //     _strm = strm;
+    //     _is_primary_stream = is_primary_stream;
+    //     _local_net_id = local_net_id;
+    // }
+    // void* get_stream() const { return _strm; }
+    // bool is_primary_stream() const { return _is_primary_stream; }
+    // uint32_t get_local_net_id() const { return _local_net_id; }
+
 private:
     std::istream& _stream;
     void* _impl_params;
-    std::vector<std::unordered_map<std::string, std::shared_ptr<memory>>> _const_data_map;
+    // std::vector<std::unordered_map<std::string, std::shared_ptr<memory>>> _const_data_map;
+    // void* _strm;
+    // bool _is_primary_stream;
+    // uint32_t _local_net_id;
 };
 
 template <typename T>

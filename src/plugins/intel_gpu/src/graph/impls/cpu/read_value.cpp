@@ -35,10 +35,12 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << variable_id;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> variable_id;
     }
 

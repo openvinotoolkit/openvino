@@ -40,10 +40,12 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << axis;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> axis;
     }
 

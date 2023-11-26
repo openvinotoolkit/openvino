@@ -63,3 +63,6 @@ attach_rms_impl::attach_rms_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::rms_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::rms)

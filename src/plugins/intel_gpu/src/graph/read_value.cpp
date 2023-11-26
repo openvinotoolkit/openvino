@@ -42,18 +42,4 @@ void read_value_inst::update_output_memory() {
     const auto& variable = get_network().get_variable(variable_id());
     set_output_memory(variable.get_memory(), false, 0);
 }
-
-void read_value_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    ob << variable_id();
-}
-
-void read_value_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    std::string variable_id;
-    ib >> variable_id;
-    set_variable_id(variable_id);
-}
 } // namespace cldnn

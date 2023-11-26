@@ -110,7 +110,25 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
+        if (prim_params.inputs[0].LogicalSize() == 0) {
+            ob << true;
+        } else {
+            ob << false;
+        }
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> zero_input;
+    }
+
 protected:
+    // WA for static impl deserialization
+    bool zero_input = false;
+
     kernel_arguments_data get_arguments(const typed_primitive_inst<border>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 
@@ -127,7 +145,8 @@ protected:
         const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
         std::vector<layout> layouts;
 
-        if (prim_params.inputs[0].LogicalSize() == 0) {
+        if ((_kernel_data.params == nullptr && zero_input) ||
+            (_kernel_data.params != nullptr && prim_params.inputs[0].LogicalSize() == 0)) {
             layout any_layout = {data_types::u8, format::bfyx, {1, 1, 1, 1}};
             layouts.push_back(any_layout);
         }

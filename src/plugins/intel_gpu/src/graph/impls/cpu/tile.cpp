@@ -39,10 +39,12 @@ struct tile_impl : public typed_primitive_impl<tile> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << repeats;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> repeats;
     }
 
