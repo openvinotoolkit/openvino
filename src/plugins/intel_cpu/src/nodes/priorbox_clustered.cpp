@@ -36,7 +36,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
     : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
@@ -82,8 +82,8 @@ void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
         return;
 
     addSupportedPrimDesc(
-            {{LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
-            {{LayoutType::ncsp, Precision::FP32}},
+            {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+            {{LayoutType::ncsp, ov::element::f32}},
             impl_desc_type::ref_any);
 }
 

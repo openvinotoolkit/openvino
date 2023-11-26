@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/squeeze.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -23,8 +25,8 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
         // check deprecated name
         axis = node.get_attribute<std::vector<int64_t>>("squeeze_dims", {});
     }
-    auto axis_const = make_shared<Constant>(element::i32, Shape{axis.size()}, axis);
-    auto squeeze = make_shared<Squeeze>(input, axis_const);
+    auto axis_const = make_shared<v0::Constant>(element::i32, Shape{axis.size()}, axis);
+    auto squeeze = make_shared<v0::Squeeze>(input, axis_const);
     set_node_name(node.get_name(), squeeze);
     return {squeeze};
 }

@@ -43,11 +43,7 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
     void set_property(const ov::AnyMap& properties) override {
-        OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
-                               "",
-                               false,
-                               "Not Implemented: ",
-                               "CompiledModel::set_property is not supported by this plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented: CompiledModel::set_property is not supported by this plugin!");
     };
 
     const std::vector<ov::Output<const ov::Node>>& outputs() const override { return m_outputs; }

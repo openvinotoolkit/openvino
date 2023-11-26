@@ -76,7 +76,7 @@ protected:
                 ngraph::Shape{shape1[1], shape1[1]},
                 ov::test::utils::generate_float_numbers(shape2[1], 0.0f, maxInputValue));
         } else {
-            input2 = ngraph::builder::makeInputLayer(ngPrc, ngraph::helpers::InputLayerType::PARAMETER, shape2);
+            input2 = std::make_shared<ov::op::v0::Parameter>(ngPrc, shape2);
             params.push_back(std::dynamic_pointer_cast<ngraph::opset8::Parameter>(input2));
         }
 
@@ -106,10 +106,8 @@ protected:
             matmul_input2 = std::make_shared<ngraph::opset8::Reshape>(fqIn2, pattern, false);
         }
 
-        auto matmul = swapInputs ? std::dynamic_pointer_cast<ngraph::opset8::MatMul>(
-                                       ngraph::builder::makeMatMul(matmul_input2, fqIn1, false, true))
-                                 : std::dynamic_pointer_cast<ngraph::opset8::MatMul>(
-                                       ngraph::builder::makeMatMul(fqIn1, matmul_input2, false, true));
+        auto matmul = swapInputs ? std::make_shared<ov::op::v0::MatMul>(matmul_input2, fqIn1, false, true)
+                                 : std::make_shared<ov::op::v0::MatMul>(fqIn1, matmul_input2, false, true);
 
         auto lowNodeOut =
             ngraph::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue * maxInputValue * inputShape[1] / 10});

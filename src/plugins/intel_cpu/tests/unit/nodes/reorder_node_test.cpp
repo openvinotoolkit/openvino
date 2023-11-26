@@ -19,12 +19,11 @@
 #include "cache/multi_cache.h"
 #include "nodes/input.h"
 
-using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
 inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
                          const ov::intel_cpu::IMemory& outputMemory,
-                         const InferenceEngine::Precision& prescision) {
+                         const ov::element::Type& prescision) {
     auto srcData = inputMemory.getData();
     auto dstData = outputMemory.getData();
     auto mdInput = inputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
@@ -38,20 +37,20 @@ inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
         auto srcOffset = mdwInput.off_l(i, false);
         auto dstOffset = mdwOutput.off_l(i, false);
         switch (prescision) {
-        case InferenceEngine::Precision::FP32: {
+        case ov::element::f32: {
             auto s = *(static_cast<float*>(srcData) + srcOffset);
             auto d = *(static_cast<float*>(dstData) + dstOffset);
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
-        case InferenceEngine::Precision::I8: {
+        case ov::element::i8: {
             auto s = *(static_cast<int8_t*>(srcData) + srcOffset);
             auto d = *(static_cast<int8_t*>(dstData) + dstOffset);
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
         default:
-            FAIL() << "Unsupported data precision in the test" << prescision.name();
+            FAIL() << "Unsupported data precision in the test" << prescision.get_type_name();
         }
     }
 }
@@ -68,22 +67,22 @@ inline std::string layoutName(const LayoutType& layout) {
     return "Unsupported layout type";
 }
 
-inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceEngine::Precision& prec) {
+inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const ov::element::Type& prec) {
     ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.getDescWithType<DnnlMemoryDesc>();
     const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
     auto inputReorderData = inputMemory.getData();
     switch (prec) {
-    case InferenceEngine::Precision::FP32:
+    case ov::element::f32:
         for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
         break;
-    case InferenceEngine::Precision::I8:
+    case ov::element::i8:
         for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:
-        FAIL() << "Unsupported data precision in the test" << prec.name();
+        FAIL() << "Unsupported data precision in the test" << prec.get_type_name();
     }
 }
 struct ReorderCustomImplTestParamSet {
@@ -91,17 +90,17 @@ struct ReorderCustomImplTestParamSet {
     std::vector<size_t> srcDims;
     bool isNspc2Ncsp;
     uint32_t strideFactor;
-    InferenceEngine::Precision prec;
+    ov::element::Type prec;
     size_t stridedAxis;
 };
 
 struct ReorderCPUTestParamSet {
-    ngraph::PartialShape inputPartialShape;
+    ov::PartialShape inputPartialShape;
     // logical dimension vector  of input
     std::vector<std::vector<size_t>> inputShapes;
     LayoutType srcLayout;
     LayoutType dstLayout;
-    InferenceEngine::Precision prec;
+    ov::element::Type prec;
 };
 
 class ReorderCPUTestGraph {
@@ -157,7 +156,7 @@ protected:
     std::shared_ptr<ov::intel_cpu::node::Input> outputNode;
     std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
     std::shared_ptr<ov::intel_cpu::Edge> childEdge;
-    InferenceEngine::Precision prec;
+    ov::element::Type prec;
 };
 
 }// namespace ReorderCPUTest
@@ -179,8 +178,8 @@ public:
         result << "IS:(";
         result << ov::test::utils::vec2str(p.srcDims);
         result << (p.isNspc2Ncsp ? "_NSPC2NCSP" : "_NCSP2NSPC");
-        result << "_InputDataType:" << p.prec.name();
-        result << "_OutputDataType:" << p.prec.name();
+        result << "_InputDataType:" << p.prec.get_type_name();
+        result << "_OutputDataType:" << p.prec.get_type_name();
         result << "_StrideFactor:" << p.strideFactor;
         result << "_StridedLogicChannelIndice:" << p.stridedAxis;
         result << ")";
@@ -202,7 +201,7 @@ protected:
             // The custom NSPC2NCSP  impl is used only if an input shape complies with:
             ASSERT_TRUE(srcDims[1] <= 64 && srcDims[1] >= 16 && (getNumElems(srcDims) / srcDims[1]) >= 128);
             // The custom NSPC2NCSP impl is used only for FP32
-            prec = InferenceEngine::Precision::FP32;
+            prec = ov::element::f32;
             srcOrder = std::vector<size_t>{0, 2, 3, 1};
             dstOrder = std::vector<size_t>{0, 1, 2, 3};
         } else {
@@ -210,7 +209,7 @@ protected:
             srcOrder = std::vector<size_t>{0, 1, 2, 3};
             dstOrder = std::vector<size_t>{0, 2, 3, 1};
             // The custom NSPC2NCSP  impl is used only for U8
-            prec = InferenceEngine::Precision::I8;
+            prec = ov::element::i8;
         }
         dstDims = srcDims;
         // Create strided dst layout for the inPlace case,
@@ -294,13 +293,13 @@ TEST_P(ReorderCustomizedStrideTest, OutputIsStrided) {
 }
 
 const auto stridedParameter =
-    ::testing::Values(ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 2, InferenceEngine::Precision::FP32, 0},
-                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 4, InferenceEngine::Precision::FP32, 1},
-                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 3, InferenceEngine::Precision::FP32, 1},
-                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 1, InferenceEngine::Precision::FP32, 2},
-                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 2, InferenceEngine::Precision::I8, 0},
-                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 5, InferenceEngine::Precision::I8, 1},
-                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 1, InferenceEngine::Precision::I8, 2});
+    ::testing::Values(ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 2, ov::element::f32, 0},
+                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 4, ov::element::f32, 1},
+                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 3, ov::element::f32, 1},
+                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 1, ov::element::f32, 2},
+                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 2, ov::element::i8, 0},
+                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 5, ov::element::i8, 1},
+                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 1, ov::element::i8, 2});
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
                          ReorderCustomizedStrideTest,
@@ -324,8 +323,8 @@ public:
         }
         result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";
         result << "_OutputLayoutType:" << layoutName(p.dstLayout) << ".";
-        result << "_InputDataType:" << p.prec.name();
-        result << "_OutputDataType:" << p.prec.name();
+        result << "_InputDataType:" << p.prec.get_type_name();
+        result << "_OutputDataType:" << p.prec.get_type_name();
         result << ")";
         return result.str();
     }
@@ -399,22 +398,22 @@ const auto reorderCpuTestDynamismParams =
                                              {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
                                              LayoutType::nspc,
                                              LayoutType::ncsp,
-                                             InferenceEngine::Precision::FP32},
+                                             ov::element::f32},
                       ReorderCPUTestParamSet{{-1, -1, -1, -1},
                                              {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
                                              LayoutType::ncsp,
                                              LayoutType::nspc,
-                                             InferenceEngine::Precision::FP32},
+                                             ov::element::f32},
                       ReorderCPUTestParamSet{{2, 32, -1, 4},
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                              LayoutType::ncsp,
                                              LayoutType::nCsp8c,
-                                             InferenceEngine::Precision::FP32},
+                                             ov::element::f32},
                       ReorderCPUTestParamSet{{-1, 32, -1, -1},
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                              LayoutType::nCsp16c,
                                              LayoutType::nspc,
-                                             InferenceEngine::Precision::I8});
+                                             ov::element::i8});
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamism,
                          ReorderDynamismCPUTest,

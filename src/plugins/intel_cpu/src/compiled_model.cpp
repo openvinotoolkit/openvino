@@ -13,7 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
@@ -22,7 +22,7 @@
 
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -115,29 +115,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-
-    // Save all MemoryLayer data tensors. Will use insight about mechanics
-    // of MemoryLayer implementation. It uses output edge of MemoryLayer
-    // producer as storage for tensor to keep it between infer calls.
-    if (m_graphs.size() == 1) {
-        for (auto& node : get_graph()._graph.GetNodes()) {
-            if (node->getType() == Type::MemoryInput) {
-                auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
-                if (!memoryNode) {
-                    OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
-                }
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
-
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
-
-                m_memory_states.emplace_back(new VariableState(state_name, state_store));
-            }
-        }
-    }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
@@ -223,7 +200,7 @@ ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGua
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
-        IE_ASSERT(option != engConfig._config.end());
+        OPENVINO_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
     } else {

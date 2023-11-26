@@ -868,4 +868,4 @@ can explore the CLIP capabilities further. For example:
    `NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__
    to get further acceleration. You can find example how to quantize
    CLIP model in `this
-   notebook <../228-clip-zero-shot-image-classification>`__
+   notebook <228-clip-zero-shot-image-classification-with-output.html>`__

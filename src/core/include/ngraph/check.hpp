@@ -25,7 +25,6 @@ namespace ngraph {
 using ov::write_all_to_stream;
 
 using CheckFailure = ov::AssertFailure;
-using ov::CheckLocInfo;
 }  // namespace ngraph
 
 #define NGRAPH_CHECK_HELPER2(exc_class, ctx, check, ...) OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, __VA_ARGS__)

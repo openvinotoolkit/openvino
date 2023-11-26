@@ -337,7 +337,7 @@ public:
           m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
-        if (m_parameter->get_element_type() != m_result->output(0).get_element_type()) {
+        if (!m_parameter->get_element_type().compatible(m_result->output(0).get_element_type())) {
             return false;
         }
         const auto& param_shape = m_parameter->get_partial_shape();

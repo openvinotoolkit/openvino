@@ -107,7 +107,7 @@ void ConvConcatSubgraphTest::SetUp() {
         convolutionNodes[conv]->get_rt_info() = getCPUInfo();
     }
 
-    auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{convolutionNodes[0], convolutionNodes[1]}, axis);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convolutionNodes[0], convolutionNodes[1]}, axis);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, inputParams, "convolutionConcat");
