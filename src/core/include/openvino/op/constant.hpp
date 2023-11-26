@@ -517,14 +517,22 @@ private:
         });
     }
 
+    template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void cast_vector(std::vector<std::string>& output_vector, size_t num_elements) const {
+        auto output_size = std::min(num_elements, shape_size(m_shape));
+        output_vector.reserve(output_size);
+        const auto p = get_data_ptr<Type>();
+        std::copy(p, p + output_size, std::back_inserter(output_vector));
+    }
+
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
-        auto output_size = std::min(num_elements, shape_size(m_shape));
-        output_vector.reserve(output_size);
-        const auto p = get_data_ptr<OUT_T>();
-        std::copy(p, p + output_size, std::back_inserter(output_vector));
+        auto output_type = std::string(typeid(OUT_T{}).name());
+        OPENVINO_ASSERT(false,
+                        "cast_vector does not support casting string ov::Tensor to std::vector with elements of type " +
+                            output_type);
     }
 
     template <element::Type_t Type,
@@ -638,13 +646,20 @@ private:
         std::fill_n(get_data_ptr_nc<Type>(), size, v);
     }
 
+    template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void fill_data(const std::string& value) {
+        auto num_elements = shape_size(m_shape);
+        std::fill_n(get_data_ptr_nc<Type>(), num_elements, value);
+    }
+
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void fill_data(const T& value) {
-        // TODO: Is there guarantee that destination memory is pre-initialized?
-        std::fill_n(get_data_ptr_nc<Type>(), mem_size(), value);
+        std::string type_name(typeid(value).name());
+        OPENVINO_ASSERT(false,
+                        "fill_data does not support to fill ov::Tensor of string type with value of " + type_name);
     }
 
     template <element::Type_t Type,
@@ -688,13 +703,6 @@ private:
     }
 
     template <element::Type_t Type,
-              typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
-    void write_buffer(const std::vector<std::string>& source) {
-        OPENVINO_THROW("Called write_buffer(const std::vector<std::string>&) with non-string element type");
-    }
-
-    template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::nf4 && Type != element::Type_t::u1 &&
@@ -708,14 +716,31 @@ private:
         }
     }
 
+    template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void write_buffer(const std::vector<std::string>& source) {
+        // elements of string ov::Tensor is already pre-initialized in allocate_buffer
+        auto p = get_data_ptr_nc<Type>();
+        auto num_elements = std::min(shape_size(m_shape), source.size());
+        std::copy_n(source.begin(), num_elements, p);
+    }
+
+    template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
+    void write_buffer(const std::vector<std::string>& source) {
+        OPENVINO_ASSERT(false,
+                        "write_buffer does not support writing std::string elements into ov::Tensor of type:" +
+                            ov::element::Type(Type).to_string());
+    }
+
     template <element::Type_t Type,
               typename T,
-              typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
-        auto p = get_data_ptr_nc<Type>();
-        // TODO: Make sure that the storage is pre-initialized with default string ctor
-        std::copy(source.begin(), source.end(), p);
+        if (source.size() > 0) {
+            auto source_type = std::string(typeid(source[0]).name());
+            OPENVINO_ASSERT(
+                false,
+                "write_buffer does not support writing elements of type " + source_type + " into string ov::Tensor");
+        }
     }
 
     template <element::Type_t Type,
