@@ -9,23 +9,24 @@
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
     std::ostringstream result;
     nodeType type;
     commonConvParams convParams;
     CPUSpecificParams cpuParams;
-    SizeVector inputShapes;
+    ov::Shape inputShapes;
     int axis;
     std::tie(type, convParams, cpuParams, inputShapes, axis) = obj.param;
 
     result << "Type=" << nodeType2str(type) << "_";
 
-    SizeVector kernelSize, strides, dilation;
+    std::vector<size_t> kernelSize, strides, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t numOutChannels, numOfGroups;
-    ngraph::op::PadType paddingType;
+    ov::op::PadType paddingType;
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
 
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -50,50 +51,50 @@ void ConvConcatSubgraphTest::SetUp() {
     nodeType type;
     commonConvParams convParams;
     CPUSpecificParams cpuParams;
-    SizeVector inputShapes;
+    ov::Shape inputShapes;
     int axis;
 
     std::tie(type, convParams, cpuParams, inputShapes, axis) = this->GetParam();
     pluginTypeNode = nodeType2PluginType(type);
-    SizeVector kernelSize, strides, dilation;
+    std::vector<size_t> kernelSize, strides, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t numOutChannels, numOfGroups;
-    ngraph::op::PadType paddingType;
+    ov::op::PadType paddingType;
 
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-    selectedType += "_FP32";
+    selectedType += "_f32";
 
-    ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes)),
-                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes))};
+    ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes),
+                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes)};
 
-    std::vector<std::shared_ptr<ngraph::Node>> convolutionNodes(2);
+    std::vector<std::shared_ptr<ov::Node>> convolutionNodes(2);
     switch (type) {
         case nodeType::convolution : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeConvolution(inputParams[conv], ngraph::element::f32, kernelSize, strides, padBegin,
+                convolutionNodes[conv] = ngraph::builder::makeConvolution(inputParams[conv], ov::element::f32, kernelSize, strides, padBegin,
                                                                           padEnd, dilation, paddingType, numOutChannels);
             }
             break;
         }
         case nodeType::convolutionBackpropData : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeConvolutionBackpropData(inputParams[conv], ngraph::element::f32, kernelSize, strides, padBegin,
+                convolutionNodes[conv] = ngraph::builder::makeConvolutionBackpropData(inputParams[conv], ov::element::f32, kernelSize, strides, padBegin,
                                                                                       padEnd, dilation, paddingType, numOutChannels);
             }
             break;
         }
         case nodeType::groupConvolution : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeGroupConvolution(inputParams[conv], ngraph::element::f32, kernelSize, strides, padBegin,
+                convolutionNodes[conv] = ngraph::builder::makeGroupConvolution(inputParams[conv], ov::element::f32, kernelSize, strides, padBegin,
                                                                                            padEnd, dilation, paddingType, numOutChannels, numOfGroups);
             }
             break;
         }
         case nodeType::groupConvolutionBackpropData : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeGroupConvolutionBackpropData(inputParams[conv], ngraph::element::f32, kernelSize,
+                convolutionNodes[conv] = ngraph::builder::makeGroupConvolutionBackpropData(inputParams[conv], ov::element::f32, kernelSize,
                                                                                            strides, padBegin, padEnd, dilation, paddingType,
                                                                                            numOutChannels, numOfGroups);
             }
@@ -109,36 +110,36 @@ void ConvConcatSubgraphTest::SetUp() {
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convolutionNodes[0], convolutionNodes[1]}, axis);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, inputParams, "convolutionConcat");
+    std::vector<std::shared_ptr<ov::op::v0::Result>> results{std::make_shared<ov::op::v0::Result>(concat)};
+    function = std::make_shared<ov::Model>(results, inputParams, "convolutionConcat");
 }
 
 TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
-    Run();
+    run();
 
-    CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
+    CheckPluginRelatedResults(compiledModel, pluginTypeNode);
 };
 
 /* ============= Common Convolution Params ============= */
-const ngraph::op::PadType paddingType{ngraph::op::PadType::EXPLICIT};
+const ov::op::PadType paddingType{ov::op::PadType::EXPLICIT};
 const size_t numOutChannels{32};
 const int axis{1};
 
-const SizeVector inputShapes2D{1, 64, 16, 16};
-const SizeVector kernelSize2D{3, 3};
-const SizeVector strides2D{2, 2};
+const ov::Shape inputShapes2D{1, 64, 16, 16};
+const std::vector<size_t> kernelSize2D{3, 3};
+const std::vector<size_t> strides2D{2, 2};
 const std::vector<ptrdiff_t> padBegin2D{1, 1};
 const std::vector<ptrdiff_t> padEnd2D{1, 1};
-const SizeVector dilation2D{1, 1};
+const std::vector<size_t> dilation2D{1, 1};
 commonConvParams convParams2D = commonConvParams{kernelSize2D, strides2D, padBegin2D, padEnd2D, dilation2D, numOutChannels, paddingType, 1};
 commonConvParams groupConvParams2D = commonConvParams{kernelSize2D, strides2D, padBegin2D, padEnd2D, dilation2D, numOutChannels, paddingType, 2};
 
-const SizeVector inputShapes3D{1, 64, 8, 16, 16};
-const SizeVector kernelSize3D{3, 3, 3};
-const SizeVector strides3D{2, 2, 2};
+const ov::Shape inputShapes3D{1, 64, 8, 16, 16};
+const std::vector<size_t> kernelSize3D{3, 3, 3};
+const std::vector<size_t> strides3D{2, 2, 2};
 const std::vector<ptrdiff_t> padBegin3D{1, 1, 1};
 const std::vector<ptrdiff_t> padEnd3D{1, 1, 1};
-const SizeVector dilation3D{1, 1, 1};
+const std::vector<size_t> dilation3D{1, 1, 1};
 commonConvParams convParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, 1};
 commonConvParams groupConvParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, 2};
 
@@ -184,7 +185,7 @@ namespace GroupConvolutionBackpropDataDWConcat {
 
 /* ============= GroupConvolutionBackpropData (DW 2D) ============= */
 commonConvParams dwDeconvParams2D = commonConvParams{kernelSize2D, strides2D, padBegin2D, padEnd2D, dilation2D, numOutChannels, paddingType, numOutChannels};
-const SizeVector inputShapesDW2D{1, 32, 16, 16};
+const ov::Shape inputShapesDW2D{1, 32, 16, 16};
 const std::vector<CPUSpecificParams> CPUParams2D = {
     conv_sse42_dw_2D,
     conv_avx2_dw_2D,
@@ -207,7 +208,7 @@ namespace GroupConvolutionDWConcat {
 
 /* ============= GroupConvolution (DW 2D) ============= */
 commonConvParams dwConvParams2D = commonConvParams{kernelSize2D, strides2D, padBegin2D, padEnd2D, dilation2D, numOutChannels, paddingType, numOutChannels};
-const SizeVector inputShapesDW2D{1, 32, 16, 16};
+const ov::Shape inputShapesDW2D{1, 32, 16, 16};
 const std::vector<CPUSpecificParams> CPUParams2D = {
     conv_sse42_dw_2D,
     conv_avx2_dw_2D,
@@ -226,7 +227,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolution2D, ConvConcatSubgraphTest, par
 
 /* ============= GroupConvolution (DW 3D) ============= */
 commonConvParams dwConvParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, numOutChannels};
-const SizeVector inputShapesDW3D{1, 32, 8, 16, 16};
+const ov::Shape inputShapesDW3D{1, 32, 8, 16, 16};
 const std::vector<CPUSpecificParams> CPUParams3D = {
     conv_sse42_dw_3D,
     conv_avx2_dw_3D,
@@ -404,4 +405,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData3D, ConvConcatSubgrap
 
 }  // namespace GroupConvolutionBackpropDataConcat
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
