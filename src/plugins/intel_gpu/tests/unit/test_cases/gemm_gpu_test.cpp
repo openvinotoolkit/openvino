@@ -2127,7 +2127,15 @@ public:
 1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_LCM1 4096, 4096, 40, 4, 8, 4, 8, 1, 1, 4, 8, false, false, \
 1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
-#define CASE_GEMM_FP16_TILED_NN_LCM2 4096, 40, 4096, 4, 8, 4, 8, 1, 1, 4, 8, false, false, \
+#define CASE_GEMM_FP16_TILED_NN_LCM2 4096, 48, 4096, 4, 8, 4, 8, 1, 1, 4, 8, false, false, \
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_TILED_NN_LCM3 4096, 4096, 48, 4, 8, 4, 8, 1, 1, 4, 8, false, false, \
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_TILED_NN_LCM4 4096, 48, 4096, 1, 8, 1, 8, 1, 1, 1, 8, false, false, \
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_TILED_NN_LCM5 4096, 40, 4096, 4, 8, 4, 8, 1, 1, 4, 8, false, false, \
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_TILED_NN_LCM6 4096, 40, 4096, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
 1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 
 
@@ -2138,6 +2146,10 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_lcm_tests, ::testing::ValuesI
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM0, "gemm_tiled_opt" },
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM1, "gemm_tiled_opt" },
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM5, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_LCM6, "gemm_tiled_opt" },
 }));
 
 

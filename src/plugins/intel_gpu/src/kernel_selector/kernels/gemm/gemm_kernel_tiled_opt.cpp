@@ -2,9 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdlib>
 #include "gemm_kernel_tiled_opt.h"
 #include "kernel_selector_utils.h"
 #include <iostream>
+
+int get_env(std::string key, int &val);
+int get_env(std::string key, int &val) {
+        if (const auto env_var = std::getenv(key.c_str())) {
+            val = std::atoi(env_var);
+            return true;
+        }
+        return false;
+}
 
 namespace kernel_selector {
 ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
@@ -80,8 +90,12 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_n_size *= 2;
         }
 
+        if (k_size == 4096)
+            std::cout << "m_size " << m_size << ", n_size " << n_size << ", k_size " << k_size << std::endl;
         // tuning_data.tile_k_size must be the same as simd_size when k % tile_k != 0
         tuning_data.tile_k_size = tuning_data.simd_size;
+        if (k_size == 4096)
+            tuning_data.tile_k_size *= 2;
         tuning_data.tile_m_size = tuning_data.simd_size;
 
         bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
@@ -91,6 +105,24 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_n_size = tuning_data.simd_size;
             tuning_data.tile_k_size = tuning_data.simd_size;
             tuning_data.tile_m_size = tuning_data.simd_size;
+        }
+        int val;
+        if (get_env("MY_SIMD", val))
+            tuning_data.simd_size = val;
+        if (get_env("MY_TILE_N", val))
+            tuning_data.tile_n_size = val;
+        if (get_env("MY_TILE_M", val))
+            tuning_data.tile_m_size = val;
+        if (get_env("MY_TILE_K", val))
+            tuning_data.tile_k_size = val;
+        if (k_size == 4096) {
+            printf("%d %d %d %d %d\n",
+                leftovers,
+                total_batches > 1,
+                params.transpose_input0,
+                params.transpose_input1,
+                !IsSIMDSizeSupported(params.engineInfo, 8));
+            std::cout << "tile_m_size " << tuning_data.tile_m_size << ", tile_n_size " << tuning_data.tile_n_size << ", tile_k_size " << tuning_data.tile_k_size << std::endl;
         }
     } else {
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,

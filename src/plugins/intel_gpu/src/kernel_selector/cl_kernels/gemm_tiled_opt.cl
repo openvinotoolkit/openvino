@@ -156,7 +156,9 @@ KERNEL(gemm_tiled_opt)(
             b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
 #else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE
-            b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+            // b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+            b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+            b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_tile[b_load_id];
 #else // TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
 #endif // TILE_N_NOT_DIVISIBLE
@@ -206,7 +208,8 @@ KERNEL(gemm_tiled_opt)(
             A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[dot_id * K + sglid] : BLOCK_READ_A(a_ptr, dot_id * K);
 #else // IS_DYNAMIC
 #if TILE_K_NOT_DIVISIBLE
-            A_FLOATN a_read = a_ptr[dot_id * K + sglid];
+            // A_FLOATN a_read = a_ptr[dot_id * K + sglid];
+            A_FLOATN a_read = BLOCK_READ_A(a_ptr, dot_id * K);
 #else // TILE_K_NOT_DIVISIBLE
             A_FLOATN a_read = BLOCK_READ_A(a_ptr, dot_id * K);
 #endif // TILE_K_NOT_DIVISIBLE
