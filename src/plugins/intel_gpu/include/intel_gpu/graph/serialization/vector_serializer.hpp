@@ -37,26 +37,22 @@ public:
     }
 };
 
-template <typename BufferType, typename T>
-class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value &&
-                                                                     std::is_arithmetic<T>::value &&
-                                                                     std::is_same<bool, T>::value>::type> {
+template <typename BufferType>
+class Serializer<BufferType, std::vector<bool>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
-    static void save(BufferType& buffer, const std::vector<T>& vector) {
+    static void save(BufferType& buffer, const std::vector<bool>& vector) {
         buffer << vector.size();
-        for (const auto el : vector) {
+        for (const bool el : vector) {
             buffer << el;
         }
     }
 };
 
-template <typename BufferType, typename T>
-class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
-                                                                     std::is_arithmetic<T>::value &&
-                                                                     std::is_same<bool, T>::value>::type> {
+template <typename BufferType>
+class Serializer<BufferType, std::vector<bool>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
-    static void load(BufferType& buffer, std::vector<T>& vector) {
-        typename std::vector<T>::size_type vector_size = 0UL;
+    static void load(BufferType& buffer, std::vector<bool>& vector) {
+        typename std::vector<bool>::size_type vector_size = 0UL;
         buffer >> vector_size;
         bool el;
         vector.clear();

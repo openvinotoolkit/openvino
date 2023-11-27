@@ -41,7 +41,6 @@ class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
     : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
-    //   , _strm(nullptr), _is_primary_stream(false), _local_net_id(0) {}
 
     void read(void* const data, std::streamsize size) {
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
