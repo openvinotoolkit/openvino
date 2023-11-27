@@ -177,11 +177,6 @@ CPU& cpu_info() {
     return cpu;
 }
 
-int get_number_of_blocked_cores() {
-    CPU& cpu = cpu_info();
-    return cpu._blocked_cores;
-}
-
 #if defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -196,6 +191,11 @@ std::vector<int> get_available_numa_nodes() {
 int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
+
+int get_number_of_blocked_cores() {
+    return 0;
+}
+
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -233,6 +233,11 @@ std::vector<int> get_available_numa_nodes() {
 #    endif
 int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
+}
+
+int get_number_of_blocked_cores() {
+    CPU& cpu = cpu_info();
+    return cpu._blocked_cores;
 }
 
 bool is_cpu_map_available() {
@@ -421,6 +426,11 @@ int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     }
 #    endif
     return logical_cores;
+}
+
+int get_number_of_blocked_cores() {
+    CPU& cpu = cpu_info();
+    return cpu._blocked_cores;
 }
 #endif
 
