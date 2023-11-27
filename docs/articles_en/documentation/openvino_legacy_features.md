@@ -60,7 +60,7 @@ offering.
 
 | **Open Model ZOO**
 |   *New solution:* users are encouraged to use public model repositories
-|   *Old solution:* discontinuation planned for OpenVINO 2024.0
+|   *Old solution:* discontinuation planned for OpenVINO 2025.0
 |
 |   Open Model ZOO provided a collection of models prepared for use with OpenVINO,
     and a small set of tools enabling a level of automation for the process.
@@ -85,7 +85,7 @@ offering.
 
 | **Post-training Optimization Tool (POT)**
 |   *New solution:* NNCF extended in OpenVINO 2023.0
-|   *Old solution:* POT discontinuation planned for 2024
+|   *Old solution:* POT discontinuation planned for 2024.0
 |    
 |   Neural Network Compression Framework (NNCF) now offers the same functionality as POT,
     apart from its original feature set. It is currently the default tool for performing 

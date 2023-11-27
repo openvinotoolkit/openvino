@@ -1,6 +1,6 @@
 # OpenVINO™ Development Tools
 
-> **NOTE**: OpenVINO™ Development Tools package has been deprecated and will be discontinued with 2024.0 release. To learn more, refer to the [OpenVINO Legacy Features and Components page](https://docs.openvino.ai/2023.2/openvino_legacy_features.html).
+> **NOTE**: OpenVINO™ Development Tools package has been deprecated and will be discontinued with 2025.0 release. To learn more, refer to the [OpenVINO Legacy Features and Components page](https://docs.openvino.ai/2023.2/openvino_legacy_features.html).
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
