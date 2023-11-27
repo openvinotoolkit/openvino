@@ -11,7 +11,6 @@
 #include <condition_variable>
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 
 TEST(MemoryTest, SedDataCheck) {
     GTEST_SKIP();
