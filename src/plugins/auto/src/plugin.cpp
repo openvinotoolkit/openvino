@@ -916,6 +916,22 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
 
+    auto disable_startup_runtime_fallback = [&]() {
+        if (load_config.get_property(ov::intel_auto::enable_startup_fallback)) {
+            LOG_WARNING_TAG("Setting property ov::intel_auto::enable_startup_fallback to false for stateful model.");
+            load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
+        }
+        if (load_config.get_property(ov::intel_auto::enable_runtime_fallback)) {
+            LOG_WARNING_TAG("Setting property ov::intel_auto::enable_running_fallback to false for stateful model.");
+            load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
+        }
+    };
+
+    if (meta_devices.size() == 1) {
+        disable_startup_runtime_fallback();
+        return meta_devices;
+    }
+
     std::vector<DeviceInformation> filter_device;
     std::vector<std::string> stateful_node_names;
 
@@ -945,16 +961,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     }
 
     // disable CPU_HELP if model is stateful
-    if (load_config.get_property(ov::intel_auto::enable_startup_fallback)) {
-        LOG_WARNING_TAG("Setting property ov::intel_auto::enable_startup_fallback to false for stateful model.");
-        load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
-    }
-    if (load_config.get_property(ov::intel_auto::enable_runtime_fallback)) {
-        LOG_WARNING_TAG("Setting property ov::intel_auto::enable_running_fallback to false for stateful model.");
-        load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
-    }
-    if (meta_devices.size() == 1)
-        return meta_devices;
+    disable_startup_runtime_fallback();
 
     auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
         auto device_qm = get_core()->query_model(model, device_name, config);
