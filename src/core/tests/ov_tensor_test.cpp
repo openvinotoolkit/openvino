@@ -23,6 +23,8 @@
 
 using OVTensorTest = ::testing::Test;
 
+const size_t string_size = ov::element::string.size();
+
 inline ov::Strides byteStrides(const ov::Strides& strides, const ov::element::Type& type) {
     ov::Strides byte_strides(strides.size());
     for (size_t i = 0; i < strides.size(); ++i)
@@ -826,8 +828,7 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               ov::element::u8,
                                                               ov::element::u16,
                                                               ov::element::u32,
-                                                              ov::element::u64/*,
-                                                              ov::element::string*/
+                                                              ov::element::u64
                                             ),
                                             ::testing::Values(
                                                               TestParams {
@@ -845,6 +846,40 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               TestParams {
                                                                   ov::Shape{3, 2, 2}, ov::Strides{64, 16, 8},
                                                                   ov::Shape{3, 2, 2}, ov::Strides{128, 24, 8}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{}, {},
+                                                                  {}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{1}, {},
+                                                                  {}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{}, {},
+                                                                  {1}, {}
+                                                              }
+                                           )));
+
+INSTANTIATE_TEST_SUITE_P(copy_tests_strings,
+                         OVTensorTestCopy,
+                         ::testing::Combine(::testing::Values(ov::element::string),
+                                            ::testing::Values(
+                                                              TestParams {
+                                                                  ov::Shape{1, 3, 4, 8}, {},
+                                                                  {0}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{3, 2, 2}, {},
+                                                                  ov::Shape{3, 2, 2}, ov::Strides{16 * string_size, 3 * string_size, string_size}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{3, 2, 2}, ov::Strides{8 * string_size, 2 * string_size, string_size},
+                                                                  ov::Shape{3, 2, 2}, ov::Strides{}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{3, 2, 2}, ov::Strides{8 * string_size, 2 * string_size, string_size},
+                                                                  ov::Shape{3, 2, 2}, ov::Strides{16 * string_size, 3 * string_size, string_size}
                                                               },
                                                               TestParams {
                                                                   ov::Shape{}, {},

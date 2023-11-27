@@ -161,12 +161,14 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     bool finish = false;
     for (size_t dst_idx = 0, src_idx = 0; !finish;) {
         if (get_element_type() == element::string) {
-            // in case string tensors, it needs to create new std::string objects in memory from scratch
+            // in case string tensors, it needs to copy of new values for std::string objects
             // memcpy is not suitable
-            std::string* dst_string = static_cast<std::string*>(static_cast<void*>(dst_data + dst_idx));
-            const std::string* src_string =
-                static_cast<const std::string*>(static_cast<const void*>(src_data + src_idx));
-            *dst_string = *src_string;
+            auto dst_string = reinterpret_cast<std::string*>(dst_data + dst_idx);
+            auto src_string = reinterpret_cast<const std::string*>(src_data + src_idx);
+            size_t num_elements_stride = src_strides[src_strides.size() - 1] / element::string.size();
+            for (size_t idx = 0; idx < num_elements_stride; ++idx) {
+                *(dst_string++) = *(src_string++);
+            }
         } else {
             memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
         }
