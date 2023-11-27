@@ -199,19 +199,12 @@ Instructions below show how to build sample applications with CMake. If you are 
                
                   cd build
             
-            3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
+            3. Run CMake to generate the Make files for release configuration. For example, for C++ samples:
             
-               - For release configuration:
+               .. code-block:: sh
             
-                 .. code-block:: sh
-            
-                    cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
-               
-               - For debug configuration:
-            
-                 .. code-block:: sh
-            
-                    cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
+                  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+
                
             4. Run ``make`` to build the samples:
             
@@ -232,20 +225,20 @@ First, select a sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Sampl
 .. _download-model:
 
 Download the Models
-================================
+--------------------
 
 You need a model that is specific for your inference task. You can get it from one of model repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub. 
 
 
 Convert the Model
-====================
+--------------------
 
 If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
 
 .. _download-media:
 
 Download a Media to use
-================================
+-----------------------
 
 Most of the samples require you to provide an image or a video as input for the model. OpenVINO provides several sample images and videos for you to run code samples and demo applications:
 
