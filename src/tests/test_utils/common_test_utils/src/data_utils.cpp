@@ -570,6 +570,7 @@ void fill_tensor_random(ov::Tensor& tensor,
         CASE(ov::element::i16)
         CASE(ov::element::i32)
         CASE(ov::element::i64)
+        CASE(ov::element::boolean)
     default:
         OPENVINO_THROW("Wrong precision specified: ", element_type);
     }

@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {
@@ -17,26 +20,9 @@ namespace reference {
 /// Output number of non-zero entries in arg
 template <typename T>
 size_t non_zero_get_count(const T* arg, const Shape& arg_shape) {
-    T zero = 0;
-    size_t arg_rank = arg_shape.size();
-    size_t arg_count = shape_size(arg_shape);
-    size_t non_zero_count = 0;
-
-    // Input arg is scalar
-    if (arg_rank == 0) {
-        if (*arg != zero) {
-            non_zero_count = 1;
-        }
-    } else  // Input is non scalar case
-    {
-        for (size_t i = 0; i < arg_count; i++) {
-            if (arg[i] != zero) {
-                non_zero_count++;
-            }
-        }
-    }
-
-    return non_zero_count;
+    const auto zero = T{0};
+    const auto arg_count = shape_size(arg_shape);
+    return arg_count - std::count(arg, arg + arg_count, zero);
 }
 
 /// \brief Return indices of non-zero entries in input argument.
@@ -46,41 +32,22 @@ size_t non_zero_get_count(const T* arg, const Shape& arg_shape) {
 /// \param out Output containing indices of non-zero entries in arg
 template <typename T, typename U>
 void non_zero(const T* arg, U* out, const Shape& arg_shape) {
-    T zero = 0;
-    size_t arg_rank = arg_shape.size();
-    size_t arg_count = shape_size(arg_shape);
-
-    size_t non_zero_count = non_zero_get_count(arg, arg_shape);
-
-    // Input arg only contains 0s
-    if (non_zero_count == 0) {
+    const auto non_zero_count = non_zero_get_count(arg, arg_shape);
+    if (non_zero_count == 0)
         return;
-    }
 
-    // Input arg is non-zero scalar
-    if (arg_rank == 0) {
-        out[0] = static_cast<U>(0);
+    const auto arg_count = shape_size(arg_shape);
+    if (arg_count == 1) {
+        out[0] = U{0};
         return;
     }
 
     // Dimensional size for the arg_shape. This is used to map one-dimentional
     // arg array indices to corresponding arg_rank-dimentional shape indices.
-    // i.e., arg_shape {2, 3, 2} => elem_per_axis {6, 2, 1}.
+    // i.e., arg_shape {2, 3, 2}
     // Array index 4 in arg (arg[4]) correspond to 3-D index of [0][2][0]
-    std::vector<size_t> elem_per_axis;
-    elem_per_axis.reserve(arg_rank);
-
-    size_t temp = arg_count;
-    for (size_t i = 0; i < arg_rank; i++) {
-        temp = temp / arg_shape[i];
-        elem_per_axis.push_back(temp);
-    }
-
-    // Column index in out to record a non-zero entry
-    size_t col_index = 0;
-
-    // Array index in out to write non-zero index value
-    size_t out_index = 0;
+    const auto arg_strides = row_major_strides(arg_shape);
+    const auto arg_transform = CoordinateTransformBasic{arg_shape};
 
     // Find non-zero entries in arg and write the indices info in out.
     // For a non-zero entry, map its array index to corresponding indices
@@ -98,18 +65,15 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
     //
     // input[0][2][0] = 3 is arg[4]
     // output for this entry out[1] = 0, out[8] = 2, out[15] = 0
-    for (size_t i = 0; i < arg_count; i++) {
-        if (arg[i] != zero) {
-            temp = i;
-
-            for (size_t j = 0; j < arg_rank; j++) {
-                out_index = j * non_zero_count + col_index;
-                out[out_index] = static_cast<U>(temp / elem_per_axis[j]);
-
-                temp = temp % elem_per_axis[j];
+    const auto arg_rank = arg_shape.size();
+    size_t col_index = 0;
+    for (const auto& arg_coord : arg_transform) {
+        const auto arg_index = coordinate_offset(arg_coord, arg_strides);
+        if (arg[arg_index] != T{0}) {
+            for (size_t j = 0, out_index = col_index; j < arg_rank; ++j, out_index += non_zero_count) {
+                out[out_index] = static_cast<U>(arg_coord[j]);
             }
-
-            col_index++;
+            ++col_index;
         }
     }
 }
