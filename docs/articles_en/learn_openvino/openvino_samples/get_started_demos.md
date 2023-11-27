@@ -249,51 +249,7 @@ Instructions below show how to build sample applications with CMake. If you are 
 Sample Application Setup
 ================================
 
-Before running compiled binary files, run the ``setupvars`` script to set all necessary environment variables:
-
-.. tab-set::
-
-   .. tab-item:: Linux
-      :sync: linux
-
-      .. code-block:: sh
-   
-         source <INSTALL_DIR>/setupvars.sh
-      
-      The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
-
-      1. Open the ``.bashrc`` file in ``<user_home_directory>``:
-      
-         .. code-block:: sh
-            
-            vi <user_home_directory>/.bashrc
-      
-      2. Add this line to the end of the file:
-      
-         .. code-block:: sh
-         
-            source /opt/intel/openvino_2023/setupvars.sh
-      
-      3. Save and close the file: press the **Esc** key, type ``:wq`` and press the **Enter** key.
-      4. To test your change, open a new terminal. You will see ``[setupvars.sh] OpenVINO environment initialized``.
-
-   .. tab-item:: Windows
-      :sync: windows
-
-      .. code-block:: sh
-   
-         <INSTALL_DIR>\setupvars.bat
-
-      To debug or run the samples on Windows in Microsoft Visual Studio, make sure you have properly configured **Debugging** environment settings for the **Debug** and **Release** configurations. Set correct paths to the OpenCV libraries, and debug and release versions of the OpenVINO Runtime libraries. 
-      For example, for the **Debug** configuration, go to the project's **Configuration Properties** to the **Debugging** category and set the ``PATH`` variable in the **Environment** field to the following:
-
-      .. code-block:: sh
-
-         PATH=<INSTALL_DIR>\runtime\bin;%PATH%
-
-      where ``<INSTALL_DIR>`` is the directory in which the OpenVINO toolkit is installed.
-
-You are ready to run sample applications. To learn how to run a particular sample, read the sample documentation, by selecting the sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Samples_Overview>`.
+First, select a sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Samples_Overview>` and read the dedicated article to learn how to run it.
 
 .. _download-model:
 
@@ -304,7 +260,7 @@ You need a model that is specific for your inference task. You can get it from o
 
 
 Convert the Model
-------------------------
+====================
 
 If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
 
