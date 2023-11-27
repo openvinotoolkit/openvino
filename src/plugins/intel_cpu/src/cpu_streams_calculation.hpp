@@ -41,6 +41,7 @@ namespace intel_cpu {
  * @param[in]  proc_type_table is currently available candidate processors.
  *               - candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type
  * in previous function.
+ * @param[in]  num_blocked_cores is number of blocked cores on platform.
  * @return     streams information table which will be used by StreamsExecutor.
  */
 std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
@@ -50,7 +51,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
                                                      const Config::LatencyThreadingMode latencyThreadingMode,
-                                                     const std::vector<std::vector<int>>& proc_type_table);
+                                                     const std::vector<std::vector<int>>& proc_type_table,
+                                                     const int num_blocked_cores);
 /**
  * @brief      Get model_prefer_threads
  * @param[in]  num_streams is target streams set by user via NUM_STREAMS or hints.

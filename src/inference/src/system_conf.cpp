@@ -406,6 +406,11 @@ int get_socket_by_numa_node(int numa_node_id) {
     return -1;
 }
 
+int get_number_of_blocked_cores() {
+    CPU& cpu = cpu_info();
+    return cpu._blocked_cores;
+}
+
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
 #    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)

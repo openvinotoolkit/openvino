@@ -31,7 +31,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
                                                      const Config::LatencyThreadingMode latencyThreadingMode,
-                                                     const std::vector<std::vector<int>>& proc_type_table) {
+                                                     const std::vector<std::vector<int>>& proc_type_table,
+                                                     const int num_blocked_cores) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
     std::vector<std::vector<int>> proc_socket_table;
@@ -153,7 +154,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         if ((proc_type_table.size() == 1) && (input_threads == 0) && (model_prefer_threads > 0)) {
             stream_info[NUMBER_OF_STREAMS] = n_streams;
             if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
-                (proc_type_table[0][MAIN_CORE_PROC] > 0)) {
+                (proc_type_table[0][MAIN_CORE_PROC] > 0) && (num_blocked_cores == 0)) {
                 stream_info[PROC_TYPE] = MAIN_CORE_PROC;
                 n_threads_per_stream = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
                 stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
@@ -544,7 +545,8 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                                  model_prefer_threads,
                                                                  ov::util::to_string(config.hintPerfMode),
                                                                  config.latencyThreadingMode,
-                                                                 proc_type_table);
+                                                                 proc_type_table,
+                                                                 ov::get_number_of_blocked_cores());
     return proc_type_table;
 }
 
