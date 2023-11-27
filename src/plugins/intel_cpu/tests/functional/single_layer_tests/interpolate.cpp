@@ -324,7 +324,7 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
     } else {
         return {
             // default config as an stub for target without avx512, otherwise all tests with BF16 in its name are skipped
-            {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}
+            {}
         };
     }
 }
@@ -342,13 +342,15 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig3D() {
     return {
-        // default config as an stub
-        {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}
+        {}
     };
 }
 
-const std::vector<std::vector<size_t>> pads3D = {
+const std::vector<std::vector<size_t>> pads3D_smoke = {
     {0, 0, 0},
+};
+
+const std::vector<std::vector<size_t>> pads3D_full = {
     {0, 0, 1},
 };
 
@@ -357,20 +359,6 @@ const std::vector<std::vector<int64_t>> defaultAxes3D = {
 };
 
 const std::vector<ShapeParams> shapeParams3D = {
-    ShapeParams{
-        ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{}, {{1, 3, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        {{1.f, 1.f, 1.25f}},
-        defaultAxes3D.front()
-    },
-    ShapeParams{
-        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{}, {{1, 3, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        {{1, 3, 5}},
-        defaultAxes3D.front()
-    },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1}, {{1, 3, 4}, {2, 4, 6}, {1, 3, 4}}},
@@ -392,8 +380,8 @@ const auto interpolateCasesNN_Smoke_3D = ::testing::Combine(
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
         ::testing::ValuesIn(nearestModes_Smoke),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads3D),
-        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D_smoke),
+        ::testing::ValuesIn(pads3D_smoke),
         ::testing::ValuesIn(cubeCoefs));
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -410,8 +398,8 @@ const auto interpolateCasesNN_Full_3D = ::testing::Combine(
         ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(nearestModes_Full),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads3D),
-        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D_full),
+        ::testing::ValuesIn(pads3D_full),
         ::testing::ValuesIn(cubeCoefs));
 INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
          ::testing::Combine(
@@ -463,7 +451,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse3D_Test, Inter
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse3D_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesNN_Smoke_3D,
+            interpolateCasesNN_Full_3D,
             ::testing::ValuesIn(shapeParams3D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice3D()),
@@ -477,8 +465,8 @@ const auto interpolateCasesLinear3D_Smoke = ::testing::Combine(
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads3D),
-        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D_smoke),
+        ::testing::ValuesIn(pads3D_smoke),
         ::testing::ValuesIn(cubeCoefs));
 
 const auto interpolateCasesLinear3D_Full = ::testing::Combine(
@@ -486,8 +474,8 @@ const auto interpolateCasesLinear3D_Full = ::testing::Combine(
         ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads3D),
-        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D_full),
+        ::testing::ValuesIn(pads3D_full),
         ::testing::ValuesIn(cubeCoefs));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout3D_Test, InterpolateLayerCPUTest,
@@ -515,8 +503,8 @@ const auto interpolateCasesCubic3D_Smoke = ::testing::Combine(
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads3D),
-        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D_smoke),
+        ::testing::ValuesIn(pads3D_smoke),
         ::testing::ValuesIn(cubeCoefs));
 
 const auto interpolateCasesCubic3D_Full = ::testing::Combine(
@@ -524,8 +512,8 @@ const auto interpolateCasesCubic3D_Full = ::testing::Combine(
         ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads3D),
-        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D_full),
+        ::testing::ValuesIn(pads3D_full),
         ::testing::ValuesIn(cubeCoefs));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout3D_Test, InterpolateLayerCPUTest,
