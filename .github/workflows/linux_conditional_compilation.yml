@@ -310,7 +310,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: 25
     defaults:
       run:
@@ -324,6 +324,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
       - name: Download OpenVINO tests package
