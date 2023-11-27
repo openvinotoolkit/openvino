@@ -476,7 +476,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
             };
             std::unordered_set<Node*> visited;
-            ov::op::util::visit_shape_path(node->get_input_node_ptr(1), visited, markup_func);
+            ov::op::util::visit_constant_path(node->get_input_node_ptr(1), visited, markup_func);
         }
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
