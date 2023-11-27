@@ -45,9 +45,6 @@ public:
         buffer << make_data(&_layout.data_type, sizeof(cldnn::data_types));
         buffer << make_data(&_layout.format, sizeof(cldnn::format));
         buffer << _layout.data_padding;
-        // buffer << _layout.data_padding.filling_value();
-        // buffer << _layout.data_padding.lower_size().sizes();
-        // buffer << _layout.data_padding.upper_size().sizes();
         buffer << _layout.get_partial_shape();
     }
 };
@@ -58,16 +55,6 @@ public:
     static void load(BufferType& buffer, cldnn::layout& _layout) {
         buffer >> make_data(&_layout.data_type, sizeof(cldnn::data_types));
         buffer >> make_data(&_layout.format, sizeof(cldnn::format));
-
-        // {
-        //     float _filling_value;
-        //     buffer >> _filling_value;
-        //     std::vector<cldnn::tensor::value_type> _lower_size;
-        //     buffer >> _lower_size;
-        //     std::vector<cldnn::tensor::value_type> _upper_size;
-        //     buffer >> _upper_size;
-        //     _layout.data_padding = cldnn::padding(_lower_size, _upper_size, _filling_value);
-        // }
         buffer >> _layout.data_padding;
 
         ov::PartialShape partial_shape;
