@@ -4,7 +4,6 @@
 
 #include "snippets/precision_propagation_convertion.hpp"
 #include <gtest/gtest.h>
-#include <ngraph/ngraph.hpp>
 
 namespace ov {
 namespace test {

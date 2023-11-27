@@ -18,12 +18,12 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     };
     if (!only_fp32) {
         // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
             prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
             prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
         }
         // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
@@ -115,12 +115,12 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     };
     if (!only_fp32) {
         // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
             prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
             prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
         }
         // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
