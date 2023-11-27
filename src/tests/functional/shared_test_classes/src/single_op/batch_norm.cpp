@@ -55,7 +55,7 @@ void BatchNormLayerTest::SetUp() {
     auto mean = std::make_shared<ov::op::v0::Constant>(mean_tensor);
 
     // Fill the vector for variance with positive values
-    in_data.range = 1;
+    in_data.range = 10;
     auto variance_tensor = ov::test::utils::create_and_fill_tensor(model_type, constant_shape, in_data);
     auto variance = std::make_shared<ov::op::v0::Constant>(variance_tensor);
     auto batch_norm = std::make_shared<ov::op::v5::BatchNormInference>(params[0], gamma, beta, mean, variance, epsilon);

@@ -60,7 +60,7 @@ void GatherTreeLayerTest::SetUp() {
 
     for (const auto& shape : constant_shapes_static) {
         ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = 0;
+        in_data.start_from = 1;
         in_data.range = input_shape.at(2) - 2;
         auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
         auto constant = std::make_shared<ov::op::v0::Constant>(tensor);

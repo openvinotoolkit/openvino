@@ -29,7 +29,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
 // Legacy impl for contrig repo
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
-                                  const uint32_t range = 10,
+                                  const uint32_t range,
                                   const double_t start_from = 0,
                                   const int32_t resolution = 1,
                                   const int seed = 1);

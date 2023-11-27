@@ -64,7 +64,9 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const double_t start_from,
                                   const int32_t resolution,
                                   const int seed) {
-    create_and_fill_tensor(element_type, shape, ov::test::utils::InputGenerateData(start_from, range, resolution, seed));
+    return create_and_fill_tensor(element_type,
+                                  shape,
+                                  ov::test::utils::InputGenerateData(start_from, range, resolution, seed));
 }
 
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,

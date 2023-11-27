@@ -176,7 +176,7 @@ void inline fill_data_random(T* pointer,
                              std::size_t size,
                              const double range = 10,
                              const double start_from = 0,
-                             const int32_t k = 1,
+                             const int k = 1,
                              const int seed = 1) {
     if (range == 0) {
         for (std::size_t i = 0; i < size; i++) {
@@ -186,24 +186,16 @@ void inline fill_data_random(T* pointer,
     }
 
     testing::internal::Random random(seed);
-    const uint32_t k_range = k * range;  // range with respect to k
+    const uint32_t k_range = static_cast<uint32_t>(k * range);  // range with respect to k
     random.Generate(k_range);
 
-    int32_t k_start = k * start_from;  // start_from with respect to k
+    int32_t k_start = static_cast<int32_t>(k * start_from);  // start_from with respect to k
     if (k_start < 0 && !std::numeric_limits<T>::is_signed) {
         k_start = 0;
     }
 
-    if (1 == k) {
-        for (std::size_t i = 0; i < size; i++) {
-            pointer[i] = static_cast<T>(random.Generate(k_range)) + static_cast<T>(k_start);
-        }
-    } else {
-        for (std::size_t i = 0; i < size; i++) {
-            pointer[i] =
-                static_cast<T>((static_cast<double>(random.Generate(k_range)) + static_cast<double>(k_start)) / k);
-        }
-    }
+    for (std::size_t i = 0; i < size; i++)
+        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
 }
 
 /** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
