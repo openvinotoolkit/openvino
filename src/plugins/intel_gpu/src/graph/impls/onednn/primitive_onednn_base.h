@@ -95,6 +95,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
     bool is_cpu() const override { return false; }
+    bool is_onednn() const { return true; }
 
     // Cache blob format:
     //     [ dnnl::primitive_attr ]

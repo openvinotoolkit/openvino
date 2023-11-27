@@ -63,6 +63,7 @@ struct primitive_impl {
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
+    virtual bool is_onednn() const { return false; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
     virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
     virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }

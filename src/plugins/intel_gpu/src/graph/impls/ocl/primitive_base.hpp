@@ -142,7 +142,7 @@ protected:
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
                                           _kernel_data.kernels[0].code.kernelString->entry_point);
         }
-   }
+    }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
         if (is_cpu()) {

@@ -1765,16 +1765,38 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         for (auto& impl_id : impl_ids) {
             ob << get_node_ptr(impl_id)->get_selected_impl()->is_dynamic();
             if (get_node_ptr(impl_id)->get_selected_impl()->is_dynamic() == false) {
-                if (get_node_ptr(impl_id)->get_preferred_impl_type() == impl_types::onednn) {
+                if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
+                    ob << true;
                     auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
                     ob.setKernelImplParams(params.get());
                     ob << get_node_ptr(impl_id)->selected_impl;
                 } else {
+                    ob << false;
                     ob << get_node_ptr(impl_id)->selected_impl;
                 }
             }
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
+    }
+
+    ob << optimized_out.size();
+    for (auto& opt_prim : optimized_out) {
+        ob << opt_prim;
+    }
+
+    ob << prim_info.size();
+    for (auto& p_info : prim_info) {
+        ob << p_info.original_id;
+        ob << p_info.type_id;
+        ob << p_info.c_dependencies;
+        ob << p_info.c_users;
+        ob << p_info.c_fused_ids;
+        ob << p_info.output_layout;
+        ob << p_info.layout_str;
+        ob << p_info.kernel_id;
+        ob << make_data(&p_info.runtime_precision, sizeof(data_types));
+        ob << p_info.is_cpu;
+        ob << p_info.exec_id;
     }
 }
 
@@ -1863,7 +1885,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
                 p_impl->set_node_params(p_node);
                 p_node.set_selected_impl(std::move(p_impl));
             } else {
-                if (p_node.get_preferred_impl_type() == impl_types::onednn) {
+                bool is_onednn;
+                ib >> is_onednn;
+                if (is_onednn) {
                     auto params = p_node.get_kernel_impl_params();
                     ib.setKernelImplParams(params.get());
                     ib >> p_node.selected_impl;
@@ -1876,5 +1900,46 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             ib >> cached_kernel_ids;
             p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
         }
+    }
+
+    size_t optimized_out_size;
+    ib >> optimized_out_size;
+    optimized_out.clear();
+    for (size_t i = 0; i < optimized_out_size; i++) {
+        primitive_id opt_prim;
+        ib >> opt_prim;
+        optimized_out.emplace_back(opt_prim);
+    }
+
+    size_t prims_info_size;
+    ib >> prims_info_size;
+    prim_info.clear();
+    for (size_t i = 0; i < prims_info_size; i++) {
+        primitive_id original_id;
+        std::string type_id;
+        primitive::primitive_id_arr c_dependencies;
+        primitive::primitive_id_arr c_users;
+        primitive::primitive_id_arr c_fused_ids;
+        layout output_layout;
+        std::string layout_str;
+        std::string kernel_id;
+        data_types runtime_precision;
+        bool is_cpu;
+        int exec_id;
+
+        ib >> original_id;
+        ib >> type_id;
+        ib >> c_dependencies;
+        ib >> c_users;
+        ib >> c_fused_ids;
+        ib >> output_layout;
+        ib >> layout_str;
+        ib >> kernel_id;
+        ib >> make_data(&runtime_precision, sizeof(data_types));
+        ib >> is_cpu;
+        ib >> exec_id;
+        primitive_info p_info(original_id, type_id, c_dependencies, c_users, c_fused_ids,
+                              output_layout, layout_str, kernel_id, runtime_precision, is_cpu, exec_id);
+        prim_info.emplace_back(p_info);
     }
 }
