@@ -215,10 +215,6 @@ public:
                 OPENVINO_ASSERT(
                     new_num_elements <= num_elements,
                     "New number of elements is expected to be less than the current number in string ov::Tensor");
-                // re-initialize with empty std::string objects
-                for (size_t ind = 0; ind < new_num_elements; ++ind) {
-                    data[ind] = std::string();
-                }
                 // remaining unneeded objects need to be destructed
                 for (size_t ind = new_num_elements; ind < num_elements; ++ind) {
                     using std::string;
