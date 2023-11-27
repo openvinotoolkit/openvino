@@ -6,9 +6,7 @@ import pytest
 import torch
 import tempfile
 import torchvision.transforms.functional as F
-from openvino import convert_model
-from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list
+from torch_utils import process_pytest_marks, TestTorchConvertModel
 
 
 def get_all_models() -> list:
@@ -52,7 +50,7 @@ def prepare_frames_for_raft(name, frames1, frames2):
 torch.manual_seed(0)
 
 
-class TestTorchHubConvertModel(TestConvertModel):
+class TestTorchHubConvertModel(TestTorchConvertModel):
     def setup_class(self):
         self.cache_dir = tempfile.TemporaryDirectory()
         # set temp dir for torch cache
@@ -83,16 +81,6 @@ class TestTorchHubConvertModel(TestConvertModel):
             self.inputs = (torch.randn(1, 3, 224, 224),)
         return m
 
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        return [i.numpy() for i in self.inputs]
-
-    def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
-        return ov_model
-
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):
@@ -114,8 +102,7 @@ class TestTorchHubConvertModel(TestConvertModel):
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
+    @pytest.mark.parametrize("name", process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
