@@ -178,8 +178,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-        // Issue: 120286
-        R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
         // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765
