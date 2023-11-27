@@ -118,6 +118,14 @@ TEST_F(OVTensorTest, canAccessStringTensor) {
     EXPECT_NE(nullptr, t.data());
     EXPECT_NO_THROW(t.data(ov::element::string));
     EXPECT_NO_THROW(t.data<std::string>());
+
+    // check that all elements of string ov::Tensor are empty strings
+    auto string_elements = t.data<std::string>();
+    auto num_elements = t.get_size();
+    for (size_t ind = 0; ind < num_elements; ++ind) {
+        EXPECT_EQ(string_elements[ind], std::string());
+    }
+
     EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
     EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
 }
