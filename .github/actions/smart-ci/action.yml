@@ -91,7 +91,9 @@ runs:
           -p "${{ inputs.component_pattern }}" \
           -c "${{ inputs.components_config }}" \
           -m "${{ inputs.components_config_schema }}" \
-          -l "${{ inputs.labeler_config }}"
+          -l "${{ inputs.labeler_config }}" \
+          --skip-when-only-listed-labels-set "${{ inputs.skip_when_only_listed_labels_set }}" \
+          --skip-when-only-listed-files-changed "${{ inputs.skip_when_only_listed_files_changed }}"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }}
