@@ -52,7 +52,7 @@ public:
         auto transpose = std::make_shared<ngraph::opset8::Transpose>(inputParams[0], transposeOrder);
 
         auto concatConstantInput = ngraph::opset8::Constant::create(ngraph::element::f32, {1, 1, 3, 3}, {10.0f});
-        auto concat = ngraph::builder::makeConcat({concatConstantInput, transpose}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concatConstantInput, transpose}, 1);
 
         // convolution
         std::vector<float> weightValuesFP32(12);

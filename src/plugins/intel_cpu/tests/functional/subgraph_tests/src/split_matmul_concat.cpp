@@ -73,7 +73,7 @@ public:
 protected:
     template<typename T>
     void transposeShape(T& shape) {
-        IE_ASSERT(shape.size() > 1);
+        OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
@@ -113,7 +113,7 @@ protected:
 
         auto matMul = std::make_shared<ov::op::v0::MatMul>(split->output(0), inputB, transpA, transpB);
 
-        auto concat = builder::makeConcat({matMul, split->output(1)}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{matMul, split->output(1)}, 0);
 
         function = CPUTestsBase::makeNgraphFunction(ElementType::f32, params, concat, "FullyConnected");
     }

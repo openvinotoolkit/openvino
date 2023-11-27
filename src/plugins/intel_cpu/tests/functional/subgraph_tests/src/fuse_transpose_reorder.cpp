@@ -32,7 +32,7 @@ void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCo
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Transpose") {
@@ -168,7 +168,7 @@ void FuseTransposeAndReorderTest1::CreateGraph() {
     auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, transpose3->get_output_shape(0));
     auto reshape = std::make_shared<ngraph::opset5::Reshape>(transpose1, shape, false);
 
-    auto concat = ngraph::builder::makeConcat({transpose3, reshape}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose3, reshape}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose_TransposeReorderTranspose_Reshape_Concat");
@@ -228,7 +228,7 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
     auto memFmt2 = inputShape.size() == 5 ? ncdhw : nchw;
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
-    auto concat = ngraph::builder::makeConcat({transpose1, transpose2}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose1, transpose2}, 1);
     concat->get_rt_info() = makeCPUInfo({memFmt1, memFmt1}, {memFmt1}, {});
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
@@ -269,7 +269,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTranspos
 */
 
 void FuseTransposeAndReorderTest3::CreateGraph() {
-    IE_ASSERT(inputShape.size() == 4);
+    OPENVINO_ASSERT(inputShape.size() == 4);
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
 
@@ -280,7 +280,7 @@ void FuseTransposeAndReorderTest3::CreateGraph() {
     size_t convOutChannels = 32;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    IE_ASSERT(inputShape[1] >= 8 && (inputShape[1] % 8 == 0));
+    OPENVINO_ASSERT(inputShape[1] >= 8 && (inputShape[1] % 8 == 0));
 
     auto convolutionNode = ngraph::builder::makeConvolution(params.front(), ngPrc, kernel, stride, padBegin,
                                                             padEnd, dilation, padType, convOutChannels);
@@ -340,7 +340,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest3_FP16, convSum
                  result
 */
 void FuseTransposeAndReorderTest4::CreateGraph() {
-    IE_ASSERT(inputShape.size() == 4);
+    OPENVINO_ASSERT(inputShape.size() == 4);
     const InferenceEngine::SizeVector kernel = {1, 1};
     const InferenceEngine::SizeVector stride = {1, 1};
     const InferenceEngine::SizeVector dilation = {1, 1};

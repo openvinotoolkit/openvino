@@ -5,6 +5,7 @@
 #include <shared_test_classes/single_layer/logical.hpp>
 #include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -59,9 +60,14 @@ protected:
         ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
         std::shared_ptr<ngraph::Node> logicalNode;
         if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+            std::shared_ptr<ov::Node> secondInput;
             if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
+                auto param = std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.second));
+                secondInput = param;
+                inputs.push_back(param);
+            } else {
+                auto tensor = ov::test::utils::create_and_fill_tensor(ngInputsPrc, ov::Shape(inputShapes.second));
+                secondInput = std::make_shared<ov::op::v0::Constant>(tensor);
             }
             logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
         } else {

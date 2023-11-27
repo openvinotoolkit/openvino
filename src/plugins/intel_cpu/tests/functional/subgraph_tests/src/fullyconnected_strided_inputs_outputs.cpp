@@ -5,6 +5,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -49,19 +50,22 @@ protected:
         ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
 
         const auto splitAxis = rank == 3 ? 1 : 0;
-        const auto split = builder::makeSplit(params[0], ngPrec, 2 /* splits */, splitAxis);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{splitAxis});
+        auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
         SizeVector fcWeightsShape{16, 8};
         if (rank == 3) bcastTo3D(fcWeightsShape);
 
-        auto fc1secondInput = builder::makeInputLayer(ngPrec, helpers::InputLayerType::CONSTANT, fcWeightsShape);
+        auto tensor = ov::test::utils::create_and_fill_tensor(ngPrec, fcWeightsShape);
+        auto fc1secondInput = std::make_shared<ov::op::v0::Constant>(tensor);
         const auto fc1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), fc1secondInput, false, false);
 
-        auto fc2secondInputB = builder::makeInputLayer(ngPrec, helpers::InputLayerType::CONSTANT, fcWeightsShape);
+        auto tensorB = ov::test::utils::create_and_fill_tensor(ngPrec, fcWeightsShape);
+        auto fc2secondInputB = std::make_shared<ov::op::v0::Constant>(tensorB);
         const auto fc2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), fc2secondInputB, false, false);
 
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
-        const auto concatMatMuls = builder::makeConcat({fc1, fc2}, fcConcatAxis);
+        const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fc1, fc2}, fcConcatAxis);
 
         function = makeNgraphFunction(ngPrec, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
     }

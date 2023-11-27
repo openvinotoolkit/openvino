@@ -36,6 +36,7 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/subgraph.h"
+#include "nodes/memory.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/ops.hpp"
@@ -245,7 +246,7 @@ void Graph::InitGraph() {
 
     InitOptimalPrimitiveDescriptors();
 
-    InitEdges();
+    ResolveEdgeConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
@@ -263,6 +264,7 @@ void Graph::InitGraph() {
 #endif
 
     ExtractExecutableNodes();
+    SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
@@ -433,8 +435,8 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     return dnnl_success == status;
 }
 
-void Graph::InitEdges() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
@@ -503,7 +505,7 @@ void Graph::InitEdges() {
         }
     }
 
-    // secondary pass to eliminate complex implace conflicts
+    // secondary pass to eliminate complex inplace conflicts
     auto needReorder = [](const EdgePtr& edge) -> bool {
         int inNumber = edge->getInputNum();
         const auto portChildEdges = edge->getParent()->getChildEdgesAtPort(inNumber);
@@ -517,7 +519,8 @@ void Graph::InitEdges() {
                     pEdgePeer->collectConsumers(vecConsumers);
 
                     for (auto node : vecConsumers) {
-                        if (node->getExecIndex() >= execIndex) {
+                        if (node->getExecIndex() >= execIndex ||
+                            one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
                             return true;
                         }
                     }
@@ -593,10 +596,17 @@ void Graph::AllocateWithReuse() {
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
 
+    // Resolve special cases:
     for (size_t i = 0; i < remaining_edge_clusters_count;) {
         auto &cluster = edge_clusters[i];
         bool erase = false;
         for (auto &edge : cluster) {
+            // Remove already allocated edges from the mem reuse algo
+            if (edge->getStatus() == Edge::Status::Allocated) {
+                erase = true;
+                break;
+            }
+            // Special allocation for constants
             if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
                 continue;
             }
@@ -619,6 +629,7 @@ void Graph::AllocateWithReuse() {
 
     const int64_t alignment = 32;  // 32 bytes
 
+    // Markup the boxes
     std::vector<MemorySolver::Box> definedBoxes;
     std::vector<MemorySolver::Box> undefinedBoxes;
     for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
@@ -668,6 +679,7 @@ void Graph::AllocateWithReuse() {
         }
     }
 
+    // Process defined boxes (static shapes)
     MemorySolver staticMemSolver(definedBoxes);
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
@@ -678,7 +690,7 @@ void Graph::AllocateWithReuse() {
 
     auto* workspace_ptr = static_cast<int8_t*>(memWorkspace->getData());
 
-    for (auto& box : definedBoxes) {
+    for (const auto& box : definedBoxes) {
         int count = 0;
         for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
@@ -688,7 +700,7 @@ void Graph::AllocateWithReuse() {
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
 
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implisitly converted into {1} tensor.
+                //       shapes {0}. And it is implicitly converted into {1} tensor.
                 //       Zeroing of input data allow pass tests.
                 if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
                     edge->getMemoryPtr()->nullify();
@@ -699,9 +711,10 @@ void Graph::AllocateWithReuse() {
         OPENVINO_ASSERT(count == 1);
     }
 
+    //Process undefined boxes (dynamic shapes)
     if (!undefinedBoxes.empty()) {
         // Use proxy memory manager for output edges
-        for (auto& box : undefinedBoxes) {
+        for (const auto& box : undefinedBoxes) {
             for (auto& edge : edge_clusters[box.id]) {
                 const auto child = edge->getChild();
                 if (child->getType() == Type::Output &&
@@ -824,6 +837,17 @@ void Graph::AllocateWithReuse() {
 void Graph::Allocate() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::Allocate");
 
+    //resolve inplace dead end nodes
+    for (const auto& edge : graphEdges) {
+        if (edge->getStatus() == Edge::Status::Uninitialized) {
+            if (one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else if (one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            }
+        }
+    }
+
     // resolve edges. Define which will be a view on others
     //   NeedAllocation - real blob
     //   NotAllocated - view on other blob, peer or in-place
@@ -831,9 +855,6 @@ void Graph::Allocate() {
 
     // Allocate memory space for all edges marked with NeedAllocation
     AllocateWithReuse();
-
-    // Resolve all other edges with status NotAllocated and in-place
-    //for (auto& node : graphNodes) node->resolveInPlaceEdges();
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
@@ -1685,7 +1706,7 @@ void Graph::EnforceInferencePrecision() {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (one_of(node->getType(), Type::Input, Type::Output))
+        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
 
 #ifdef CPU_DEBUG_CAPS
@@ -1856,6 +1877,18 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }
             }
+        }
+    }
+}
+
+void Graph::SearchInternalStateNodes() {
+    for (auto&& node : graphNodes) {
+        if (node->getType() == Type::MemoryInput) {
+            auto cur_node = std::dynamic_pointer_cast<node::MemoryInput>(node);
+            if (!cur_node) {
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
+            }
+            internalStateNodes.insert({cur_node->getId(), cur_node});
         }
     }
 }

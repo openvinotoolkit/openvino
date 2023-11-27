@@ -47,13 +47,15 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
         }
-        auto split = ngraph::builder::makeSplit(params.front(), precision, 3, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(params.front(), split_axis_op, 3);
+
         auto add_const = ngraph::builder::makeConstant(precision, {1}, std::vector<float>({1.0f}));
         auto add_1 = ngraph::builder::makeEltwise(split->output(0), add_const, ngraph::helpers::EltwiseTypes::ADD);
         auto result_add_1 = std::make_shared<ngraph::opset3::Result>(add_1);
         auto add_2 = ngraph::builder::makeEltwise(split->output(1), add_const, ngraph::helpers::EltwiseTypes::ADD);
         auto add_3 = ngraph::builder::makeEltwise(split->output(2), add_const, ngraph::helpers::EltwiseTypes::ADD);
-        auto concat = ngraph::builder::makeConcat({add_1, add_2, add_3}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{add_1, add_2, add_3}, 1);
         auto result_concat = std::make_shared<ngraph::opset3::Result>(concat);
         auto add_4 = ngraph::builder::makeEltwise(concat, add_const, ngraph::helpers::EltwiseTypes::ADD);
         auto add_5 = ngraph::builder::makeEltwise(concat, add_const, ngraph::helpers::EltwiseTypes::ADD);

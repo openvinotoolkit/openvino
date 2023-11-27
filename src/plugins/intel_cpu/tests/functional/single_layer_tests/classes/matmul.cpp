@@ -8,6 +8,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -69,7 +70,7 @@ std::string MatMulLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Mat
 
 template<typename T>
 void MatMulLayerCPUTest::transpose(T& shape) {
-    IE_ASSERT(shape.size() > 1);
+    OPENVINO_ASSERT(shape.size() > 1);
     std::swap(*(shape.end() - 1), *(shape.end() - 2));
 }
 
@@ -130,9 +131,15 @@ void MatMulLayerCPUTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
-    auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
+    std::shared_ptr<ov::Node> matrixB;
     if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
-        params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
+        auto param = std::make_shared<ov::op::v0::Parameter>(netType, inShapeB);
+        matrixB = param;
+        params.push_back(param);
+    } else {
+        ASSERT_TRUE(inShapeB.is_static());
+        auto tensor = ov::test::utils::create_and_fill_tensor(netType, inShapeB.to_shape());
+        matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
     }
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
