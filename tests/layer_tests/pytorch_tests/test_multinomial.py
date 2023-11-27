@@ -27,8 +27,8 @@ class TestMultinomial(PytorchLayerTest):
                     self.forward = self.multinomial_out
 
             def multinomial(self, input, num_samples):
-                mutlinomial = torch.multinomial(input, num_samples, self.replacement)
-                return self.mode(mutlinomial)
+                multinomial = torch.multinomial(input, num_samples, self.replacement)
+                return self.mode(multinomial)
 
             def multinomial_out(self, input, num_samples, out):
                 multinomial = torch.multinomial(input, num_samples, self.replacement, out=out)
@@ -74,6 +74,12 @@ class TestMultinomial(PytorchLayerTest):
             ),
             (
                 np.array([1, 2, 3, 4], dtype=np.float32),
+                256,
+                True,
+                "shape",
+            ),
+            (
+                np.array([[1, 2, 3, 4]], dtype=np.float32),
                 256,
                 True,
                 "shape",
