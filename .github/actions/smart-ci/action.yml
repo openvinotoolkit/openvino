@@ -28,6 +28,10 @@ inputs:
     description: "Path to the schema file for components configuration"
     required: false
     default: ".github/actions/smart-ci/components_schema.yml"
+  labeler_config:
+    description: "Path to labeler configuration file"
+    required: false
+    default: ".github/labeler.yml"
   skip_when_only_listed_labels_set:
     description: "Comma-separated list of labels. If PR has only these labels set, 
                   return indicator that CI can be skipped"
