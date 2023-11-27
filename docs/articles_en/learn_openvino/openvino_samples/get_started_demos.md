@@ -50,11 +50,6 @@ Instructions below show how to build sample applications with CMake. If you are 
    .. tab-item:: Linux
       :sync: linux
 
-      The officially supported Linux build environment is the following:
-
-      * Ubuntu 18.04 LTS 64-bit or Ubuntu 20.04 LTS 64-bit
-      * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
-      * CMake version 3.10 or higher
 
       .. tab-set::
 
