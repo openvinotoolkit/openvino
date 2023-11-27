@@ -43,6 +43,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_params.hpp"
 
 using namespace CPUTestUtils;
 using ngraph::helpers::EltwiseTypes;

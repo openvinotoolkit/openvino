@@ -6,6 +6,7 @@
 #include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_params.hpp"
 
 using namespace ov::test;
 using namespace ngraph;

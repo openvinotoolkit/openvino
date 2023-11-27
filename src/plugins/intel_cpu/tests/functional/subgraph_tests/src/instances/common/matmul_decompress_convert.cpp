@@ -288,6 +288,9 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BF16() {
 
 std::vector<CPUSpecificParams> filterSpecificParams(bool trySetMlas) {
     std::vector<CPUSpecificParams> specificParams;
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"acl"}, "acl"});
+#else
     if (trySetMlas) {
 #ifdef OV_CPU_WITH_MLAS
         specificParams.push_back(CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"});
@@ -301,7 +304,7 @@ std::vector<CPUSpecificParams> filterSpecificParams(bool trySetMlas) {
             specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx2"}, "brgemm_avx2"});
         }
     }
-
+#endif
     return specificParams;
 }
 

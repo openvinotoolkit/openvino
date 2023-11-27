@@ -49,6 +49,23 @@ inline std::vector<size_t> getNormalizedDimsBySize(const VectorDims &dims, size_
 }
 
 /**
+* @brief Clones passed shape and replaces one its dimention.
+* @param originalShape
+* shape to clone
+* @param newDimValue
+* new dimention value
+* @param dim
+* dimention index
+* @return cloned shape
+*/
+inline Shape cloneShapeWithNewDim(Shape originalShape, Dim newDimValue, size_t dim) {
+    VectorDims newDims = originalShape.getDims();
+    assert(dim < newDims.size());
+    newDims[dim] = newDimValue;
+    return Shape(originalShape.getMinDims(), newDims);
+}
+
+/**
 * @brief Checked that secondInputDims unidirectional broadcastable per tensor or per channel to firstInputDims
 * @param firstInputDims
 * shape on which should be broadcastable

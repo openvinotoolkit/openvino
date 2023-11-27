@@ -245,6 +245,9 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
         // Issue: 123321
         retVector.emplace_back(R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=1.*relu.*direction=reverse.*)");
+        // Issue: 120582
+        retVector.emplace_back(R"(smoke_Convolution(2|3)D.*inFmts=nchw.*)");
+        retVector.emplace_back(R"(smoke_GroupConvolution(2|3)D.*inFmts=nchw.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");

@@ -123,7 +123,9 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingMultiplyPerChannel
 };
 
-#ifdef OV_CPU_WITH_MLAS
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+const auto gemmParam = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
+#elif OV_CPU_WITH_MLAS
 const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
 #else
 const auto gemmParam = CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"};

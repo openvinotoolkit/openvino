@@ -14,6 +14,7 @@
 #include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
+using namespace InferenceEngine;
 
 namespace SubgraphTestsDefinitions {
 
@@ -45,4 +46,17 @@ protected:
     std::string pluginTypeNode;
 };
 
+namespace ConvConcat {
+const SizeVector inputShapes3D();
+const int axis();
+const ngraph::op::PadType paddingType();
+const size_t numOutChannels();
+const SizeVector kernelSize3D();
+const SizeVector strides3D();
+const std::vector<ptrdiff_t> padBegin3D();
+const std::vector<ptrdiff_t> padEnd3D();
+const SizeVector dilation3D();
+const commonConvParams convParams3D();
+const commonConvParams groupConvParams3D();
+} // namespace ConvConcat
 } // namespace SubgraphTestsDefinitions
