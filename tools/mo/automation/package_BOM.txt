@@ -896,6 +896,7 @@ openvino/tools/mo/ops/expand_dims.py
 openvino/tools/mo/ops/ExtractImagePatches.py
 openvino/tools/mo/ops/eye.py
 openvino/tools/mo/ops/fake_output.py
+openvino/tools/mo/ops/fake_convert.py
 openvino/tools/mo/ops/fakequantize.py
 openvino/tools/mo/ops/fill.py
 openvino/tools/mo/ops/flatten.py
