@@ -43,9 +43,9 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.changedCpuPinning = test_data.input_cpu_changed;
     config.enableHyperThreading = test_data.input_ht_value;
     config.changedHyperThreading = test_data.input_ht_changed;
-    config.perfHintsConfig.ovPerfHint = ov::util::to_string(test_data.input_pm_hint);
+    config.hintPerfMode = test_data.input_pm_hint;
     config.latencyThreadingMode = test_data.input_latency_threading_mode;
-    config.perfHintsConfig.ovPerfHintNumRequests = test_data.input_request;
+    config.hintNumRequests = test_data.input_request;
     config.streamExecutorConfig._streams = test_data.input_stream;
     config.streamExecutorConfig._streams_changed = test_data.input_stream_changed;
     config.streamExecutorConfig._threads = test_data.input_thread;
@@ -70,8 +70,7 @@ public:
         ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig._cpu_reservation);
         ASSERT_EQ(test_data.output_ht_value, config.enableHyperThreading);
         ASSERT_EQ(test_data.output_type, config.schedulingCoreType);
-        ASSERT_EQ(test_data.output_pm_hint,
-                  ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode));
+        ASSERT_EQ(test_data.output_pm_hint, config.hintPerfMode);
     }
 };
 
