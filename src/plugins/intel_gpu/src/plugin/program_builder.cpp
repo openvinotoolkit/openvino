@@ -64,7 +64,8 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_engine(engine)
     , queryMode(false)
     , m_task_executor(task_executor)
-    , m_compilation_context(compilation_context) {
+    , m_compilation_context(compilation_context)
+    , m_is_inner_program(is_inner_program) {
     if (m_task_executor == nullptr)
         m_task_executor = cldnn::program::make_task_executor(m_config);
 
