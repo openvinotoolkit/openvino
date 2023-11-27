@@ -288,8 +288,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
-        return perfHint;
+        return decltype(ov::hint::performance_mode)::value_type(config.hintPerfMode);
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
@@ -302,8 +301,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::execution_mode) {
         return config.executionMode;
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
-        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+        return decltype(ov::hint::num_requests)::value_type(config.hintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {
