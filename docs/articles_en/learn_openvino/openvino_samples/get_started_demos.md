@@ -1,4 +1,4 @@
-# Get Started with C++ Samples {#openvino_docs_get_started_get_started_demos}
+# Get Started with Samples {#openvino_docs_get_started_get_started_demos}
 
 @sphinxdirective
 
@@ -7,293 +7,255 @@
                  toolkit, and how to run inference, using provided code samples.
 
 
-The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples.
-
-To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the :ref:`Prerequisites <prerequisites-samples>` section for instructions.
-
-Once the prerequisites have been installed, perform the following steps:
-
-1. :ref:`Use Model Downloader to download a suitable model <download-models>`.
-2. :ref:`Convert the model with mo <convert-models-to-intermediate-representation>`.
-3. :ref:`Download media files to run inference <download-media>`.
-4. :ref:`Run inference with the Image Classification sample application and see the results <run-image-classification>`.
-
-.. _prerequisites-samples:
-
-Prerequisites
-#############
-
-Install OpenVINO Runtime
-++++++++++++++++++++++++
-
-To use sample applications, install OpenVINO Runtime via one of the following distribution channels (other distributions do not include sample files):
+To use OpenVINO samples, install OpenVINO using one of the following distributions: 
 
 * Archive files (recommended) - :doc:`Linux <openvino_docs_install_guides_installing_openvino_from_archive_linux>` | :doc:`Windows <openvino_docs_install_guides_installing_openvino_from_archive_windows>` | :doc:`macOS <openvino_docs_install_guides_installing_openvino_from_archive_macos>`
 * :doc:`APT <openvino_docs_install_guides_installing_openvino_apt>` or :doc:`YUM <openvino_docs_install_guides_installing_openvino_yum>` for Linux
 * :doc:`Docker image <openvino_docs_install_guides_installing_openvino_docker>`
 * `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
 
-Make sure that you also `install OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ , as it's required for running sample applications.
+If you install OpenVINO Runtime via archive files, sample applications are created in the following directories:
 
+* ``<INSTALL_DIR>/samples/python``
+* ``<INSTALL_DIR>/samples/cpp``
+* ``<INSTALL_DIR>/samples/c``
 
+.. note::
+   If you install OpenVINO without samples, you can still get them directly from `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__.
 
-Install OpenVINO Development Tools
-++++++++++++++++++++++++++++++++++
+Before you build samples, refer to the :doc:`system requirements <system_requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
+
+1. :ref:`Build Samples <build-samples>`.
+2. :ref:`Select a Sample <select-sample>`.
+3. :ref:`Download a suitable model <download-model>`.
+4. :ref:`Download media files used as input, if necessary <download-media>`.
+
+Once you perform all the steps, you can :ref:`run inference with the chosen sample application <run-inference>` to see the results. 
+
+.. _build-samples:
+
+Build the Sample Applications
+================================
+
+Select a sample you want to use from the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page, and follow the instructions below to build it in your operating system.
 
 .. note::
 
-   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated and will be removed entirely in the future.
+   Some samples may also require `OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ to run properly. Make sure to install it for use with vision-oriented samples. 
 
-To install OpenVINO Development Tools, follow the :doc:`instructions for C++ developers on the Install OpenVINO Development Tools page <openvino_docs_install_guides_install_dev_tools>`. This guide uses the ``googlenet-v1`` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
-
-.. code-block:: sh
-
-   pip install openvino-dev[caffe]
-
-
-
-
-
-
-Build Samples
-+++++++++++++
-
-To build OpenVINO samples, follow the build instructions for your operating system on the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page. The build will take about 1-2 minutes, depending on your system.
-
-.. _download-models:
-
-Step 1: Download the Models
-###########################
-
-You must have a model that is specific for your inference task. Example model types are:
-
-- Classification (AlexNet, GoogleNet, SqueezeNet, others): Detects one type of element in an image
-- Object Detection (SSD, YOLO): Draws bounding boxes around multiple types of objects in an image
-- Custom: Often based on SSD
-
-You can use one of the following options to find a model suitable for OpenVINO:
-
-- Download public or Intel pre-trained models from :doc:`Open Model Zoo <model_zoo>` using :doc:`Model Downloader tool <omz_tools_downloader>`
-- Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
-- Train your own model with machine learning tools
-
-This guide uses OpenVINO Model Downloader to get pre-trained models. You can use one of the following commands to find a model with this method:
-
-* List the models available in the downloader.
-
-  .. code-block:: sh
-
-     omz_info_dumper --print_all
-
-* Use ``grep`` to list models that have a specific name pattern (e.g. ``ssd-mobilenet``, ``yolo``). Replace ``<model_name>`` with the name of the model.
-
-  .. code-block:: sh
-
-     omz_info_dumper --print_all | grep <model_name>
-
-* Use Model Downloader to download models. Replace ``<models_dir>`` with the directory to download the model to and ``<model_name>`` with the name of the model.
-
-  .. code-block:: sh
-
-     omz_downloader --name <model_name> --output_dir <models_dir>
-
-This guide used the following model to run the Image Classification Sample:
-
-+------------------+-----------------------------+
-| Model Name       | Code Sample or Demo App     |
-+==================+=============================+
-| ``googlenet-v1`` | Image Classification Sample |
-+------------------+-----------------------------+
-
-.. dropdown:: Click to view how to download the GoogleNet v1 Caffe model
-
-   To download the GoogleNet v1 Caffe model to the `models` folder:
-
-   .. tab-set::
-
-      .. tab-item:: Windows
-         :sync: windows
-
-         .. code-block:: bat
-
-            omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
-
-      .. tab-item:: Linux
-         :sync: linux
-
-         .. code-block:: sh
-
-            omz_downloader --name googlenet-v1 --output_dir ~/models
-
-      .. tab-item:: macOS
-         :sync: macos
-
-         .. code-block:: sh
-
-            omz_downloader --name googlenet-v1 --output_dir ~/models
-
-
-   Your screen will look similar to this after the download and show the paths of downloaded files:
-
-   .. tab-set::
-
-      .. tab-item:: Windows
-         :sync: windows
-
-         .. code-block:: bat
-
-            ################|| Downloading models ||################
-
-            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-            ... 100%, 9 KB, ? KB/s, 0 seconds passed
-
-            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
-            ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
-
-            ################|| Post-processing ||################
-
-            ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-
-      .. tab-item:: Linux
-         :sync: linux
-
-         .. code-block:: sh
-
-            ###############|| Downloading models ||###############
-
-            ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.prototxt
-
-            ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.caffemodel
-            ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
-
-            ###############|| Post processing ||###############
-
-            ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
-
-      .. tab-item:: macOS
-         :sync: macos
-
-         .. code-block:: sh
-
-            ###############|| Downloading models ||###############
-
-            ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt
-            ... 100%, 9 KB, 44058 KB/s, 0 seconds passed
-
-            ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.caffemodel
-            ... 100%, 4834 KB, 4877 KB/s, 0 seconds passed
-
-            ###############|| Post processing ||###############
-
-            ========= Replacing text in /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
-
-.. _convert-models-to-intermediate-representation:
-
-Step 2: Convert the Model with ``mo``
-#####################################
-
-In this step, your trained models are ready for conversion with ``mo`` to the OpenVINO IR (Intermediate Representation) format. For most model types, this is required before using OpenVINO Runtime with the model.
-
-Models in the IR format always include an ``.xml`` and ``.bin`` file and may also include other files such as ``.json`` or ``.mapping``. Make sure you have these files together in a single directory so OpenVINO Runtime can find them.
-
-REQUIRED: ``model_name.xml``
-REQUIRED: ``model_name.bin``
-OPTIONAL: ``model_name.json``, ``model_name.mapping``, etc.
-
-This tutorial uses the public GoogleNet v1 Caffe model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
-
-The googlenet-v1 model is downloaded in the Caffe format. You must use ``mo`` to convert the model to IR.
-
-Create an ``<ir_dir>`` directory to contain the model's Intermediate Representation (IR).
+Instructions below show how to build sample applications with CMake. If you are interested in building them from source, check the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
 
 .. tab-set::
-
-   .. tab-item:: Windows
-      :sync: windows
-
-      .. code-block:: bat
-
-         mkdir %USERPROFILE%\Documents\ir
 
    .. tab-item:: Linux
       :sync: linux
 
-      .. code-block:: sh
 
-         mkdir ~/ir
+      .. tab-set::
 
-   .. tab-item:: macOS
-      :sync: macos
-
-      .. code-block:: sh
-
-         mkdir ~/ir
-
-To save disk space for your IR files, OpenVINO stores weights in FP16 format by default.
-
-Generic model conversion script:
-
-.. code-block:: sh
-
-   mo --input_model <model_dir>/<model_file>
-
-
-The IR files produced by the script are written to the ``<ir_dir>`` directory.
-
-The command with most placeholders filled in and FP16 precision:
-
-.. tab-set::
+         .. tab-item:: Python
+            :sync: python
+   
+            Python samples do not require building. You can run the code samples in your development environment.
+   
+         .. tab-item:: C and C++
+            :sync: cpp
+   
+            To build the C or C++ sample applications for Linux, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
+      
+            .. code-block:: sh
+               
+               build_samples.sh
+      
+            Once the build is completed, you can find sample binaries in the following folders:
+      
+            * C samples: ``~/openvino_c_samples_build/<architecture>/Release``
+            * C++ samples: ``~/openvino_cpp_samples_build/<architecture>/Release`` where the <architecture> is the output of ``uname -m``, for example, ``intel64``, ``armhf``, or ``aarch64``.
+            
+            You can also build the sample applications manually:
+            
+            .. note::
+               
+               If you have installed the product as a root user, switch to root mode before you continue: ``sudo -i`` .
+      
+            1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
+            
+               .. code-block:: sh
+                  
+                  mkdir build
+               
+               .. note:: 
+               
+                  If you ran the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: ``~/openvino_cpp_samples_build/``
+               
+            2. Go to the created directory:
+               
+               .. code-block:: sh
+                  
+                  cd build
+               
+            3. Run CMake to generate the Make files for release configuration. For example, for C++ samples:
+            
+                .. code-block:: sh
+                  
+                   cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+               
+            
+            4. Run ``make`` to build the samples:
+            
+               .. code-block:: sh
+                  
+                  cmake --build . --parallel
+            
+            For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``;
+            for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
 
    .. tab-item:: Windows
       :sync: windows
 
-      .. code-block:: bat
+      .. tab-set::
 
-         mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
+         .. tab-item:: Python
+            :sync: python
+   
+            Python samples do not require building. You can run the code samples in your development environment.
+   
+         .. tab-item:: C and C++
+            :sync: c-cpp
 
-   .. tab-item:: Linux
-      :sync: linux
-
-      .. code-block:: sh
-
-         mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+            .. note::
+      
+               If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
+   
+            To build the C or C++ sample applications on Windows, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
+      
+            .. code-block:: sh
+               
+               build_samples_msvc.bat
+      
+            By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
+            
+            Once the build is completed, you can find sample binaries in the following folders:
+            
+            * C samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\<architecture>\Release``
+            * C++ samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release`` where the <architecture> is the output of ``echo PROCESSOR_ARCHITECTURE%``, for example, ``intel64`` (AMD64), or ``arm64``.
+            
+            You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the Microsoft Visual Studio and open the generated solution file from the ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`` directory.
 
    .. tab-item:: macOS
       :sync: macos
 
-      .. code-block:: sh
+      .. tab-set::
 
-         mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+         .. tab-item:: Python
+            :sync: python
+   
+            Python samples do not require building. You can run the code samples in your development environment.
+   
+         .. tab-item:: C and C++
+            :sync: cpp
+
+            .. note:: 
+            
+               For building samples from the open-source version of OpenVINO toolkit, see the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
+
+            To build the C or C++ sample applications for macOS, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
+            
+            .. code-block:: sh
+               
+               build_samples.sh
+            
+            Once the build is completed, you can find sample binaries in the following folders:
+            
+            * C samples: ``~/openvino_c_samples_build/<architecture>/Release``
+            * C++ samples: ``~/openvino_cpp_samples_build/<architecture>/Release``
+            
+            You can also build the sample applications manually. Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by:
+      
+            .. code-block:: sh
+      
+               cd <INSTALL_DIR>/
+               source setupvars.sh
+      
+            .. note::
+      
+               If you have installed the product as a root user, switch to root mode before you continue: ``sudo -i``
+      
+            1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
+            
+               .. code-block:: sh
+               
+                  mkdir build
+               
+               .. note:: 
+               
+                  If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: ``~/openvino_cpp_samples_build/``
+               
+            2. Go to the created directory:
+            
+               .. code-block:: sh
+               
+                  cd build
+            
+            3. Run CMake to generate the Make files for release configuration. For example, for C++ samples:
+            
+               .. code-block:: sh
+            
+                  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+
+               
+            4. Run ``make`` to build the samples:
+            
+               .. code-block:: sh
+               
+                  make
+            
+            For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``; for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
+      
+
+.. _select-sample:
+
+Sample Application Setup
+================================
+
+First, select a sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Samples_Overview>` and read the dedicated article to learn how to run it.
+
+.. _download-model:
+
+Download the Models
+--------------------
+
+You need a model that is specific for your inference task. You can get it from one of model repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub. 
+
+
+Convert the Model
+--------------------
+
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
 
 .. _download-media:
 
-Step 3: Download a Video or a Photo as Media
-############################################
+Download a Media to use
+-----------------------
 
-Most of the samples require you to provide an image or a video as the input to run the model on. You can get them from sites like `Pexels <https://pexels.com>`__ or `Google Images <https://images.google.com>`__ .
-
-As an alternative, OpenVINO also provides several sample images and videos for you to run code samples and demo applications:
+Most of the samples require you to provide an image or a video as input for the model. OpenVINO provides several sample images and videos for you to run code samples and demo applications:
 
 - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`__
 - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`__
 
-.. _run-image-classification:
+To run the sample applications, you can use images and videos from the media files collection available `here <https://storage.openvinotoolkit.org/data/test_data>`__ . As an alternative, you can get them from sites like `Pexels <https://pexels.com>`__ or `Google Images <https://images.google.com>`__ .
 
-Step 4: Run Inference on a Sample
-##################################
+.. _run-inference:
 
-To run the **Image Classification** code sample with an input image using the IR model:
+Run Inference on a Sample
+================================
+
+To run the code sample with an input image using the IR model:
+
 
 1. Set up the OpenVINO environment variables:
 
    .. tab-set::
-
-      .. tab-item:: Windows
-         :sync: windows
-
-         .. code-block:: bat
-
-            <INSTALL_DIR>\setupvars.bat
 
       .. tab-item:: Linux
          :sync: linux
@@ -301,6 +263,13 @@ To run the **Image Classification** code sample with an input image using the IR
          .. code-block:: sh
 
             source  <INSTALL_DIR>/setupvars.sh
+
+      .. tab-item:: Windows
+         :sync: windows
+
+         .. code-block:: bat
+
+            <INSTALL_DIR>\setupvars.bat
 
       .. tab-item:: macOS
          :sync: macos
@@ -313,19 +282,19 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. tab-set::
 
-      .. tab-item:: Windows
-         :sync: windows
-
-         .. code-block:: bat
-
-            cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
-
       .. tab-item:: Linux
          :sync: linux
 
          .. code-block:: sh
 
             cd ~/openvino_cpp_samples_build/intel64/Release
+
+      .. tab-item:: Windows
+         :sync: windows
+
+         .. code-block:: bat
+
+            cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
 
       .. tab-item:: macOS
          :sync: macos
@@ -336,59 +305,129 @@ To run the **Image Classification** code sample with an input image using the IR
 
 3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
 
+
    .. tab-set::
+      
+      .. tab-item:: Python
+         :sync: python
+      
+         .. tab-set::
+      
+            .. tab-item:: Linux
+               :sync: linux
+      
+               .. code-block:: sh
+      
+                  python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
+      
+            .. tab-item:: Windows
+               :sync: windows
+      
+               .. code-block:: bat
+      
+                  python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
+      
+            .. tab-item:: macOS
+               :sync: macos
+      
+               .. code-block:: sh
+      
+                  python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
+      
+      .. tab-item:: C++
+         :sync: cpp
+      
+         .. tab-set::
+      
+            .. tab-item:: Linux
+               :sync: linux
+      
+               .. code-block:: sh
+      
+                  <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
+      
+            .. tab-item:: Windows
+               :sync: windows
+      
+               .. code-block:: bat
+      
+                  <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
+      
+            .. tab-item:: macOS
+               :sync: macos
+      
+               .. code-block:: sh
+      
+                  <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
 
-      .. tab-item:: Windows
-         :sync: windows
-
-         .. code-block:: bat
-
-            classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
-
-      .. tab-item:: Linux
-         :sync: linux
-
-         .. code-block:: sh
-
-            classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
-
-      .. tab-item:: macOS
-         :sync: macos
-
-         .. code-block:: sh
-
-            classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
 
 Examples
-++++++++
+================================
 
 Running Inference on CPU
 ------------------------
 
 The following command shows how to run the Image Classification Code Sample using the `dog.bmp <https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp>`__ file as an input image, the model in IR format from the ``ir`` directory, and the CPU as the target hardware:
 
+.. note::
+
+   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <openvino_docs_install_guides_configurations_for_intel_gpu>`, as described earlier on this page. 
+   * Running on GPU is not compatible with macOS.
+
 .. tab-set::
 
-   .. tab-item:: Windows
-      :sync: windows
+   .. tab-item:: Python
+      :sync: python
 
-      .. code-block:: bat
+      .. tab-set::
+      
+         .. tab-item:: Linux
+            :sync: linux
+      
+            .. code-block:: sh
+      
+               python classification_sample_async.py -m ~/ir/googlenet-v1.xml -i ~/Downloads/dog.bmp -d CPU
 
-         .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
+         .. tab-item:: Windows
+            :sync: windows
+      
+            .. code-block:: bat
+      
+               python classification_sample_async.py -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -i %USERPROFILE%\Downloads\dog.bmp -d CPU
 
-   .. tab-item:: Linux
-      :sync: linux
+         .. tab-item:: macOS
+            :sync: macos
+      
+            .. code-block:: sh
+      
+               python classification_sample_async.py -m ~/ir/googlenet-v1.xml -i ~/Downloads/dog.bmp -d CPU
 
-      .. code-block:: sh
+   .. tab-item:: C++
+      :sync: cpp
 
-         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
+      .. tab-set::
+      
+         .. tab-item:: Linux
+            :sync: linux
+      
+            .. code-block:: sh
+      
+               ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
-   .. tab-item:: macOS
-      :sync: macos
+         .. tab-item:: Windows
+            :sync: windows
+      
+            .. code-block:: bat
+      
+               .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
 
-      .. code-block:: sh
+         .. tab-item:: macOS
+            :sync: macos
+      
+            .. code-block:: sh
+      
+               ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
-         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
@@ -413,38 +452,10 @@ When the sample application is complete, you are given the label and confidence 
       216     0.0057589   clumber, clumber spaniel
       154     0.0052615   Pekinese, Pekingese, Peke
 
-The following example shows how to run the same sample using GPU as the target device.
 
-Running Inference on GPU
-------------------------
+Other Samples
+================================
 
-.. note::
-
-   Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <openvino_docs_install_guides_configurations_for_intel_gpu>`, as described earlier on this page. Running on GPU is not compatible with macOS.
-
-.. tab-set::
-
-   .. tab-item:: Windows
-      :sync: windows
-
-      .. code-block:: bat
-
-         .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
-
-   .. tab-item:: Linux
-      :sync: linux
-
-      .. code-block:: sh
-
-         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d GPU
-
-
-Other Demos and Samples
-#######################
-
-See the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for more sample applications. Each sample page explains how the application works and shows how to run it. Use the samples as a starting point that can be adapted for your own application.
-
-OpenVINO also provides demo applications for using off-the-shelf models from :doc:`Open Model Zoo <model_zoo>`. Visit :doc:`Open Model Zoo Demos <omz_demos>` if you'd like to see even more examples of how to run model inference with the OpenVINO API.
+Articles in this section describe all sample applications provided with OpenVINO. They will give you more information on how each of them works, giving you a convenient starting point for your own application. 
 
 @endsphinxdirective
-
