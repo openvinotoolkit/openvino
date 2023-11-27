@@ -32,7 +32,7 @@ product better:
      If you want to help improving OpenVINO, choose one of the issues reported in 
      [GitHub Issue Tracker](https://github.com/openvinotoolkit/openvino/issues) and 
      [create a Pull Request](./CONTRIBUTING_PR.md) addressing it. Consider one of the
-     tasks listed as [first-time contributions](https://github.com/openvinotoolkit/openvino/issues/17502).
+     tasks listed as [first-time contributions](https://github.com/orgs/openvinotoolkit/projects/3).
      If the feature you want to develop is more complex or not well defined by the reporter, 
      it is always a good idea to [discuss it](https://github.com/openvinotoolkit/openvino/discussions) 
      with OpenVINO developers first. Before creating a new PR, check if nobody is already
@@ -81,6 +81,9 @@ product better:
      share your expertise with the community. Check GitHub Discussions and 
      Issues to see if you can help someone. 
 
+## What to do once you decide what to contribute
+
+You can follow the contributing roadmap prepared to guide new contributors all the way from project building, through running tests, to creating a Pull Request.
 
 ## License
 

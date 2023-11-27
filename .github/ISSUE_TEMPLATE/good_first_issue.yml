@@ -41,10 +41,7 @@ body:
           Any materials related to the task, such as operator specifications,
           discussions, guides.
       value: |
-          - [What is OpenVINO?](https://github.com/openvinotoolkit/openvino#what-is-openvino-toolkit)
-          - [Contribution guide](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
-          - [Blog post on contributing to OpenVINO](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
-          - [User documentation](https://docs.openvino.ai/)
+          - [Contributing roadmap - start here!](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_ROADMAP.md)
     validations:
       required: true
 
