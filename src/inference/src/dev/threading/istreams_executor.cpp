@@ -16,7 +16,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
+#include "parallel_custom_arena.hpp"
 
 namespace ov {
 namespace threading {
@@ -592,12 +592,16 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
     stream_info[ov::STREAM_SOCKET_ID] = 0;
     if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
         if (proc_type_table[0][ov::MAIN_CORE_PROC] < _streams) {
-            stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::MAIN_CORE_PROC];
-            stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
-            _streams_info_table.push_back(stream_info);
-            stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::HYPER_THREADING_PROC];
-            stream_info[ov::PROC_TYPE] = ov::HYPER_THREADING_PROC;
-            _streams_info_table.push_back(stream_info);
+            if (proc_type_table[0][ov::MAIN_CORE_PROC] > 0) {
+                stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::MAIN_CORE_PROC];
+                stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
+                _streams_info_table.push_back(stream_info);
+            }
+            if (proc_type_table[0][ov::HYPER_THREADING_PROC] > 0) {
+                stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::HYPER_THREADING_PROC];
+                stream_info[ov::PROC_TYPE] = ov::HYPER_THREADING_PROC;
+                _streams_info_table.push_back(stream_info);
+            }
         } else {
             stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
             stream_info[ov::NUMBER_OF_STREAMS] = _streams;

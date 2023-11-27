@@ -1,0 +1,86 @@
+name: "Smart CI action"
+description: "Returns product components affected by PR or commit"
+inputs:
+  repository:
+    description: "GitHub repository"
+    required: true
+  repo_token:
+    description: "Token for access to GitHub repository"
+    required: true
+  pr:
+    description: "GitHub PR number. If not set - commit is used"
+    required: false
+  commit_sha:
+    description: "GitHub commit hash. Used if no PR number is set"
+    required: false
+  component_pattern:
+    description: "Pattern to extract component name from PR label. If not set, any label is considered a component name"
+    required: false
+  labeler_check_name:
+    description: "Name of the labeler check"
+    required: false
+    default: "triage"
+  components_config:
+    description: "Path to components configuration file"
+    required: false
+    default: ".github/components.yml"
+  components_config_schema:
+    description: "Path to the schema file for components configuration"
+    required: false
+    default: ".github/actions/smart-ci/components_schema.yml"
+  labeler_config:
+    description: "Path to labeler configuration file"
+    required: false
+    default: ".github/labeler.yml"
+
+outputs:
+  all_components:
+    description: "All components listed in configuration"
+    value: ${{ steps.smart_ci.outputs.all_components }}
+  affected_components:
+    description: "Affected components to run validation for and their validation scope"
+    value: ${{ steps.smart_ci.outputs.affected_components }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Wait for labeler to finish
+      uses: lewagon/wait-on-check-action@v1.3.1
+      if: ${{ github.event_name == 'pull_request' }}
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        check-name: ${{ inputs.labeler_check_name }}
+        repo-token: ${{ inputs.repo_token }}
+        wait-interval: 10
+
+    - name: checkout components file
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: .github/components.yml
+        sparse-checkout-cone-mode: false
+
+    - name: Install Python dependencies
+      uses: py-actions/py-dependency-install@v4
+      with:
+        path: "${{ github.action_path }}/requirements.txt"
+        update-setuptools: "false"
+        update-wheel: "false"
+
+    - name: Test functionality
+      run: |
+        python ${{ github.action_path }}/smart_ci_test.py
+      shell: bash
+
+    - name: Smart CI
+      id: smart_ci
+      run: |
+          python ${{ github.action_path }}/smart_ci.py \
+          $([[ -n "${{ inputs.pr }}" ]] && echo '--pr ${{ inputs.pr }}' || echo '-s ${{ inputs.commit_sha }}') \
+          -r ${{ inputs.repository }} \
+          -p "${{ inputs.component_pattern }}" \
+          -c "${{ inputs.components_config }}" \
+          -m "${{ inputs.components_config_schema }}" \
+          -l "${{ inputs.labeler_config }}"
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.repo_token }}

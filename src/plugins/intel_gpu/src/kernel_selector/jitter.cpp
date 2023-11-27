@@ -113,8 +113,6 @@ namespace kernel_selector {
 
 std::string toCLType(WeightsType wType) {
     switch (wType) {
-        case WeightsType::BINARY:
-            return GetTypeName<uint32_t>();
         case WeightsType::INT4:
         case WeightsType::INT8:
             return GetTypeName<int8_t>();
@@ -134,8 +132,6 @@ std::string toCLType(WeightsType wType) {
 
 std::string toCLType(Datatype dType) {
     switch (dType) {
-        case Datatype::BINARY:
-            return GetTypeName<uint32_t>();
         case Datatype::INT8:
             return GetTypeName<int8_t>();
         case Datatype::UINT8:
@@ -1435,7 +1431,6 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             is_fp = false;
             break;
         case Datatype::UINT32:
-        case Datatype::BINARY:
             type = "uint";
             max_val = "UINT_MAX";
             min_val = "0";
@@ -1539,8 +1534,6 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT4, macroName);
         case WeightsType::UINT4:
             return MakeTypeJitConstants(Datatype::UINT4, macroName);
-        case WeightsType::BINARY:
-            return MakeTypeJitConstants(Datatype::UINT32, macroName);
         case WeightsType::INT32:
             return MakeTypeJitConstants(Datatype::INT32, macroName);
     }
@@ -1704,13 +1697,16 @@ JitConstants FusedOpsCodeGenerator::MakeInputDeclsJitConstants(const FusedOpsCon
     JitConstants jit = {};
 
     std::string input_decls = "";
+    std::string input_args = "";
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string ptr_name = GetInputPtrName(op_input_id);
         input_decls += "\\\n\tconst __global " + toCLType(desc.tensors[op_input_id].GetDType()) +
                        "* " + ptr_name + (op_input_id == desc.tensors.size() - 1 ? "" : ",");
+        input_args += "\\\n\t" + ptr_name + (op_input_id == desc.tensors.size() - 1 ? "" : ",");
     }
 
     jit.AddConstant(MakeJitConstant("FUSED_OP" + toCodeString(desc.op_id) + "_DECLS", input_decls));
+    jit.AddConstant(MakeJitConstant("FUSED_OP" + toCodeString(desc.op_id) + "_ARGS", input_args));
     return jit;
 }
 

@@ -13,7 +13,7 @@
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/x64/jit_bf16_emitters.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <algorithm>
 
 #include <cpu/x64/jit_generator.hpp>
@@ -21,8 +21,8 @@
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace dnnl;
@@ -1768,55 +1768,55 @@ private:
 
 #endif // OPENVINO_ARCH_X86_64
 
-const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>>& Reduce::getInitializers() {
-    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> initializers = {
-        {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>& Reduce::getInitializers() {
+    static const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Reduce&)>> initializers = {
+        {ov::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceL1;
         }},
-        {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceL2;
         }},
-        {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceAnd;
         }},
-        {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceOr;
         }},
-        {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceMax;
         }},
-        {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceMean;
         }},
-        {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceMin;
         }},
-        {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceProd;
         }},
-        {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ov::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceSum;
         }}
     };
     return initializers;
 }
 
-bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
-                std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op) == nullptr) {
+        if (std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
+                std::dynamic_pointer_cast<const ov::op::util::LogicalReductionKeepDims>(op) == nullptr) {
             errorMessage = "Reduce node with name " + op->get_friendly_name() + " is not derived from ArithmeticReductionKeepDims or LogicalReductionKeepDims";
             return false;
         }
-        if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
-            auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+        if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(op)) {
+            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
             }
         }
-        if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op)) {
-            auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+        if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::LogicalReductionKeepDims>(op)) {
+            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -1826,7 +1826,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
             return false;
         }
-        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (std::dynamic_pointer_cast<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
@@ -1836,23 +1836,23 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
         getInitializers().at(op->get_type_info())(op, *this);
-        if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
+        if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
-                IE_THROW() << errorPrefix << " second tensor is not constant!";
+                OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
-        } else if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(op)) {
+        } else if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
-                IE_THROW() << errorPrefix << " second tensor is not constant!";
+                OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         }
         set_use_aux_kernel = false;
@@ -1861,29 +1861,29 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
         vec_reduceCDW_prc.clear();
         setJITBeyond5D();
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void Reduce::getSupportedDescriptors() {
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " gets incorrect number of input edges!";
+        OPENVINO_THROW(errorPrefix, " gets incorrect number of input edges!");
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " gets incorrect number of output edges!";
+        OPENVINO_THROW(errorPrefix, " gets incorrect number of output edges!");
 
     if (getInputShapeAtPort(REDUCE_INDEXES).getRank() != 1) {
-        IE_THROW() << errorPrefix << " gets incorrect index vector dimension! Index vector should be 1 dimension.";
+        OPENVINO_THROW(errorPrefix, " gets incorrect index vector dimension! Index vector should be 1 dimension.");
     }
 
     if (keep_dims) {
         if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank())
-            IE_THROW() << errorPrefix << " gets incorrect number of input/output dimensions!";
+            OPENVINO_THROW(errorPrefix, " gets incorrect number of input/output dimensions!");
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d = getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
         if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d)
-            IE_THROW() << errorPrefix << "gets incorrect number of input/output dimensions!";
+            OPENVINO_THROW(errorPrefix, "gets incorrect number of input/output dimensions!");
     }
 }
 
@@ -1899,7 +1899,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
         // in order to avoid accuracy loss.
         auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
-        if (output_prec == Precision::FP32 && fused_prec != Precision::FP32) {
+        if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
             if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
                 algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
                 fuse_low_precision = true;
@@ -1918,16 +1918,16 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     if (jit_mode) {
         // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16/FP16 output precision due to
         // the possible accuracy loss. Therefore, for such mods, we will change the output precision to FP32.
-        if (Precision::BF16 == output_prec) {
+        if (ov::element::bf16 == output_prec) {
             if (!mayiuse(avx512_core) || is_precision_sensitive_reduce(algorithm))
-                output_prec = Precision::FP32;
-        } else if (Precision::FP16 == output_prec) {
+                output_prec = ov::element::f32;
+        } else if (ov::element::f16 == output_prec) {
             if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
-                output_prec = Precision::FP32;
+                output_prec = ov::element::f32;
         }
     }
 
-    intermediate_prec = fuse_low_precision ? Precision(Precision::FP32) : output_prec;
+    intermediate_prec = fuse_low_precision ? ov::element::f32 : output_prec;
     precision_change = input_prec != intermediate_prec;
     support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
                     algorithm != Algorithm::ReduceSumSquare;
@@ -1948,10 +1948,10 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
-    auto pushDesc = [&](LayoutType inFormat, LayoutType outFormat, InferenceEngine::Precision inPrecision,
-            InferenceEngine::Precision outPrecision, impl_desc_type impl_type, bool useAclExecutor = false) {
+    auto pushDesc = [&](LayoutType inFormat, LayoutType outFormat, ov::element::Type inPrecision,
+            ov::element::Type outPrecision, impl_desc_type impl_type, bool useAclExecutor = false) {
         config.inConfs[REDUCE_DATA].setMemDesc(creatorsMap.at(inFormat)->createSharedDesc(inPrecision, getInputShapeAtPort(REDUCE_DATA)));
-        config.inConfs[REDUCE_INDEXES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32,
+        config.inConfs[REDUCE_INDEXES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32,
                                                                                                  getInputShapeAtPort(REDUCE_INDEXES)));
         config.outConfs[0].setMemDesc(creatorsMap.at(outFormat)->createSharedDesc(outPrecision, getOutputShapeAtPort(0)));
 
@@ -2021,7 +2021,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             }
         }
     } else {
-        pushDesc(LayoutType::ncsp, LayoutType::ncsp, InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32, impl_desc_type::ref);
+        pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
     }
 }
 
@@ -2088,7 +2088,7 @@ void Reduce::prepareParams() {
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
-            IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
+            OPENVINO_THROW(errorPrefix, " has not found jit_uni_reduce_post_kernel_f32.");
         }
 
         reduce_post_kernel = result.first;
@@ -2107,11 +2107,11 @@ void Reduce::createPrimitive() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated destination memory.";
+        OPENVINO_THROW(errorPrefix, " has not allocated destination memory.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocate input memory.";
+        OPENVINO_THROW(errorPrefix, " has not allocate input memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
+        OPENVINO_THROW(errorPrefix, " has nullable preferable primitive descriptor");
 
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
@@ -2129,8 +2129,8 @@ void Reduce::createPrimitive() {
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     jcp = jit_reduce_config_params();
-    jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
-    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
+    jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
+    jcp.dst_dt = DnnlExtensionUtils::ElementTypeToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
     jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.src_dt);
     jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.layout = layout;
@@ -2156,7 +2156,7 @@ void Reduce::createPrimitive() {
     }
 
     auto reduce_jcp = jcp;
-    reduce_jcp.dst_dt = fuse_low_precision ? DnnlExtensionUtils::IEPrecisionToDataType(intermediate_prec) : jcp.dst_dt;
+    reduce_jcp.dst_dt = fuse_low_precision ? DnnlExtensionUtils::ElementTypeToDataType(intermediate_prec) : jcp.dst_dt;
     reduce_jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
     create_reduce_kernel(reduce_kernel, reduce_jcp);
 
@@ -2227,7 +2227,7 @@ void Reduce::execute(dnnl::stream strm) {
             auto out_ptr = reinterpret_cast<float *>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            IE_THROW() << errorPrefix << " supports only plain layout on machine w/o sse42.";
+            OPENVINO_THROW(errorPrefix, " supports only plain layout on machine w/o sse42.");
         }
     }
 }
@@ -2889,70 +2889,70 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
             break;
         case Algorithm::ReduceAnd:
         case Algorithm::ReduceProd:
-            if (output_prec == Precision::FP32) {
+            if (output_prec == ov::element::f32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<float>(1); });
-            } else if (output_prec == Precision::I32) {
+            } else if (output_prec == ov::element::i32) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<int32_t>(1); });
-            } else if (output_prec == Precision::BF16) {
+            } else if (output_prec == ov::element::bf16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<bfloat16_t>(1); });
-            } else if (output_prec == Precision::FP16) {
+            } else if (output_prec == ov::element::f16) {
                 auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<ov::float16>(1); });
-            } else if (output_prec == Precision::U8) {
+            } else if (output_prec == ov::element::u8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<uint8_t>(1); });
-            } else if (output_prec == Precision::I8) {
+            } else if (output_prec == ov::element::i8) {
                 auto out_p = reinterpret_cast<int8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<int8_t>(1); });
             }
             break;
         case Algorithm::ReduceMax:
-            if (output_prec == Precision::FP32) {
+            if (output_prec == ov::element::f32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::lowest(); });
-            } else if (output_prec == Precision::I32) {
+            } else if (output_prec == ov::element::i32) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::min(); });
-            } else if (output_prec == Precision::BF16) {
+            } else if (output_prec == ov::element::bf16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::lowest(); });
-            } else if (output_prec == Precision::FP16) {
+            } else if (output_prec == ov::element::f16) {
                 auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<ov::float16>::lowest(); });
-            } else if (output_prec == Precision::U8) {
+            } else if (output_prec == ov::element::u8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::min(); });
-            } else if (output_prec == Precision::I8) {
+            } else if (output_prec == ov::element::i8) {
                 auto out_p = reinterpret_cast<int8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int8_t>::min(); });
             }
             break;
         case Algorithm::ReduceMin:
-            if (output_prec == Precision::FP32) {
+            if (output_prec == ov::element::f32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::max(); });
-            } else if (output_prec == Precision::I32) {
+            } else if (output_prec == ov::element::i32) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::max(); });
-            } else if (output_prec == Precision::BF16) {
+            } else if (output_prec == ov::element::bf16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::max(); });
-            } else if (output_prec == Precision::FP16) {
+            } else if (output_prec == ov::element::f16) {
                 auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<ov::float16>::max(); });
-            } else if (output_prec == Precision::U8) {
+            } else if (output_prec == ov::element::u8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::max(); });
-            } else if (output_prec == Precision::I8) {
+            } else if (output_prec == ov::element::i8) {
                 auto out_p = reinterpret_cast<int8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int8_t>::max(); });
             }
             break;
         default:
-            IE_THROW() << errorPrefix << " gets unsupported reduce mode.";
+            OPENVINO_THROW(errorPrefix, " gets unsupported reduce mode.");
     }
 }
 
@@ -2962,7 +2962,7 @@ inline void Reduce::create_hybrid_working_memory() {
                                         : (rank == 4 ? (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
                                                      : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
-    auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
+    auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::ElementTypeToDataType(output_prec), format);
     prc_mem = dnnl::memory(desc, getEngine());
     dst_size = desc.get_size();
 }
@@ -3010,7 +3010,7 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
         if (axis < 0)
             axis += src_dims.size();
         if (static_cast<size_t>(axis) > src_dims.size())
-            IE_THROW() << errorPrefix << " exceeds data tensor dimension on index to reduce";
+            OPENVINO_THROW(errorPrefix, " exceeds data tensor dimension on index to reduce");
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -3033,11 +3033,11 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
     if (jit_mode && jit_beyond_5D) {
         if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
             std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
-            IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
+            OPENVINO_THROW(errorPrefix, "gets incorrect number of output dimensions!");
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
             if (out_dims[i] != dst_dims[i])
-                IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
+                OPENVINO_THROW(errorPrefix, "gets incorrect number of output dimensions!");
         }
     }
 }
@@ -3144,7 +3144,7 @@ inline void Reduce::reduce_ref(const float *in_ptr, float *out_ptr) {
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
             break;
     default:
-        IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
+        OPENVINO_THROW(errorPrefix, "gets unsupported reduce mode.");
     }
 }
 
@@ -3231,7 +3231,7 @@ inline void Reduce::reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_
             });
             break;
         default:
-            IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
+            OPENVINO_THROW(errorPrefix, "gets unsupported reduce mode.");
     }
 }
 
@@ -3250,7 +3250,11 @@ void Reduce::setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -3310,14 +3314,14 @@ std::vector<int> Reduce::update_src_dims() {
     return reduce_axes;
 }
 
-bool Reduce::canApplyJIT(const Precision &input_prec, const Precision &output_prec) const {
-    static const Precision supportedPrecisions[] = {
-            Precision::FP32,
-            Precision::FP16,
-            Precision::BF16,
-            Precision::I32,
-            Precision::I8,
-            Precision::U8
+bool Reduce::canApplyJIT(const ov::element::Type &input_prec, const ov::element::Type &output_prec) const {
+    static const ov::element::Type supportedPrecisions[] = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::bf16,
+            ov::element::i32,
+            ov::element::i8,
+            ov::element::u8
     };
 
     return (mayiuse(cpu::x64::sse41)) && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
@@ -3343,8 +3347,8 @@ int Reduce::getFusingAxis() const {
 }
 
 bool Reduce::canFuse(const NodePtr& node) const {
-    Precision input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
-    Precision output_prec = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
+    ov::element::Type output_prec = getOriginalOutputPrecisionAtPort(0);
     if (!canApplyJIT(input_prec, output_prec) || jit_beyond_5D || algorithm == Algorithm::ReduceAnd || algorithm == Algorithm::ReduceOr) {
         return false;
     }

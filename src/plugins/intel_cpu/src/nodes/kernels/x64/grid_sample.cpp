@@ -1350,7 +1350,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
             kmovw(kAuxMask, kMask00);
         }
         gatherdd(vQ0, rSrcTmp, shift00, kAuxMask, useMask, zeroFill); // v00 -> vQ0
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vQ0, vQ0);
         }
         uni_vfmsub213ps(vQ0, vDX, vQ0); // q0 = -(v00 - dx * v00)
@@ -1360,7 +1360,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
             kmovw(kAuxMask, kMask01);
         }
         gatherdd(vAux, rSrcTmp, shift01, kAuxMask, useMask, zeroFill);
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vAux, vAux);
         }
         uni_vfmsub231ps(vQ0, vAux, vDX); // q0 = -q0 + dx * v01
@@ -1370,7 +1370,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
             kmovw(kAuxMask, kMask11);
         }
         gatherdd(vAux, rSrcTmp, shift11, kAuxMask, useMask, zeroFill);
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vAux, vAux);
         }
 
@@ -1379,7 +1379,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
             kmovw(kAuxMask, kMask10);
         }
         gatherdd(vQ1, rSrcTmp, shift10, kAuxMask, useMask, zeroFill);
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vQ1, vQ1);
         }
 
@@ -1389,7 +1389,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
         uni_vsubps(vQ1, vQ1, vQ0);
         uni_vfmadd132ps(vQ1, vQ0, vDY);
 
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vroundps(vQ1, vQ1, 0x3); // Truncation
             uni_vcvtps2dq(vQ1, vQ1);
         }
@@ -1518,7 +1518,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
             uni_vmovups(vGatherMask, vMask00);
         }
         gatherdd(vQ0, rSrcTmp, shift00, (isa == x64::avx2 || !vMask00.isInitialized()) ? vGatherMask : vMask00, useMask, zeroFill); // v00 -> vQ0
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vQ0, vQ0);
         }
         if (isa == x64::avx2) {
@@ -1536,7 +1536,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         }
         gatherdd(vAux, rSrcTmp, jcp.paddingMode != GridSamplePaddingMode::ZEROS ? shift01 : shift10,
                  (isa == x64::avx2 || !vMask01.isInitialized()) ? vGatherMask : vMask01, useMask, zeroFill);
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vAux, vAux);
         }
         if (isa == x64::avx2) {
@@ -1558,7 +1558,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         }
         gatherdd(vAux, rSrcTmp, jcp.paddingMode != GridSamplePaddingMode::ZEROS ? shift11 : shift10,
                  (isa == x64::avx2 || !vMask11.isInitialized()) ? vGatherMask : vMask11, useMask, zeroFill);
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vAux, vAux);
         }
 
@@ -1569,7 +1569,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
                 uni_vmovups(vGatherMask, vMask10);
         }
         gatherdd(vQ1, rSrcTmp, shift10, (isa == x64::avx2 || !vMask10.isInitialized()) ? vGatherMask : vMask10, useMask, zeroFill);
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vQ1, vQ1);
         }
 
@@ -1590,7 +1590,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         uni_vsubps(vQ1, vQ1, vQ0);
         uni_vfmadd132ps(vQ1, vQ0, vDY);
 
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vroundps(vQ1, vQ1, 0x3); // Truncation
             uni_vcvtps2dq(vQ1, vQ1);
         }
@@ -1703,7 +1703,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
             if (dataTypeSize > 1)
                 uni_vpslld(vSrcShift, vSrcShift, dataTypeShift);
             gatherdd(vAux, rSrcTmp, vSrcShift, kAuxMask, useMask, zeroFill);
-            if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+            if (jcp.inDataPrc == ov::element::i32) {
                 uni_vcvtdq2ps(vAux, vAux);
             }
             uni_vmulps(vXDotProd, vAux, vCX[0]);
@@ -1727,7 +1727,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
                 if (dataTypeSize > 1)
                     uni_vpslld(vSrcShift, vSrcShift, dataTypeShift);
                 gatherdd(vAux, rSrcTmp, vSrcShift, kAuxMask, useMask, zeroFill);
-                if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+                if (jcp.inDataPrc == ov::element::i32) {
                     uni_vcvtdq2ps(vAux, vAux);
                 }
                 uni_vfmadd231ps(vXDotProd, vAux, vCX[w]);
@@ -1741,7 +1741,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
             uni_vfmadd231ps(vYDotProd, vXDotProd, vAux);
         }
 
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vroundps(vYDotProd, vYDotProd, 0x3); // Truncation
             uni_vcvtps2dq(vYDotProd, vYDotProd);
         }
@@ -1978,7 +1978,7 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             bufShift += vlen;
 
             gatherdd(vAux, rSrcTmp, vSrcShift, kGatherMask, useMask, zeroFill);
-            if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+            if (jcp.inDataPrc == ov::element::i32) {
                 uni_vcvtdq2ps(vAux, vAux);
             }
             uni_vmulps(vXDotProd, vAux, vCX[0]);
@@ -1994,7 +1994,7 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
                 bufShift += vlen;
 
                 gatherdd(vAux, rSrcTmp, vSrcShift, kGatherMask, useMask, zeroFill);
-                if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+                if (jcp.inDataPrc == ov::element::i32) {
                     uni_vcvtdq2ps(vAux, vAux);
                 }
                 uni_vfmadd231ps(vXDotProd, vAux, vCX[w]);
@@ -2002,7 +2002,7 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             uni_vfmadd231ps(vYDotProd, vXDotProd, vCY[h]);
         }
 
-        if (jcp.inDataPrc == InferenceEngine::Precision::I32) {
+        if (jcp.inDataPrc == ov::element::i32) {
             uni_vroundps(vYDotProd, vYDotProd, 0x3); // Truncation
             uni_vcvtps2dq(vYDotProd, vYDotProd);
         }

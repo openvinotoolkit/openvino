@@ -7,6 +7,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/loop.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
@@ -137,7 +139,7 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
     // So, do not check allow_new_shape_infer for inner program build
     for (const auto& op : ops) {
-        if (requires_new_shape_infer(*op)) {
+        if (requires_new_shape_infer(op)) {
             allow_new_shape_infer = true;
             break;
         }
@@ -196,7 +198,7 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         // 2. We also check parameters of each operation, which means we have more
         //    reliable results of QueryNetwork call.
         prepare_build();
-        allow_new_shape_infer = requires_new_shape_infer(*op);
+        allow_new_shape_infer = requires_new_shape_infer(op);
         CreateSingleLayerPrimitive(topology, op);
         cleanup_build();
         DisableQueryMode();
@@ -250,10 +252,13 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
+        // Note: Currently Split/Variadic Split are divided to multiple crops
+        // LSTMCell contains its own body network, and each output has a unique pid
+        // But there is no need to maintain output port index for the next node e.g. Result
         bool is_legacy_multiple_outputs = !allow_new_shape_infer
-                                          // Note:: Currently Split/Variadic Split are divided to multiple crops
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
-                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp);
+                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
+                                          || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
         if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
@@ -322,29 +327,34 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     m_topology->add_primitive(prim);
 }
 
-bool ProgramBuilder::requires_new_shape_infer(const ov::Node& op) const {
-    if (op.is_dynamic()) {
+bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const {
+    if (op->is_dynamic()) {
         return true;
     }
 
+    if (ov::is_type<ov::op::v5::Loop>(op)) {
+        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
+        if (body_function->is_dynamic())
+            return true;
+    }
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
-    for (size_t i = 0; i < op.get_output_size(); i++) {
-        if (op.get_output_partial_shape(i).is_dynamic())
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).is_dynamic())
             return true;
     }
 
-    if (ov::is_type<op::FullyConnectedCompressed>(&op))
+    if (ov::is_type<op::FullyConnectedCompressed>(op))
         return true;
 
-    for (size_t i = 0; i < op.get_output_size(); i++) {
-        if (op.get_output_partial_shape(i).size() > 6)
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).size() > 6)
             return true;
     }
 
-    for (size_t i = 0; i < op.get_input_size(); i++) {
-        if (op.get_input_partial_shape(i).size() > 6)
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        if (op->get_input_partial_shape(i).size() > 6)
             return true;
     }
 

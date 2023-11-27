@@ -2,79 +2,67 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/erf.hpp"
+#include "openvino/op/erf.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/reference/erf.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
 
-bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Erf_visit_attributes);
-    return true;
-}
+namespace erf {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-shared_ptr<Node> op::Erf::clone_with_new_inputs(const OutputVector& new_args) const {
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+        reference::erf(arg.data<const T>(), out.data<T>(), count);
+        return true;
+    }
+};
+}  // namespace erf
+namespace v0 {
+
+std::shared_ptr<Node> Erf::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Erf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Erf>(new_args.at(0));
+    return std::make_shared<Erf>(new_args.at(0));
 }
 
-op::Erf::Erf(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+Erf::Erf(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace erfop {
-namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    ov::reference::erf<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-bool evaluate_erf(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    bool rc = true;
-    out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_erf, i32, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_erf, i64, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_erf, u32, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_erf, u64, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_erf, f16, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_erf, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace erfop
-
-bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Erf::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Erf_evaluate);
-    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    const auto& in_shape = inputs[0].get_shape();
+    outputs[0].set_shape(in_shape);
+
+    using namespace ov::element;
+    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<erf::Evaluate>(inputs[0].get_element_type(),
+                                                                        inputs[0],
+                                                                        outputs[0],
+                                                                        shape_size(in_shape));
 }
 
-bool op::Erf::has_evaluate() const {
+bool Erf::has_evaluate() const {
     OV_OP_SCOPE(v0_Erf_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::f16:
+    case element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v0
+}  // namespace op
+}  // namespace ov
