@@ -62,7 +62,7 @@ public:
         vector.clear();
         for (size_t i = 0; i < vector_size; ++i) {
             buffer >> el;
-            vector.emplace_back(el);
+            vector.push_back(el);
         }
     }
 };
