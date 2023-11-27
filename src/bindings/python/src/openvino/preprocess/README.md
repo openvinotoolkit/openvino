@@ -20,6 +20,7 @@ Supported operations:
 ## Example usage
 
 ```python
+# create a torchvision preprocessing pipeline
 preprocess_pipeline = torchvision.transforms.Compose(
     [
         torchvision.transforms.Resize(256, interpolation=transforms.InterpolationMode.NEAREST),
@@ -31,16 +32,20 @@ preprocess_pipeline = torchvision.transforms.Compose(
     ]
 )
 
+# get an example model and read it in OpenVINO
 torch_model = SimpleConvnet(input_channels=3)
-
 torch.onnx.export(torch_model, torch.randn(1, 3, 224, 224), "test_convnet.onnx", verbose=False, input_names=["input"], output_names=["output"])
 core = Core()
 ov_model = core.read_model(model="test_convnet.onnx")
 
 test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint16)
+
+# use the preprocessing converter to embed torchvision preprocessing into OpenVINO graph
 ov_model = PreprocessConverter.from_torchvision(
     model=ov_model, transform=preprocess_pipeline, input_example=Image.fromarray(test_input.astype("uint8"), "RGB")
 )
+
+# compile and use the updated model
 ov_model = core.compile_model(ov_model, "CPU")
 ov_input = np.expand_dims(test_input, axis=0)
 output = ov_model.output(0)
