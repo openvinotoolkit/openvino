@@ -12,8 +12,7 @@ import torch
 import torch.nn.functional as f
 import torchvision.transforms as transforms
 
-from openvino import Type
-from openvino.runtime import Core, Tensor
+from openvino import Type, Core
 from openvino.tools.mo import convert_model
 from openvino.properties.hint import inference_precision
 

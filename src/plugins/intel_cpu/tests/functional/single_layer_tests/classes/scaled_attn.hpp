@@ -13,12 +13,12 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-typedef std::tuple<ElementType,         // netPrecision
-                   InputShape,          // shape
-                   bool,                // is_causal
-                   bool,                // has_attn
-                   bool,                // has_scale
-                   std::string,         // targetDevice
+typedef std::tuple<ElementType,                      // netPrecision
+                   std::vector<InputShape>,          // shape
+                   bool,                             // is_causal
+                   bool,                             // has_attn
+                   bool,                             // has_scale
+                   std::string,                      // targetDevice
                    CPUSpecificParams>
     ScaledAttnCPUTestParams;
 
