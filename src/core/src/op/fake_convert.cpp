@@ -141,7 +141,6 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
                                                                            outputs,
                                                                            inputs,
                                                                            get_destination_type());
-
 }
 }  // namespace v13
 }  // namespace op
