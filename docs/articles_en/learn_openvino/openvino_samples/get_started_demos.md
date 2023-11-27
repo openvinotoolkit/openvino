@@ -153,7 +153,7 @@ Instructions below show how to build sample applications with CMake. If you are 
             Python samples do not require building. You can run the code samples in your development environment.
    
          .. tab-item:: C and C++
-            :sync: c-cpp
+            :sync: cpp
 
             .. note:: 
             
