@@ -1188,6 +1188,15 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
     if (num_inputs == 0)
         return nullptr;
 
+    if (subgraph_sink.get_tensor().has_and_set_bound()) {
+        const auto& lower = subgraph_sink.get_tensor().get_lower_value();
+        return std::make_shared<ov::op::v0::Constant>(lower);
+    }
+
+    if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
+        return nullptr;
+    }
+
     OutputVector inputs;
     inputs.reserve(num_inputs);
     for (size_t i = 0; i < num_inputs; i++) {
