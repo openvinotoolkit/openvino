@@ -10,6 +10,19 @@
 
 namespace cldnn {
 
+template <>
+struct typed_program_node<read_value> : public typed_program_node_base<read_value> {
+private:
+    using parent = typed_program_node_base<read_value>;
+
+public:
+    using parent::parent;
+
+    program_node& input() const { return get_dependency(0); }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
+
 using read_value_node = typed_program_node<read_value>;
 
 template<>
