@@ -1138,7 +1138,7 @@ jobs:
           
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              ${{ matrix.architecture == 'arm64' && "--ignore-glob='**/mo/front/mxnet/**'" || '' }}
+              ${{ matrix.architecture == 'arm64' && '--ignore-glob=**/mo/front/mxnet/**' || '' }}
 
       - name: Python ONNX operators tests
         if: ${{ always() }}
