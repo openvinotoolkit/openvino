@@ -37,7 +37,7 @@
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -83,7 +83,7 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     return _networkOutputs;
 }
 
-IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()), _isNewAPI(true) {}
+IInferencePlugin::IInferencePlugin() : _executorManager(ov::threading::executor_manager()), _isNewAPI(true) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     description = v.description;
@@ -270,7 +270,7 @@ bool IInferencePlugin::IsNewAPI() const noexcept {
     return _isNewAPI;
 }
 
-const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
+const std::shared_ptr<ov::threading::ExecutorManager>& IInferencePlugin::executorManager() const {
     return _executorManager;
 }
 
