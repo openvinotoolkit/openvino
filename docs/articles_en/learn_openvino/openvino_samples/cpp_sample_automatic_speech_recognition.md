@@ -11,10 +11,11 @@
 
 .. note::
 
-   This sample is being deprecated and will no longer be maintained after 
-   OpenVINO 2023.2 (LTS). The main reason for it is the outdated state of 
-   the sample and its extensive usage of GNA, which is not going to be 
-   supported by OpenVINO beyond 2023.2. 
+   This sample is now deprecated and will be removed with OpenVINO 2024.0.
+   The sample was mainly designed to demonstrate the features of the GNA plugin
+   and the use of models produced by the Kaldi framework. OpenVINO support for
+   these components is now deprecated and will be discontinued, making the sample
+   redundant.
 
 
 This sample demonstrates how to execute an Asynchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.  
