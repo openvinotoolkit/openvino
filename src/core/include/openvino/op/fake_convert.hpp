@@ -27,12 +27,13 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     const std::string& get_destination_type() const;
 
 private:
-    void validate_type() const;
+    void validate_destination_type() const;
 
     std::string m_destination_type = "f8e4m3";
 };
