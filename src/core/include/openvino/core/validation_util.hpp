@@ -172,14 +172,6 @@ OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, co
 OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 
-/// \brief Get the node input partial shapes.
-///
-/// \param node   Node to extract input shapes.
-///
-/// \return Vector of PartialShapes of each input.
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
-
 /// \brief Check if rank is compatible to any of rank from container.
 ///
 /// \param rank   Rank to check.

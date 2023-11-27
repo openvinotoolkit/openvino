@@ -1155,15 +1155,6 @@ bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
-std::vector<ov::PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node) {
-    std::vector<PartialShape> out;
-    out.reserve(node.get_input_size());
-    for (size_t i = 0; i < node.get_input_size(); ++i) {
-        out.push_back(node.get_input_partial_shape(i));
-    }
-    return out;
-}
-
 bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>& ranks) {
     return std::any_of(ranks.cbegin(), ranks.cend(), [&rank](const Rank& r) {
         return rank.compatible(r);
