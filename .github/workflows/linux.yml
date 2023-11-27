@@ -1278,7 +1278,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 10 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 25 }}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -1364,7 +1364,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 10 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 25 }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
