@@ -590,6 +590,7 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
         {
             std::ostream out_mem(&mem_buf);
             cldnn::BinaryOutputBuffer ob = cldnn::BinaryOutputBuffer(out_mem);
+            ob.set_stream(get_test_stream_ptr().get());
             cldnn::program::build_program(engine, topology, config, nullptr, false)->save(ob);
         }
         {
