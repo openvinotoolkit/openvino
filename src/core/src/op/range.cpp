@@ -190,10 +190,10 @@ bool Range::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Range_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
 
-    const auto& start = inputs[0];
-    const auto& step = inputs[2];
     const auto out_shape =
         shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs))[0].to_shape();
+    const auto& start = inputs[0];
+    const auto& step = inputs[2];
 
     auto& out = outputs[0];
     out.set_shape(out_shape);
