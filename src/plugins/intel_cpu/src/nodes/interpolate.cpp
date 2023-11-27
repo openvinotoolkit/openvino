@@ -1797,7 +1797,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
-
+        dataRank = getInputShapeAtPort(DATA_ID).getRank();
         if (const auto interp = std::dynamic_pointer_cast<const ov::opset4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
@@ -1809,7 +1809,6 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpAttr = interp->get_attrs();
 
-            const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
             const auto &interpMode = interpAttr.mode;
             if (interpMode == ngInterpMode::NEAREST) {
                 interpAttrs.mode = InterpolateMode::nearest;
@@ -1911,8 +1910,6 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             isAxesSpecified = numInputs != 2;
 
             const auto &interpAttr = interp->get_attrs();
-
-            const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
             const auto &interpMode = interpAttr.mode;
             if (interpMode == ngInterpMode::BILINEAR_PILLOW) {
                 interpAttrs.mode = InterpolateMode::bilinear_pillow;
@@ -1984,8 +1981,6 @@ void Interpolate::getSupportedDescriptors() {
     if (getChildEdges().empty())
         OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
 
-    int dataRank = getInputShapeAtPort(DATA_ID).getRank();
-
     // get pad
     for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
         if (interpAttrs.padBegin[i] != 0) {
@@ -2030,7 +2025,14 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     if ((inputPrecision != ov::element::i8) && (inputPrecision != ov::element::u8) && (inputPrecision != ov::element::bf16)) {
         inputPrecision = ov::element::f32;
     }
+
     if ((inputPrecision == ov::element::bf16) && !mayiuse(avx512_core)) {
+        inputPrecision = ov::element::f32;
+    }
+
+    // support input with rank<=3 only with float precision and planar layout.
+    // Jit for avx2(gather is available) and ref for no-avx2 machine.
+    if (!one_of(dataRank, 4u, 5u)) {
         inputPrecision = ov::element::f32;
     }
     ov::element::Type outputPrecision = inputPrecision;
@@ -2117,7 +2119,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             return;
 #endif
 
-        if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
+        if (dataRank == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
                 if (NCHWAsNHWC)
                     pushDesc(LayoutType::ncsp, jit_avx512, true);
@@ -2138,7 +2140,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::ncsp, ref, true);
     } else {
         const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
-        bool isBlkApplied = getInputShapeAtPort(DATA_ID).getRank() > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
+        bool isBlkApplied = dataRank > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
 
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
@@ -2153,7 +2155,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             pushDesc(LayoutType::ncsp, ref, false);
         } else {
             // blk and by_channel JIT kernel on sse41 or above machine
-            if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
+            if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (mayiuse(cpu::x64::avx512_core)) {
                     pushDesc(LayoutType::nspc, jit_avx512, false);
                     if (isBlkApplied)
@@ -2169,9 +2171,14 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                 }
             }
 
-            // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
-            if (mayiuse(cpu::x64::avx2) && inputPrecision == ov::element::f32) {
-                pushDesc(LayoutType::ncsp, jit_avx2, false);
+            // planar is only for float precision.
+            // 1.ref on machine w/o avx2(no fuse)
+            // 2.JIT kernel for avx2(gatherps is available).(with fuse)
+            if (inputPrecision == ov::element::f32) {
+                if (mayiuse(cpu::x64::avx2))
+                    pushDesc(LayoutType::ncsp, jit_avx2, false);
+                else
+                    pushDesc(LayoutType::ncsp, ref, false);
             }
         }
     }
@@ -2435,7 +2442,6 @@ SizeVector Interpolate::getPaddedInputShape(const VectorDims &srcDims,
 // if "size" version: scales = shape[target] / shape[input].pad, 1.f for other dims not in axis
 // scales is a required input, but should not use input scales when "size" case, which may added eps or is a dummy value, recalculate scales instead.
 std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const VectorDims &dstDim) {
-    const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
     std::vector<float> fullScales(dataRank, 1.f);
     const size_t axesRank = axes.size();
     for (size_t i = 0; i < axesRank; i++) {
@@ -3973,7 +3979,8 @@ bool Interpolate::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41) ||
         interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow ||
-        interpAttrs.mode == InterpolateMode::bicubic_pillow) {
+        interpAttrs.mode == InterpolateMode::bicubic_pillow ||
+        (!one_of(dataRank, 4u, 5u) && !mayiuse(cpu::x64::avx2))) {
         return false;
     }
 
