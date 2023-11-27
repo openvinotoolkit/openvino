@@ -151,7 +151,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Clean ccache stats
-        run: sccache --zero-stats
+        run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
         run: cmake --build ${BUILD_DIR} --parallel

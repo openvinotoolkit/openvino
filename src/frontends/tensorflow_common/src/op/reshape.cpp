@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/reshape.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -17,7 +18,7 @@ OutputVector translate_reshape_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Reshape"});
     auto tensor = node.get_input(0);
     auto shape = node.get_input(1);
-    auto reshape = make_shared<Reshape>(tensor, shape, false);
+    auto reshape = make_shared<v1::Reshape>(tensor, shape, false);
     set_node_name(node.get_name(), reshape);
     return {reshape};
 }

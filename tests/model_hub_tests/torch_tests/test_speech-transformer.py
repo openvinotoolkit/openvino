@@ -10,20 +10,21 @@ import subprocess
 
 from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model
+from torch_utils import TestTorchConvertModel
 
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
 
-class TestSpeechTransformerConvertModel(TestConvertModel):
+class TestSpeechTransformerConvertModel(TestTorchConvertModel):
     def setup_class(self):
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
             f"git clone https://github.com/mvafin/Speech-Transformer.git {self.repo_dir.name}")
         subprocess.check_call(["git", "checkout", "071eebb7549b66bae2cb93e3391fe99749389456"], cwd=self.repo_dir.name)
         checkpoint_url = "https://github.com/foamliu/Speech-Transformer/releases/download/v1.0/speech-transformer-cn.pt"
-        subprocess.check_call(["wget", checkpoint_url], cwd=self.repo_dir.name)
+        subprocess.check_call(["wget", "-nv", checkpoint_url], cwd=self.repo_dir.name)
 
     def load_model(self, model_name, model_link):
         sys.path.append(self.repo_dir.name)
@@ -37,19 +38,9 @@ class TestSpeechTransformerConvertModel(TestConvertModel):
         self.example = (torch.randn(32, 209, 320),
                         torch.stack(sorted(torch.randint(55, 250, [32]), reverse=True)),
                         torch.randint(-1, 4232, [32, 20]))
-        self.input = (torch.randn(32, 209, 320),
+        self.inputs = (torch.randn(32, 209, 320),
                       torch.stack(sorted(torch.randint(55, 400, [32]), reverse=True)),
                       torch.randint(-1, 4232, [32, 25]))
-        return m
-
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        return [i.numpy() for i in self.input]
-
-    def convert_model(self, model_obj):
-        m = convert_model(model_obj, example_input=self.example)
         return m
 
     def infer_fw_model(self, model_obj, inputs):

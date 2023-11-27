@@ -85,7 +85,8 @@ protected:
         auto reshapeData = ngraph::builder::makeConstant(ElementType::i32, {data.size()}, data);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapeData, true);
 
-        auto weight = ngraph::builder::makeDynamicInputLayer(prc, ngraph::helpers::InputLayerType::CONSTANT, inputDynamicShapes.back());
+        auto tensor = ov::test::utils::create_and_fill_tensor(prc, inputDynamicShapes.back().to_shape());
+        auto weight = std::make_shared<ov::op::v0::Constant>(tensor);
         auto matMul = std::make_shared<ov::op::v0::MatMul>(reshape, weight, false, false);
 
         function = makeNgraphFunction(prc, params, matMul, "ReshapeFcModel");
