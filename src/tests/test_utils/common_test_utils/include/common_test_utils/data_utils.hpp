@@ -200,7 +200,8 @@ void inline fill_data_random(T* pointer,
         }
     } else {
         for (std::size_t i = 0; i < size; i++) {
-            pointer[i] = static_cast<T>((static_cast<double>(random.Generate(k_range)) + static_cast<double>(k_start)) / k);
+            pointer[i] =
+                static_cast<T>((static_cast<double>(random.Generate(k_range)) + static_cast<double>(k_start)) / k);
         }
     }
 }

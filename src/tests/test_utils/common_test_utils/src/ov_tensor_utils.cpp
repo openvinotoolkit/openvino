@@ -24,7 +24,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                          inGenData.start_from,                   \
                          inGenData.resolution,                   \
                          inGenData.seed);                        \
-    break;
+        break;
 
     switch (element_type) {
         CASE(ov::element::boolean)
@@ -56,6 +56,15 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
     }
 #undef CASE
     return tensor;
+}
+
+ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
+                                  const ov::Shape& shape,
+                                  const uint32_t range,
+                                  const double_t start_from,
+                                  const int32_t resolution,
+                                  const int seed) {
+    create_and_fill_tensor(element_type, shape, ov::test::utils::InputGenerateData(start_from, range, resolution, seed));
 }
 
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
