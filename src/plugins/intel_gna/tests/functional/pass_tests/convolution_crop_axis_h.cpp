@@ -87,7 +87,9 @@ protected:
         const std::vector<int64_t> crop_end{20};
         const std::vector<int64_t> crop_stride{1};
         const std::vector<int64_t> axes{h_index_in_nchw};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split_node = ngraph::builder::makeSlice(convolution_node, crop_begin, crop_end, crop_stride, axes, ngPrc);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto convolution_node2 = ngraph::builder::makeConvolution(split_node,
                                                                   ngPrc,

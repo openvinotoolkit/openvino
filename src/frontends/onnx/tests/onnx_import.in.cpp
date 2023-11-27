@@ -23,25 +23,25 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
+#include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ngraph/file_util.hpp"
-#include "default_opset.hpp"
-#include "openvino/opsets/opset12.hpp"
 #include "common_test_utils/test_case.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "default_opset.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "common_test_utils/all_close.hpp"
-#include "common_test_utils/ndarray.hpp"
-#include "common_test_utils/test_control.hpp"
-#include "common_test_utils/test_tools.hpp"
-#include "common_test_utils/type_prop.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -6973,6 +6973,59 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mm_nms_rotated) {
                                             20.0f, 4.5f,  4.0f, 3.0f,  -5.3f, 8.0f,  11.5f, 4.0f, 3.0f, -0.5236f}));
     test_case.add_input(Shape{1, 1, 4}, std::vector<float>({0.6f, 0.8f, 0.5f, 0.7f}));
     test_case.add_expected_output<int64_t>(Shape{4, 3}, {0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 2});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_less_or_equal) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/less_or_equal.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{5}, {1., 2., 3., 4., 5.});
+    test_case.add_input<float>(Shape{5}, {3., 3., 3., 3., 3.});
+    test_case.add_expected_output<bool>(Shape{5}, {true, true, true, false, false});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_less_or_equal_broadcast) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/less_or_equal_broadcast.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{5}, {1., 2., 3., 4., 5.});
+    test_case.add_input<float>(Shape{1}, {3.});
+    test_case.add_expected_output<bool>(Shape{5}, {true, true, true, false, false});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_int) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_int.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{2}, {15, 15});
+    test_case.add_expected_output<bool>(Shape{2}, {false, true});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_float.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<float>(Shape{2}, {12.03513f, 22.03513f});
+    test_case.add_input<float>(Shape{2}, {5.84916f, 22.03513f});
+    test_case.add_expected_output<bool>(Shape{2}, {true, true});
 
     test_case.run();
 }

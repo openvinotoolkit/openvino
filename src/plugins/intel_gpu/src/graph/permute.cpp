@@ -118,19 +118,13 @@ permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
             CLDNN_ERROR_MESSAGE(node.id(), "Permute order does not contain all of required values.");
     }
 
-    if (node.can_be_optimized()) {
-        reuse_input();
-    }
+    update_output_memory();
 }
 
 void permute_inst::on_execute() {
-    if (can_be_optimized())
-        reuse_input();
-}
-
-void permute_inst::reuse_input() {
     update_output_memory();
 }
+
 
 void permute_inst::update_output_memory() {
     if (!can_be_optimized())
