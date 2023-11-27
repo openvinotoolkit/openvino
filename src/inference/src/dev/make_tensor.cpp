@@ -211,11 +211,10 @@ public:
                     data[ind].~string();
                 }
             } else {
+                // re-use already allocated memory for ov::Tensor of new shape
                 OPENVINO_ASSERT(
                     new_num_elements <= num_elements,
                     "New number of elements is expected to be less than the current number in string ov::Tensor");
-                // re-use already allocated memory for ov::Tensor of new shape
-                size_t num_elements_to_delete = num_elements - new_num_elements;
                 // re-initialize with empty std::string objects
                 for (size_t ind = 0; ind < new_num_elements; ++ind) {
                     data[ind] = std::string();
