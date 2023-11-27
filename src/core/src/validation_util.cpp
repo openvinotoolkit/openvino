@@ -1433,5 +1433,11 @@ std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors
     }
     return shapes;
 }
+
+bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others) {
+    return std::any_of(others.begin(), others.end(), [&r](const Rank& other) {
+        return r.compatible(other);
+    });
+}
 }  // namespace util
 }  // namespace ov
