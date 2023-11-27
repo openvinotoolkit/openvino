@@ -99,25 +99,18 @@ Instructions below show how to build sample applications with CMake. If you are 
                   
                   cd build
                
-            3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
-               
-               - For release configuration:
+            3. Run CMake to generate the Make files for release configuration. For example, for C++ samples:
             
-                 .. code-block:: sh
+                .. code-block:: sh
                   
-                    cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+                   cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
                
-               - For debug configuration:
-            
-                 .. code-block:: sh
-                    
-                    cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
             
             4. Run ``make`` to build the samples:
             
                .. code-block:: sh
                   
-                  make
+                  cmake --build . --parallel
             
             For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``;
             for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
