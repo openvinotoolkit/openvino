@@ -13,6 +13,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
@@ -34,7 +35,6 @@
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
-#include "compilation_context.hpp"
 
 // TODO: Remove once we have an abstraction for kernels_cache
 #include "kernel_base.h"
@@ -212,41 +212,6 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
-template <>
-void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
-    auto&& l = mem->get_layout();
-
-    file_stream << "shape: ";
-    file_stream << l.batch() << " ";
-    file_stream << l.feature() << " ";
-    file_stream << l.spatial(1) << " ";
-    file_stream << l.spatial(0) << " ";
-    file_stream << "(" << l.batch() * l.feature() * l.spatial(1) * l.spatial(0) << ")" << std::endl;
-
-    mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
-    auto mem_ptr = lock.data();
-
-    if (!dump_raw) {
-        for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-            for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(l.feature(), 32); ++f) {
-                for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
-                            size_t input_it = mem->get_layout().get_linear_offset(t);
-                            file_stream << mem_ptr[input_it] << std::endl;
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        for (size_t i = 0; i < lock.size(); ++i) {
-            file_stream << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
-        }
-    }
-}
-
 void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -266,8 +231,6 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
         dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::u1)
-        dump<uint32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
         dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
@@ -758,7 +721,10 @@ void network::reset_execution(bool wait) {
             get_stream().wait_for_events(events);
         }
     }
-    _events.clear();
+
+    // Move events to temporarily map to deallocate them at the end of network::execute() call for better overlapping with
+    // kernels execution, since it may take significant time for high amount of events
+    _old_events = std::move(_events);
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
@@ -1290,7 +1256,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
 
                         auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
-                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                                        + "\n Expected size : " + to_string(output_mem->size()) + ", Binary : " + to_string(bin.size()));
 
                         output_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
                     }
@@ -1412,6 +1379,28 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
     }
 
+    // print '-data_shape' option for benchmark_app
+    GPU_DEBUG_IF(debug_config->print_input_data_shapes == 1) {
+        std::stringstream data_shape_str;
+        auto add_string = [&data_shape_str](std::string str) {
+            data_shape_str << ((data_shape_str.rdbuf()->in_avail() == 0) ? " -data_shape " : ",") << str;
+        };
+
+        for (auto& inst : _exec_order) {
+            auto name = inst->id();
+            auto pos = name.find(':');
+            auto type = name.substr(0, pos);
+            name.erase(0, pos + 1);
+            if (inst->is_input() && type == "parameter") {
+                add_string(name + inst->get_output_layout().get_partial_shape().to_string());
+            }
+        }
+
+        GPU_DEBUG_COUT << "[program:" << std::setw(2) << ((get_program() != nullptr) ? get_program()->get_id() : 0)
+                       << "|network:" << std::setw(2) << get_id() << "|iter:" << std::setw(4) << curr_iter <<  "] benchmark_app cmd: "
+                       << data_shape_str.str() << std::endl;
+    }
+
     // Store events only in case of OOO queue or enabled Profiling
     auto store_events = is_out_of_order_queue || _enable_profiling;
     if (store_events) {
@@ -1456,6 +1445,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    // Deallocate events from the previos iteration
+    _old_events.clear();
 
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
         get_memory_pool().dump(get_id());

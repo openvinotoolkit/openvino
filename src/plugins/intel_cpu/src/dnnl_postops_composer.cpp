@@ -29,7 +29,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
-    IE_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
+    OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -58,7 +58,7 @@ void DnnlPostOpsComposer::updateWeiScales() {
     DEBUG_LOG("Set weight scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
 
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({wei_scale_values.size()}));
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), wei_scale_values.data(), wei_scale_values.size() * sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
@@ -71,7 +71,7 @@ void DnnlPostOpsComposer::updateDestScales() {
     DEBUG_LOG("Set dest scale mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
     attr.set_scales_mask(DNNL_ARG_DST, 0);
 
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({1}));
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), &dst_scale_val, sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
@@ -80,13 +80,13 @@ void DnnlPostOpsComposer::updateDestScales() {
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
     VectorDims* pdims = &dimsPerTensor;
     if (data.size() > 1) {
-        IE_ASSERT(data.size() == OC);
+        OPENVINO_ASSERT(data.size() == OC);
         pdims = &dimsPerOC;
     }
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg));
 
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(*pdims));
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
     // copy the data as args
@@ -105,7 +105,7 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    IE_ASSERT(scale.size() == OC || scale.size() == 1);
+    OPENVINO_ASSERT(scale.size() == OC || scale.size() == 1);
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
@@ -158,7 +158,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
             if (wei_scale_mask == 0)
                 wei_scale_values.resize(scale.size(), wei_scale_values[0]);
             else
-                IE_ASSERT(wei_scale_values.size() == OC);
+                OPENVINO_ASSERT(wei_scale_values.size() == OC);
 
             for (Dim j = 0; j < OC; j++)
                 wei_scale_values[j] *= scale[j];
@@ -230,62 +230,79 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     if (low.size() == 1 && high.size() == 1) {
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
-        IE_ASSERT(high.size() == OC);
+        OPENVINO_ASSERT(high.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
         if (high.size() > 0)
             appendBinary(dnnl::algorithm::binary_min, high);
     } else if (high.size() == 1) {
-        IE_ASSERT(low.size() == OC);
+        OPENVINO_ASSERT(low.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
         if (low.size() > 0)
             appendBinary(dnnl::algorithm::binary_max, low);
     } else {
         if (low.size() > 0) {
-            IE_ASSERT(low.size() == OC);
+            OPENVINO_ASSERT(low.size() == OC);
             appendBinary(dnnl::algorithm::binary_max, low);
         }
         if (high.size() > 0) {
-            IE_ASSERT(high.size() == OC);
+            OPENVINO_ASSERT(high.size() == OC);
             appendBinary(dnnl::algorithm::binary_min, high);
         }
     }
 }
 
-MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const std::vector<float>& params, size_t icBlock) {
-    // Prepacking params from [oc] to [oc, icBlock] layout, where for each icBlock corresponding parameter is duplicated
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({icBlock * params.size()}));
-    auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    size_t dstIdx = 0;
-    auto decomp_scales_buf = static_cast<float*>(mem->getData());
-    for (size_t oc = 0; oc < params.size(); oc++) {
-        for (size_t intIdx = 0; intIdx < icBlock; intIdx++) {
-            decomp_scales_buf[dstIdx] = params[oc];
+MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const MemoryCPtr& params_ptr, bool needTranspose) {
+    const auto shape = params_ptr->getShape().getStaticDims();
+    MemoryPtr mem;
+
+    auto params_data = static_cast<float*>(params_ptr->getData());
+
+    if (needTranspose) {
+        VectorDims dnnlShape = {shape[0], shape[1]};
+        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(dnnlShape));
+        mem = std::make_shared<Memory>(engine, memoryDesc);
+        auto memory_buf = static_cast<float*>(mem->getData());
+
+        // oi -> io
+        for (size_t oc = 0; oc < dnnlShape[0]; oc++) {
+            for (size_t ic = 0; ic < dnnlShape[1]; ic++) {
+                memory_buf[ic * dnnlShape[0] + oc] = params_data[oc * dnnlShape[1] + ic];
+            }
+        }
+    } else {
+        VectorDims dnnlShape = {shape[shape.size() - 1], shape[0]};
+        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(dnnlShape));
+        mem = std::make_shared<Memory>(engine, memoryDesc);
+        auto memory_buf = static_cast<float*>(mem->getData());
+        const size_t elements_count = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+
+        // io -> io
+        size_t dstIdx = 0;
+        for (size_t oc = 0; oc < elements_count; oc++) {
+            memory_buf[dstIdx] = params_data[oc];
             dstIdx++;
         }
     }
+
     return mem;
 }
 
-void DnnlPostOpsComposer::appendDecompressionScales(const std::vector<float>& scales, size_t icBlock) {
-    if (scales.empty())
+void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose) {
+    if (scales_ptr == nullptr)
         return;
 
-    int mask = scales.size() > 1 ? weightScaleMaskPerChannel : 0;
-    DEBUG_LOG("Set weights scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", mask);
-    attr.set_scales_mask(DNNL_ARG_WEIGHTS, mask);
-
-    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = prepackDecompressionParams(scales, icBlock);
+    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose);
+    attr.set_scales_dims(DNNL_ARG_WEIGHTS, DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()));
+    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = scalesMem;
 }
 
-void DnnlPostOpsComposer::appendDecompressionZeroPoints(const std::vector<float>& zero_points, size_t icBlock) {
-    if (zero_points.empty())
+void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose) {
+    if (zero_points_ptr == nullptr)
         return;
 
-    int mask = zero_points.size() > 1 ? weightScaleMaskPerChannel : 0;
-    DEBUG_LOG("Set weights zero points mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", mask);
-    attr.set_zero_points_mask(DNNL_ARG_WEIGHTS, mask);
-
-    args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = prepackDecompressionParams(zero_points, icBlock);
+    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose);
+    attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()));
+    args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
 }
 
 }  // namespace intel_cpu

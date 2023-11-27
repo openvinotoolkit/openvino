@@ -25,8 +25,17 @@ enum class TensorOwner : uint8_t {
 };
 
 struct TensorWrapper {
+    TensorWrapper(const std::shared_ptr<ov::ITensor>& _ptr, TensorOwner _owner)
+        : ptr(_ptr)
+        , owner(_owner)
+        , actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
+
+    TensorWrapper(const TensorWrapper& other) = default;
+    TensorWrapper() = default;
+
     std::shared_ptr<ov::ITensor> ptr;
     TensorOwner owner;
+    size_t actual_size;
 };
 
 class SyncInferRequest : public ov::ISyncInferRequest {
@@ -74,6 +83,7 @@ private:
     std::shared_ptr<Graph> m_graph;
     RemoteContextImpl::Ptr m_context = nullptr;
     std::shared_ptr<ov::threading::IStreamsExecutor> m_stream_executor = nullptr;
+    std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor = nullptr;
     bool m_enable_profiling = false;
     bool m_use_external_queue = false;
 
@@ -90,9 +100,7 @@ private:
                                                 bool need_lockable_mem) const;
     std::shared_ptr<ov::ITensor> reinterpret_device_tensor(std::shared_ptr<RemoteTensorImpl> tensor, const ov::Shape new_shape) const;
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const;
-    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::Shape& pshape, ov::element::Type element_type,
-                                                      bool need_lockable_memory = false, void* mem_ptr = nullptr) const;
-    std::shared_ptr<ov::ITensor> create_shared_device_tensor(const ov::Shape& pshape, ov::element::Type element_type, void* usm_host_mem) const;
+    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::PartialShape& pshape, ov::element::Type element_type, bool need_lockable_memory = false) const;
 
     void allocate_inputs();
     void allocate_outputs();

@@ -33,6 +33,11 @@ namespace threading {
 class OPENVINO_RUNTIME_API IStreamsExecutor : virtual public ITaskExecutor {
 public:
     /**
+     * A shared pointer to IStreamsExecutor interface
+     */
+    using Ptr = std::shared_ptr<IStreamsExecutor>;
+
+    /**
      * @brief Defines inference thread binding type
      */
     enum ThreadBindingType : std::uint8_t {
@@ -150,6 +155,19 @@ public:
               _threadPreferredCoreType(threadPreferredCoreType),
               _streams_info_table{streamsInfoTable},
               _cpu_reservation{cpuReservation} {}
+
+        /**
+         * @brief Modify _streams_info_table and related configuration according to user-specified parameters, bind
+         * threads to cpu cores if cpu_pinning is true.
+         * @param stream_nums Number of streams specified by user
+         * @param threads_per_stream Number of threads per stream specified by user
+         * @param core_type Cpu type (Big/Little/Any) specified by user
+         * @param cpu_pinning Whether to bind the threads to cpu cores
+         */
+        void update_executor_config(int stream_nums,
+                                    int threads_per_stream,
+                                    PreferredCoreType core_type,
+                                    bool cpu_pinning);
     };
 
     /**

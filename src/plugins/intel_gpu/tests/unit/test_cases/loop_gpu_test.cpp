@@ -13,6 +13,7 @@
 #include <intel_gpu/primitives/loop.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/graph/program.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -22,6 +23,36 @@
 using namespace cldnn;
 using namespace tests;
 using namespace testing;
+
+static program::ptr build_program(engine& engine,
+                                    topology& body_topology,
+                                    primitive_id execution_condition_id,
+                                    std::vector<loop::io_primitive_map> output_primitive_maps,
+                                    std::vector<loop::backedge_mapping> back_edges,
+                                    bool allow_new_shape_infer = false) {
+    std::vector<cldnn::primitive_id> output_names_vec;
+    for (auto out_map : output_primitive_maps) {
+        output_names_vec.push_back(out_map.internal_id.pid);
+    }
+
+    // setup outputs for backedges
+    for (auto& back_edge : back_edges) {
+        output_names_vec.push_back(back_edge.from);
+    }
+
+    // if execution_condition_id is specified, we need to add the id in build_option::outputs
+    if (!execution_condition_id.empty()) {
+        output_names_vec.push_back(execution_condition_id);
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
+    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+
+    return program::build_program(engine, body_topology, config, false, false, true);
+}
 
 template <typename T>
 void test_loop_gpu_basic_no_concat(bool is_caching_test)
@@ -52,23 +83,23 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
     set_values(initial_condition_mem, {initial_condition});
 
     topology body(
+        input_layout("input", input_mem->get_layout()),
         data("eltwise_operand", operand_mem),
         eltwise("eltwise", input_info("input"), input_info("eltwise_operand"), eltwise_mode::sum)
     );
 
     std::vector<loop::io_primitive_map> input_primitive_maps { loop::io_primitive_map("input", "input") };
     std::vector<loop::io_primitive_map> output_primitive_maps { loop::io_primitive_map("loop", "eltwise") };
+    std::vector<loop::backedge_mapping> back_edges { loop::backedge_mapping("eltwise", "input") };
 
-    std::vector<loop::backedge_mapping> back_edges {
-        loop::backedge_mapping("eltwise", "input")
-    };
+    auto body_program = build_program(engine, body, "", output_primitive_maps, back_edges);
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("input") }, body,
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, 8)
     );
@@ -161,15 +192,16 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
 
     std::vector<loop::io_primitive_map> input_primitive_maps { loop::io_primitive_map("input", "input", 2) };
     std::vector<loop::io_primitive_map> output_primitive_maps { loop::io_primitive_map("loop", "eltwise", 2) };
-
     std::vector<loop::backedge_mapping> back_edges {};
+
+    auto body_program = build_program(engine, body, "", output_primitive_maps, back_edges);
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("input") }, body,
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, trip_count)
     );
@@ -266,13 +298,15 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
     // set inner loop body
     /////////////////////////////////
     topology inner_loop_body(
-        input_layout("inner_input", input_mem->get_layout()),
+        input_layout("inner_input", { { 1, 1, 1, 4 }, data_types::f32, format::bfyx }),
         data("inner_eltwise_operand", inner_operand_mem),
         eltwise("inner_eltwise", input_info("inner_input"), input_info("inner_eltwise_operand"), eltwise_mode::sum)
     );
     std::vector<loop::io_primitive_map> inner_input_primitive_maps { loop::io_primitive_map("inner_input", "inner_input", 2) };
     std::vector<loop::io_primitive_map> inner_output_primitive_maps { loop::io_primitive_map("inner_loop", "inner_eltwise", 2) };
     std::vector<loop::backedge_mapping> inner_back_edges {};
+
+    auto inner_body_program = build_program(engine, inner_loop_body, "", inner_output_primitive_maps, inner_back_edges);
 
     /////////////////////////////////
     // set outer loop body
@@ -282,8 +316,8 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         input_layout("trip_count", inner_trip_count_mem->get_layout()),
         input_layout("initial_condition", inner_initial_condition_mem->get_layout()),
         mutable_data("inner_num_iteration", inner_num_iteration_mem),
-        loop("inner_loop", { input_info("inner_input"), input_info("trip_count"), input_info("initial_condition") },
-            inner_loop_body, "trip_count", "initial_condition", "inner_num_iteration",
+        loop("inner_loop", { input_info("inner_num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("inner_input") },
+            inner_body_program, "trip_count", "initial_condition", "inner_num_iteration",
             inner_input_primitive_maps, inner_output_primitive_maps, inner_back_edges, inner_trip_count)
     );
     std::vector<loop::io_primitive_map> outer_input_primitive_maps {
@@ -296,6 +330,8 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
     };
     std::vector<loop::backedge_mapping> outer_back_edges { {"inner_loop", "inner_input"} };
 
+    auto outer_body_program = build_program(engine, outer_loop_body, "", outer_output_primitive_maps, outer_back_edges);
+
     /////////////////////////////////
     // set main topology
     /////////////////////////////////
@@ -306,9 +342,10 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         mutable_data("num_iteration", num_iteration_mem),
         input_layout("inner_trip_count", inner_trip_count_mem->get_layout()),
         input_layout("inner_initial_condition", inner_initial_condition_mem->get_layout()),
-        loop("loop", { input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
-            outer_loop_body, "trip_count", "initial_condition", "num_iteration",
-            outer_input_primitive_maps, outer_output_primitive_maps, outer_back_edges, outer_trip_count)
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"),
+                        input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
+                        outer_body_program, "trip_count", "initial_condition", "num_iteration",
+                        outer_input_primitive_maps, outer_output_primitive_maps, outer_back_edges, outer_trip_count)
     );
 
     /////////////////////////////////
@@ -393,4 +430,126 @@ TEST(loop_gpu, basic_concat_cached) {
 #endif // RUN_ALL_MODEL_CACHING_TESTS
 TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
+}
+
+static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool is_caching_test = false) {
+    auto& engine = get_test_engine();
+
+    auto e_input_layout = cldnn::layout{ { 1, 1, 5, 4 }, data_types::f32, format::bfyx };
+    auto b_input_layout = cldnn::layout{ body_input_layout, data_types::f32, format::bfyx };
+    auto const_layout = cldnn::layout{ {}, data_types::i64, format::bfyx };
+
+    auto e_input_mem = engine.allocate_memory(e_input_layout); // b,f,x,y
+    auto e_initial_condition_mem = engine.allocate_memory(const_layout);
+    auto e_num_iteration_mem = engine.allocate_memory(const_layout);
+    auto b_exit_value_mem = engine.allocate_memory(const_layout);
+    auto b_index_inc_mem = engine.allocate_memory(const_layout);
+
+    std::vector<float> input_data{
+        1.0f,  2.0f, -15.f,  3.0f,
+        4.0f, -15.f, 5.0f,  6.0f,
+        -15.f, 7.0f, -15.f, 0.0f,
+        0.0f, -15.f, 0.5f, -0.5f,
+        -15.f, 8.0f,  1.5f,  5.2f
+    };
+
+    const int64_t exit_value = 3;
+
+    // initialize input buffers
+    set_values(e_input_mem, input_data);
+    set_values(e_initial_condition_mem, {1});
+    set_values(b_exit_value_mem, {exit_value});
+    set_values(b_index_inc_mem, {1});
+
+    primitive_id body_current_iteration_id = "b_index";
+    primitive_id body_execution_condition_id = "b_cond_exit_value";
+
+    cldnn::topology body(
+        input_layout(body_current_iteration_id, const_layout),
+        input_layout("b_add_data", b_input_layout),
+        input_layout("b_mul_data", b_input_layout),
+        data("b_exit_value", b_exit_value_mem),
+        data("b_index_inc", b_index_inc_mem),
+        eltwise("b_index_update", input_info(body_current_iteration_id), input_info("b_index_inc"), eltwise_mode::sum),
+        reorder("b_index_cast", input_info("b_index_update"),
+                    cldnn::format::any, data_types::f32, {}, cldnn::reorder_mean_mode::subtract, cldnn::padding(), true),
+        eltwise(body_execution_condition_id, input_info("b_index"), input_info("b_exit_value"), eltwise_mode::lt),
+        eltwise("b_add", input_info("b_add_data"), input_info("b_index_cast"), eltwise_mode::sum),
+        eltwise("b_mul", input_info("b_mul_data"), input_info("b_index_cast"), eltwise_mode::prod)
+    );
+
+    primitive_id trip_count_id = "";
+    primitive_id actual_iteration_count_id = "actual_iteration_count";
+    primitive_id initial_condition_id = "initial_condition";
+    int64_t num_iterations = -1;
+
+    std::vector<loop::io_primitive_map> input_primitive_maps {
+        loop::io_primitive_map("input", "b_add_data", 2),
+        loop::io_primitive_map("input", "b_mul_data", 2),
+        loop::io_primitive_map(actual_iteration_count_id, body_current_iteration_id) };
+    std::vector<loop::io_primitive_map> output_primitive_maps {
+        loop::io_primitive_map(cldnn::input_info("loop", 0), cldnn::input_info("b_add", 0), 2),
+        loop::io_primitive_map(cldnn::input_info("loop", 1), cldnn::input_info("b_mul", 0), 2) };
+    std::vector<loop::backedge_mapping> back_edges {
+        loop::backedge_mapping("b_index_update", body_current_iteration_id) };
+
+    auto body_program = build_program(engine, body, body_execution_condition_id, output_primitive_maps, back_edges, true);
+
+    cldnn::topology topology(
+        input_layout("input", e_input_layout),
+        input_layout(initial_condition_id, e_initial_condition_mem->get_layout()),
+        mutable_data(actual_iteration_count_id, e_num_iteration_mem),
+        loop("loop", { input_info(actual_iteration_count_id), input_info(initial_condition_id), input_info("input") }, body_program,
+             trip_count_id, initial_condition_id, actual_iteration_count_id,
+             input_primitive_maps, output_primitive_maps, back_edges,
+             num_iterations, body_current_iteration_id, body_execution_condition_id, 2),
+        eltwise("out_sum", input_info("loop", 0), input_info("loop", 1), eltwise_mode::sum)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", e_input_mem);
+    network->set_input_data(initial_condition_id, e_initial_condition_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), 1);
+
+    auto expected_num_iterations = (exit_value + 1);
+
+    auto num_iter_mem = network->get_output_memory(actual_iteration_count_id);
+    if (num_iter_mem != nullptr) {
+        mem_lock<int64_t> num_iter_ptr{ num_iter_mem, get_test_stream() };
+        ASSERT_EQ(num_iter_ptr.data()[0], expected_num_iterations);
+    }
+
+    std::vector<float> expected(input_data.size());
+    for (size_t j = 0; j < input_data.size(); j++) {
+        auto val = static_cast<size_t>(j / 4) + 1;
+        expected[j] = static_cast<float>(input_data[j] + val) + static_cast<float>(input_data[j] * val);
+    }
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    auto output_layout = output_mem->get_layout();
+
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 1);
+    ASSERT_EQ(output_layout.spatial(0), 4);
+    ASSERT_EQ(output_layout.spatial(1), expected_num_iterations);
+    // value check
+    {
+        mem_lock<float> output_ptr{ output_mem, get_test_stream() };
+        for (size_t i = 0, iend = output_layout.count(); i < iend; ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
+        }
+    }
+}
+
+TEST(loop_gpu, support_dynamic_tensoriterator) {
+    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 });
+}
+
+TEST(loop_gpu, support_loop_w_dynamic_body_input) {
+    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 });
 }

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME conformanceShared)
+set(TARGET_NAME conformance_shared)
 
 ov_add_target(
         NAME ${TARGET_NAME}
@@ -14,8 +14,7 @@ ov_add_target(
         ADD_CPPLINT
         INCLUDES
             PUBLIC
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
-                ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta/
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PUBLIC
                 gflags

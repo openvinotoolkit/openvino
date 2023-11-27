@@ -1,8 +1,6 @@
 Style Transfer with OpenVINO™
 =============================
 
-
-
 This notebook demonstrates style transfer with OpenVINO, using the Style
 Transfer Models from `ONNX Model
 Repository <https://github.com/onnx/models>`__. Specifically, `Fast
@@ -25,46 +23,36 @@ and Super-Resolution <https://arxiv.org/abs/1603.08155>`__ along with
 part of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-.. note::
+   **NOTE**: If you have a webcam on your computer, you can see live
+   results streaming in the notebook. If you run the notebook on a
+   server, the webcam will not work but you can run inference, using a
+   video file.
 
-   If you have a webcam on your computer, you can see live results streaming in 
-   the notebook. If you run the notebook on a server, the webcam will not work 
-   but you can run inference, using a video file.
-
-
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Preparation <#preparation>`__
-
-  - `Install requirements <#install-requirements>`__
-  - `Imports <#imports>`__
-
+- `Install requirements <#install-requirements>`__
+- `Imports <#imports>`__
 - `The Model <#the-model>`__
-
-  - `Download the Model <#download-the-model>`__
-  - `Convert ONNX Model to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
-  - `Load the Model <#load-the-model>`__
-  - `Preprocess the image <#preprocess-the-image>`__
-  - `Helper function to postprocess the stylized image <#helper-function-to-postprocess-the-stylized-image>`__
-  - `Main Processing Function <#main-processing-function>`__
-  - `Run Style Transfer Using a Webcam <#run-style-transfer-using-a-webcam>`__
-  - `Run Style Transfer on a Video File <#run-style-transfer-on-a-video-file>`__
-
+- `Download the Model <#download-the-model>`__
+- `Convert ONNXModel to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
+- `Load the Model <#load-the-model>`__
+- `Preprocess the image <#preprocess-the-image>`__
+- `Helper function to postprocess the stylized image <#helper-function-to-postprocess-the-stylized-image>`__
+- `Main Processing Function <#main-processing-function>`__
+- `Run Style Transfer Using a Webcam <#run-style-transfer-using-a-webcam>`__
+- `Run Style Transfer on a Video File <#run-style-transfer-on-a-video-file>`__
 - `References <#references>`__
 
-Preparation `⇑ <#top>`__
-###############################################################################################################################
+Preparation 
+-----------------------------------------------------
 
-
-Install requirements `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Install requirements 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q "openvino>=2023.1.0"
     !pip install -q opencv-python requests tqdm
     
     # Fetch `notebook_utils` module
@@ -74,9 +62,8 @@ Install requirements `⇑ <#top>`__
         filename='notebook_utils.py'
     )
 
-Imports `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Imports 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -88,7 +75,7 @@ Imports `⇑ <#top>`__
     from pathlib import Path
     from IPython import display
     from ipywidgets import interactive, ToggleButtons
-    from openvino.runtime import Core
+    import openvino as ov
     
     import notebook_utils as utils
 
@@ -106,19 +93,17 @@ Pointilism to do the style transfer.
        
     interactive(lambda option: print(option), option=styleButtons)
 
-The Model `⇑ <#top>`__
-###############################################################################################################################
+The Model 
+---------------------------------------------------
 
-
-Download the Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Download the Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The style transfer model, selected in the previous step, will be
 downloaded to ``model_path`` if you have not already downloaded it. The
 models are provided by the ONNX Model Zoo in ``.onnx`` format, which
 means it could be used with OpenVINO directly. However, this notebook
-will also show how you can use the Model Optimizer to convert ONNX to
+will also show how you can use the Conversion API to convert ONNX to
 OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
 
 .. code:: ipython3
@@ -133,15 +118,14 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     style_url = f"{base_url}/{model_path}"
     utils.download_file(style_url, directory=base_model_dir)
 
-Convert ONNX Model to OpenVINO IR Format `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Convert ONNX Model to OpenVINO IR Format 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the next step, you will convert the ONNX model to OpenVINO IR format
 with ``FP16`` precision. While ONNX models are directly supported by
 OpenVINO runtime, it can be useful to convert them to IR format to take
 advantage of OpenVINO optimization tools and features. The
-``mo.convert_model`` Python function of model conversion API can be
+``ov.convert_model`` Python function of model conversion API can be
 used. The converted model is saved to the model directory. The function
 returns instance of OpenVINO Model class, which is ready to use in
 Python interface but can also be serialized to OpenVINO IR format for
@@ -151,11 +135,9 @@ this step.
 .. code:: ipython3
 
     # Construct the command for model conversion API.
-    from openvino.runtime import serialize
-    from openvino.tools import mo
     
-    ov_model = mo.convert_model(f"model/{styleButtons.value.lower()}-9.onnx", compress_to_fp16=True)
-    serialize(ov_model, f"model/{styleButtons.value.lower()}-9.xml")
+    ov_model = ov.convert_model(f"model/{styleButtons.value.lower()}-9.onnx")
+    ov.save_model(ov_model, f"model/{styleButtons.value.lower()}-9.xml")
 
 .. code:: ipython3
 
@@ -163,9 +145,8 @@ this step.
     ir_path = Path(f"model/{styleButtons.value.lower()}-9.xml")
     onnx_path = Path(f"model/{model_path}")
 
-Load the Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Load the Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Both the ONNX model(s) and converted IR model(s) are stored in the
 ``model`` directory.
@@ -190,7 +171,7 @@ results.
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    core = Core()
+    core = ov.Core()
     
     # Read the network and corresponding weights from ONNX Model.
     # model = ie_core.read_model(model=onnx_path)
@@ -235,11 +216,12 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
 
-Preprocess the image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Preprocess the image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Preprocess the input image before running the model. Prepare the dimensions and channel order for the
-image to match the original image with the input tensor
+Preprocess the input image before running the model. Prepare the
+dimensions and channel order for the image to match the original image
+with the input tensor
 
 1. Preprocess a frame to convert from ``unit8`` to ``float32``.
 2. Transpose the array to match with the network input size
@@ -264,11 +246,12 @@ image to match the original image with the input tensor
         image = np.expand_dims(image, axis=0)
         return image
 
-Helper function to postprocess the stylized image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Helper function to postprocess the stylized image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The converted IR model outputs a NumPy ``float32`` array of the 
-`(1, 3, 224,224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
+The converted IR model outputs a NumPy ``float32`` array of the `(1, 3,
+224,
+224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
 shape .
 
 .. code:: ipython3
@@ -290,9 +273,8 @@ shape .
         stylized_image = cv2.cvtColor(stylized_image, cv2.COLOR_BGR2RGB)
         return stylized_image
 
-Main Processing Function `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Main Processing Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The style transfer function can be run in different operating modes,
 either using a webcam or a video file.
@@ -388,9 +370,8 @@ either using a webcam or a video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Style Transfer Using a Webcam `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Style Transfer Using a Webcam 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, try to apply the style transfer model using video from your webcam.
 By default, the primary webcam is set with ``source=0``. If you have
@@ -399,34 +380,28 @@ starting at 0. Set ``flip=True`` when using a front-facing camera. Some
 web browsers, especially Mozilla Firefox, may cause flickering. If you
 experience flickering, set ``use_popup=True``.
 
-.. note::
-
-   To use a webcam, you must run this Jupyter notebook on a
+   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run it on a server, you will not be
    able to access the webcam. However, you can still perform inference
    on a video file in the final step.
-
 
 .. code:: ipython3
 
     run_style_transfer(source=0, flip=True, use_popup=False)
 
-Run Style Transfer on a Video File `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Style Transfer on a Video File 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can find out how the model works with a video file. For that, use
-any `formats supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__.
+any `formats supported by
+OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__.
 You can press the stop button to terminate anytime while the video file
 is running.
 
-.. note::
-
-   Sometimes, the video will be cut off when frames are corrupted. If this 
-   happens, or you experience any other problems with your video, use the 
-   `HandBrake <https://handbrake.fr/>`__ encoder tool to create a video file in 
-   MPEG format.
-
+   **NOTE**: Sometimes, the video will be cut off when frames are
+   corrupted. If this happens, or you experience any other problems with
+   your video, use the `HandBrake <https://handbrake.fr/>`__ encoder
+   tool to create a video file in MPEG format.
 
 .. code:: ipython3
 
@@ -443,9 +418,8 @@ is running.
     Source ended
 
 
-References `⇑ <#top>`__
-###############################################################################################################################
-
+References 
+----------------------------------------------------
 
 1. `ONNX Model Zoo <https://github.com/onnx/models>`__
 2. `Fast Neural Style

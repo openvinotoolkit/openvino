@@ -4,7 +4,7 @@
 
 #include "normalize.h"
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 
 #include "fake_quantize.h"
 #include "eltwise.h"
@@ -19,7 +19,7 @@
 #include "nodes/common/cpu_convert.h"
 #include <selective_build.h>
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
@@ -35,7 +35,7 @@ using namespace Xbyak;
 #if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 #endif
-#define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
+#define THROW_ERROR(...) OPENVINO_THROW("NormalizeL2 layer with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
@@ -61,8 +61,8 @@ size_t NormalizeKey::hash() const {
     seed = hash_combine(seed, attrs.cornerCase);
     seed = hash_combine(seed, attrs.eps);
     seed = hash_combine(seed, attrs.layout);
-    seed = hash_combine(seed, attrs.input_prec.getPrecVal());
-    seed = hash_combine(seed, attrs.output_prec.getPrecVal());
+    seed = hash_combine(seed, attrs.input_prec.hash());
+    seed = hash_combine(seed, attrs.output_prec.hash());
 
     seed = hash_combine(seed, get_attr_hash(*kernel_attrs.get()));
     seed = get_vector_hash(seed, dims);
@@ -697,9 +697,9 @@ private:
     }
 };
 #endif
-bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
+        auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
         if (!norm) {
             errorMessage = "Only opset1 NormalizeL2 operation is supported";
             return false;
@@ -711,7 +711,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             return false;
         }
 
-        auto axesNode = ov::as_type_ptr<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
+        auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
         if (!axesNode) {
             errorMessage = "Supports only constant 'axes' input";
             return false;
@@ -739,14 +739,14 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
         };
 
         const auto axes = axesNode->cast_vector<size_t>();
-        if (!isSupportedAxes(axes, inputRank) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+        if (!isSupportedAxes(axes, inputRank) && ov::shape_size(axesNode->get_shape()) != 0) {
             errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
             return false;
         }
 
         const auto mode = norm->get_eps_mode();
-        if (!one_of(mode, ngraph::op::EpsMode::ADD, ngraph::op::EpsMode::MAX)) {
-            errorMessage = "Doesn't support eps_mode: " + ngraph::as_string(mode);
+        if (!one_of(mode, ov::op::EpsMode::ADD, ov::op::EpsMode::MAX)) {
+            errorMessage = "Doesn't support eps_mode: " + ov::as_string(mode);
             return false;
         }
     } catch (...) {
@@ -755,52 +755,56 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        THROW_ERROR << " has incorrect number of input/output edges";
+        THROW_ERROR(" has incorrect number of input/output edges");
 
     if (getInputShapeAtPort(DATA).getRank() > 4 || getInputShapeAtPort(DATA).getRank() < 2) {
-        THROW_ERROR << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
+        THROW_ERROR("has invalid input shape. Normalize supports from 2D to 4D blobs.");
     }
 
-    auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
+    auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
     attrs.eps = norm->get_eps();
-    attrs.epsMode = norm->get_eps_mode() == ngraph::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
-    attrs.across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
+    attrs.epsMode = norm->get_eps_mode() == ov::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
+    attrs.across_spatial = ov::shape_size(op->get_input_shape(AXES)) != 1;
     // One of the corner cases is when axes is an empty list,
     // then we divide each input element by itself resulting value 1 for all non-zero elements
-    attrs.cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
+    attrs.cornerCase = ov::shape_size(op->get_input_shape(AXES)) == 0;
 }
 
 void NormalizeL2::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrecision = getOriginalInputPrecisionAtPort(DATA);
-    Precision outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
+    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA);
+    ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
+    if (inputPrecision == ov::element::bf16 || outputPrecision == ov::element::bf16) {
         if (!mayiuse(avx512_core))
-            inputPrecision = outputPrecision = Precision::FP32;
+            inputPrecision = outputPrecision = ov::element::f32;
         else
-            inputPrecision = outputPrecision = Precision::BF16;
+            inputPrecision = outputPrecision = ov::element::bf16;
     }
 
-    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
-        THROW_ERROR << "has unsupported input precision: " << inputPrecision;
+    if (one_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+        inputPrecision = outputPrecision = ov::element::f32;
     }
-    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
-        THROW_ERROR << "has unsupported output precision: " << outputPrecision;
+
+    if (!one_of(inputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8)) {
+        THROW_ERROR("has unsupported input precision: ", inputPrecision);
+    }
+    if (!one_of(outputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8)) {
+        THROW_ERROR("has unsupported output precision: ", outputPrecision);
     }
 
     attrs.input_prec = inputPrecision;
@@ -821,7 +825,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
         config.inConfs[0].setMemDesc(std::move(a));
-        a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
+        a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(AXES));
         config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
         config.outConfs[0].setMemDesc(std::move(a));
@@ -867,7 +871,11 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     kernel_attrs.set_post_ops(ops);
@@ -877,11 +885,11 @@ void NormalizeL2::createPrimitive() {
     auto dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_ERROR << "can't get destination memory";
+        THROW_ERROR("can't get destination memory");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_ERROR << "can't get input memory";
+        THROW_ERROR("can't get input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR << "has nullable preferable primitive descriptor";
+        THROW_ERROR("has nullable preferable primitive descriptor");
 
     if (!attrs.cornerCase) {
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -893,7 +901,7 @@ void NormalizeL2::createPrimitive() {
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
             attrs.layout = LayoutType::nspc;
         } else {
-            THROW_ERROR << "has selected layout which is not supported";
+            THROW_ERROR("has selected layout which is not supported");
         }
     }
 
@@ -923,7 +931,7 @@ void NormalizeL2::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
     execPtr = result.first;
@@ -935,7 +943,7 @@ void NormalizeL2::executeDynamicImpl(dnnl::stream strm) {
 
 void NormalizeL2::execute(dnnl::stream strm) {
     if (!execPtr)
-        THROW_ERROR << "doesn't have a compiled executor.";
+        THROW_ERROR("doesn't have a compiled executor.");
 
     const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->getData());
     uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->getData());
@@ -977,11 +985,11 @@ public:
         : attrs(attrs_) {
         if (attrs.layout != LayoutType::ncsp && attrs.layout != LayoutType::nspc &&
             attrs.layout != LayoutType::nCsp8c && attrs.layout != LayoutType::nCsp16c) {
-            IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
+            OPENVINO_THROW("Normalaize2L executor has selected layout which is not supported");
         }
 
-        jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
-        jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
+        jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.input_prec);
+        jcp.dst_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.output_prec);
         jcp.src_data_size = attrs.input_prec.size();
         jcp.dst_data_size = attrs.output_prec.size();
         jcp.across_spatial = attrs.across_spatial;
@@ -1012,7 +1020,7 @@ public:
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *kernel_attrs.get()));
         } else {
-            IE_THROW() << "Jit Executor for NormalizeL2 cannot create kernels!";
+            OPENVINO_THROW("Jit Executor for NormalizeL2 cannot create kernels!");
         }
 
         if (normalize_kernel)
@@ -1308,7 +1316,7 @@ public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) :
         dims(dims), kernel_attrs(kernel_attrs), attrs(attrs) {
         if (attrs.layout != LayoutType::ncsp) {
-            IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
+            OPENVINO_THROW("Reference Executor of 'NormalizeL2' supports only ncsp layout!");
         }
 
         const auto &p = (*kernel_attrs.get()).post_ops_;
@@ -1360,7 +1368,7 @@ private:
                     for (size_t m = 0; m < spatial_dims; m++) {
                         float dst_value = src_data_bc[m] * modulo_inv;
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
-                        if (attrs.output_prec == Precision::U8) {
+                        if (attrs.output_prec == ov::element::u8) {
                             dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                         } else {
                             dst_data_bc[m] = dst_value;
@@ -1392,7 +1400,7 @@ private:
                     for (size_t m = 0; m < spatial_dims; m++) {
                         float dst_value = src_data_bc[m] * moduloM[m];
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
-                        if (attrs.output_prec == Precision::U8) {
+                        if (attrs.output_prec == ov::element::u8) {
                             dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                         } else {
                             dst_data_bc[m] = dst_value;
@@ -1425,7 +1433,7 @@ private:
                 post_ops_data++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
+                bool do_rounding = do_dequantization || attrs.output_prec == ov::element::f32 || i != p.len() - 1;
 
                 auto quant = post_op.quantization;
 
@@ -1474,16 +1482,17 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     NormalizeContext ctx = { nullptr, attrs, kernel_attrs, dims };
 
     OV_SWITCH(intel_cpu, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
-              OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
-              OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
-              OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
-              OV_CASE2(Precision::U8, Precision::I8, uint8_t, int8_t),
-              OV_CASE2(Precision::I8, Precision::I8, int8_t, int8_t),
-              OV_CASE2(Precision::FP32, Precision::I8, float, int8_t),
-              OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
-              OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
-              OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
+              OV_CASE2(ov::element::u8, ov::element::u8, uint8_t, uint8_t),
+              OV_CASE2(ov::element::i8, ov::element::u8, int8_t, uint8_t),
+              OV_CASE2(ov::element::f32, ov::element::u8, float, uint8_t),
+              OV_CASE2(ov::element::u8, ov::element::i8, uint8_t, int8_t),
+              OV_CASE2(ov::element::i8, ov::element::i8, int8_t, int8_t),
+              OV_CASE2(ov::element::f32, ov::element::i8, float, int8_t),
+              OV_CASE2(ov::element::u8, ov::element::f32, uint8_t, float),
+              OV_CASE2(ov::element::i8, ov::element::f32, int8_t, float),
+              OV_CASE2(ov::element::f32, ov::element::f32, float, float),
+              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t),
+              OV_CASE2(ov::element::f16, ov::element::f16, float16_t, float16_t));
 
     return ctx.executor;
 }
@@ -1500,7 +1509,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     else if (attrs.layout == LayoutType::ncsp)
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else
-        IE_THROW() << "'NormalizeL2' cannot create Executor";
+        OPENVINO_THROW("'NormalizeL2' cannot create Executor");
 }
 
 bool NormalizeL2::created() const {

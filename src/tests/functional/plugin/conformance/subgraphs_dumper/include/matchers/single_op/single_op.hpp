@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "pugixml.hpp"
-
 #include "matchers/single_op/config.hpp"
 
 namespace ov {
@@ -21,6 +20,7 @@ public:
                        const std::shared_ptr<ov::Node> &ref) const;
 
     iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
+    void set_strict_shape_match(bool strict_shape_match);
 
 protected:
     virtual void configure(const pugi::xml_document &cfg) {};
@@ -35,6 +35,8 @@ protected:
                              const std::shared_ptr<ov::Node> &ref) const;
 
     std::vector<iMatcherConfig::Ptr> default_configs;
+    // match only shape ranks by default;
+    bool is_strict_shape_match = false;
 };
 
 }  // namespace subgraph_dumper

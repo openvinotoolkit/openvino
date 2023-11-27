@@ -31,7 +31,8 @@ public:
                             arm_compute::DataLayout dataLayout,
                             const VectorDims* indDims,
                             arm_compute::PoolingLayerInfo* pool_info,
-                            arm_compute::Pooling3dLayerInfo* pool3d_info);
+                            arm_compute::Pooling3dLayerInfo* pool3d_info,
+                            bool ignoreOutShapeErrors = false);
 
     impl_desc_type getImplType() const override {
         return implType;
@@ -53,10 +54,10 @@ public:
     bool isSupported(const PoolingAttrs& poolingAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if ((srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-             dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP32) &&
-            (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP16 &&
-             dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP16)) {
+        if ((srcDescs[0]->getPrecision() != ov::element::f32 &&
+             dstDescs[0]->getPrecision() != ov::element::f32) &&
+            (srcDescs[0]->getPrecision() != ov::element::f16 &&
+             dstDescs[0]->getPrecision() != ov::element::f16)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                       " src[0]=", srcDescs[0]->getPrecision(),
                       " dst[0]=", dstDescs[0]->getPrecision());
@@ -64,12 +65,12 @@ public:
         }
 
         if (srcDescs.size() == 2u &&
-            (srcDescs[1]->getPrecision() != InferenceEngine::Precision::FP32 &&
-             srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-             dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP32) &&
-            (srcDescs[1]->getPrecision() != InferenceEngine::Precision::FP16 &&
-             srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP16 &&
-             dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP16)) {
+            (srcDescs[1]->getPrecision() != ov::element::f32 &&
+             srcDescs[0]->getPrecision() != ov::element::f32 &&
+             dstDescs[0]->getPrecision() != ov::element::f32) &&
+            (srcDescs[1]->getPrecision() != ov::element::f16 &&
+             srcDescs[0]->getPrecision() != ov::element::f16 &&
+             dstDescs[0]->getPrecision() != ov::element::f16)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                       " src[0]=", srcDescs[0]->getPrecision(),
                       " src[1]=", srcDescs[1]->getPrecision(),
@@ -78,9 +79,9 @@ public:
         }
 
         if (dstDescs.size() == 2u &&
-            dstDescs[1]->getPrecision() != InferenceEngine::Precision::U32) {
-            DEBUG_LOG("AclPoolingExecutor does not support precisions:",
-                      " dst[1]=", dstDescs[1]->getPrecision());
+            dstDescs[1]->getPrecision() != ov::element::u32) {
+            DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
+                      "Passed indices precision: ", dstDescs[1]->getPrecision());
                 return false;
             }
 

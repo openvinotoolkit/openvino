@@ -110,8 +110,11 @@ enum class Type {
     PriorBoxClustered,
     Interaction,
     MHA,
+    RandomUniform,
     Unique,
-    Ngram
+    Ngram,
+    ScaledDotProductAttention,
+    RoPE,
 };
 
 enum class Algorithm {
@@ -181,6 +184,10 @@ enum class Algorithm {
     EltwiseErf,
     EltwiseSoftSign,
     EltwiseLog,
+    EltwiseBitwiseAnd,
+    EltwiseBitwiseNot,
+    EltwiseBitwiseOr,
+    EltwiseBitwiseXor,
 
     // FakeQuantize algorithms
     FQCommon,

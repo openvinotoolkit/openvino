@@ -3,13 +3,14 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ov_models/builders.hpp"
 #include <shared_test_classes/single_layer/group_convolution_backprop_data.hpp>
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -93,6 +94,13 @@ public:
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+        if (function->get_parameters().size() != 1) {
+            // WA: output_shape depends on 3rd deconvolution input data
+            // but the reference implementation doesn't implement shape inference
+            // so we need to build a new ngraph function and replace the 3rd input parameter with a constant
+            // to get valid output shapes
+            functionRefs = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
+        }
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -110,18 +118,6 @@ public:
         inferRequestNum++;
     }
 
-    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        if (function->get_parameters().size() == 1) {
-            ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
-        } else {
-            // WA: output_shape depends on 3rd deconvolution input data
-            // but the reference implementation doesn't implement shape inference
-            // so we need to build a new ngraph function and replace the 3rd input parameter with a constant
-            // to get valid output shapes
-            funcRef = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
-        }
-    }
-
     void validate() override {
         auto actualOutputs = get_plugin_outputs();
         if (function->get_parameters().size() == 2) {
@@ -129,7 +125,7 @@ public:
                 [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
                     return params.first->get_friendly_name() == "param_1";
                 });
-            IE_ASSERT(pos != inputs.end());
+            OPENVINO_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
         auto expectedOutputs = calculate_refs();
@@ -171,7 +167,7 @@ public:
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
-                IE_ASSERT(inputDynamicShapes.size() == 2);
+                OPENVINO_ASSERT(inputDynamicShapes.size() == 2);
                 auto outShapeParam = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
                 outShapeNode = outShapeParam;
@@ -186,12 +182,12 @@ public:
 
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
-            IE_ASSERT(outShapeNode != nullptr);
-            deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
-                                                                       padEnd, dilation, padType, convOutChannels, groupNum);
+            OPENVINO_ASSERT(outShapeNode != nullptr);
+            deconv = ov::test::utils::make_group_convolution_backprop_data(params[0], outShapeNode, prec, kernel, stride, padBegin,
+                                                                           padEnd, dilation, padType, convOutChannels, groupNum);
         } else {
-            deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
-                                                                       padEnd, dilation, padType, convOutChannels, groupNum, false, outPadding);
+            deconv = ov::test::utils::make_group_convolution_backprop_data(params[0], prec, kernel, stride, padBegin,
+                                                                           padEnd, dilation, padType, convOutChannels, groupNum, false, outPadding);
         }
 
         return makeNgraphFunction(prec, params, deconv, "GroupDeconvCPU");

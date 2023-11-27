@@ -73,7 +73,7 @@ AtenCatToConcat::AtenCatToConcat() {
             auto body = loop->get_function();
             auto output_index = cat->input(0).get_source_output().get_index();
             int64_t body_result_index = -1;
-            for (auto out_desc : loop->get_output_descriptions()) {
+            for (auto& out_desc : loop->get_output_descriptions()) {
                 if (out_desc->m_output_index == output_index) {
                     body_result_index = static_cast<int64_t>(out_desc->m_body_value_index);
                     break;
@@ -99,7 +99,7 @@ AtenCatToConcat::AtenCatToConcat() {
             auto body_param_index = body->get_parameter_index(param);
             FRONT_END_GENERAL_CHECK(body_param_index >= 0, "Couldn't find parameter in body parameters.");
             int64_t input_index = -1;
-            for (auto in_desc : loop->get_input_descriptions()) {
+            for (auto& in_desc : loop->get_input_descriptions()) {
                 if (in_desc->m_body_parameter_index == static_cast<size_t>(body_param_index)) {
                     input_index = static_cast<int64_t>(in_desc->m_input_index);
                     break;

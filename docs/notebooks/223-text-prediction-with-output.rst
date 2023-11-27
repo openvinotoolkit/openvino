@@ -72,56 +72,60 @@ and the sequence is passed back into the model.
 
 **Table of contents:**
 
-- `Model Selection <#model-selection>`__
-- `Load Model <#load-model>`__
-- `Convert Pytorch Model to OpenVINO IR <#convert-pytorch-model-to-openvino-ir>`__
+-  `Model Selection <#model-selection>`__
+-  `Load Model <#load-model>`__
+-  `Convert Pytorch Model to OpenVINO
+   IR <#convert-pytorch-model-to-openvino-ir>`__
 
-  - `Load the model <#load-the-model>`__
+   -  `Load the model <#load-the-model>`__
 
-    - `Select inference device <#select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
-- `Pre-Processing <#pre-processing>`__
-- `Define tokenization <#define-tokenization>`__
+-  `Pre-Processing <#pre-processing>`__
+-  `Define tokenization <#define-tokenization>`__
 
-  - `Define Softmax layer <#define-softmax-layer>`__
-  - `Set the minimum sequence length <#set-the-minimum-sequence-length>`__
-  - `Top-K sampling <#top-k-sampling>`__
-  - `Main Processing Function <#main-processing-function>`__
+   -  `Define Softmax layer <#define-softmax-layer>`__
+   -  `Set the minimum sequence
+      length <#set-the-minimum-sequence-length>`__
+   -  `Top-K sampling <#top-k-sampling>`__
+   -  `Main Processing Function <#main-processing-function>`__
 
-- `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neo-gpt-2>`__
-- `Conversation with PersonaGPT using OpenVINO™ <#conversation-with-personagpt-using-openvino>`__
-- `Converse Function <#converse-function>`__
-- `Conversation Class <#conversation-class>`__
-- `Conversation with PersonaGPT <#conversation-with-personagpt>`__
+-  `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neogpt->`__
+-  `Conversation with PersonaGPT using
+   OpenVINO <#conversation-with-personagpt-using-openvino>`__
+-  `Converse Function <#converse-function>`__
+-  `Conversation Class <#conversation-class>`__
+-  `Conversation with PersonaGPT <#conversation-with-personagpt>`__
 
 Model Selection
-###############################################################################################################################
+---------------
+
+
 
 Select the Model to be used for text generation, GPT-2 and GPT-Neo are
 used for text generation whereas PersonaGPT is used for Conversation.
 
 .. code:: ipython3
 
-    # Install Gradio for Interactive Inference and other requirements
-    !pip install -q "openvino==2023.1.0.dev20230811"
-    !pip install -q gradio
-    !pip install -q transformers[torch] onnx
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q gradio
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu transformers[torch]
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.24.3 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.24.3 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.24.3 which is incompatible.
-    
+    paddlepaddle 2.5.2 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
-    from gradio import Blocks, Chatbot, Textbox, Row, Column
     import ipywidgets as widgets
     
     style = {'description_width': 'initial'}
@@ -144,7 +148,9 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 
 Load Model
-###############################################################################################################################
+----------
+
+
 
 Download the Selected Model and Tokenizer from HuggingFace
 
@@ -162,39 +168,16 @@ Download the Selected Model and Tokenizer from HuggingFace
         pt_model = GPTNeoForCausalLM.from_pretrained('EleutherAI/gpt-neo-125M')
         tokenizer = GPT2TokenizerFast.from_pretrained('EleutherAI/gpt-neo-125M')
 
-
-.. parsed-literal::
-
-    2023-09-08 23:43:01.055206: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-08 23:43:01.090531: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-08 23:43:01.738604: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
 Convert Pytorch Model to OpenVINO IR
-###############################################################################################################################
+------------------------------------
 
-.. figure:: https://user-images.githubusercontent.com/29454499/211261803-784d4791-15cb-4aea-8795-0969dfbb8291.png
-   :alt: conversion_pipeline
 
-   conversion_pipeline
 
 For starting work with GPT-Neo model using OpenVINO, a model should be
 converted to OpenVINO Intermediate Representation (IR) format.
 HuggingFace provides a GPT-Neo model in PyTorch format, which is
-supported in OpenVINO via conversion to ONNX. We use the HuggingFace
-transformers library’s onnx module to export the model to ONNX.
-``transformers.onnx.export`` accepts the preprocessing function for
-input sample generation (the tokenizer in our case), an instance of the
-model, ONNX export configuration, the ONNX opset version for export and
-output path. More information about transformers export to ONNX can be
-found in HuggingFace
-`documentation <https://huggingface.co/docs/transformers/serialization>`__.
-
-While ONNX models are directly supported by OpenVINO runtime, it can be
-useful to convert them to IR format to take advantage of OpenVINO
-optimization tools and features. The ``ov.convert_model`` Python
-function of `model conversion
+supported in OpenVINO via Model Conversion API. The ``ov.convert_model``
+Python function of `model conversion
 API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 can be used for converting the model. The function returns instance of
 OpenVINO Model class, which is ready to use in Python interface. The
@@ -207,31 +190,21 @@ consumption.
 .. code:: ipython3
 
     from pathlib import Path
-    from transformers.onnx import export, FeaturesManager
+    import torch
     
     import openvino as ov
     
-    # define path for saving onnx model
-    onnx_path = Path("model/text_generator.onnx")
-    onnx_path.parent.mkdir(exist_ok=True)
-    
     # define path for saving openvino model
-    model_path = onnx_path.with_suffix(".xml")
+    model_path = Path("model/text_generator.xml")
     
-    # get model onnx config function for output feature format casual-lm
-    model_kind, model_onnx_config = FeaturesManager.check_supported_model_or_raise(pt_model, feature='causal-lm')
-    
-    # fill onnx config based on pytorch model config
-    onnx_config = model_onnx_config(pt_model.config)
-    
-    # convert model to onnx
-    onnx_inputs, onnx_outputs = export(preprocessor=tokenizer,model=pt_model,config=onnx_config,opset=onnx_config.default_onnx_opset,output=onnx_path)
+    example_input = {"input_ids": torch.ones((1, 10), dtype=torch.long), "attention_mask": torch.ones((1, 10), dtype=torch.long)}
+    pt_model.config.torchscript = True
     
     # convert model to openvino
     if model_name.value == "PersonaGPT (Converastional)":
-        ov_model = ov.convert_model(onnx_path, input=[('input_ids', [1, -1], ov.Type.i64), ('attention_mask', [1,-1], ov.Type.i64)])
+        ov_model = ov.convert_model(pt_model, example_input=example_input, input=[('input_ids', [1, -1], ov.Type.i64), ('attention_mask', [1,-1], ov.Type.i64)])
     else:
-        ov_model = ov.convert_model(onnx_path, input=[('input_ids', [1, ov.Dimension(1,128)], ov.Type.i64), ('attention_mask', [1, ov.Dimension(1,128)], ov.Type.i64)])
+        ov_model = ov.convert_model(pt_model, example_input=example_input, input=[('input_ids', [1, ov.Dimension(1,128)], ov.Type.i64), ('attention_mask', [1, ov.Dimension(1,128)], ov.Type.i64)])
     
     # serialize openvino model
     ov.save_model(ov_model, str(model_path))
@@ -239,21 +212,25 @@ consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:807: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
 
 
 Load the model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~
+
+
 
 We start by building an OpenVINO Core object. Then we read the network
 architecture and model weights from the ``.xml`` and ``.bin`` files,
 respectively. Finally, we compile the model for the desired device.
 
 Select inference device
--------------------------------------------------------------------------------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Select device from dropdown list for running inference using OpenVINO:
+
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -299,7 +276,9 @@ have ``batch size`` and ``sequence length`` as inputs and
 ``batch size``, ``sequence length`` and ``vocab size`` as outputs.
 
 Pre-Processing
-###############################################################################################################################
+--------------
+
+
 
 NLP models often take a list of tokens as a standard input. A token is a
 word or a part of a word mapped to an integer. To provide the proper
@@ -307,7 +286,9 @@ input, we use a vocabulary file to handle the mapping. So first let’s
 load the vocabulary file.
 
 Define tokenization
-###############################################################################################################################
+-------------------
+
+
 
 .. code:: ipython3
 
@@ -338,11 +319,20 @@ at later stage.
     eos_token_id = tokenizer.eos_token_id
     eos_token = tokenizer.decode(eos_token_id)
 
-Define Softmax layer
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-A softmax function is used to convert top-k logits into a probability
-distribution.
+.. parsed-literal::
+
+    2023-11-14 23:32:14.663057: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-11-14 23:32:14.696431: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-11-14 23:32:15.262361: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+Define Softmax layer
+~~~~~~~~~~~~~~~~~~~~
+
+ A softmax function is used to
+convert top-k logits into a probability distribution.
 
 .. code:: ipython3
 
@@ -355,7 +345,9 @@ distribution.
         return e_x / summation
 
 Set the minimum sequence length
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 If the minimum sequence length is not reached, the following code will
 reduce the probability of the ``eos`` token occurring. This continues
@@ -381,7 +373,9 @@ the process of generating the next words.
         return scores
 
 Top-K sampling
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~
+
+
 
 In Top-K sampling, we filter the K most likely next words and
 redistribute the probability mass among only those K next words.
@@ -410,7 +404,9 @@ redistribute the probability mass among only those K next words.
         return filtred_scores
 
 Main Processing Function
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Generating the predicted sequence.
 
@@ -460,7 +456,9 @@ Generating the predicted sequence.
         return input_ids
 
 Inference with GPT-Neo/GPT-2
-###############################################################################################################################
+----------------------------
+
+
 
 The ``text`` variable below is the input used to generate a predicted
 sequence.
@@ -468,6 +466,7 @@ sequence.
 .. code:: ipython3
 
     import time
+    
     if not model_name.value == "PersonaGPT (Converastional)":
         text = "Deep learning is a type of machine learning that uses neural networks"
         input_ids, attention_mask = tokenize(text)
@@ -493,7 +492,9 @@ sequence.
 
 
 Conversation with PersonaGPT using OpenVINO
-=====================================================================================
+===========================================
+
+
 
 User Input is tokenized with ``eos_token`` concatenated in the end.
 Model input is tokenized text, which serves as initial condition for
@@ -509,7 +510,9 @@ the end. Further User Input is added to it and again passed into the
 model.
 
 Converse Function
-###############################################################################################################################
+-----------------
+
+
 
 Wrapper on generate sequence function to support conversation
 
@@ -554,7 +557,9 @@ Wrapper on generate sequence function to support conversation
         return response, history
 
 Conversation Class
-###############################################################################################################################
+------------------
+
+
 
 .. code:: ipython3
 
@@ -578,7 +583,9 @@ Conversation Class
             return response
 
 Conversation with PersonaGPT
-###############################################################################################################################
+----------------------------
+
+
 
 This notebook provides two styles of inference, Plain and Interactive.
 The style of inference can be selected in the next cell.
@@ -606,6 +613,8 @@ The style of inference can be selected in the next cell.
 
 .. code:: ipython3
 
+    import gradio as gr
+    
     if model_name.value == "PersonaGPT (Converastional)":
         if interactive_mode.value == 'Plain':
             conversation = Conversation()
@@ -635,21 +644,27 @@ The style of inference can be selected in the next cell.
                 history[-1][1] = response
                 return history
     
-            with Blocks() as demo:
-                chatbot = Chatbot([], elem_id="chatbot").style()
+            with gr.Blocks() as demo:
+                chatbot = gr.Chatbot([], elem_id="chatbot")
     
-                with Row():
-                    with Column():
-                        txt = Textbox(
+                with gr.Row():
+                    with gr.Column():
+                        txt = gr.Textbox(
                             show_label=False,
                             placeholder="Enter text and press enter, or upload an image",
-                        ).style(container=False)
+                            container=False
+                        )
     
                 txt.submit(add_text, [chatbot, txt], [chatbot, txt]).then(
                     bot, chatbot, chatbot
                 )
-    
-            demo.launch()
+            try:
+                demo.launch(debug=False)
+            except Exception:
+                demo.launch(debug=False, share=True)
+            # if you are launching remotely, specify server_name and server_port
+            # demo.launch(server_name='your server name', server_port='server port in int')
+            # Read more in the docs: https://gradio.app/docs/
     else:
         print("Selected Model is not PersonaGPT, Please select PersonaGPT in the first cell to have a conversation")
 
@@ -657,23 +672,23 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: good and you?
+    PersonaGPT: a bit tired, since i'm off at the weekend. i hope you are well
     Person: What are you doing?
-    PersonaGPT: working on my studies
+    PersonaGPT: i'm taking a break from playing my xbox. how about you?
     Person: I like to dance,do you?
-    PersonaGPT: i enjoy dance, whats your favorite dance?
+    PersonaGPT: i've danced, do you play any games?
     Person: Can you recommend me some books?
-    PersonaGPT: do you like to read?
+    PersonaGPT: probably not, do you like movies or television?
     Person: Hi,How are you?
-    PersonaGPT: good and you?
+    PersonaGPT: doing very well, thank you for asking. what do you do for a living?
     Person: What are you doing?
-    PersonaGPT: what are you doing right now?
+    PersonaGPT: i'm a stay at home mom.
     Person: I like to dance,do you?
-    PersonaGPT: i enjoy dance too.
+    PersonaGPT: i dance, but not as a job. i play video games sometimes
     Person: Can you recommend me some books?
-    PersonaGPT: what do you like about dance?
+    PersonaGPT: maybe you can try playing warcraft, but i don't think i would like it
     Person: Hi,How are you?
-    PersonaGPT: i'm good thanks.
+    PersonaGPT: i'm fine, thanks for asking
     Person: What are you doing?
-    PersonaGPT: working on studying.
+    PersonaGPT: i'm relaxing at home since i'm off at work
 

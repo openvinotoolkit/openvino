@@ -28,7 +28,7 @@ from openvino.runtime.opset1.ops import ceiling
 from openvino.runtime.opset1.ops import ceiling as ceil
 from openvino.runtime.opset1.ops import clamp
 from openvino.runtime.opset1.ops import concat
-from openvino.runtime.opset1.ops import constant
+from openvino.runtime.opset13.ops import constant
 from openvino.runtime.opset1.ops import convert
 from openvino.runtime.opset1.ops import convert_like
 from openvino.runtime.opset1.ops import convolution
@@ -56,6 +56,7 @@ from openvino.runtime.opset1.ops import equal
 from openvino.runtime.opset1.ops import erf
 from openvino.runtime.opset1.ops import exp
 from openvino.runtime.opset9.ops import eye
+from openvino.runtime.opset13.ops import fake_convert
 from openvino.runtime.opset1.ops import fake_quantize
 from openvino.runtime.opset1.ops import floor
 from openvino.runtime.opset1.ops import floor_mod
@@ -106,6 +107,7 @@ from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish
 from openvino.runtime.opset1.ops import mod
 from openvino.runtime.opset9.ops import multiclass_nms
+from openvino.runtime.opset13.ops import multinomial
 from openvino.runtime.opset1.ops import multiply
 from openvino.runtime.opset6.ops import mvn
 from openvino.runtime.opset1.ops import negative
@@ -128,7 +130,7 @@ from openvino.runtime.opset4.ops import proposal
 from openvino.runtime.opset4.ops import range
 from openvino.runtime.opset8.ops import random_uniform
 from openvino.runtime.opset9.ops import rdft
-from openvino.runtime.opset3.ops import read_value
+from openvino.runtime.opset6.ops import read_value
 from openvino.runtime.opset4.ops import reduce_l1
 from openvino.runtime.opset4.ops import reduce_l2
 from openvino.runtime.opset1.ops import reduce_logical_and
@@ -150,6 +152,7 @@ from openvino.runtime.opset9.ops import roi_align
 from openvino.runtime.opset2.ops import roi_pooling
 from openvino.runtime.opset7.ops import roll
 from openvino.runtime.opset5.ops import round
+from openvino.runtime.opset13.ops import scaled_dot_product_attention
 from openvino.runtime.opset12.ops import scatter_elements_update
 from openvino.runtime.opset3.ops import scatter_update
 from openvino.runtime.opset1.ops import select

@@ -91,6 +91,10 @@ protected:
             rel_threshold = 1e-2;
         }
         function = createFunction(isStatic);
+        if (function->get_parameters().size() == 2) {
+            generatePooledVector();
+            functionRefs = createFunction(true);
+        }
     }
 
     void generatePooledVector() {
@@ -124,14 +128,6 @@ protected:
         return function;
     }
 
-    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        if (function->get_parameters().size() == 2) {
-            generatePooledVector();
-            funcRef = createFunction(true);
-        }
-        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
-    }
-
     void validate() override {
         auto actualOutputs = get_plugin_outputs();
         if (function->get_parameters().size() == 2) {
@@ -139,7 +135,7 @@ protected:
                                     [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
                                         return params.first->get_friendly_name() == "ParamSecondInput";
                                     });
-            IE_ASSERT(pos != inputs.end());
+            OPENVINO_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
         auto expectedOutputs = calculate_refs();

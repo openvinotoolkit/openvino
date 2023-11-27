@@ -194,10 +194,10 @@ protected:
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<opset5::Reshape>(lastNode1, reshapeConstNode, false);
         }
-        auto concat = builder::makeConcat({lastNode0, lastNode1}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
 
         if (selectedType.empty()) {
-           selectedType = getPrimitiveType() + "_FP32";
+           selectedType = getPrimitiveType() + "_f32";
         }
 
         function = std::make_shared<Function>(concat, ngraphParam, "fq_cache");

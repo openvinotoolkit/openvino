@@ -423,7 +423,7 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     FRONT_END_GENERAL_CHECK(
         cond_results.size() == 1 && cond_results[0],
         "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
-    auto body_condition_output_idx = static_cast<int64_t>(body_results.size());
+    auto body_condition_output_idx = body_results.size();
     body_model->add_results(cond_results);
 
     // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
@@ -435,14 +435,18 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     loop->set_function(body_model);
 
     // body_results may contain less nodes than body_params that means back edge exists not for all body_params
-    for (size_t input_ind = 0; input_ind < static_cast<size_t>(body_condition_output_idx); ++input_ind) {
+    for (size_t input_ind = 0; input_ind < body_condition_output_idx; ++input_ind) {
         loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
     }
-    loop->set_special_body_ports({-1, body_condition_output_idx});
+    loop->set_special_body_ports({-1, static_cast<int64_t>(body_condition_output_idx)});
+    // set invariant inputs for the loop
+    for (size_t input_ind = body_condition_output_idx; input_ind < input_size; ++input_ind) {
+        loop->set_invariant_input(body_params[input_ind], ov_inputs[input_ind]);
+    }
 
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
-    for (size_t output_ind = 0; output_ind < static_cast<size_t>(body_condition_output_idx); ++output_ind) {
+    for (size_t output_ind = 0; output_ind < body_condition_output_idx; ++output_ind) {
         loop->get_iter_value(body_results[output_ind]);
     }
     loop->validate_and_infer_types();
@@ -452,19 +456,34 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
                        const std::string& operation_type,
                        const ov::OutputVector& ov_inputs,
-                       ov::OutputVector& ov_outputs) {
+                       ov::OutputVector& ov_outputs,
+                       const std::vector<std::string>& ov_input_names) {
     ov_outputs.clear();
     auto body_parameters = ov_model_to_inject->get_parameters();
-    FRONT_END_GENERAL_CHECK(body_parameters.size() == ov_inputs.size(),
+    // some external inputs can be skipped if some body graph inputs turn to be Constant nodes
+    FRONT_END_GENERAL_CHECK(body_parameters.size() <= ov_inputs.size(),
                             "[TensorFlow Error] Internal error or incorrect input models: number of "
                             "inputs and arguments to the function " +
                                 operation_type + " do not match.");
     for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
+        auto param_name = body_parameters[param_ind]->get_friendly_name();
+        // find suitable index of external input
+        size_t ext_found_ind = param_ind;
+        if (ov_input_names.size() > 0) {
+            // only used for PartitionedCall translator
+            for (size_t ext_input_ind = 0; ext_input_ind < ov_input_names.size(); ++ext_input_ind) {
+                if (ov_input_names[ext_input_ind] == param_name) {
+                    ext_found_ind = ext_input_ind;
+                    break;
+                }
+            }
+        }
+
         auto orig_type = body_parameters[param_ind]->get_element_type();
         // avoid not needed tensor names from body graph Parameter node after replacing
         body_parameters[param_ind]->output(0).set_names({});
-        body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
-        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
+        body_parameters[param_ind]->output(0).replace(ov_inputs[ext_found_ind]);
+        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[ext_found_ind].get_node_shared_ptr())) {
             // save type of a Parameter as converted in the body
             // this is important if the external conversion extension is applied to body graph node
             // with setting its own type

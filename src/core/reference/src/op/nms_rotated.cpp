@@ -127,7 +127,7 @@ void nms_rotated(const float* boxes_data,
 
     for (int64_t batch = 0; batch < num_batches; batch++) {
         const float* boxesPtr = boxes_data + batch * num_boxes * 5;
-        RotatedBox* r = reinterpret_cast<RotatedBox*>(const_cast<float*>(boxesPtr));
+        const RotatedBox* r = reinterpret_cast<const RotatedBox*>(boxesPtr);
 
         for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {
             const float* scoresPtr = scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
@@ -137,11 +137,11 @@ void nms_rotated(const float* boxes_data,
 
             for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++) {
                 if (scoresPtr[box_idx] > score_threshold) {
+                    candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
                     // Convert counterclockwise to clockwise
                     if (!clockwise) {
-                        r[box_idx].a *= -1;
+                        candidate_boxes.back().box.a *= -1.f;
                     }
-                    candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
                 }
             }
 
@@ -195,7 +195,11 @@ void nms_rotated(const float* boxes_data,
     }
 
     if (sort_result_descending) {
-        std::reverse(filteredBoxes.begin(), filteredBoxes.end());
+        std::stable_sort(filteredBoxes.begin(), filteredBoxes.end(), [](const BoxInfo& lhs, const BoxInfo& rhs) {
+            return (lhs.score > rhs.score) ||
+                   ((lhs.score == rhs.score) && (std::tie(lhs.batch_index, lhs.class_index, lhs.index) <
+                                                 std::tie(rhs.batch_index, rhs.class_index, rhs.index)));
+        });
     }
 
     size_t max_num_of_selected_indices = selected_indices_shape[0];

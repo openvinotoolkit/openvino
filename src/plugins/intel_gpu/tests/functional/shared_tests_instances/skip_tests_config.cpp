@@ -56,8 +56,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
             // Dynamic batch allocates output using upper bound
             R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-            // need dynamic shapes
-            R"(.*RangeLayerTest.*)",
             // need dynamic rank
             R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
@@ -75,6 +73,8 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
+            // Issue: 124060
+            R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
@@ -115,5 +115,13 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
             // Dynamic state unsupported for now
             R"(.*MemoryDynamicBatch.*)",
+            // Issue: 123493
+            R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
+            // Issue: 123507
+            R"(.*ReverseLayerTest.*mask.*f16.*)",
+            // Issue: 123516
+            R"(.*RandomUniformLayerTest.*f16.*)",
+            // Issue: 125165
+            R"(smoke_Nms9LayerTest.*)",
     };
 }

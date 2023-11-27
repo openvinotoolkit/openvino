@@ -81,16 +81,36 @@ unset(protobuf_lite_installed CACHE)
 unset(protobuf_installed CACHE)
 
 #
+# ov_frontend_group_files(<ROOT_DIR>  # Root path for scanning
+#                         <REL_PATH>  # Relative path (in ROOT_DIR) is used for scanning
+#                         <FILE_EXT>) # File extension for grouping
+#
+macro(ov_frontend_group_files root_dir rel_path file_mask)
+   file(GLOB items RELATIVE ${root_dir}/${rel_path} ${root_dir}/${rel_path}/*)
+   foreach(item ${items})
+        if(IS_DIRECTORY ${root_dir}/${rel_path}/${item})
+            ov_frontend_group_files(${root_dir} ${rel_path}/${item} ${file_mask})
+        else()
+            if(${item} MATCHES ".*\.${file_mask}$")
+                string(REPLACE "/" "\\" groupname ${rel_path})
+                source_group(${groupname} FILES ${root_dir}/${rel_path}/${item})
+            endif()
+        endif()
+   endforeach()
+endmacro()
+
+#
 # ov_add_frontend(NAME <IR|ONNX|...>
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
 #                 [SKIP_INSTALL] # private frontend, not for end users
+#                 [PROTOBUF_REQUIRED] # options to denote that protobuf is used
 #                 [PROTOBUF_LITE] # requires only libprotobuf-lite
 #                 [SKIP_NCC_STYLE] # use custom NCC rules
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -120,22 +140,30 @@ macro(ov_add_frontend)
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
 
-    source_group("src" FILES ${LIBRARY_SRC})
+    ov_frontend_group_files(${frontend_root_dir}/ "src" "cpp")
+    ov_frontend_group_files(${frontend_root_dir}/ "src" "proto")
     source_group("include" FILES ${LIBRARY_HEADERS})
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
-    file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
+    set(protofiles_root_dir "${frontend_root_dir}/src/proto")
+    file(GLOB_RECURSE proto_files ${protofiles_root_dir}/*.proto)
 
     foreach(proto_file IN LISTS proto_files)
+        # filter out standaard google proto files
+        if(proto_file MATCHES ".*google.*")
+            continue()
+        endif()
+
         file(RELATIVE_PATH proto_file_relative "${CMAKE_SOURCE_DIR}" "${proto_file}")
-        get_filename_component(FILE_DIR ${proto_file} DIRECTORY)
         get_filename_component(FILE_WE ${proto_file} NAME_WE)
-        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
-        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
+        file(RELATIVE_PATH relative_path ${protofiles_root_dir} ${proto_file})
+        get_filename_component(relative_path ${relative_path} DIRECTORY)
+        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.cc)
+        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.h)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${protofiles_root_dir} ${proto_file}
                 DEPENDS ${PROTOC_DEPENDENCY} ${proto_file}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${proto_file_relative}"
                 VERBATIM
@@ -164,7 +192,7 @@ macro(ov_add_frontend)
 
     # Create library
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
-        ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
+                               ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
@@ -172,7 +200,7 @@ macro(ov_add_frontend)
     endif()
 
     # Shutdown protobuf when unloading the frontend dynamic library
-    if(proto_files AND BUILD_SHARED_LIBS)
+    if(OV_FRONTEND_PROTOBUF_REQUIRED AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown)
     endif()
 
@@ -201,17 +229,17 @@ macro(ov_add_frontend)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
-    # WA for TF frontends which always require protobuf (not protobuf-lite)
-    # if TF FE is built in static mode, use protobuf for all other FEs
-    if(FORCE_FRONTENDS_USE_PROTOBUF)
-        set(OV_FRONTEND_PROTOBUF_LITE OFF)
-    endif()
-    # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
-    if(NOT TARGET protobuf::libprotobuf-lite)
-        set(OV_FRONTEND_PROTOBUF_LITE OFF)
-    endif()
+    if(OV_FRONTEND_PROTOBUF_REQUIRED)
+        # WA for TF frontends which always require protobuf (not protobuf-lite)
+        # if TF FE is built in static mode, use protobuf for all other FEs
+        if(FORCE_FRONTENDS_USE_PROTOBUF)
+            set(OV_FRONTEND_PROTOBUF_LITE OFF)
+        endif()
+        # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
+        if(NOT TARGET protobuf::libprotobuf-lite)
+            set(OV_FRONTEND_PROTOBUF_LITE OFF)
+        endif()
 
-    if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
             set(protobuf_target_name libprotobuf-lite)
             set(protobuf_install_name "protobuf_lite_installed")

@@ -5,18 +5,27 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "matchers/subgraph/fused_names.hpp"
 #include "utils/model.hpp"
+#include "utils/cache.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
 void FusedNamesExtractor::set_target_device(const std::string& _device) {
-    auto available_devices = core->get_available_devices();
-    if (_device.empty()) {
+    auto available_devices = ov::util::core->get_available_devices();
+    if (_device == std::string("TEMPLATE") &&
+        std::find(available_devices.begin(), available_devices.end(), _device) == available_devices.end()) {
+        auto plugin_path = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string("openvino_template_plugin") + OV_BUILD_POSTFIX);
+        if (!ov::util::file_exists(plugin_path)) {
+            throw std::runtime_error("[ WARNING ][ GRAPH CACHE ] Plugin: " + plugin_path + " does not exists!");
+        }
+        ov::util::core->register_plugin(plugin_path, _device);
+        available_devices = ov::util::core->get_available_devices();
+    }
+    if (_device.empty() && !available_devices.empty()) {
         device = available_devices.front();
         std::cout << "[ WARNING ][ GRAPH CACHE ] " << device <<
             " will be used for `fused_names` extractor" << std::endl;
@@ -26,8 +35,12 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
                          _device) == available_devices.end()) {
         std::string message = "Incorrect device ";
         message += _device;
-        message += " to enable `fused_names` extractor! Available devices: ";
-        message += ov::test::utils::vec2str(available_devices);
+        message += " to enable `fused_names` extractor! Available devices: {";
+        for (const auto& device : available_devices) {
+            message += device;
+            message += ",";
+        }
+        message += "}";
         throw std::runtime_error(message);
     }
     device = _device;
@@ -36,7 +49,7 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
 
 std::unordered_set<std::string>
 FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Model>& model) {
-    auto compiled_model = core->compile_model(model, device);
+    auto compiled_model = ov::util::core->compile_model(model, device);
     std::unordered_set<std::string> compiled_op_name;
     for (const auto& compiled_op : compiled_model.get_runtime_model()->get_ordered_ops()) {
         const auto& rt_info = compiled_op->get_rt_info();
@@ -48,30 +61,24 @@ FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Mode
 }
 
 FusedNamesExtractor::FusedNamesExtractor(const std::string& device) {
-    core = ov::test::utils::PluginCache::get().core();
     set_target_device(device);
 }
 
-FusedNamesExtractor::~FusedNamesExtractor() {
-    core.reset();
-}
-
-std::list<ExtractedPattern>
-FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
-                             bool is_extract_body,
-                             bool is_copy_constants) {
+std::vector<FusedNamesExtractor::ExtractedPattern>
+FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
     auto compiled_op_name = extract_compiled_model_names(model);
-    std::list<ExtractedPattern> matched_patterns;
+    std::vector<FusedNamesExtractor::ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;
-    std::set<std::shared_ptr<ov::Node>> nodes;
+    ov::NodeVector nodes;
     for (const auto& op : model->get_ordered_ops()) {
         auto op_name = op->get_friendly_name();
-        if (is_node_to_skip(op) || checked_ops.count(op_name)) {
+        if (ov::util::is_node_to_skip(op) || checked_ops.count(op_name)) {
             continue;
         }
         if (compiled_op_name.count(op_name)) {
             try {
-                matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
+                auto extracted_pattern = ov::util::generate_model(nodes, checked_ops, is_save_const);
+                matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
                     // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
@@ -79,7 +86,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
             }
             nodes.clear();
         } else {
-            nodes.insert(op);
+            nodes.push_back(op);
         }
         if (is_extract_body) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
@@ -104,7 +111,8 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
     }
     try {
-        matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
+        auto extracted_pattern = ov::util::generate_model(nodes, checked_ops, is_save_const);
+        matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
     } catch(std::exception& e) {
         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
             // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;

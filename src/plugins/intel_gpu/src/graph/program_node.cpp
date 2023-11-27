@@ -38,7 +38,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_paddings[i];
+            output_layout.data_padding = prim->get_output_padding(i);
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
@@ -208,7 +208,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
         impls.push_back(selected_impl->get_kernel_name());
 
-        if (get_preferred_impl_type() == impl_types::ocl) {
+        auto preferred_impl_type = get_preferred_impl_type();
+        if (preferred_impl_type != impl_types::onednn && preferred_impl_type != impl_types::cpu) {
             json_composite cl_dump_info;
             cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
             cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
@@ -331,6 +332,8 @@ layout program_node::get_non_padded_output_layout(bool invalidate_users_if_chang
 
 bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed, size_t idx) {
     merge_output_padding(new_layout.data_padding, idx);
+    OPENVINO_ASSERT(idx < output_layouts.size(), id(), " has invalid index : index is ", std::to_string(idx),
+                                        " but output_layouts length is ", std::to_string(output_layouts.size()));
     new_layout.data_padding = output_layouts[idx].data_padding;
     bool changed = (new_layout != output_layouts[idx]);
     if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users
@@ -365,7 +368,7 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 
 bool program_node::is_dynamic() const {
     for (const auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -378,7 +381,7 @@ bool program_node::is_dynamic() const {
 
 bool program_node::is_dynamic() {
     for (auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 

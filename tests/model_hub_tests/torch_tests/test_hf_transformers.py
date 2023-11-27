@@ -5,28 +5,10 @@ import os
 import pytest
 import torch
 from huggingface_hub import model_info
-from models_hub_common.test_convert_model import TestConvertModel
-from openvino import convert_model
-from models_hub_common.utils import get_models_list, cleanup_dir
+from torch_utils import TestTorchConvertModel
+from models_hub_common.utils import cleanup_dir
 from models_hub_common.constants import hf_hub_cache_dir
-
-
-def flattenize_tuples(list_input):
-    unpacked_pt_res = []
-    for r in list_input:
-        if isinstance(r, (tuple, list)):
-            unpacked_pt_res.extend(flattenize_tuples(r))
-        else:
-            unpacked_pt_res.append(r)
-    return unpacked_pt_res
-
-
-def flattenize_outputs(outputs):
-    if not isinstance(outputs, dict):
-        outputs = flattenize_tuples(outputs)
-        return [i.numpy(force=True) for i in outputs]
-    else:
-        return dict((k, v.numpy(force=True)) for k, v in outputs.items())
+from torch_utils import process_pytest_marks
 
 
 def filter_example(model, example):
@@ -48,12 +30,12 @@ def filter_example(model, example):
 torch.manual_seed(0)
 
 
-class TestTransformersModel(TestConvertModel):
+class TestTransformersModel(TestTorchConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
 
-        self.infer_timeout = 1200
+        self.infer_timeout = 800
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
@@ -104,6 +86,16 @@ class TestTransformersModel(TestConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif "mms-lid" in name:
+            # mms-lid model config does not have auto_model attribute, only direct loading available
+            from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
+            model = Wav2Vec2ForSequenceClassification.from_pretrained(
+                name, torchscript=True)
+            processor = AutoFeatureExtractor.from_pretrained(name)
+            input_values = processor(torch.randn(16000).numpy(),
+                                     sampling_rate=16_000,
+                                     return_tensors="pt")
+            example = {"input_values": input_values.input_values}
         elif "retribert" in mi.tags:
             from transformers import RetriBertTokenizer
             text = "How many cats are there?"
@@ -204,7 +196,9 @@ class TestTransformersModel(TestConvertModel):
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForSpeechSeq2Seq.from_pretrained(
                         name, torchscript=True)
-                    inputs = processor(torch.randn(1000).numpy(), sampling_rate=16000, return_tensors="pt")
+                    inputs = processor(torch.randn(1000).numpy(),
+                                       sampling_rate=16000,
+                                       return_tensors="pt")
                     example = dict(inputs)
                 elif auto_model == "AutoModelForCTC":
                     from transformers import AutoProcessor, AutoModelForCTC
@@ -212,7 +206,8 @@ class TestTransformersModel(TestConvertModel):
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForCTC.from_pretrained(
                         name, torchscript=True)
-                    input_values = processor(torch.randn(1000).numpy(), return_tensors="pt")
+                    input_values = processor(torch.randn(1000).numpy(),
+                                             return_tensors="pt")
                     example = dict(input_values)
                 elif auto_model == "AutoModelForTableQuestionAnswering":
                     import pandas as pd
@@ -250,8 +245,8 @@ class TestTransformersModel(TestConvertModel):
         if model is None:
             from transformers import AutoModel
             model = AutoModel.from_pretrained(name, torchscript=True)
-            if hasattr(model, "set_default_language"):
-                model.set_default_language("en_XX")
+        if hasattr(model, "set_default_language"):
+            model.set_default_language("en_XX")
         if example is None:
             if "encodec" in mi.tags:
                 example = (torch.randn(1, 1, 100),)
@@ -266,45 +261,23 @@ class TestTransformersModel(TestConvertModel):
             model(*self.example)
         return model
 
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        if isinstance(self.example, dict):
-            return dict((k, v.numpy()) for k, v in self.example.items())
-        else:
-            return [i.numpy() for i in self.example]
-
-    def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
-        return ov_model
-
-    def infer_fw_model(self, model_obj, inputs):
-        if isinstance(inputs, dict):
-            inps = dict((k, torch.from_numpy(v)) for k, v in inputs.items())
-            fw_outputs = model_obj(**inps)
-        else:
-            fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
-        return flattenize_outputs(fw_outputs)
-
     def teardown_method(self):
         # remove all downloaded files from cache
         cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
-                                           ("facebook/bart-large-mnli", "bart"),
+    @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
+                                           ("bert-base-uncased", "bert"),
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip"),
-                                           ("RWKV/rwkv-4-169m-pile", "rwkv")])
+                                           ("openai/clip-vit-large-patch14", "clip")
+                                           ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
-    @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
+    @pytest.mark.parametrize("name", process_pytest_marks(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)
