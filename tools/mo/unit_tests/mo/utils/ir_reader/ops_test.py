@@ -457,3 +457,51 @@ class TestOps(unittest.TestCase):
             1), PartialShape([Dimension(-1, 15), 3]))
         self.assertEqual(loaded_model.get_output_partial_shape(
             2), PartialShape([1]))
+
+    def test_fake_convert_2_inputs_dyn_shape_f16(self):
+        in_shape = [-1, 2, 3, 8]
+        data = opset13.parameter(
+            in_shape, name="data_in", dtype=np.float16)
+        scale = opset13.constant(
+            [1.0], name="scale_in", dtype=np.float16)
+
+        op = opset13.fake_convert(data, scale,
+                                  destination_type="f8e4m3")
+        model = Model(op, [data])
+        graph, loaded_model = TestOps.check_graph_can_save(
+            model, 'fake_convert_model')
+        graph_node = graph.get_op_nodes(op="FakeConvert")[0]
+
+        self.assertEqual(graph_node["version"], "opset13")
+        self.assertListEqual(graph_node.out_port(
+            0).data.get_shape().tolist(), [None, 2, 3, 8])
+        self.assertEqual(graph_node["destination_type"], "f8e4m3")
+
+        self.assertEqual(loaded_model.get_output_element_type(0), Type.f16)
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            0), PartialShape(in_shape))
+
+    def test_fake_convert_3_inputs_stat_shape_f32(self):
+        data_shape = [2, 3, 4, 8]
+        data = opset13.parameter(
+            data_shape, name="data_in", dtype=np.float32)
+        scale = opset13.constant(
+            [1.0], name="scale_in", dtype=np.float32)
+        shift = opset13.constant(
+            [0.0], name="shift_in", dtype=np.float32)
+
+        op = opset13.fake_convert(data, scale, shift,
+                                  destination_type="f8e4m3")
+
+        model = Model(op, [data])
+        graph, loaded_model = TestOps.check_graph_can_save(
+            model, 'fake_convert_model')
+        graph_node = graph.get_op_nodes(op="FakeConvert")[0]
+
+        self.assertEqual(graph_node["version"], "opset13")
+        self.assertListEqual(graph_node.out_port(
+            0).data.get_shape().tolist(), data_shape)
+        self.assertEqual(graph_node["destination_type"], "f8e4m3")
+        self.assertEqual(loaded_model.get_output_element_type(0), Type.f32)
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            0), PartialShape(data_shape))
