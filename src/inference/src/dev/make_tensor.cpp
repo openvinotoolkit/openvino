@@ -37,7 +37,9 @@ public:
     void* data(const element::Type& element_type) const override {
         if (element_type != element::undefined && element_type != element::dynamic &&
             (element_type.bitwidth() != get_element_type().bitwidth() ||
-             element_type.is_real() != get_element_type().is_real())) {
+             element_type.is_real() != get_element_type().is_real() ||
+             (element_type == element::string && get_element_type() != element::string) ||
+             (element_type != element::string && get_element_type() == element::string))) {
             OPENVINO_THROW("Tensor data with element type ",
                            get_element_type(),
                            ", is not representable as pointer to ",
@@ -180,7 +182,7 @@ public:
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
                          auto num_elements = shape_size(shape);
                          auto data = const_cast<Allocator&>(allocator).allocate(element_type.size() * num_elements);
-                         init(data, element_type, shape, allocator);
+                         init(data, element_type, shape);
                          return data;
                      }()},
           m_allocator{allocator} {}
@@ -194,20 +196,45 @@ public:
         if (m_shape == new_shape)
             return;
 
-        // TODO: Make it more accurately by handling the area that is begin changed during the reshape only
-        destroy();
-
         auto old_byte_size = get_byte_size();
+        auto old_shape = m_shape;
         m_shape = std::move(new_shape);
+
+        if (m_element_type == element::string) {
+            auto new_num_elements = shape_size(new_shape);
+            auto num_elements = shape_size(old_shape);
+            auto data = static_cast<std::string*>(m_ptr);
+            if (get_byte_size() > old_byte_size) {
+                // expect memory re-allocation that is why destruct all std::string objects
+                for (size_t ind = 0; ind < num_elements; ++ind) {
+                    using std::string;
+                    data[ind].~string();
+                }
+            } else {
+                OPENVINO_ASSERT(
+                    new_num_elements <= num_elements,
+                    "New number of elements is expected to be less than the current number in string ov::Tensor");
+                // re-use already allocated memory for ov::Tensor of new shape
+                size_t num_elements_to_delete = num_elements - new_num_elements;
+                // re-initialize with empty std::string objects
+                for (size_t ind = 0; ind < new_num_elements; ++ind) {
+                    data[ind] = std::string();
+                }
+                // remaining unneeded objects need to be destructed
+                for (size_t ind = new_num_elements; ind < num_elements; ++ind) {
+                    using std::string;
+                    data[ind].~string();
+                }
+            }
+        }
+
         if (get_byte_size() > old_byte_size) {
             m_allocator.deallocate(m_ptr, old_byte_size);
             m_ptr = m_allocator.allocate(get_byte_size());
+            init(m_ptr, m_element_type, m_shape);
         }
         m_strides.clear();
         update_strides();
-
-        // TODO: Make it more accurately by handling the area that is begin changed during the reshape only
-        init(m_ptr, get_element_type(), get_shape(), m_allocator);
     }
 
 private:
@@ -222,11 +249,11 @@ private:
         }
     }
 
-    void init(void* data, const element::Type element_type, const Shape& shape, const Allocator& allocator) {
+    void init(void* data, const element::Type& element_type, const Shape& shape) {
         if (element_type == element::Type_t::string) {
             auto num_elements = shape_size(shape);
-            auto sdata = static_cast<std::string*>(data);
-            std::uninitialized_fill_n(sdata, num_elements, std::string());
+            auto string_ptr = static_cast<std::string*>(data);
+            std::uninitialized_fill_n(string_ptr, num_elements, std::string());
         }
     }
 
