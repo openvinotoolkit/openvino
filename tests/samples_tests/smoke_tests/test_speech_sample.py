@@ -57,7 +57,7 @@ class TestSpeechSample(SamplesCommonTestClass):
         super().setup_class()
 
     @pytest.mark.parametrize("param", test_data)
-    @pytest.mark.skipif(condition=platform.system() == 'Darwin' or platform.machine() == 'arm64',
+    @pytest.mark.skipif(condition=platform.system() == 'Darwin' or platform.machine() == 'aarch64',
                         reason="GNA is not available on macOS or aarch64")
     def test_speech_sample_nthreads(self, param):
         stdout = self._test(param).split('\n')
@@ -67,7 +67,7 @@ class TestSpeechSample(SamplesCommonTestClass):
         assert avg_error <= self.threshold
 		
     @pytest.mark.parametrize("param", new_format_test_data)
-    @pytest.mark.skipif(condition=platform.system() == 'Darwin' or platform.machine() == 'arm64',
+    @pytest.mark.skipif(condition=platform.system() == 'Darwin' or platform.machine() == 'aarch64',
                         reason="GNA is not available on macOS or aarch64")
     def test_speech_sample_new_format(self, param):
         stdout = self._test(param, complete_path=False).split('\n')
