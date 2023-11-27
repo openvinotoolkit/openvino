@@ -78,7 +78,9 @@ inline int getNumberOfLogicalCPUCores(bool bigCoresOnly = false) {
  * @ingroup    ov_dev_api_system_conf
  * @return     Number of blocked CPU cores.
  */
-using ov::get_number_of_blocked_cores;
+inline int getNumberOfBlockedCores() {
+    return ov::get_number_of_blocked_cores();
+}
 
 /**
  * @brief      Checks whether CPU supports SSE 4.2 capability
