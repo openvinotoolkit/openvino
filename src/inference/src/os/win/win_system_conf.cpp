@@ -25,7 +25,7 @@ CPU::CPU() {
 
     std::unique_ptr<char[]> base_shared_ptr(new char[len]);
     char* base_ptr = base_shared_ptr.get();
-    if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LO_blocked_coresGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
+    if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
         return;
     }
 
