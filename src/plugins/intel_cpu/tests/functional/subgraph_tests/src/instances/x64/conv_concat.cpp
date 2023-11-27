@@ -13,8 +13,7 @@ using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
-namespace ConvConcat {
-
+namespace ConvolutionConcat {
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
     conv_ref_3D
@@ -29,7 +28,8 @@ const auto params3D = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
-
+} // namespace ConvolutionConcat
+namespace GroupConvolutionConcat {
 const auto params3D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolution),
     ::testing::Values(groupConvParams3D()),
@@ -39,5 +39,5 @@ const auto params3D = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
-} // namespace ConvConcat
+} // namespace GroupConvolutionConcat
 } // namespace SubgraphTestsDefinitions
