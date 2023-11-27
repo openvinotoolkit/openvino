@@ -6,5 +6,9 @@
 
 #include "helper.hpp"
 
-/** \brief Creates JS object to represent C++ enum class Type_t with possible element types */
-Napi::Value enumElementType(const Napi::CallbackInfo& info);
+namespace element {
+    Napi::Object init(Napi::Env env, Napi::Object exports);
+
+    /** \brief Creates JS object to represent C++ enum class Type_t with possible element types */
+    Napi::Value add_element_namespace(const Napi::CallbackInfo& info);
+};
