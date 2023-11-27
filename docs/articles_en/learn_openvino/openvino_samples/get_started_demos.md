@@ -146,11 +146,6 @@ Instructions below show how to build sample applications with CMake. If you are 
    .. tab-item:: macOS
       :sync: macos
 
-      The officially supported macOS build environment is the following:
-
-      * macOS 10.15 64-bit or higher
-      * Clang compiler from Xcode 10.1 or higher
-      * CMake version 3.13 or higher
 
       .. note:: 
       
