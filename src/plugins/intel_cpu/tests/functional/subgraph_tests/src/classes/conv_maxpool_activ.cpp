@@ -53,7 +53,7 @@ void ConvPoolActivTest::SetUp() {
 }
 
 TEST_P(ConvPoolActivTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
 } // namespace SubgraphTestsDefinitions

@@ -7,7 +7,6 @@
 #include "test_utils/filter_cpu_info.hpp"
 #include "ov_models/builders.hpp"
 
-using namespace ngraph;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
