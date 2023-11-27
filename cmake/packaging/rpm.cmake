@@ -279,7 +279,7 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
         set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_REQUIRES
             "${core_package}, ${frontend_packages}, ${plugin_packages}, python3, python3-numpy")
-        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
+        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME "python3-openvino-${cpack_full_ver}")
         set(python_package "${CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
         set(${python_component}_copyright "generic")
 
@@ -329,6 +329,7 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
         set(python_samples_package "${CPACK_RPM_PYTHON_SAMPLES_PACKAGE_NAME} = ${cpack_full_ver}")
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
+        ov_rpm_generate_conflicts(${OV_CPACK_COMP_PYTHON_SAMPLES} ${conflicting_versions})
         set(python_samples_copyright "generic")
 
         ov_rpm_add_rpmlint_suppression(${OV_CPACK_COMP_PYTHON_SAMPLES}
