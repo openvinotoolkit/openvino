@@ -5,6 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
+  push:
     branches:
       - master
       - 'releases/**'
