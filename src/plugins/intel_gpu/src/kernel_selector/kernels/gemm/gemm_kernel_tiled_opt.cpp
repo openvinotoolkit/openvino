@@ -90,12 +90,10 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_n_size *= 2;
         }
 
-        if (k_size == 4096)
+        if (k_size == 4096 || m_size == 4096)
             std::cout << "m_size " << m_size << ", n_size " << n_size << ", k_size " << k_size << std::endl;
         // tuning_data.tile_k_size must be the same as simd_size when k % tile_k != 0
         tuning_data.tile_k_size = tuning_data.simd_size;
-        if (k_size == 4096)
-            tuning_data.tile_k_size *= 2;
         tuning_data.tile_m_size = tuning_data.simd_size;
 
         bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
@@ -115,7 +113,14 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_m_size = val;
         if (get_env("MY_TILE_K", val))
             tuning_data.tile_k_size = val;
-        if (k_size == 4096) {
+        if (m_size == 4096 && tuning_data.simd_size == 16)
+            tuning_data.tile_m_size = 32;
+        if (k_size == 4096 && tuning_data.simd_size == 16)
+            tuning_data.tile_k_size = 32;
+        if (n_size == 4096 && tuning_data.simd_size == 16)
+            tuning_data.tile_n_size = 32;
+
+        if (k_size == 4096 || m_size == 4096) {
             printf("%d %d %d %d %d\n",
                 leftovers,
                 total_batches > 1,
