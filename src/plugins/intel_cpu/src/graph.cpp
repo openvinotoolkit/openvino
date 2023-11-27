@@ -1696,10 +1696,7 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
-                // keep non-float precisions
-                // const auto origin_precision = node->getOriginalInputPrecisionAtPort(inPort);
-                // if (!one_of(origin_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
-                //     return true;
+                // keep non-float32 precisions
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
@@ -1725,10 +1722,7 @@ void Graph::EnforceInferencePrecision() {
         }
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-            // keep non-float precisions
-            // const auto origin_precision = node->getOriginalOutputPrecisionAtPort(i);
-            // if (!one_of(origin_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
-            //     continue;
+            // keep non-float32 precisions
             if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 
