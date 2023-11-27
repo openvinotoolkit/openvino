@@ -113,11 +113,6 @@ Instructions below show how to build sample applications with CMake. If you are 
    .. tab-item:: Windows
       :sync: windows
 
-      The recommended Windows build environment is the following:
-
-      * Microsoft Windows 10
-      * Microsoft Visual Studio 2019
-      * CMake version 3.10 or higher
 
       .. note:: 
 
