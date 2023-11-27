@@ -1164,12 +1164,6 @@ std::vector<ov::PartialShape> ov::get_node_input_partial_shapes(const ov::Node& 
     return out;
 }
 
-bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>& ranks) {
-    return std::any_of(ranks.cbegin(), ranks.cend(), [&rank](const Rank& r) {
-        return rank.compatible(r);
-    });
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
