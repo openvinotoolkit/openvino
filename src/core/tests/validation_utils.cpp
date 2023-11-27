@@ -71,3 +71,19 @@ TEST(constantfold_subgraph, split) {
     auto actual = ret->cast_vector<float>();
     ASSERT_EQ(expected, actual);
 }
+
+TEST(constantfold_subgraph, shapeof) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, -1});
+    auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(param);
+    auto zero = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+    auto one = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto two = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {2});
+    auto stop = std::make_shared<ov::op::v8::Slice>(shapeof, one /*start*/, two /*stop*/, one /*step*/, zero /*axis*/);
+    auto slice = std::make_shared<ov::op::v8::Slice>(param, one /*start*/, stop, one /*step*/, one /*axis*/);
+
+    auto ret = ov::util::constantfold_subgraph(stop);
+    ASSERT_NE(ret, nullptr);
+    auto actual = ret->cast_vector<int64_t>();
+    std::vector<int64_t> expected{3};
+    ASSERT_EQ(expected, actual);
+}
