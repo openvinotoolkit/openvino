@@ -4,17 +4,11 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cmath>
-#include <numeric>
 #include <vector>
 
-#include "openvino/reference/add.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/convert.hpp"
-#include "openvino/reference/divide.hpp"
-#include "openvino/reference/multiply.hpp"
-#include "openvino/reference/subtract.hpp"
 
 namespace ov {
 namespace reference {
