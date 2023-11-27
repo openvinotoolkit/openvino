@@ -150,9 +150,9 @@ private:
 }  // namespace ov
 
 // Return ov::elements as parameter list e.g. OV_PP_ET_LIST(f16, i32) -> f16, i32
-#define OV_PP_ET_LIST(...) OV_PP_EMPTY __VA_ARGS__
+#define OV_PP_ET_LIST(...) OV_PP_EXPAND(__VA_ARGS__)
 
-// Helpers to implement eat or expand if symbol exists
+// Helpers to implement ignore or expand if symbol exists
 #define OV_PP_ET_LIST_OR_EMPTY_0(...) OV_PP_IGNORE(__VA_ARGS__)
 #define OV_PP_ET_LIST_OR_EMPTY_1(...) OV_PP_EXPAND(__VA_ARGS__)
 
