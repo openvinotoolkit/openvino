@@ -2,21 +2,7 @@ name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 on:
   workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
 
@@ -30,7 +16,31 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
   Build:
+    needs: Smart_CI
     timeout-minutes: 150
     defaults:
       run:
@@ -54,6 +64,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release
+    if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Install git
@@ -299,7 +310,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: 25
     defaults:
       run:
@@ -313,6 +324,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
       - name: Download OpenVINO tests package
