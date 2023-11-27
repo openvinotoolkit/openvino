@@ -11,6 +11,7 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace SubgraphTestsDefinitions::ConvConcat;
 
 namespace SubgraphTestsDefinitions {
 namespace ConvolutionConcat {
@@ -30,6 +31,10 @@ const auto params3D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 } // namespace ConvolutionConcat
 namespace GroupConvolutionConcat {
+const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D
+};
+
 const auto params3D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolution),
     ::testing::Values(groupConvParams3D()),
