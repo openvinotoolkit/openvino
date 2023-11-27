@@ -307,7 +307,7 @@ public:
             std::make_shared<ov::op::v6::ReadValue>(arg, variable) :
             std::make_shared<ov::op::v6::ReadValue>(variable);
         std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
-        auto add =std::make_shared<ov::op::v1::Add>(arg, read);
+        auto add = std::make_shared<ov::op::v1::Add>(arg, read);
         constexpr int concat_axis = 0;
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{arg, add}, concat_axis);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
