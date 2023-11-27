@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/multiple_LSTMCell.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(MultipleLSTMCellTest, CompareWithRefs) {
-    Run();
+    run();
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
