@@ -38,8 +38,12 @@ public:
         m_info = variable_info;
     }
 
-    void update_partial_shape(const PartialShape& new_pshape) {
+    void update_data_shape(const PartialShape& new_pshape) {
         m_info.data_shape = new_pshape;
+    }
+
+    void update_data_type(const element::Type& new_type) {
+        m_info.data_type = new_type;
     }
 
 private:

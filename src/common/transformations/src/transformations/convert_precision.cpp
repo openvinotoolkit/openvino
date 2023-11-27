@@ -35,6 +35,12 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             const precisions_map& precisions,
                             bool convert_input_precision);
 
+// this function inserts Convert operations to 'data' input and outputs of `node`
+// to execute 'node' with the original type.
+bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+
+bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable, const precisions_map& precisions);
+
 bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<ov::Input<ov::Node>>& consumers);
@@ -207,6 +213,12 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
     }
 
+    if (convert_input_output_precision) {
+        for (const auto& variable : f->get_variables()) {
+            is_changed |= fuse_type_to_variable(variable, precisions);
+        }
+    }
+
     if (is_changed)
         ops = f->get_ordered_ops();
 
@@ -244,6 +256,14 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                                                          true,
                                                          true);
             }
+        }
+        // if convert_input_output_precision flag is set, we don't need to preserve the original precision
+        // for Assign/ReadValue ops, we have already changed the type in Variable.
+        // Otherwise, we have insert Convert ops to inputs/outputs of ReadValue/Assign
+        if ((as_type_ptr<op::util::AssignBase>(node) || as_type_ptr<op::util::ReadValueBase>(node)) &&
+            convert_input_output_precision) {
+            node->revalidate_and_infer_types();
+            continue;
         }
         is_output_precision_changed |= convert_node_output_precision(node,
                                                                      precisions,
@@ -380,6 +400,8 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     type_to_fuse_map type_to_fuse{
         {opset4::Convert::get_type_info_static(), fuse_type_to_convert},
         {opset4::ShapeOf::get_type_info_static(), fuse_type_to_shapeof},
+        {opset6::Assign::get_type_info_static(), wrap_into_original_type},
+        {opset6::ReadValue::get_type_info_static(), wrap_into_original_type},
         {opset3::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms3},
         {opset4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
         {opset5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
@@ -555,6 +577,38 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
         }
     }
     return changed;
+}
+
+bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it == precisions.end())
+        return false;
+
+    const auto& to = it->second;
+    const auto& from = it->first;
+
+    auto convert_before = std::make_shared<opset4::Convert>(node->input_value(0), from);
+    node->input(0).replace_source_output(convert_before);
+    auto consumers = node->output(0).get_target_inputs();
+    auto convert_after = std::make_shared<opset4::Convert>(node, to);
+    for (auto& input : consumers) {
+        const auto consumer = input.get_node();
+        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+            continue;
+        }
+        input.replace_source_output(convert_after);
+    }
+
+    return true;
+}
+
+bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable, const precisions_map& precisions) {
+    auto it = precisions.find(variable->get_info().data_type);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+    variable->update_data_type(to);
+    return true;
 }
 
 bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
