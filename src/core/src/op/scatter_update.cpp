@@ -11,6 +11,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/scatter_update.hpp"
+#include "utils.hpp"
 #include "validation_util.hpp"
 
 namespace ov {
@@ -58,16 +59,16 @@ bool ScatterUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) 
     const auto& data_shape = data.get_shape();
     output.set_shape(data_shape);
 
-    auto axis_val = v0::Constant{axis}.cast_vector<int64_t>()[0];
-    if (axis_val < 0) {
-        axis_val = ov::util::normalize(axis_val, static_cast<int64_t>(data_shape.size()));
-    }
+    auto axis_val = get_tensor_data_as<int64_t>(axis)[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    axis_val = ov::normalize_axis(this, axis_val, static_cast<int64_t>(data_shape.size()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    const std::vector<int64_t> indices_casted_vector{v0::Constant{indices}.cast_vector<int64_t>()};
+    const auto indices_casted_vector = get_tensor_data_as<int64_t>(indices);
 
-    reference::scatter_update(static_cast<char*>(data.data()),
+    reference::scatter_update(static_cast<const char*>(data.data()),
                               indices_casted_vector.data(),
-                              static_cast<char*>(updates.data()),
+                              static_cast<const char*>(updates.data()),
                               axis_val,
                               static_cast<char*>(output.data()),
                               data.get_element_type().size(),
