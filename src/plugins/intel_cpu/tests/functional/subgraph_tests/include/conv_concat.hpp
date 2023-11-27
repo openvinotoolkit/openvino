@@ -28,7 +28,7 @@ using commonConvParams = std::tuple<std::vector<size_t>,     // Kernel size
                                     size_t                   // Number of groups
                                     >;
 
-using convConcatCPUParams = std::tuple<nodeType,                         // Ngraph convolution type
+using convConcatCPUParams = std::tuple<nodeType,                         // Node convolution type
                                        commonConvParams,                 // Convolution params
                                        CPUTestUtils::CPUSpecificParams,  // CPU runtime params
                                        ov::Shape,                        // Input shapes

@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "subgraph_tests/include/conv_concat.hpp"
+
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/filter_cpu_info.hpp"
-#include "subgraph_tests/include/conv_concat.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -73,30 +78,59 @@ void ConvConcatSubgraphTest::SetUp() {
     switch (type) {
         case nodeType::convolution : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeConvolution(inputParams[conv], ov::element::f32, kernelSize, strides, padBegin,
-                                                                          padEnd, dilation, paddingType, numOutChannels);
+                convolutionNodes[conv] = ov::test::utils::make_convolution(inputParams[conv],
+                                                                           ov::element::f32,
+                                                                           kernelSize,
+                                                                           strides,
+                                                                           padBegin,
+                                                                           padEnd,
+                                                                           dilation,
+                                                                           paddingType,
+                                                                           numOutChannels);
             }
             break;
         }
         case nodeType::convolutionBackpropData : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeConvolutionBackpropData(inputParams[conv], ov::element::f32, kernelSize, strides, padBegin,
-                                                                                      padEnd, dilation, paddingType, numOutChannels);
+                convolutionNodes[conv] = ov::test::utils::make_convolution_backprop_data(inputParams[conv],
+                                                                                         ov::element::f32,
+                                                                                         kernelSize,
+                                                                                         strides,
+                                                                                         padBegin,
+                                                                                         padEnd,
+                                                                                         dilation,
+                                                                                         paddingType,
+                                                                                         numOutChannels);
             }
             break;
         }
         case nodeType::groupConvolution : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeGroupConvolution(inputParams[conv], ov::element::f32, kernelSize, strides, padBegin,
-                                                                                           padEnd, dilation, paddingType, numOutChannels, numOfGroups);
+                convolutionNodes[conv] = ov::test::utils::make_group_convolution(inputParams[conv],
+                                                                                 ov::element::f32,
+                                                                                 kernelSize,
+                                                                                 strides,
+                                                                                 padBegin,
+                                                                                 padEnd,
+                                                                                 dilation,
+                                                                                 paddingType,
+                                                                                 numOutChannels,
+                                                                                 numOfGroups);
             }
             break;
         }
         case nodeType::groupConvolutionBackpropData : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeGroupConvolutionBackpropData(inputParams[conv], ov::element::f32, kernelSize,
-                                                                                           strides, padBegin, padEnd, dilation, paddingType,
-                                                                                           numOutChannels, numOfGroups);
+                convolutionNodes[conv] = ov::test::utils::make_group_convolution_backprop_data(inputParams[conv],
+                                                                                               ov::element::f32,
+                                                                                               kernelSize,
+                                                                                               strides,
+                                                                                               padBegin,
+                                                                                               padEnd,
+                                                                                               dilation,
+                                                                                               paddingType,
+                                                                                               numOutChannels,
+                                                                                               numOfGroups);
             }
             break;
         }
@@ -110,7 +144,7 @@ void ConvConcatSubgraphTest::SetUp() {
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convolutionNodes[0], convolutionNodes[1]}, axis);
 
-    std::vector<std::shared_ptr<ov::op::v0::Result>> results{std::make_shared<ov::op::v0::Result>(concat)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
     function = std::make_shared<ov::Model>(results, inputParams, "convolutionConcat");
 }
 
