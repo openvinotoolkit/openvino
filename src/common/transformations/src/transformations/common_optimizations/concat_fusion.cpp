@@ -16,7 +16,7 @@
 using namespace ov::op;
 
 ov::pass::ConcatFusion::ConcatFusion() {
-    MATCHER_SCOPE(ConcatFusion);    
+    MATCHER_SCOPE(ConcatFusion);
     auto has_same_axis_concat_input = [](const Output<Node>& output) {
         const auto& concat = std::dynamic_pointer_cast<v0::Concat>(output.get_node_shared_ptr());
         const auto axis = concat->get_axis();
