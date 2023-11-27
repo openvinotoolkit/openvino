@@ -27,9 +27,7 @@ void Transpose::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(ORDER);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(ARG, get_input_element_type(ARG), output_shapes[ARG_T]);

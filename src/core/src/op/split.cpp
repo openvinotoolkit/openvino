@@ -50,9 +50,7 @@ void Split::validate_and_infer_types() {
                           "Attribute 'num_splits' must be greater than zero. Got: ",
                           m_num_splits);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     for (size_t i = 0; i < m_num_splits; ++i) {

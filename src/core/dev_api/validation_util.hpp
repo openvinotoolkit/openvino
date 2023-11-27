@@ -91,5 +91,12 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
 /// @param tensors  Input tensors vector to get their shapes.
 /// @return Vector of partial shapes same size as input tensor vector.
 OPENVINO_API std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors);
+
+/// \brief Get the node input partial shapes.
+///
+/// \param node   Node to extract input shapes.
+///
+/// \return Vector of PartialShapes of each input.
+OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
 }  // namespace util
 }  // namespace ov

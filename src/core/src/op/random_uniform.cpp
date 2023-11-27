@@ -49,9 +49,7 @@ void RandomUniform::validate_and_infer_types() {
                           validate::out_et(out_et) && (out_et == min_et),
                           "'min_val' and 'max_val' should have the same type as 'out_type' attribute.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, out_et, output_shapes.front());

@@ -42,10 +42,7 @@ void ov::op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = ov::get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -124,9 +121,7 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
                           "Unsupported interpolation mode used with version 4 of the Interpolate op: ",
                           as_string(m_attrs.mode));
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes =
         shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());
@@ -325,9 +320,7 @@ void op::v11::Interpolate::validate_and_infer_types() {
         validate_axes_element_type(get_input_element_type(2));
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes =
         shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());

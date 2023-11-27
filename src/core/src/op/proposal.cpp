@@ -42,9 +42,7 @@ void op::v0::Proposal::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Proposal_validate_and_infer_types);
 
     validate_element_types();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto intput_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto intput_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, intput_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
@@ -95,7 +93,7 @@ void op::v4::Proposal::validate_and_infer_types() {
 
     validate_element_types();
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto intput_shapes = get_node_input_partial_shapes(*this);
+    const auto intput_shapes = ov::util::get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto output_shapes = shape_infer(this, intput_shapes);
     const auto& out_et = get_input_element_type(0);

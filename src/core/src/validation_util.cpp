@@ -1433,5 +1433,15 @@ std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors
     }
     return shapes;
 }
+
+std::vector<PartialShape> get_node_input_partial_shapes(const Node& node) {
+    std::vector<PartialShape> shapes;
+    shapes.reserve(node.get_input_size());
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        shapes.push_back(node.get_input_partial_shape(i));
+    }
+    return shapes;
+}
+
 }  // namespace util
 }  // namespace ov

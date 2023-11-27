@@ -39,9 +39,7 @@ void Reshape::validate_and_infer_types() {
                           shape_pattern_et.is_integral_number(),
                           "PartialShape pattern must be an integral number.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_shapes = ov::get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }

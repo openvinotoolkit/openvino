@@ -71,9 +71,7 @@ bool op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
 void op::v1::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -171,9 +169,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -263,9 +259,7 @@ std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const Out
 void op::v4::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -529,9 +523,7 @@ bool op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
 void op::v5::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -766,9 +758,7 @@ bool op::v9::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
 void op::v9::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v9_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
