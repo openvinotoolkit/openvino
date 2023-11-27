@@ -12,6 +12,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "common/arbitrary_order_desc_creator.h"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -547,11 +548,12 @@ void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
 
     // Since this is a very specialized implementation, lets mimic SDPA precision and set cabd layout
     precision = SDPA->getOriginalInputPrecisionAtPort(childPort);
+    ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
 
     PortConfig outPortConfig;
     outPortConfig.inPlace(0);
     outPortConfig.constant(false);
-    outPortConfig.setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
+    outPortConfig.setMemDesc(cabdDescCreator.createSharedDesc(precision, shape));
     config.outConfs.push_back(std::move(outPortConfig));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }

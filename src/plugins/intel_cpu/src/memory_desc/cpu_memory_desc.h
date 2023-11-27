@@ -45,7 +45,6 @@ enum class LayoutType : unsigned {
     ncsp,      // general planar
     nCsp8c,    // general channels blocked by 8
     nCsp16c,   // general channels blocked by 16
-    cabd
 };
 
 class MemoryDesc {

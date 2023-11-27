@@ -20,6 +20,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/plain_tensor.hpp"
 #include <openvino/op/scaled_dot_product_attention.hpp>
+#include "common/arbitrary_order_desc_creator.h"
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -786,24 +787,26 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             ov::element::f32, getInputShapeAtPort(nextPortIdx)));
     }
+
     if (m_config.config.fuse_concat) {
-        config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
+        ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
+
+        config.inConfs[orginSDPInputNumber + 0].setMemDesc(cabdDescCreator.createSharedDesc(
             rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
-        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(cabdDescCreator.createSharedDesc(
             rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+
+        config.outConfs[1].setMemDesc(cabdDescCreator.createSharedDesc(
+            rtPrecision, getOutputShapeAtPort(1)));
+        config.outConfs[1].inPlace(orginSDPInputNumber + 0);
+        config.outConfs[2].setMemDesc(cabdDescCreator.createSharedDesc(
+            rtPrecision, getOutputShapeAtPort(2)));
+        config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
 
-    if (m_config.config.fuse_concat) {
-        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(1)));
-        config.outConfs[1].inPlace(orginSDPInputNumber + 0);
-        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(2)));
-        config.outConfs[2].inPlace(orginSDPInputNumber + 1);
-    }
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
     // may fallback to abcd without inplace
     if (m_config.config.fuse_concat) {

@@ -70,35 +70,13 @@ private:
     size_t _blockSize;
 };
 
-class CABDCreator : public BlockedDescCreator {
-public:
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
-        SizeVector order(srcShape.getRank());
-        std::iota(order.begin(), order.end(), 0);
-        SizeVector blkDims = srcShape.getDims();
-        if (srcShape.getRank() > 2) {
-            auto moveElementFront = [](SizeVector& vector, size_t indx) {
-                auto itr = vector.begin() + indx;
-                std::rotate(vector.begin(), itr, vector.end() - 1);
-            };
-
-            moveElementFront(order, srcShape.getRank() - 1 - 1);
-            moveElementFront(blkDims, srcShape.getRank() - 1 - 1);
-        }
-
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
-    }
-    size_t getMinimalRank() const override { return 3lu; }
-};
-
 } // namespace
 
 const BlockedDescCreator::CreatorsMap& BlockedDescCreator::getCommonCreators() {
     static const CreatorsMap map{ { LayoutType::nspc, CreatorConstPtr(new PerChannelCreator) },
                                 { LayoutType::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
                                 { LayoutType::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
-                                { LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator) },
-                                { LayoutType::cabd, CreatorConstPtr(new CABDCreator) } };
+                                { LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator) } };
     return map;
 }
 
