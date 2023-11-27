@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
         uses: actions/checkout@v4
@@ -39,11 +40,8 @@ jobs:
           commit_sha: ${{ github.sha }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show affected components
-        run: |
-          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
-        shell: bash
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 
   Build:
     needs: Smart_CI
@@ -72,7 +70,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
-    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
+    if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Install git
