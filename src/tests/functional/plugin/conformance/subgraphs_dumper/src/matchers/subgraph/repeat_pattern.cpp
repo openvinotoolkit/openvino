@@ -117,9 +117,9 @@ RepeatPatternExtractor::get_node_queque(ov::NodeVector& queue,
                 const std::shared_ptr<ov::Node>& node) {
     if (queue.empty()) {
         queue.push_back(node);
-    if (node->get_friendly_name() == "ShapeOf_1658") {
-        auto a = 0;
-    }
+    // if (node->get_friendly_name() == "ShapeOf_1658") {
+    //     auto a = 0;
+    // }
     }
     for (size_t out_idx = 0; out_idx < node->outputs().size(); ++out_idx) {
         for (const auto& out : node->get_output_target_inputs(out_idx)) {
@@ -145,7 +145,6 @@ std::vector<std::vector<RepeatPatternExtractor::NodePair>>
 RepeatPatternExtractor::get_ordered_nodes(const ov::NodeVector& start_node_vec) {
     auto pattern_cnt = start_node_vec.size();
     std::vector<std::vector<RepeatPatternExtractor::NodePair>> patterns(pattern_cnt);
-    std::unordered_set<std::string> checked_op_pattern;
 
     for (size_t pattern_idx = 0; pattern_idx < pattern_cnt; ++pattern_idx) {
         if (!patterns[pattern_idx].empty()) {
@@ -153,7 +152,11 @@ RepeatPatternExtractor::get_ordered_nodes(const ov::NodeVector& start_node_vec) 
         }
 
         ov::NodeVector queue;
+        auto start_time = std::chrono::system_clock::now();
         get_node_queque(queue, start_node_vec[pattern_idx]);
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> diff = end_time - start_time;
+        std::cout << "NODE QUEQUE: " << diff.count() << std::endl;
         for (const auto& node : queue) {
             std::vector<size_t> input_cnt;
             for (size_t i = 0; i < node->inputs().size(); ++i) {
@@ -353,8 +356,16 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
         if (pattern_start_nodes.size() < 2) {
             continue;
         }
+        auto start_time = std::chrono::system_clock::now();
         auto patterns = get_ordered_nodes(pattern_start_nodes);
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> diff = end_time - start_time;
+        std::cout << "QUEQUE: " << diff.count() << std::endl;
+        start_time = std::chrono::system_clock::now();
         auto potential_patterns = post_process_patterns(patterns);
+        end_time = std::chrono::system_clock::now();
+        diff = end_time - start_time;
+        std::cout << "SORT: " << diff.count() << std::endl;
         for (auto& nodes_vector : potential_patterns) {
             // std::cout << "VEC: " << nodes_vector.size() << std::endl;
             try {
