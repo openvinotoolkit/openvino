@@ -177,6 +177,11 @@ CPU& cpu_info() {
     return cpu;
 }
 
+int get_number_of_blocked_cores() {
+    CPU& cpu = cpu_info();
+    return cpu._blocked_cores;
+}
+
 #if defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -404,11 +409,6 @@ int get_socket_by_numa_node(int numa_node_id) {
         }
     }
     return -1;
-}
-
-int get_number_of_blocked_cores() {
-    CPU& cpu = cpu_info();
-    return cpu._blocked_cores;
 }
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
