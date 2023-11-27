@@ -174,10 +174,14 @@ OutputVector dequantize_linear(const Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = op::detail::get_zero_point(inputs);
 
+    const auto& scale_rank = scale.get_partial_shape().rank();
     // per-tensor quantization, axis attribute ignored
-    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0) {
-        if (!zero_point || (zero_point->get_output_partial_shape(0).rank().is_static() &&
-                            zero_point->get_output_partial_shape(0).rank().get_length() == 0)) {
+    if (scale_rank.is_static() && (scale_rank.get_length() == 0 || scale_rank.get_length() == 1)) {
+        int64_t zero_point_rank = -1;
+        if (zero_point && zero_point->get_output_partial_shape(0).rank().is_static()) {
+            zero_point_rank = zero_point->get_output_partial_shape(0).rank().get_length();
+        }
+        if (!zero_point || zero_point_rank == 0 || zero_point_rank == 1) {
             return set_1::dequantize_linear(node);
         }
     }
