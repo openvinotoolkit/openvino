@@ -47,6 +47,10 @@ def filter_example(model, example):
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
+visual_question_answer_models = [
+    "google/pix2struct-docvqa-base",
+    'google/pix2struct-ai2d-base',
+]
 
 class TestTransformersModel(TestConvertModel):
     def setup_class(self):
@@ -191,7 +195,7 @@ class TestTransformersModel(TestConvertModel):
                     encoded_input = processor(
                         images=self.image, return_tensors="pt")
                     example = dict(encoded_input)
-                elif auto_model == "AutoModelForSeq2SeqLM":
+                elif auto_model == "AutoModelForSeq2SeqLM" and name not in visual_question_answer_models:
                     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForSeq2SeqLM.from_pretrained(
@@ -241,6 +245,90 @@ class TestTransformersModel(TestConvertModel):
                     example = dict(input_ids=encoded_input["input_ids"],
                                    token_type_ids=encoded_input["token_type_ids"],
                                    attention_mask=encoded_input["attention_mask"])
+                elif auto_model == 'AutoModelForTextToWaveform':
+                    from transformers import AutoProcessor, MusicgenForConditionalGeneration
+                    processor = AutoProcessor.from_pretrained(name)
+                    model = MusicgenForConditionalGeneration.from_pretrained(name, torchscript=True)
+
+                    class MusicGenerateModel(torch.nn.Module):
+                        def __init__(self, model):
+                            super().__init__()
+                            self.model = model
+                        def forward(self, **x):
+                            return self.model.generate(**x, max_new_tokens=256)
+                    
+                    inputs = processor(
+                        text=["80s pop track with bassy drums and synth"],
+                        padding=True,
+                        return_tensors="pt",
+                    )
+                    example = dict(inputs)        
+                    model = MusicGenerateModel(model)
+                elif auto_model == 'RagTokenForGeneration':
+                    from transformers import AutoTokenizer, RagTokenForGeneration#, RagRetriever
+                    tokenizer = AutoTokenizer.from_pretrained(name)
+                    # retriever = RagRetriever.from_pretrained(name, index_name="exact", use_dummy_dataset=True)
+                    model = RagTokenForGeneration.from_pretrained(name)#, retriever=retriever)
+                    
+                    class RagTokenGenerationModel(torch.nn.Module):
+                        def __init__(self, model):
+                            super().__init__()
+                            self.model = model
+                        def forward(self, x):
+                            return self.model.generate(x)
+                    
+                    input_dict = tokenizer.prepare_seq2seq_batch("who holds the record in 100m freestyle", 
+                                            return_tensors="pt") 
+                    example = input_dict['input_ids']
+
+                    model = RagTokenGenerationModel(model)
+                elif auto_model == 'AutoModelForSeq2SeqLM' and name in visual_question_answer_models:
+                    from transformers import Pix2StructForConditionalGeneration, Pix2StructProcessor
+                    model = Pix2StructForConditionalGeneration.from_pretrained(name)
+                    processor = Pix2StructProcessor.from_pretrained(name)
+
+                    import requests
+                    from PIL import Image
+                    image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
+                    image = Image.open(requests.get(image_url, stream=True).raw)
+                    question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
+                    inputs = processor(images=image, text=question, return_tensors="pt")
+                    
+                    class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                        def __init__(self, model):
+                            super().__init__()
+                            self.model = model
+                        def forward(self, **x):
+                            return self.model.generate(**x)
+                    example = dict(inputs)
+                    model = DecoratorModelForSeq2SeqLM(model)
+                elif auto_model == 'RealmForOpenQA':
+                    from transformers import AutoTokenizer, RealmForOpenQA
+                    tokenizer = AutoTokenizer.from_pretrained(name)
+                    model = RealmForOpenQA.from_pretrained(name)
+                    # todo: provide example input for google/realm-orqa-nq-openqa
+                elif auto_model == 'AutoModelForTextToSpectrogram':
+                    from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+                    from datasets import load_dataset
+                    import torch
+
+                    processor = SpeechT5Processor.from_pretrained(name)
+                    model = SpeechT5ForTextToSpeech.from_pretrained(name)
+                    vocoder = SpeechT5HifiGan.from_pretrained(name)
+
+                    inputs = processor(text="Hello, my dog is cute.", return_tensors="pt")
+                    # load xvector containing speaker's voice characteristics from a dataset
+                    embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+                    speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+                    example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings, 'vocoder': vocoder}
+
+                    class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                        def __init__(self, model):
+                            super().__init__()
+                            self.model = model
+                        def forward(self, **x):
+                            return self.model.generate_speech(**x)
+                    model = DecoratorModelForSeq2SeqLM(model)
                 else:
                     from transformers import AutoTokenizer, AutoProcessor
                     text = "Replace me by any text you'd like."
