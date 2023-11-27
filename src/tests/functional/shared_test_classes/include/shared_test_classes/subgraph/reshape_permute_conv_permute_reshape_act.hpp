@@ -10,13 +10,13 @@
 #include <string>
 #include <memory>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
     typedef std::tuple<
-        InferenceEngine::Precision,         // Network Precision
+        ov::element::Type,                  // Network Type
         std::string,                        // Target Device
         std::array<size_t, 4>,              // Input shape
         std::array<size_t, 2>,              // Kernel shape
@@ -25,13 +25,13 @@ namespace SubgraphTestsDefinitions {
     > ConvReshapeActParams;
 
 class ConvReshapeAct : public testing::WithParamInterface<ConvReshapeActParams>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
+                        virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvReshapeActParams>& obj);
 
 protected:
     void SetUp() override;
-    void Run() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
