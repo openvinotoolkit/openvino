@@ -3,7 +3,6 @@
 //
 
 #include <vector>
-
 #include "single_op_tests/memory.h"
 
 namespace {
@@ -24,11 +23,7 @@ const std::vector<ov::element::Type> input_types = {
         ov::element::f32,
 };
 
-const std::vector<int64_t> iterationCount {
-        1,
-        3,
-        10
-};
+const std::vector<int64_t> iterationCount{1, 3, 10};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryLayerTest,
         ::testing::Combine(
@@ -39,5 +34,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryLayerTest,
                 ::testing::Values(ov::test::utils::DEVICE_CPU, "HETERO:CPU")),
         MemoryLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
