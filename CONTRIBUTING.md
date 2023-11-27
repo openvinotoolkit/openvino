@@ -83,7 +83,7 @@ product better:
 
 ## What to do once you decide what to contribute
 
-You can follow the contributing roadmap prepared to guide new contributors all the way from project building, through running tests, to creating a Pull Request.
+You can follow the [contributing roadmap](./CONTRIBUTING_ROADMAP.md) prepared to guide new contributors all the way from project building, through running tests, to creating a Pull Request.
 
 ## License
 
