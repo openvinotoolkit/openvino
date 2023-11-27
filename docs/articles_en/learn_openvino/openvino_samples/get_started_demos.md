@@ -113,11 +113,6 @@ Instructions below show how to build sample applications with CMake. If you are 
    .. tab-item:: Windows
       :sync: windows
 
-
-      .. note:: 
-
-         If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
-
       .. tab-set::
 
          .. tab-item:: Python
@@ -127,6 +122,10 @@ Instructions below show how to build sample applications with CMake. If you are 
    
          .. tab-item:: C and C++
             :sync: c-cpp
+
+            .. note::
+      
+               If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
    
             To build the C or C++ sample applications on Windows, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
       
@@ -146,11 +145,6 @@ Instructions below show how to build sample applications with CMake. If you are 
    .. tab-item:: macOS
       :sync: macos
 
-
-      .. note:: 
-      
-         For building samples from the open-source version of OpenVINO toolkit, see the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
-
       .. tab-set::
 
          .. tab-item:: Python
@@ -160,7 +154,11 @@ Instructions below show how to build sample applications with CMake. If you are 
    
          .. tab-item:: C and C++
             :sync: c-cpp
-   
+
+            .. note:: 
+            
+               For building samples from the open-source version of OpenVINO toolkit, see the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
+
             To build the C or C++ sample applications for macOS, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
             
             .. code-block:: sh
