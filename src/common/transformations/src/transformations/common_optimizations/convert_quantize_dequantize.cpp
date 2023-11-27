@@ -121,7 +121,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (levels != 256 && levels != 65536)
             return false;
 
-        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65536)
+        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535)
         float out_low_val;
         if (!op::util::get_single_value(output_low, out_low_val))
             return false;
@@ -143,7 +143,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
                 return false;
             break;
         case element::Type_t::u16:
-            if (out_low_val != 0 || out_high_val != 65536)
+            if (out_low_val != 0 || out_high_val != 65535)
                 return false;
             break;
         default:

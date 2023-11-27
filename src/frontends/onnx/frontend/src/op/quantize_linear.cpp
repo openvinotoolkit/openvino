@@ -67,6 +67,8 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_out
     std::shared_ptr<ngraph::Node> output_low;
     std::shared_ptr<ngraph::Node> output_high;
 
+    // These values could be used in a ConvertQuantizeDequantize transformation and
+    // should be aligned
     switch (destination_type) {
     case element::i8:
         output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -128);
@@ -82,7 +84,7 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_out
         break;
     case element::u16:
         output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 65536);
+        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 65535);
         break;
     default:
         OPENVINO_THROW("Unsupported element type for QuantizeLinear");
