@@ -51,8 +51,8 @@ async function main(modelPath, imagePath, deviceName) {
   const inputTensor = new ov.Tensor(ov.element.u8, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
-  const _ppp = new ov.PrePostProcessor(model);
-  _ppp.input().preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR);
+  const _ppp = new ov.preprocess.PrePostProcessor(model);
+  _ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
 
   _ppp.input().tensor()
     .setShape(shape)
@@ -60,7 +60,7 @@ async function main(modelPath, imagePath, deviceName) {
     .setLayout('NHWC');
 
   _ppp.input().model().setLayout('NCHW');
-  _ppp.output().tensor().setElementType(ov.element.f32)
+  _ppp.output().tensor().setElementType(ov.element.f32);
   _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------
