@@ -297,7 +297,7 @@ elif [ "$os" == "opensuse-leap15.3" ] ; then
     [ -n "$dry" ] && iopt="--dry-run"
     [ -n "$keepcache" ] && zypper clean --all
 
-    zypper ref && zypper in --auto-agree-with-licenses --no-recommends "$iopt" "${pkgs[@]}"
+    zypper ref && zypper --ignore-unknown in --auto-agree-with-licenses --no-recommends "$iopt" "${pkgs[@]}"
 
 else
     echo "Internal script error: invalid OS (${os}) after check (package installation)" >&2
