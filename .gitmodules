@@ -75,3 +75,9 @@
 [submodule "src/plugins/intel_cpu/thirdparty/mlas"]
 	path = src/plugins/intel_cpu/thirdparty/mlas
 	url = https://github.com/openvinotoolkit/mlas.git
+[submodule "src/bindings/js/node/thirdparty/node-addon-api"]
+	path = src/bindings/js/node/thirdparty/node-addon-api
+	url = git@github.com:nodejs/node-addon-api.git
+[submodule "src/bindings/js/node/thirdparty/node-api-headers"]
+	path = src/bindings/js/node/thirdparty/node-api-headers
+	url = git@github.com:nodejs/node-api-headers.git
