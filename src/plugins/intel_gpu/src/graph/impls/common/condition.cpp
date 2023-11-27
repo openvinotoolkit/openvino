@@ -76,7 +76,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                             if (instance.dependencies()[dep_idx].first->id() == input_external_node->first) {
                                 output_events.push_back(events[dep_idx]);
                                 output_mem_ptr = instance.input_memory_ptr(dep_idx);
-                                output_layout = output_mem_ptr->get_layout();
+                                output_layout = instance.dependencies()[dep_idx].first->get_output_layout();
                                 break;
                             }
                         }
