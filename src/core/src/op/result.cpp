@@ -41,10 +41,11 @@ bool Result::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     if (outputs.empty()) {
         outputs.emplace_back(inputs[0].get_element_type(), inputs[0].get_shape());
-    } else if (!outputs[0]) {
-        outputs[0] = Tensor(inputs[0].get_element_type(), inputs[0].get_shape());
     } else {
         OPENVINO_ASSERT(outputs.size() == 1);
+        if (!outputs[0]) {
+            outputs[0] = Tensor(inputs[0].get_element_type(), inputs[0].get_shape());
+        }
     }
 
     outputs[0].set_shape(inputs[0].get_shape());
