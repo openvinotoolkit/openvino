@@ -4,16 +4,15 @@
 
 #include "brgemm_blocking.hpp"
 
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "cpu_iter_handlers.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-
 
 namespace ov {
 namespace intel_cpu {
@@ -21,6 +20,8 @@ namespace pass {
 using LinearIR = snippets::lowered::LinearIR;
 using LoopPort = LinearIR::LoopManager::LoopPort;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
+using LoopInfo = LinearIR::LoopManager::LoopInfo;
+using namespace ov::snippets::lowered::pass;
 
 BrgemmBlocking::BrgemmBlocking() : Pass() {}
 
@@ -73,20 +74,13 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
         const auto& in_1_planar_dims = ov::snippets::utils::get_planar_vdims(in_1_desc->get_shape(), in_1_desc->get_layout());
         const auto& out_preordered_dims = ov::snippets::utils::get_preordered_vdims(out_desc->get_shape(), out_desc->get_layout());
 
-        auto in_0_subtensor = in_0_desc->get_subtensor();
-        auto in_1_subtensor = in_1_desc->get_subtensor();
-        auto out_subtensor = out_desc->get_subtensor();
-
         auto apply_m_blocking = [&]() {
             const auto& m = *(out_preordered_dims.rbegin() + 1);
             const auto block_size_m = brgemm->get_m_block_size();
             if (block_size_m >= m) {
-                *(in_0_subtensor.rbegin() + 1) = m;
-                *(out_subtensor.rbegin() + 1) = m;
+                brgemm->set_m_block_size(m);
             } else {
-                *(in_0_subtensor.rbegin() + 1) = block_size_m;
-                *(out_subtensor.rbegin() + 1) = block_size_m;
-
+                brgemm->set_m_block_size(block_size_m);
                 auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
                 std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true),
                                               LoopPort(brgemm_expr->get_input_port(1), false)};
@@ -97,7 +91,15 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                     loop_begin_it = std::prev(expr_it);
                 }
                 std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-                loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
+                const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
+                const auto tail_size = m % block_size_m;
+                if (tail_size != 0) {
+                    const auto& loop_info = loop_manager->get_loop_info(id);
+                    loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
+                    loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
+                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmMBlockSize>(tail_size);
+                }
             }
         };
 
@@ -105,12 +107,9 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
             const auto& n = *out_preordered_dims.rbegin();
             const auto block_size_n = brgemm->get_n_block_size();
             if (block_size_n >= n) {
-                *in_1_subtensor.rbegin() = n;
-                *out_subtensor.rbegin() = n;
+                brgemm->set_n_block_size(n);
             } else {
-                *in_1_subtensor.rbegin() = block_size_n;
-                *out_subtensor.rbegin() = block_size_n;
-
+                brgemm->set_n_block_size(block_size_n);
                 auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
                 std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
                                               LoopPort(brgemm_expr->get_input_port(1), true)};
@@ -121,7 +120,15 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                     loop_begin_it = std::prev(expr_it);
                 }
                 std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-                loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
+                const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
+                const auto tail_size = n % block_size_n;
+                if (tail_size != 0) {
+                    const auto& loop_info = loop_manager->get_loop_info(id);
+                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmNBlockSize>(tail_size);
+                    loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
+                    loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
+                }
             }
         };
 
@@ -130,12 +137,9 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
             OPENVINO_ASSERT(k == *(in_1_planar_dims.rbegin() + 1), "Brgemm input descriptors have different K dimension value.");
             const auto block_size_k = brgemm->get_k_block_size();
             if (block_size_k >= k) {
-                *in_0_subtensor.rbegin() = k;
-                *(in_1_subtensor.rbegin() + 1) = k;
+                brgemm->set_k_block_size(k);
             } else {
-                *in_0_subtensor.rbegin() = block_size_k;
-                *(in_1_subtensor.rbegin() + 1) = block_size_k;
-
+                brgemm->set_k_block_size(block_size_k);
                 auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
                 std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
                                               LoopPort(brgemm_expr->get_input_port(1), true, 1)};
@@ -146,54 +150,35 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                     loop_begin_it = std::prev(expr_it);
                 }
                 std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
-                auto loop_id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
-                const auto loop_info = loop_manager->get_loop_info(loop_id);
-
-                auto first_iter_handler = [](LinearIR& linear_ir, LinearIR::constExprIt loop_end_it) {
-                    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_it->get()->get_node());
-                    OPENVINO_ASSERT(loop_end, "First loop iteraton handler must be called on LoopEnd expression");
-                    const auto loop_id = loop_end->get_id();
-                    const auto& loop_manager = linear_ir.get_loop_manager();
-                    const auto& loop_info = loop_manager->get_loop_info(loop_id);
-                    const auto work_amount = loop_info->get_work_amount();
-                    const auto increment = loop_info->get_increment();
-                    if (work_amount <= increment)
-                        return false;
-
-                    auto new_loop_range = snippets::lowered::pass::InsertTailLoop::copy_loop(linear_ir, loop_id);
-                    const auto firt_iter_loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(std::prev(new_loop_range.end())->get()->get_node());
-                    auto first_iter_loop_info = loop_manager->get_loop_info(firt_iter_loop_end->get_id());
-                    firt_iter_loop_end->set_work_amount(increment);
-                    first_iter_loop_info->set_work_amount(increment);
-                    firt_iter_loop_end->set_finalization_offsets(std::vector<int64_t>(loop_end->get_finalization_offsets().size(), 0));
-
-                    const auto loop_begin_it = linear_ir.find(linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
-                    linear_ir.insert(loop_begin_it, new_loop_range.begin(), new_loop_range.end());
-
-                    const auto new_work_amount = work_amount - increment;
-                    loop_info->set_work_amount(new_work_amount);
-                    loop_end->set_work_amount(new_work_amount);
-
-                    // Update original body's Brgemms with new beta parameter
-                    for (auto expr_it = loop_begin_it; expr_it != loop_end_it; ++expr_it) {
-                        const auto& expr_node = expr_it->get()->get_node();
-                        if (const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr_node)) {
-                            brgemm->set_beta(1.f);
-                        }
+                const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
+                const auto loop_info = loop_manager->get_loop_info(id);
+                const auto tail_size = k % block_size_k;
+                if (tail_size != 0) {
+                    if (k <= 2 * block_size_k) {
+                        // First iter and tail loop
+                        loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<SetSingleIterationWithWorkAmount>(block_size_k);
+                        loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<ZeroFinalizationOffsets>();
+                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmKBlockSize>(tail_size);
+                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmBeta>(1.f);
+                    } else {
+                        // First iter, main body and tail loop
+                        loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<SetSingleIterationWithWorkAmount>(block_size_k);
+                        loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<ZeroFinalizationOffsets>();
+                        loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(block_size_k + tail_size);
+                        loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
+                        loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<SetBrgemmBeta>(1.f);
+                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmKBlockSize>(tail_size);
+                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmBeta>(1.f);
                     }
-                    return true;
-                };
-                loop_info->set_first_iter_handler(first_iter_handler);
+                }
             }
         };
 
         apply_k_blocking();
         apply_n_blocking();
         apply_m_blocking();
-
-        brgemm_expr->get_input_port_descriptor(0)->set_subtensor(in_0_subtensor);
-        brgemm_expr->get_input_port_descriptor(1)->set_subtensor(in_1_subtensor);
-        brgemm_expr->get_output_port_descriptor(0)->set_subtensor(out_subtensor);
         modified = true;
     }
 

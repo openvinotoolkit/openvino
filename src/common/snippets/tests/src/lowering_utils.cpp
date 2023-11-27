@@ -106,16 +106,15 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getSubgraph(const std
 std::shared_ptr<ov::snippets::op::Subgraph>
         LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
                                           const ov::PartialShape& master_shape,
-                                          const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes,
-                                          const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common,
-                                          const ov::snippets::lowered::pass::PassPipeline& lowered_post_common,
+                                          const std::vector<ov::snippets::pass::Manager::PositionedPass>& data_flow_passes,
+                                          const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPass>& control_flow_passes,
                                           const std::shared_ptr<ov::snippets::Generator>& generator,
                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_tile_rank(2);
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
-    subgraph->generate({}, {}, {}, backend_passes, lowered_pre_common, lowered_post_common, factory);
+    subgraph->generate({}, {}, {}, data_flow_passes, control_flow_passes, factory);
     return subgraph;
 }
 

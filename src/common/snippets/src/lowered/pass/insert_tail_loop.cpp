@@ -330,10 +330,10 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
             continue;
 
         const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
-        const auto& first_iter_handler = loop_info->get_first_iter_handler();
-        if (first_iter_handler) {
-            modified |= first_iter_handler(linear_ir, expr_it);
-        }
+        // const auto& first_iter_handler = loop_info->get_first_iter_handler();
+        // if (first_iter_handler) {
+        //     modified |= first_iter_handler(linear_ir, expr_it);
+        // }
 
         const auto work_amount = loop_end->get_work_amount();
         const auto increment = loop_end->get_increment();

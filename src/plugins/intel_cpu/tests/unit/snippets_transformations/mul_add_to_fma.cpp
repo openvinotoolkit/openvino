@@ -121,7 +121,7 @@ public:
 
 protected:
     void SetUp() override {
-        using PassPosition = ov::snippets::pass::Manager::PassPosition;
+        using PassPosition = ov::snippets::pass::PassPosition;
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
         size_t add_input_idx;
@@ -147,7 +147,6 @@ TEST_P(MulAddToFMATests, MulAddToFMATests) {
     auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(),
                                        master_shape,
                                        backend_passes,
-                                       {},
                                        {},
                                        generator,
                                        std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());

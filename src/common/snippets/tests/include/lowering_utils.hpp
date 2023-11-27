@@ -61,9 +61,8 @@ public:
     static std::shared_ptr<ov::snippets::op::Subgraph>
             getLoweredSubgraph(const std::shared_ptr<Model>& f,
                                const ov::PartialShape& master_shape,
-                               const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes = {},
-                               const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common = {},
-                               const ov::snippets::lowered::pass::PassPipeline& lowered_post_common = {},
+                               const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_data_flow_passes = {},
+                               const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPass>& backend_control_flow_passes = {},
                                const std::shared_ptr<ov::snippets::Generator>& generator = nullptr,
                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = std::make_shared<IShapeInferSnippetsFactory>());
     static std::shared_ptr<ov::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);

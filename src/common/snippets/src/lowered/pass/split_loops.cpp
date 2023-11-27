@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/split_loops.hpp"
 
 #include "snippets/lowered/pass/fuse_loops.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -81,7 +82,23 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                                                                    loop_to_split->get_dim_idx(),
                                                                    loop_to_split->get_entry_points(),
                                                                    loop_to_split->get_exit_points());
-                loop_manager->get_loop_info(split_loop_id)->set_outer_splited_loop(true);
+                const auto& new_loop_info = loop_manager->get_loop_info(split_loop_id);
+                new_loop_info->set_outer_splited_loop(true);
+                new_loop_info->handlers = loop_to_split->handlers;
+                const auto work_amount = loop_to_fuse->get_work_amount();
+                const auto increment = loop_to_fuse->get_increment();
+                const auto tail_size = work_amount % increment;
+                // TODO: current logic doesn't handle the case when loop has first iteration handlers too.
+                // Need to skip this transformation for sich cases or improve the logic
+                if (tail_size != 0) {
+                    // TODO: should we remove previous tail loop handler?
+                    new_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                    new_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<TransformInnerSplitLoop>(tail_size);
+                    if (work_amount > increment) {
+                        new_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
+                        new_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
+                    }
+                }
                 break;
             }
         }

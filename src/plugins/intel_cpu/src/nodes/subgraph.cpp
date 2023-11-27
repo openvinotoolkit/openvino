@@ -19,6 +19,7 @@
 
 #include <snippets/op/subgraph.hpp>
 #include <snippets/lowered/pass/optimize_domain.hpp>
+#include <snippets/lowered/pass/pass_pipeline.hpp>
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
@@ -330,8 +331,8 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     using Manager = snippets::pass::Manager;
     std::vector<Manager::PositionedPass> backend_passes;
 #if defined(OPENVINO_ARCH_X86_64)
-    using PassPosition = snippets::pass::Manager::PassPosition;
-    using Place = snippets::pass::Manager::PassPosition::Place;
+    using PassPosition = snippets::pass::PassPosition;
+    using Place = snippets::pass::PassPosition::Place;
 #   define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
             backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
 #else
@@ -579,15 +580,22 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
 }
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
-    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
-    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking)
+    using ov::snippets::lowered::pass::PassPipeline;
+    std::vector<PassPipeline::PositionedPass> backend_passes;
+#if defined(OPENVINO_ARCH_X86_64)
+    using PassPosition = snippets::pass::PassPosition;
+    using Place = snippets::pass::PassPosition::Place;
+#    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
+        backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...)
+#endif  // OPENVINO_ARCH_X86_64
 
-    ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
-    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert)
-    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
-    schedule = snippetAttrs.snippet->generate_from_linear_ir(control_flow_markup_pipeline,
-                                                             control_flow_pipeline,
-                                                             reinterpret_cast<const void*>(jcp));
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "MarkLoops"), ov::intel_cpu::pass::BrgemmBlocking);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"), ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"), ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+#undef SNIPPETS_REGISTER_PASS
+    schedule = snippetAttrs.snippet->generate_from_linear_ir(backend_passes, reinterpret_cast<const void*>(jcp));
 }
 
 bool Snippet::SnippetJitExecutor::schedule_created() {
