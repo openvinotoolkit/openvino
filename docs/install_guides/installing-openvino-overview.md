@@ -19,11 +19,14 @@
    Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
 
 
-.. raw:: html
+.. card:: Installing this version is not recommended
+    :link: https://docs.openvino.ai/install
 
-   <script type="module" crossorigin src="_static/selector-tool/assets/index-f34d1fad.js"></script>
-   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="_static/selector-tool/selector-bdf586b.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+    This is not the most recent release of OpenVINO. Since it is not a Long-term-support
+    version either, the selector tool for it is no longer available. 
+    
+    Click here to visit the current Selector Tool version and install the current
+    stable version of OpenVINO...
 
 
 Different OpenVINO distributions may differ with regard to supported hardware or available APIs.
