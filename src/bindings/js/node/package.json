@@ -6,38 +6,21 @@
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "scripts": {
-    "install": "node-gyp configure",
-    "build": "node-gyp build && npm run tsc",
-    "postinstall": "npm run install_runtime && npm run build",
+    "build": "npm run tsc",
+    "prepare": "npm run build",
     "lint": "eslint .",
-    "test": "node --test",
-    "tsc": "tsc",
-    "download_runtime": "node ./scripts/download_runtime.js",
-    "install_runtime": "npm run download_runtime -- --ignore-if-exists"
-  },
-  "dependencies": {
-    "decompress": "^4.2.1",
-    "https-proxy-agent": "^7.0.2",
-    "node-addon-api": "^3.0.0",
-    "node-gyp": "^9.3.0",
-    "typescript": "^5.0.4"
+    "test": "node --test ./tests/",
+    "tsc": "tsc"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",
     "eslint": "^8.49.0",
-    "random-bigint": "^0.0.1"
+    "random-bigint": "^0.0.1",
+    "typescript": "^5.0.4"
   },
   "engines": {
     "node": ">=18.16.0"
-  },
-  "gypfile": true,
-  "binary": {
-    "version": "2023.1.0.12185.47b736f63ed",
-    "module_path": "./ov_runtime/",
-    "package_name": "{letter}_openvino_toolkit_{os}_{version}_{arch}.{extension}",
-    "host": "https://storage.openvinotoolkit.org/",
-    "remote_path": "repositories/openvino/packages/2023.1/"
   }
 }

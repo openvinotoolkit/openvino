@@ -8,9 +8,15 @@
 - [src](./src/) - C++ sources for current API.
 - [tests](./tests/) - tests directory for current API.
 
-## Installation
+## Build
 
-- Run `npm install` from current directory
+- Make sure that all submodules are updated `git submodule update --init --recursive`
+- Create build directory `mkdir build && cd build`
+- Specify path to OpenVINO runtime libs `export OV_RUNTIME_DIR=*full_path_to_runtime_dir*`
+- Run `cmake ..` and `make`
+- Then return to parent dir `cd ..`
+- Now you can install dependencies packages `npm install`
+- Run tests to make sure that **openvinojs-node** built successfully
 
 ## Usage
 

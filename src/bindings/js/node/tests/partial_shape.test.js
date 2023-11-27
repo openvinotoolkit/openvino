@@ -2,7 +2,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const ov = require('../build/Release/ov_node_addon.node');
+const ov = require('../bin/ov_node_addon.node');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 
