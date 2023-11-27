@@ -2,21 +2,7 @@ name: Fedora (RHEL), Python 3.9
 on:
   workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
       - 'releases/**'
@@ -27,7 +13,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
   Build:
+    needs: Smart_CI
     timeout-minutes: 150
     defaults:
       run:
@@ -49,6 +59,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: fedora33_x86_64_Release
+    if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Install git
         run: yum update -y && yum install -y git
