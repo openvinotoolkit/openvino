@@ -144,8 +144,8 @@ void parse_processor_info_win(const char* base_ptr,
                 if ((_processors > group_start) && (_processors <= group_end)) {
                     proc_info[CPU_MAP_CORE_TYPE] = group_type;
                     proc_info[CPU_MAP_GROUP_ID] = group_id;
-                    if (group_id == CPU_blocked_cores) {
-                        proc_info[CPU_MAP_USED_FLAG] = CPU_blocked_cores;
+                    if (group_id == CPU_BLOCKED) {
+                        proc_info[CPU_MAP_USED_FLAG] = CPU_BLOCKED;
                         _blocked_cores++;
                     } else {
                         _proc_type_table[0][group_type]++;
