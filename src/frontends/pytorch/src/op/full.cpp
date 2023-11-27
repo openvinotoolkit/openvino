@@ -205,6 +205,35 @@ OutputVector translate_empty(const NodeContext& context) {
     return {empty};
 };
 
+OutputVector translate_empty_like(const NodeContext& context) {
+    // aten::empty_like(Tensor self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
+    // pin_memory=None, MemoryFormat? memory_format=None) -> Tensor
+    // aten::empty_like.out(Tensor self, *, MemoryFormat? memory_format=None, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 1, 6);
+    auto input = context.get_input(0);
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+    // In OV uninitialized data is not supported, so we create a tensor filled with zeros with a given shape and type.
+    auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    int dtype_id = 1;
+    Output<Node> empty;
+    if (context.get_input_size() == 6) {
+        if (!context.input_is_none(dtype_id)) {
+            empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
+        } else {
+            empty = base_translate_full(context, sizes, value);
+        }
+    } else if (context.get_input_size() == 4) {
+        auto out = context.input_is_none(3) ? input : context.get_input(3);
+        empty = base_translate_full_with_convertlike(context, sizes, value, out);
+        if (!context.input_is_none(3)) {
+            context.mutate_input(3, empty);
+        }
+    } else {
+        FRONT_END_GENERAL_CHECK(false, "Unexpected number of inputs.");
+    }
+    return {empty};
+};
+
 OutputVector translate_fill_diagonal(const NodeContext& context) {
     // aten::fill_diagonal_(Tensor(a!) self, Scalar fill_value, bool wrap=False) -> Tensor(a!)
     // realization inspired by numpy:
