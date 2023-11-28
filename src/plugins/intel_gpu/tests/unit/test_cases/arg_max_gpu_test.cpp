@@ -859,7 +859,7 @@ void test_top_k_layer_md_sync(bool is_caching_test) {
                              1,
                              ov::op::TopKSortType::SORT_INDICES,
                              true));
-    topology.add(mutable_data("arg_max.out1", { input_info("arg_max.0") }, shared_memory));
+    topology.add(mutable_data("arg_max.1", { input_info("arg_max.0") }, shared_memory));
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -867,7 +867,7 @@ void test_top_k_layer_md_sync(bool is_caching_test) {
     auto outputs = network->execute();
 
     ASSERT_EQ(outputs.size(), size_t(2));
-    auto output = outputs.at("arg_max.out1").get_memory();
+    auto output = outputs.at("arg_max.1").get_memory();
     mem_lock<T> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr[0], output_ref);

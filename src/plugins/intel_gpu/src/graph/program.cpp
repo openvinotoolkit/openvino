@@ -1685,7 +1685,7 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
-    std::list<std::pair<primitive_id, primitive_id>> shared_mem_nodes;
+    std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
     for (auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
@@ -1703,27 +1703,21 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
         ob << node.second->desc;
 
-        // TopK
         if (node.second->is_type<mutable_data>()) {
-            std::string md_write = "_md_write";
-            if (node.first.length() > md_write.length() &&
-                node.first.compare(node.first.length() - md_write.length(), md_write.length(), md_write) == 0) {
-                primitive_id argmax_mutable_id_r = node.first.substr(0, node.first.length() - md_write.length()) + ".out1";
-
-                if (has_node(argmax_mutable_id_r) && get_node_ptr(argmax_mutable_id_r)->is_type<mutable_data>()) {
-                    auto& w_mem = node.second->as<mutable_data>().get_primitive()->mem;
-                    auto& r_mem = get_node_ptr(argmax_mutable_id_r)->as<mutable_data>().get_primitive()->mem;
-
-                    if (get_engine().is_the_same_buffer(*w_mem, *r_mem)) {
-                        shared_mem_nodes.push_back({node.first, argmax_mutable_id_r});
-                    }
-                }
-            }
+            mutable_datas_ptrs[node.second->as<mutable_data>().get_attached_memory_ptr()].push_back(node.second.get());
         }
     }
 
-    ob << shared_mem_nodes.size();
-    for (auto& shared_mem_pair : shared_mem_nodes) {
+    std::list<std::pair<primitive_id, primitive_id>> output_sharing_mutable_datas;
+    for (auto item : mutable_datas_ptrs) {
+        if (item.second.size() != 2)
+            continue;
+
+        output_sharing_mutable_datas.push_back({item.second[0]->id(), item.second[1]->id()});
+    }
+
+    ob << output_sharing_mutable_datas.size();
+    for (auto& shared_mem_pair : output_sharing_mutable_datas) {
         ob << shared_mem_pair.first;
         ob << shared_mem_pair.second;
     }
@@ -1816,18 +1810,18 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         get_or_create(prim);
     }
 
-    size_t num_shared_mem_nodes;
-    ib >> num_shared_mem_nodes;
-    for (size_t i = 0; i < num_shared_mem_nodes; ++i) {
-        primitive_id w_id, r_id;
-        ib >> w_id;
-        ib >> r_id;
+    size_t num_output_sharing_mutable_datas;
+    ib >> num_output_sharing_mutable_datas;
+    for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {
+        primitive_id md_id1, md_id2;
+        ib >> md_id1;
+        ib >> md_id2;
 
-        auto& w_node = get_node(w_id).as<mutable_data>();
-        auto& r_node = get_node(r_id).as<mutable_data>();
+        auto& md_node1 = get_node(md_id1).as<mutable_data>();
+        auto& md_node2 = get_node(md_id2).as<mutable_data>();
 
-        r_node.typed_desc()->mem = w_node.typed_desc()->mem;
-        r_node.replace_memory(r_node.typed_desc()->mem);
+        md_node2.typed_desc()->mem = md_node1.typed_desc()->mem;
+        md_node2.replace_memory(md_node2.typed_desc()->mem);
     }
 
     for (size_t i = 0; i < num_nodes; ++i) {
