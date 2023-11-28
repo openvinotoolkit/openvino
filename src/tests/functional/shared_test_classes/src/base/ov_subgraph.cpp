@@ -73,6 +73,12 @@ void SubgraphBaseTest::run() {
         std::string errorMessage;
         try {
             compile_model();
+
+            // ov::element::Type prec = compiledModel.get_property(ov::hint::inference_precision);
+            // auto typeFunc = function->get_type_info();
+            // auto typeFunc1 = function->get_output_element_type(0);
+            // // convert_precisions.insert({ ov::element::f16, prec });
+
             for (const auto& targetStaticShapeVec : targetStaticShapes) {
                 generate_inputs(targetStaticShapeVec);
                 validate();
@@ -274,6 +280,17 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
 void SubgraphBaseTest::configure_model() {
     // configure input precision
     ov::preprocess::PrePostProcessor p(function);
+
+    // ov::element::Type prec = core->get_property(targetDevice, ov::hint::inference_precision);
+    // const auto& inputNodes = function->inputs();
+    // for (size_t i = 0; i < inputNodes.size(); ++i) {
+    //     ov::element::Type f_prec = function->input(i).get_element_type();
+    //     if (convert_precisions.find(f_prec) == convert_precisions.end()) {
+    //         convert_precisions.insert({f_prec, prec});
+    //     }
+    // }
+
+    // p.input().preprocess().convert_element_type();
     {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
@@ -348,6 +365,18 @@ void SubgraphBaseTest::update_ref_model() {
     }
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
+    convert_precisions.insert({ov::element::i64,     ov::element::i32});
+    convert_precisions.insert({ov::element::u64,     ov::element::i32});
+    convert_precisions.insert({ov::element::i16,     ov::element::i32});
+    convert_precisions.insert({ov::element::u16,     ov::element::i32});
+    convert_precisions.insert({ov::element::u32,     ov::element::i32});
+    convert_precisions.insert({ov::element::f64,     ov::element::f32});
+    convert_precisions.insert({ov::element::boolean, ov::element::u8});
+    convert_precisions.insert({ov::element::i4,      ov::element::i8});
+    convert_precisions.insert({ov::element::u4,      ov::element::u8});
+    convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
+    convert_precisions.insert({ ov::element::f16, ov::element::f32 });
+
     if (!convert_precisions.empty()) {
         pass::Manager manager;
         manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions, type_to_fuse_map{}, false, false);
@@ -356,6 +385,9 @@ void SubgraphBaseTest::update_ref_model() {
     }
 
     ov::preprocess::PrePostProcessor p(functionRefs);
+
+    // ov::element::Type prec = core->get_property(targetDevice, ov::hint::inference_precision);
+
     const auto& inputNodes = functionRefs->inputs();
     for (size_t i = 0; i < inputNodes.size(); ++i) {
         auto itr = std::find_if(inputs.begin(), inputs.end(),
@@ -366,6 +398,7 @@ void SubgraphBaseTest::update_ref_model() {
             auto elementType = itr->second.get_element_type();
             if (inputNodes[i].get_element_type() != elementType) {
                 p.input(i).tensor().set_element_type(elementType);
+                // p.input(i).preprocess().convert_element_type(prec);
             }
         } else {
             std::stringstream errMsg;

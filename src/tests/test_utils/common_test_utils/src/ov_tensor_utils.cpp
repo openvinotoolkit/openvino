@@ -370,6 +370,19 @@ void compare(const ov::Tensor& expected,
     abs_error.mean /= shape_size_cnt;
     rel_error.mean /= shape_size_cnt;
 
+    if (!std::isnan(abs_error.max)) {
+        std::cout << "[ COMPARATION ] abs_error max: " << abs_error.max << std::endl;
+    }
+    if (!std::isnan(abs_error.mean)) {
+        std::cout << "[ COMPARATION ] abs_error mean: " << abs_error.mean << std::endl;
+    }
+    if (!std::isnan(rel_error.max)) {
+        std::cout << "[ COMPARATION ] rel_error max: " << rel_error.max << std::endl;
+    }
+    if (!std::isnan(rel_error.mean)) {
+        std::cout << "[ COMPARATION ] rel_error mean: " << rel_error.mean << std::endl;
+    }
+
     if (!(less_or_equal(abs_error.max, abs_threshold) && less_or_equal(rel_error.max, rel_threshold))) {
         std::ostringstream out_stream;
         out_stream << "abs_max < abs_threshold && rel_max < rel_threshold"
