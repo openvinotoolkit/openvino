@@ -849,8 +849,10 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     }
 
     if (minSize > internalBlobs.size()) {
-        IE_THROW() << "Can't prepare memory for internal blob, requested index: " << indx <<
-            " is out of bounds of the internalBlobs vector of size " << internalBlobs.size();
+        OPENVINO_THROW("Can't prepare memory for internal blob, requested index: ",
+                       indx,
+                       " is out of bounds of the internalBlobs vector of size ",
+                       internalBlobs.size());
     }
 
     const auto &internalBlob = internalBlobs[indx];
@@ -1754,6 +1756,11 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
 }
 
 int Node::inPlaceInputPort(int portIdx) const {
+    if (inputShapes.empty()) {
+        //special case - a dead end node
+        return -1;
+    }
+
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
@@ -1769,7 +1776,13 @@ int Node::inPlaceInputPort(int portIdx) const {
 
     return conf.inConfs[portIdx].inPlace();
 }
+
 int Node::inPlaceOutPort(int portIdx) const {
+    if (outputShapes.empty()) {
+        //special case - a dead end node
+        return -1;
+    }
+
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());

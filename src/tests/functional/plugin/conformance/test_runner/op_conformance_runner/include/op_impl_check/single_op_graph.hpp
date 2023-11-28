@@ -15,7 +15,7 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
     auto opsets = ov::get_available_opsets();
     auto opGenerator = getOpGeneratorMap();
-    std::set<ngraph::NodeTypeInfo> opsInfo;
+    std::set<ov::NodeTypeInfo> opsInfo;
     for (const auto& opset_pair : opsets) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
