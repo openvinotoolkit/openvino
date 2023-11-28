@@ -206,11 +206,17 @@ struct ValueToString : ov::element::NotSupported<std::string> {
     static result_type visit(const Constant* const c, const size_t index) {
         return std::to_string(c->get_element_value<ET>(index));
     }
+
+    template <ov::element::Type_t ET,
+              typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
+    static result_type visit(const Constant* const c, const size_t index) {
+        return c->get_element_value<ET>(index);
+    }
 };
 
 std::string Constant::convert_value_to_string(size_t index) const {
     using namespace ov::element;
-    return IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4>::apply<
+    return IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
         ValueToString>(get_element_type(), this, index);
 }
 
@@ -256,12 +262,18 @@ struct ValuesToString : ov::element::NotSupported<void> {
             strs.push_back(std::to_string(v));
         }
     }
+
+    template <ov::element::Type_t ET,
+              typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
+    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
+        strs = c->cast_vector<std::string>();
+    }
 };
 
 std::vector<std::string> Constant::get_value_strings() const {
     std::vector<std::string> out;
     using namespace ov::element;
-    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4>::apply<
+    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
         ValuesToString>(get_element_type(), this, out);
     return out;
 }

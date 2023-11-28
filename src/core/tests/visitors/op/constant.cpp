@@ -84,3 +84,63 @@ TEST(attributes, constant_op_from_host_tensor_identical_elements) {
     EXPECT_EQ(data, g_data);
     ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());
 }
+
+TEST(attributes, constant_op_string) {
+    vector<std::string> data{"abc", "de fc qq", "", "123 abc", "0112 3     ", "&&&"};
+    auto k = make_shared<op::v0::Constant>(element::string, Shape{2, 3}, data);
+    NodeBuilder builder(k);
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
+    g_k->validate_and_infer_types();
+    ASSERT_TRUE(g_k);
+    EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
+    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    vector<std::string> g_data = g_k->get_vector<std::string>();
+    EXPECT_EQ(data, g_data);
+    ASSERT_FALSE(g_k->get_all_data_elements_bitwise_identical());
+}
+
+TEST(attributes, constant_op_identical_elements_string) {
+    vector<std::string> data{"abc edfg", "abc edfg", "abc edfg", "abc edfg", "abc edfg", "abc edfg"};
+    auto k = make_shared<op::v0::Constant>(element::string, Shape{2, 3}, data);
+    NodeBuilder builder(k);
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
+    g_k->validate_and_infer_types();
+    ASSERT_TRUE(g_k);
+    EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
+    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    vector<std::string> g_data = g_k->get_vector<std::string>();
+    EXPECT_EQ(data, g_data);
+    ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());
+}
+
+TEST(attributes, constant_op_from_host_tensor_different_elements_string) {
+    vector<std::string> data{"abc", "de fc qq", "", "123 abc", "0112 3     ", "&&&"};
+    auto tensor = ov::Tensor(element::string, Shape{2, 3}, &data[0]);
+    auto k = make_shared<op::v0::Constant>(tensor);
+    ASSERT_FALSE(k->get_all_data_elements_bitwise_identical());
+    NodeBuilder builder(k);
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
+    g_k->validate_and_infer_types();
+    ASSERT_TRUE(g_k);
+    EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
+    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    vector<std::string> g_data = g_k->get_vector<std::string>();
+    EXPECT_EQ(data, g_data);
+    ASSERT_FALSE(g_k->get_all_data_elements_bitwise_identical());
+}
+
+TEST(attributes, constant_op_from_host_tensor_identical_elements_string) {
+    vector<std::string> data{"abc edfg", "abc edfg", "abc edfg", "abc edfg", "abc edfg", "abc edfg"};
+    auto tensor = ov::Tensor(element::string, Shape{2, 3}, &data[0]);
+    auto k = make_shared<op::v0::Constant>(tensor);
+    ASSERT_TRUE(k->get_all_data_elements_bitwise_identical());
+    NodeBuilder builder(k);
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
+    g_k->validate_and_infer_types();
+    ASSERT_TRUE(g_k);
+    EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
+    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    vector<std::string> g_data = g_k->get_vector<std::string>();
+    EXPECT_EQ(data, g_data);
+    ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());
+}

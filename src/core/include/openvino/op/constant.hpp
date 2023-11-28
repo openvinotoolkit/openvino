@@ -525,6 +525,13 @@ private:
         std::copy(p, p + output_size, std::back_inserter(output_vector));
     }
 
+    template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
+    void cast_vector(std::vector<std::string>& output_vector, size_t num_elements) const {
+        OPENVINO_ASSERT(false,
+                        "cast_vector does not support casting ov::Tensor of type " +
+                            ov::element::Type(Type).to_string() + "to std::vector of std::string elements");
+    }
+
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
