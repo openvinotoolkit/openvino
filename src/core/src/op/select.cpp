@@ -90,16 +90,15 @@ bool Select::visit_attributes(AttributeVisitor& visitor) {
 
 bool Select::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Select_evaluate);
-    OPENVINO_ASSERT(inputs.size() == 3);
     OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto& cond_input = inputs[0];
-    const auto& then_input = inputs[1];
-    const auto& else_input = inputs[2];
 
     const auto output_shape = shape_infer(this, ov::util::get_tensors_partial_shapes(inputs)).front().to_shape();
     auto& output = outputs[0];
     output.set_shape(output_shape);
+
+    const auto& cond_input = inputs[0];
+    const auto& then_input = inputs[1];
+    const auto& else_input = inputs[2];
 
     using namespace ov::element;
     return IfTypeOf<boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64>::apply<select::Evaluate>(
