@@ -444,22 +444,49 @@ int get_model_prefer_threads(const int num_streams,
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
-        config.modelPreferThreads = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
+
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+        config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                config.modelPreferThreads = 1;
+                config.modelPreferThreads = 4;
             }  // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
             config.modelPreferThreads = 1;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
+            config.modelPreferThreads = 1;
+        } else if (networkToleranceForLowCache.ratio_mem_limited_deconvs > ov::MemBandwidthPressure::LIMITED &&
+                   networkToleranceForLowCache.ratio_compute_convs < ov::MemBandwidthPressure::ALL) {
+            config.modelPreferThreads = 4;
+        } else if (networkToleranceForLowCache.ratio_mem_limited_deconvs <= ov::MemBandwidthPressure::LIMITED &&
+                   networkToleranceForLowCache.ratio_mem_limited_convs <= ov::MemBandwidthPressure::LIMITED &&
+                   networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) {
             config.modelPreferThreads = 2;
         }
-        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
-            config.modelPreferThreads = 2;
+#endif
+
+        if (-1 == config.modelPreferThreads) {
+            config.modelPreferThreads = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
+            if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+                if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
+                    (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                    // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
+                    config.modelPreferThreads = 1;
+                }  // otherwise (no recognized layers) falling back to the default value
+            } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+                // network is below the ISA-specific threshold
+                config.modelPreferThreads = 1;
+            } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+                // network is below general threshold
+                config.modelPreferThreads = 2;
+            }
+            if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
+                config.modelPreferThreads = 2;
+            }
         }
     }
 
