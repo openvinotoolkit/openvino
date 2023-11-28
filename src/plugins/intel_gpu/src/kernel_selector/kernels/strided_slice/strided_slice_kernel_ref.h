@@ -66,6 +66,7 @@ public:
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION };

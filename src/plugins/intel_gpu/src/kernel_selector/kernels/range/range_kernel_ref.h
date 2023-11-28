@@ -25,6 +25,7 @@ class RangeKernelRef: public KernelBaseOpenCL {
     KernelsPriority GetKernelsPriority(const Params &params, const optional_params &options) const override;
     ParamsKey GetSupportedKey() const override;
     bool Validate(const Params &p, const optional_params &o) const override;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 public:
     RangeKernelRef() :
         KernelBaseOpenCL { "range_ref" } {

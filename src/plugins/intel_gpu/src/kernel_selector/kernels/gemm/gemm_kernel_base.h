@@ -54,5 +54,6 @@ protected:
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
     bool Validate(const Params& p, const optional_params&) const override;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

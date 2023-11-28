@@ -19,5 +19,6 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const permute_params& params) const = 0;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

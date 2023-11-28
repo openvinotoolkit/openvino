@@ -37,5 +37,6 @@ protected:
     JitConstants GetJitConstants(const broadcast_params& params) const;
     static DispatchData SetDefault(const broadcast_params& params);
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

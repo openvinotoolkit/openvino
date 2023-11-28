@@ -23,6 +23,15 @@ struct select_impl : typed_primitive_impl_ocl<select> {
         return make_unique<select_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::select_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::select_optional_params>(impl_param.get_program());

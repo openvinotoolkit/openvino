@@ -120,5 +120,6 @@ protected:
     Datatype GetAccumulatorType(const eltwise_params &params) const;
 
     bool IsUnsupportedModeForVecCode(const eltwise_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

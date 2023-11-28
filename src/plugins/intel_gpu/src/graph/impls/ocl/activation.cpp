@@ -31,6 +31,15 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return make_unique<activation_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     kernel_arguments_data get_arguments(const typed_primitive_inst<activation>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 

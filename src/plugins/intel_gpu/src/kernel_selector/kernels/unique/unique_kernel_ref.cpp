@@ -124,6 +124,20 @@ JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
 
 }  // namespace
 
+void UniqueCountKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+        const auto& prim_params = dynamic_cast<const unique_count_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        // Need to adjust buffer size according to input size
+        kd.internalBufferSizes.front() = prim_params.inputs.front().PhysicalSizeInBytes();
+        kd.internalBufferDataType = prim_params.inputs.front().GetDType();
+    };
+}
+
 KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -137,17 +151,7 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const opt
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
-    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
-        const auto& prim_params = dynamic_cast<const unique_count_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-        // Need to adjust buffer size according to input size
-        kd.internalBufferSizes.front() = prim_params.inputs.front().PhysicalSizeInBytes();
-        kd.internalBufferDataType = prim_params.inputs.front().GetDType();
-    };
+    SetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel,
                      dispatch_data,
@@ -234,6 +238,17 @@ CommonDispatchData UniqueCountKernelRef::SetDefault(const unique_count_params& /
     return dispatch_data;
 }
 
+void UniqueGatherKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+        const auto& prim_params = dynamic_cast<const unique_gather_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -247,14 +262,7 @@ KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const op
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
-    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
-        const auto& prim_params = dynamic_cast<const unique_gather_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    SetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel,
                      dispatch_data,

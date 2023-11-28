@@ -222,6 +222,17 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
     return {kd};
 }
 
+void ReorderKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const reorder_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -237,14 +248,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const reorder_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    SetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
 

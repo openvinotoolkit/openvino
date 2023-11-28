@@ -23,6 +23,15 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<broadcast>();
         auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);

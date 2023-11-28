@@ -55,5 +55,6 @@ protected:
     DispatchData SetDefault(const border_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     bool SkipKernelExecution(const border_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

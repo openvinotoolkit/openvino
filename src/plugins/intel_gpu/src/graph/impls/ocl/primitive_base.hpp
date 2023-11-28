@@ -67,6 +67,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
+        ob << _kernel_data.kernelName;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -74,6 +75,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;
+        ib >> _kernel_data.kernelName;
     }
 
     template<typename ImplType>

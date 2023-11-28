@@ -3,7 +3,7 @@
 //
 
 #include "primitive_base.hpp"
-
+#include "kernel_base.h"
 #include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
@@ -46,6 +46,15 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:

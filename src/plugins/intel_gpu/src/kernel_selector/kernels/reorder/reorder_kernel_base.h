@@ -116,5 +116,6 @@ protected:
     KernelsData GetCommonKernelsData(const reorder_weights_params& params,
                                      const optional_params&) const;
     KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

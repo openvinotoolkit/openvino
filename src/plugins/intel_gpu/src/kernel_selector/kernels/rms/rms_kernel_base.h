@@ -46,5 +46,6 @@ protected:
     virtual DispatchData SetDefault(const rms_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     Datatype GetAccumulatorType(const rms_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

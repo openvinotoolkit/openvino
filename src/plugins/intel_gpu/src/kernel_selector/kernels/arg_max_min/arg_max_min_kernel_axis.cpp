@@ -113,15 +113,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
     return dispatchData;
 }
 
-KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
-    bool is_dynamic = orgParams.has_dynamic_tensors();
-
-    auto dispatchData = SetDefault(orgParams);
-    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+void ArgMaxMinKernelAxis::SetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const arg_max_min_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -143,6 +135,18 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         kd.internalBufferSizes.push_back(ops_size * elem_size);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
+}
+
+KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
+    bool is_dynamic = orgParams.has_dynamic_tensors();
+
+    auto dispatchData = SetDefault(orgParams);
+    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+    SetUpdateDispatchDataFunc(kd);
 
     auto cldnn_jit = GetJitConstants(orgParams);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);

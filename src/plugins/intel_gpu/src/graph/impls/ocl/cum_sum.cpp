@@ -56,6 +56,15 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
         return make_unique<cum_sum_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<cum_sum>();

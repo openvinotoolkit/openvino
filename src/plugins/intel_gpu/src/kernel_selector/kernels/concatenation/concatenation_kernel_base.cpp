@@ -100,14 +100,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
     return dispatchData;
 }
 
-KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
-    KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
-
+void ConcatenationKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const concatenation_params&>(params);
         uint32_t lastOffset = 0;
@@ -139,6 +132,16 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
             lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
         }
     };
+}
+
+KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+
+    const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
+    KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
+    SetUpdateDispatchDataFunc(kd);
 
     bool is_dynamic = orgParams.has_dynamic_tensors();
     uint32_t lastOffset = 0;

@@ -69,6 +69,7 @@ protected:
     Datatype GetPackedOutputType(const convolution_params& params) const;
     Datatype GetActivationType(const convolution_params& params) const;
     Datatype GetAccumulatorType(const convolution_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 bool ConvolutionCheckInput(const Params& p, const optional_params& o);

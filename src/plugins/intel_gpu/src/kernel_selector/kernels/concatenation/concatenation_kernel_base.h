@@ -68,5 +68,6 @@ protected:
     virtual size_t GetAlignment(const concatenation_params& /*params*/) const {
         return 1;
     }
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

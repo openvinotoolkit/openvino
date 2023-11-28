@@ -69,5 +69,6 @@ protected:
     // --Fused ops
 
     bool Validate(const Params& p, const optional_params&) const override;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -3,7 +3,7 @@
 //
 
 #include "primitive_base.hpp"
-
+#include "kernel_base.h"
 #include "convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
@@ -23,6 +23,15 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:

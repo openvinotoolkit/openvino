@@ -1758,7 +1758,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
             ob << get_node_ptr(impl_id)->get_selected_impl()->is_dynamic();
-            if (get_node_ptr(impl_id)->get_selected_impl()->is_dynamic() == false) {
+            if (get_node_ptr(impl_id)->get_selected_impl()->is_dynamic()) {
+                ob << get_node_ptr(impl_id)->selected_impl;
+            } else {
                 if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
                     ob << true;
                     auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
@@ -1875,9 +1877,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             ib >> is_dynamic_impl;
 
             if (is_dynamic_impl) {
-                auto p_impl = p_node.type()->choose_impl(p_node);
-                p_impl->set_node_params(p_node);
-                p_node.set_selected_impl(std::move(p_impl));
+                ib >> p_node.selected_impl;
+                // auto p_impl = p_node.type()->choose_impl(p_node);
+                // p_impl->set_node_params(p_node);
+                // p_node.set_selected_impl(std::move(p_impl));
             } else {
                 bool is_onednn;
                 ib >> is_onednn;

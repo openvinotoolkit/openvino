@@ -20,5 +20,6 @@ public:
 protected:
     DispatchData SetDefault(const softmax_params& params) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

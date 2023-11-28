@@ -47,6 +47,17 @@ MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) 
     return dispatchData;
 }
 
+void MVNKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const mvn_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
                                                 const optional_params& options) const {
     assert(params.GetType() == KernelType::MVN);
@@ -65,14 +76,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
     auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const mvn_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    SetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,

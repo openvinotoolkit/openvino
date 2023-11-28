@@ -45,6 +45,15 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
         return make_unique<arg_max_min_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);

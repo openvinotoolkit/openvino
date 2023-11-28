@@ -54,6 +54,17 @@ DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const 
     return k;
 }
 
+void CountNonzeroKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const count_nonzero_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::COUNT_NONZERO);
 
@@ -75,14 +86,7 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
 
     auto& kernel = kd.kernels[0];
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const count_nonzero_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    SetUpdateDispatchDataFunc(kd);
 
     // In case of count-nonzero, the output shape is static unconditionally,
     // so it should be checked as dynamic of the input shape

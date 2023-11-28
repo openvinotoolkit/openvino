@@ -30,6 +30,17 @@ JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, co
     return jit;
 }
 
+void PermuteKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
+        const auto& prim_params = static_cast<const permute_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kernel_data.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kernel_data.kernels[0].params.workGroups.global = dispatchData.gws;
+        kernel_data.kernels[0].params.workGroups.local = dispatchData.lws;
+        kernel_data.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -41,14 +52,7 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
-        const auto& prim_params = static_cast<const permute_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kernel_data.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kernel_data.kernels[0].params.workGroups.global = dispatchData.gws;
-        kernel_data.kernels[0].params.workGroups.local = dispatchData.lws;
-        kernel_data.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    SetUpdateDispatchDataFunc(kd);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);

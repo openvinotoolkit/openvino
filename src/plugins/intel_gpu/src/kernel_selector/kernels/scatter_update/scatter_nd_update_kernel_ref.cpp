@@ -152,15 +152,7 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, size_
     return result;
 }
 
-KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    KernelData kd = KernelData::Default<scatter_nd_update_params>(params, 2);
-    scatter_nd_update_params& newParams = *static_cast<scatter_nd_update_params*>(kd.params.get());
-    auto cldnn_jit = GetJitConstants(newParams);
-
+void ScatterNDUpdateKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_nd_update_params&>(params);
         OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
@@ -176,6 +168,18 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
                 kd.kernels[i].skip_execution = false;
         }
     };
+}
+
+KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+
+    KernelData kd = KernelData::Default<scatter_nd_update_params>(params, 2);
+    scatter_nd_update_params& newParams = *static_cast<scatter_nd_update_params*>(kd.params.get());
+    auto cldnn_jit = GetJitConstants(newParams);
+
+    SetUpdateDispatchDataFunc(kd);
 
     // First iter - copy input data to output data
     // Second iter - update values specified by updates at specific index position specified by indices

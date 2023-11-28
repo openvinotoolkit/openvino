@@ -155,6 +155,21 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     return dispatchData;
 }
 
+void ConvolutionKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
+}
+
 KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                                         const optional_params& options,
                                                         const std::string exeMode,
@@ -206,18 +221,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const convolution_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
-    };
+    SetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,

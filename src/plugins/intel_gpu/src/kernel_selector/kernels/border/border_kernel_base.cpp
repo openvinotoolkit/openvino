@@ -64,6 +64,17 @@ bool BorderKernelBase::SkipKernelExecution(const border_params& params) const {
     return params.outputs[0].LogicalSize() == 0;
 }
 
+void BorderKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const border_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
                                                    const optional_params& options) const {
     assert(params.GetType() == KernelType::BORDER);
@@ -73,14 +84,7 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<border_params>(params);
-    k_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const border_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = SkipKernelExecution(prim_params);
-    };
+    SetUpdateDispatchDataFunc(k_data);
 
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);

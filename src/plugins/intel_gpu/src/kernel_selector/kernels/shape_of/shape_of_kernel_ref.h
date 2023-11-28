@@ -30,6 +30,7 @@ class ShapeOfKernelRef: public KernelBaseOpenCL {
     bool Validate(const Params &p, const optional_params &o) const override;
     virtual JitConstants GetJitConstants(const shape_of_params& params) const;
     bool SkipKernelExecution(const shape_of_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 public:
     ShapeOfKernelRef() :
         KernelBaseOpenCL { "shape_of_ref" } {

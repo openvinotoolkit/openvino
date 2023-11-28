@@ -64,5 +64,6 @@ protected:
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     Datatype GetActivationType(const mvn_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

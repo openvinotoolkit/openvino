@@ -301,6 +301,20 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
+void ScatterUpdateKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const scatter_update_params&>(params);
+        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
+
+        for (size_t i = 0; i < 2; ++i) {
+            auto dispatchData = SetDefault(prim_params, i == 1);
+            kd.kernels[i].params.workGroups.global = dispatchData.gws;
+            kd.kernels[i].params.workGroups.local = dispatchData.lws;
+            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        }
+    };
+}
+
 KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -323,17 +337,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     scatter_update_params& newParams = *static_cast<scatter_update_params*>(kd.params.get());
     auto cldnn_jit = GetJitConstants(newParams);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const scatter_update_params&>(params);
-        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
-
-        for (size_t i = 0; i < 2; ++i) {
-            auto dispatchData = SetDefault(prim_params, i == 1);
-            kd.kernels[i].params.workGroups.global = dispatchData.gws;
-            kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
-        }
-    };
+    SetUpdateDispatchDataFunc(kd);
 
     for (size_t i = start_with_iteration; i < 2; ++i) {
         auto dispatchData = SetDefault(newParams, (i == 1));

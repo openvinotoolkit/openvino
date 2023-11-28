@@ -23,6 +23,7 @@ public:
     virtual ~kernel_selector_base() {}
 
     KernelData get_best_kernel(const Params& params, const optional_params& options) const;
+    std::shared_ptr<KernelBase> GetImplementation(std::string& kernel_name) const;
 
 protected:
     template <typename T>

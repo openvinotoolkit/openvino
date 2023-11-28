@@ -46,5 +46,6 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     bool Validate(const Params&, const optional_params&) const override;
     Datatype GetActivationType(const cum_sum_params& params) const;
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

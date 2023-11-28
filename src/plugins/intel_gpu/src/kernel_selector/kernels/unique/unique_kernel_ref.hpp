@@ -37,6 +37,7 @@ protected:
     bool Validate(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const unique_count_params& kernel_params) const;
     static CommonDispatchData SetDefault(const unique_count_params& kernel_params);
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 /**
@@ -69,6 +70,7 @@ protected:
     bool Validate(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const unique_gather_params& kernel_params) const;
     static CommonDispatchData SetDefault(const unique_gather_params& kernel_params);
+    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 }  // namespace kernel_selector
