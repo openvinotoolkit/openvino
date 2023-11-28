@@ -71,10 +71,14 @@ void Subgraph::set_virtual_port_count(const size_t count) {
 
 void Subgraph::set_min_jit_work_amount(const size_t jit_work_amount) {
     config.m_min_jit_work_amount = jit_work_amount;
+    if (m_linear_ir)
+        m_linear_ir->set_min_kernel_work_amount(jit_work_amount);
 }
 
 void Subgraph::set_min_parallel_work_amount(const size_t parallel_work_amount) {
     config.m_min_parallel_work_amount = parallel_work_amount;
+    if (m_linear_ir)
+        m_linear_ir->set_min_parallel_work_amount(parallel_work_amount);
 }
 
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {

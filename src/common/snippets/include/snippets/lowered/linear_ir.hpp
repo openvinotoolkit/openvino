@@ -127,6 +127,9 @@ public:
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
     void serialize(const std::string& xml, const std::string& bin) const;
 
+    void set_min_parallel_work_amount(size_t value) { m_config.m_min_parallel_work_amount = value; }
+    void set_min_kernel_work_amount(size_t value) { m_config.m_min_kernel_work_amount = value; }
+
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
