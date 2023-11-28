@@ -27,11 +27,17 @@ def pytest_runtest_makereport(item, call):
 @pytest.mark.optionalhook
 def pytest_html_results_table_header(cells):
     cells.insert(2, html.th('status', class_="sortable"))
-    cells.insert(3, html.th('converted model infer time'))
+    cells.insert(3, html.th('converted model infer time secs'))
     cells.insert(4, html.th('converted model infer time variance'))
-    cells.insert(5, html.th('read model infer time'))
-    cells.insert(6, html.th('read model infer time variance'))
-    cells.insert(7, html.th('model infer time ratio converted_model_time/read_model_time'))
+    cells.insert(5, html.th('converted model heat n repeats'))
+    cells.insert(6, html.th('converted model measurement n repeats'))
+    cells.insert(7, html.th('converted model throughput'))
+    cells.insert(8, html.th('read model infer time secs'))
+    cells.insert(9, html.th('read model infer time variance'))
+    cells.insert(10, html.th('read model heat n repeats'))
+    cells.insert(11, html.th('read model measurement n repeats'))
+    cells.insert(12, html.th('read model throughput'))
+    cells.insert(13, html.th('model infer time ratio converted_model_time/read_model_time'))
 
 
 @pytest.mark.optionalhook
@@ -39,8 +45,14 @@ def pytest_html_results_table_row(report, cells):
     if not getattr(report, '_results', None):
         return
     cells.insert(2, html.td(report._results.status))
-    cells.insert(3, html.td(round_num(report._results.converted_infer_time)))
-    cells.insert(4, html.td(round_num(report._results.converted_model_time_variance)))
-    cells.insert(5, html.td(round_num(report._results.read_model_infer_time)))
-    cells.insert(6, html.td(round_num(report._results.read_model_infer_time_variance)))
-    cells.insert(7, html.td(round_num(report._results.infer_time_ratio)))
+    cells.insert(3, html.td(round_num(report._results.converted_model_results.infer_mean_time / (10 ** 9))))
+    cells.insert(4, html.td(round_num(report._results.converted_model_results.infer_variance)))
+    cells.insert(5, html.td(report._results.converted_model_results.heat_n_repeats))
+    cells.insert(6, html.td(report._results.converted_model_results.infer_n_repeats))
+    cells.insert(7, html.td(round_num(report._results.converted_model_results.infer_throughput)))
+    cells.insert(8, html.td(round_num(report._results.read_model_results.infer_mean_time / (10 ** 9))))
+    cells.insert(9, html.td(round_num(report._results.read_model_results.infer_variance)))
+    cells.insert(10, html.td(report._results.read_model_results.heat_n_repeats))
+    cells.insert(11, html.td(report._results.read_model_results.infer_n_repeats))
+    cells.insert(12, html.td(round_num(report._results.read_model_results.infer_throughput)))
+    cells.insert(13, html.td(round_num(report._results.infer_time_ratio)))

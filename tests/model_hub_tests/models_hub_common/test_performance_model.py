@@ -9,7 +9,8 @@ from enum import Enum
 import pytest
 from openvino.runtime.utils.types import openvino_to_numpy_types_map
 from models_hub_common.utils import round_num
-from models_hub_common.constants import runtime_duration
+from models_hub_common.constants import runtime_measure_duration
+from models_hub_common.constants import runtime_heat_duration
 
 import numpy as np
 import openvino as ov
@@ -47,12 +48,19 @@ class Status(Enum):
     LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR = 9
 
 
+class ModelResults:
+    def __init__(self):
+        self.infer_mean_time = 0.0
+        self.infer_variance = 0.0
+        self.infer_throughput = 0.0
+        self.heat_n_repeats = 0
+        self.infer_n_repeats = 0
+
+
 class Results:
     def __init__(self):
-        self.converted_infer_time = 0.0
-        self.converted_model_time_variance = 0.0
-        self.read_model_infer_time = 0.0
-        self.read_model_infer_time_variance = 0.0
+        self.converted_model_results = ModelResults()
+        self.read_model_results = ModelResults()
         self.infer_time_ratio = 0.0
         self.error_message = ''
         self.status = None
@@ -68,7 +76,6 @@ def wrap_timer(func, args):
 class TestModelPerformance:
     infer_timeout = 600
     threshold_ratio = 0.1
-    num_heat_runs = 100
     threshold_var = 10.0
 
     def load_model(self, model_name, model_link):
@@ -127,31 +134,41 @@ class TestModelPerformance:
         return core.read_model(model=model_path)
 
     def infer_model(self, ov_model, inputs):
+        results = ModelResults()
         infer_step_t0 = time.time()
         # heat run
-        for _ in range(0, TestModelPerformance.num_heat_runs):
+        left_time = float(runtime_heat_duration)
+        while left_time > 0:
+            t0 = time.time()
             ov_model(inputs)
+            t1 = time.time()
+            left_time -= (t1 - t0)
+            results.heat_n_repeats += 1
+        print('heat done in {} repeats'.format(results.heat_n_repeats))
         # measure
-        runtime_duration_ns = float(runtime_duration) * (10 ** 9)
-        left_time = float(runtime_duration) * (10 ** 9)
-        n_runs = 0
-        results = []
+        runtime_duration_ns = float(runtime_measure_duration) * (10 ** 9)
+        left_time = runtime_duration_ns
+        time_slices = []
         while left_time > 0:
             t0 = time.perf_counter_ns()
             ov_model(inputs)
             t1 = time.perf_counter_ns()
             timedelta = t1 - t0
-            results.append(timedelta)
+            time_slices.append(timedelta)
             left_time -= timedelta
-            n_runs += 1
+            results.infer_n_repeats += 1
+        print('measurement done in {} repeats'.format(results.infer_n_repeats))
         runtime_real = runtime_duration_ns - left_time
-        throughput = runtime_real / (n_runs * (10 ** 9))
-        mean = np.mean(results)
-        var = (np.std(results, ddof=1) * 100) / mean
+        results.infer_throughput = runtime_real / (results.infer_n_repeats * (10 ** 9))
+        results.infer_mean_time = np.mean(time_slices)
+        results.infer_variance = (np.std(time_slices, ddof=1) * 100) / results.infer_mean_time
         infer_step_t1 = time.time()
-        print('inference measurement done in {} repeats'.format(n_runs))
+        print('model time infer {}'.format(round_num(results.infer_mean_time / (10 ** 9))))
+        print('model time infer var {}'.format(round_num(results.infer_variance)))
+        print('model time infer throughput {}'.format(round_num(results.infer_throughput)))
+        print('inference measurement done in {} repeats'.format(results.infer_n_repeats))
         print('inference measurement done in {} secs'.format(round_num(infer_step_t1 - infer_step_t0)))
-        return mean, var, throughput
+        return results
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
@@ -180,29 +197,19 @@ class TestModelPerformance:
             read_model = self.compile_model(self.get_read_model(model_obj), ie_device)
             print("Infer the converted model")
             results.status = Status.INFER_CONVERTED_MODEL
-            converted_model_time, converted_model_time_variance, throughput = self.infer_model(converted_model, inputs)
-            print('converted model time infer {} nsecs'.format(round_num(converted_model_time)))
-            print('converted model time infer var {}'.format(round_num(converted_model_time_variance)))
-            print('converted model time infer throughput {}'.format(round_num(throughput)))
+            results.converted_model_results = self.infer_model(converted_model, inputs)
             print("Infer read model")
             results.status = Status.INFER_READ_MODEL
-            read_model_time, read_model_time_variance, throughput = self.infer_model(read_model, inputs)
-            print('read model time infer {} nsecs'.format(round_num(read_model_time)))
-            print('read model time infer var {}'.format(round_num(read_model_time_variance)))
-            print('read model time infer throughput {}'.format(round_num(throughput)))
 
-            infer_time_ratio = converted_model_time / read_model_time
+            results.read_model_results = self.infer_model(read_model, inputs)
+            infer_time_ratio = results.converted_model_results.infer_mean_time/results.read_model_results.infer_mean_time
             print('infer ratio converted_model_time/read_model_time {} %'.format(round_num(infer_time_ratio * 100)))
 
-            results.converted_infer_time = converted_model_time
-            results.converted_model_time_variance = converted_model_time_variance
-            results.read_model_infer_time = read_model_time
-            results.read_model_infer_time_variance = read_model_time_variance
             results.infer_time_ratio = infer_time_ratio
 
             if abs(infer_time_ratio - 1) > TestModelPerformance.threshold_ratio:
-                if (read_model_time_variance > TestModelPerformance.threshold_var
-                        or converted_model_time_variance > TestModelPerformance.threshold_var):
+                if (results.read_model_results.infer_variance > TestModelPerformance.threshold_var
+                        or results.converted_model_results.infer_variance > TestModelPerformance.threshold_var):
                     results.status = Status.LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR
                     results.error_message = "too large ratio {} with large variance".format(infer_time_ratio)
                 else:

@@ -5,7 +5,9 @@
 import os
 import tempfile
 
-runtime_duration = os.environ.get('RUNTIME_ARG_DURATION', '60')
+runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '15')
+runtime_heat_duration = os.environ.get('RUNTIME_HEAT_DURATION', '5')
+
 
 tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
                                   os.path.join(tempfile.gettempdir(), "tfhub_modules"))
