@@ -2,19 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
+import pytest
 import timm
 import torch
-import pytest
-from torch_utils import TestTorchConvertModel, process_pytest_marks
 from models_hub_common.constants import hf_hub_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list
+
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
 def filter_timm(timm_list: list) -> list:
     unique_models = set()
     filtered_list = []
     ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium", "big",
-                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l", "xl"}
+                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l",
+                  "xl"}
     for name in sorted(timm_list):
         # first: remove datasets
         name_parts = name.split(".")
