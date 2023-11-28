@@ -4,23 +4,23 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 
+namespace ov {
+namespace test {
 
-namespace SubgraphTestsDefinitions {
+using FuseMulAddAndEwSimpleParams = std::tuple<ov::Shape,         // Input shape
+                                               ov::element::Type  // Input precision
+                                               >;
 
-using FuseMulAddAndEwSimpleParams = std::tuple<
-        InferenceEngine::SizeVector,    // Input shape
-        InferenceEngine::Precision      // Input precision
->;
-
-class FuseMulAddAndEwSimpleTest : public testing::WithParamInterface<FuseMulAddAndEwSimpleParams>, public CPUTestUtils::CPUTestsBase,
-        virtual public LayerTestsUtils::LayerTestsCommon {
+class FuseMulAddAndEwSimpleTest : public testing::WithParamInterface<FuseMulAddAndEwSimpleParams>,
+                                  public CPUTestUtils::CPUTestsBase,
+                                  virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj);
 
@@ -28,8 +28,8 @@ protected:
     void SetUp() override;
     virtual void CreateGraph() = 0;
 
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision inPrec;
+    ov::Shape inputShape;
+    ov::element::Type inPrec;
 };
 
 class FuseMulAddAndEwSimpleTest1 : public FuseMulAddAndEwSimpleTest {
@@ -47,4 +47,5 @@ protected:
     void CreateGraph() override;
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
