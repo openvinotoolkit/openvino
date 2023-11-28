@@ -2,18 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import gc
 import os
 import shutil
 
-import gc
 import pytest
 import tensorflow_hub as hub
-# noinspection PyUnresolvedReferences
-
+from models_hub_common.constants import no_clean_cache_dir
+from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_performance_model import TestModelPerformance
 from models_hub_common.utils import get_models_list
-from models_hub_common.constants import tf_hub_cache_dir
-from models_hub_common.constants import no_clean_cache_dir
 
 
 def clean_cache():

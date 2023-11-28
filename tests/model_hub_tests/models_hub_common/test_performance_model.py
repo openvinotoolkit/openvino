@@ -4,16 +4,14 @@
 
 import sys
 import time
-from enum import Enum
 import traceback
-import pytest
-from openvino.runtime.utils.types import openvino_to_numpy_types_map
+from enum import Enum
 
 import numpy as np
-from models_hub_common.multiprocessing_utils import multiprocessing_run
 import openvino as ov
-
-# noinspection PyUnresolvedReferences
+import pytest
+from models_hub_common.multiprocessing_utils import multiprocessing_run
+from openvino.runtime.utils.types import openvino_to_numpy_types_map
 
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results
@@ -179,7 +177,7 @@ class TestModelPerformance:
             print('read model time infer {}'.format(read_model_time))
             print('read model time infer var {}'.format(read_model_time_variance))
 
-            infer_time_ratio = converted_model_time/read_model_time
+            infer_time_ratio = converted_model_time / read_model_time
 
             results.converted_infer_time = converted_model_time
             results.converted_model_time_variance = converted_model_time_variance
@@ -200,13 +198,14 @@ class TestModelPerformance:
         except:
             ex_type, ex_value, tb = sys.exc_info()
             results.error_message = "{tb}\n{ex_type}: {ex_value}".format(tb=''.join(traceback.format_tb(tb)),
-                                                             ex_type=ex_type.__name__, ex_value=ex_value)
+                                                                         ex_type=ex_type.__name__, ex_value=ex_value)
         return results
 
     def run(self, model_name, model_link, ie_device):
         self.result = Results()
         t0 = time.time()
-        self.result = multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
+        self.result = multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name,
+                                          self.infer_timeout)
         t1 = time.time()
         print('test running time {}'.format(t1 - t0))
         if self.result.status == Status.OK:

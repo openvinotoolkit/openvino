@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import tempfile
+
 import pytest
 import torch
-import tempfile
 import torchvision.transforms.functional as F
+
 from torch_utils import process_pytest_marks, TestTorchConvertModel
 
 
@@ -102,7 +104,8 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("name", process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.parametrize("name",
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

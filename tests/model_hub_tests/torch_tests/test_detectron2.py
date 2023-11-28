@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pytest
 import torch
-from torch_utils import TestTorchConvertModel, process_pytest_marks
 from models_hub_common.utils import get_models_list, compare_two_tensors
+
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
 class TestDetectron2ConvertModel(TestTorchConvertModel):
