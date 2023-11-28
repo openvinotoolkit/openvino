@@ -39,15 +39,14 @@ const auto mulAddAndEwSimpleCommonParams =
 
 // Fused EltwiseAndSimple comes on the 3rd port into MulAdd
 void FuseMulAddAndEwSimpleTest1::CreateGraph() {
-    auto ngPrc = inPrec;
     auto mulSecondInput = inputShape;
     mulSecondInput[0] = 1;
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape),
-                               std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape),
-                               std::make_shared<ov::op::v0::Parameter>(ngPrc, mulSecondInput)};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inPrec, inputShape),
+                               std::make_shared<ov::op::v0::Parameter>(inPrec, inputShape),
+                               std::make_shared<ov::op::v0::Parameter>(inPrec, mulSecondInput)};
 
-    auto clamp = ov::test::utils::make_activation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
-    auto tanh = ov::test::utils::make_activation(clamp, ngPrc, ActivationTypes::Tanh);
+    auto clamp = ov::test::utils::make_activation(params[0], inPrec, ActivationTypes::Clamp, inputShape, {0, 100});
+    auto tanh = ov::test::utils::make_activation(clamp, inPrec, ActivationTypes::Tanh);
     auto mul1 = ov::test::utils::makeEltwise(params[1], params[2], EltwiseTypes::MULTIPLY);
     auto add = ov::test::utils::makeEltwise(tanh, mul1, EltwiseTypes::ADD);
 
@@ -66,15 +65,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic,
 
 // Fused EltwiseAndSimple comes on the 2nd input into MulAdd
 void FuseMulAddAndEwSimpleTest2::CreateGraph() {
-    auto ngPrc = inPrec;
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape),
-                               std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape),
-                               std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape)};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inPrec, inputShape),
+                               std::make_shared<ov::op::v0::Parameter>(inPrec, inputShape),
+                               std::make_shared<ov::op::v0::Parameter>(inPrec, inputShape)};
 
-    auto clamp1 = ov::test::utils::make_activation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
-    auto tanh1 = ov::test::utils::make_activation(clamp1, ngPrc, ActivationTypes::Tanh);
-    auto clamp2 = ov::test::utils::make_activation(params[1], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
-    auto tanh2 = ov::test::utils::make_activation(clamp2, ngPrc, ActivationTypes::Tanh);
+    auto clamp1 = ov::test::utils::make_activation(params[0], inPrec, ActivationTypes::Clamp, inputShape, {0, 100});
+    auto tanh1 = ov::test::utils::make_activation(clamp1, inPrec, ActivationTypes::Tanh);
+    auto clamp2 = ov::test::utils::make_activation(params[1], inPrec, ActivationTypes::Clamp, inputShape, {0, 100});
+    auto tanh2 = ov::test::utils::make_activation(clamp2, inPrec, ActivationTypes::Tanh);
     auto mul1 = ov::test::utils::makeEltwise(tanh2, tanh1, EltwiseTypes::MULTIPLY);
     auto add = ov::test::utils::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
 
@@ -93,15 +91,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic,
 
 // Fused MulAdd with more than 3 inputs
 void FuseMulAddAndEwSimpleTest3::CreateGraph() {
-    auto ngPrc = inPrec;
     ov::ParameterVector params;
     for (auto&& shape : {inputShape, inputShape, inputShape, inputShape, inputShape}) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrec, shape));
     }
 
     auto mul1 = ov::test::utils::makeEltwise(params[0], params[1], EltwiseTypes::MULTIPLY);
     auto add1 = ov::test::utils::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
-    auto tanh1 = ov::test::utils::make_activation(add1, ngPrc, ActivationTypes::Tanh);
+    auto tanh1 = ov::test::utils::make_activation(add1, inPrec, ActivationTypes::Tanh);
     auto mul2 = ov::test::utils::makeEltwise(tanh1, params[3], EltwiseTypes::MULTIPLY);
     auto add2 = ov::test::utils::makeEltwise(params[4], mul2, EltwiseTypes::ADD);
 
