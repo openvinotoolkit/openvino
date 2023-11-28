@@ -136,6 +136,10 @@ public:
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
 
+        std::cout << "-------num_of_images: " << this->num_of_images << std::endl;
+        std::cout << "-------num_priors: " << this->num_priors << std::endl;
+        std::cout << "-------num_loc_classes: " << num_loc_classes << std::endl;
+
         auto& engine = get_test_engine();
         cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
         cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });

@@ -32,6 +32,7 @@ public:
     using DispatchData = CommonDispatchData;
     enum KernelId {
         eCalcMeanKernel,
+        eCalcPow,
         eCalcStandardDeviationKernel,
         eNormalize,
         eKernelsNum

@@ -57,11 +57,44 @@ KERNEL (calc_mean_ref)(  __global INPUT0_TYPE* input
     mean_value /= GROUP_SIZE;
     output[batch * NUM_GROUPS + group] = mean_value;
 }
+#elif CALC_POW_KERNEL_ENABLED
+KERNEL (calc_pow_ref)(  __global INPUT0_TYPE* input
+                                     , __global float* mean
+                                     , __global float* output
+#if HAS_FUSED_OPS_DECLS
+                                     , FUSED_OPS_DECLS
+#endif
+)
+{
+    const int batch = get_global_id(0);
+#if OUTPUT_DIMS == 4
+    const int feature = get_global_id(1);
+#elif OUTPUT_DIMS == 5
+    const int feature = get_global_id(1) / OUTPUT_SIZE_Z;
+    const int z = get_global_id(1) % OUTPUT_SIZE_Z;
+#endif
+    const int y = get_global_id(2) / OUTPUT_SIZE_X;
+    const int x = get_global_id(2) % OUTPUT_SIZE_X;
+    const int group = feature / NUM_CHANNELS_IN_GROUP;
 
+#if OUTPUT_DIMS == 5
+    const size_t input_idx = INPUT0_GET_INDEX(batch, feature, z, y, x);
+#elif OUTPUT_DIMS == 4
+    const size_t input_idx = INPUT0_GET_INDEX(batch, feature, y, x);
+#endif
+
+    const mean_idx = batch * NUM_GROUPS + group;
+    OUTPUT_TYPE res = pow(input[input_idx] - mean[mean_idx], 2);
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    output[input_idx] = FUSED_OPS_RESULT;
+#else
+    output[input_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+#endif
+}
 #elif STANDARD_DEVIATION_KERNEL_ENABLED
 
 KERNEL (calc_standard_deviation_ref)(  __global INPUT0_TYPE* input
-                                     , __global float* mean
                                      , __global float* output
 #if HAS_FUSED_OPS_DECLS
                                      , FUSED_OPS_DECLS
@@ -92,7 +125,7 @@ KERNEL (calc_standard_deviation_ref)(  __global INPUT0_TYPE* input
 #elif OUTPUT_DIMS == 4
                 size_t input_idx = INPUT0_GET_INDEX(batch, feature, y, x);
 #endif
-                FUNC_CALL(kahan_summation)(pow(input[input_idx] - mean[output_idx], 2), &error, &variance);
+                FUNC_CALL(kahan_summation)(input[input_idx], &error, &variance);
             }
     }
     variance /= GROUP_SIZE;
@@ -121,12 +154,12 @@ KERNEL (normalize_ref)(  __global INPUT0_TYPE* input
     const int y = get_global_id(2) / OUTPUT_SIZE_X;
     const int x = get_global_id(2) % OUTPUT_SIZE_X;
     const int group = feature / NUM_CHANNELS_IN_GROUP;
-    float mean = mean_values[batch * NUM_GROUPS + group];
-    float standard_deviation = standard_deviation_values[batch * NUM_GROUPS + group];
+    const float mean = mean_values[batch * NUM_GROUPS + group];
+    const float standard_deviation = standard_deviation_values[batch * NUM_GROUPS + group];
 #if OUTPUT_DIMS == 4
-    size_t output_idx = OUTPUT_GET_INDEX(batch, feature, y, x);
+    const size_t output_idx = OUTPUT_GET_INDEX(batch, feature, y, x);
 #elif OUTPUT_DIMS == 5
-    size_t output_idx = OUTPUT_GET_INDEX(batch, feature, z, y, x);
+    const size_t output_idx = OUTPUT_GET_INDEX(batch, feature, z, y, x);
 #endif
     OUTPUT_TYPE res = ((input[output_idx] - mean) / standard_deviation) * scale_values[feature] + bias_values[feature];
 #if HAS_FUSED_OPS
@@ -135,6 +168,12 @@ KERNEL (normalize_ref)(  __global INPUT0_TYPE* input
 #else
     output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
+    // if (output_idx < 0 || output_idx >= 33554432)
+    //     printf("---------------------in_idx:%d, mean=%f, sd=%f\n", output_idx, mean, standard_deviation);
+
+    // if (output_idx == 0) {
+    //     printf("----output_idx: %d, addr mean_values:%d, standard_deviation_values=%d\n", output_idx, mean_values, standard_deviation_values);
+    // }
 }
 
 #endif

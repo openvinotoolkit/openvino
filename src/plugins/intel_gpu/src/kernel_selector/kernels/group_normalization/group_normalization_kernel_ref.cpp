@@ -27,6 +27,11 @@ static std::size_t InternalBufferSize(const group_normalization_params &params) 
     return output.Batch().v * params.num_groups * sizeof(float);
 }
 
+static std::size_t FinalOuotputBufferSize(const group_normalization_params &params) {
+    const auto& output = params.outputs[0];
+    return output.Batch().v * output.Feature().v * output.Z().v * output.Y().v * output.X().v * sizeof(float);
+}
+
 static GroupNormalizationKernelRef::KernelId operator++(GroupNormalizationKernelRef::KernelId& id) {
     id = static_cast<GroupNormalizationKernelRef::KernelId>(static_cast<int>(id) + 1);
     return id;
@@ -51,6 +56,7 @@ GroupNormalizationKernelRef::DispatchData GroupNormalizationKernelRef::SetDefaul
             1};
         break;
     }
+    case eCalcPow:
     case eNormalize: {
         auto in_layout = params.inputs[0].GetLayout();
         auto out_layout = output.GetLayout();
@@ -70,6 +76,19 @@ GroupNormalizationKernelRef::DispatchData GroupNormalizationKernelRef::SetDefaul
         assert(false);
         break;
     }
+
+    // std::cout << "====" << params.layerID << ", id=" << id << ", groups=" << params.num_groups << ", maxWGsize=" << params.engineInfo.maxWorkGroupSize;
+    // std::cout << ", ==gws";
+    // for (auto g : dispatch_data.gws)
+    //     std::cout << " " << g;
+    // std::cout << ", ==lws";
+    // for (auto l : dispatch_data.lws)
+    //     std::cout << " " << l;
+    // auto in0 = params.inputs[0];
+    // std::cout << " , input0 bfxyz=" << in0.Batch().v << " "<< in0.Feature().v << " "<< in0.X().v << " "<< in0.Y().v << " "<< in0.Z().v << " ";
+    // std::cout << " , output0 bfxyz=" << output.Batch().v << " "<< output.Feature().v << " "<< output.X().v << " "<< output.Y().v << " "<< output.Z().v << " ";
+    // std::cout << std::endl;
+
     return dispatch_data;
 }
 
@@ -82,9 +101,13 @@ JitConstants GroupNormalizationKernelRef::GetJitConstants(KernelId kernelId,
     case eCalcMeanKernel:
         jit.AddConstant(MakeJitConstant("MEAN_KERNEL_ENABLED", true));
         break;
+    case eCalcPow:
+        jit.AddConstant(MakeJitConstant("CALC_POW_KERNEL_ENABLED", true));
+        break;
     case eCalcStandardDeviationKernel:
         jit.AddConstant(MakeJitConstant("STANDARD_DEVIATION_KERNEL_ENABLED", true));
         break;
+    //case eMergedNormalize: //kelvin test--------
     case eNormalize: {
         jit.AddConstant(MakeJitConstant("NORMALIZE_KERNEL_ENABLED", true));
         jit.AddConstant(MakeJitConstant("INPUT_INDICES_ORDER", "batch, feature, z, y, x"));
@@ -118,10 +141,16 @@ void GroupNormalizationKernelRef::SetKernelArguments(const group_normalization_p
         internalBufferSizes.push_back(InternalBufferSize(params));
         break;
     }
-    case eCalcStandardDeviationKernel: {
+    case eCalcPow: {
         arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        internalBufferSizes.push_back(FinalOuotputBufferSize(params));
+        break;
+    }
+    case eCalcStandardDeviationKernel: {
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         internalBufferSizes.push_back(InternalBufferSize(params));
         break;
     }
@@ -130,10 +159,21 @@ void GroupNormalizationKernelRef::SetKernelArguments(const group_normalization_p
         arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
         arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         break;
     }
+    // case eMergedNormalize: {
+    //     arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+    //     arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    //     arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    //     arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+    //     arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+    //     arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    //     internalBufferSizes.push_back(InternalBufferSize(params));
+    //     internalBufferSizes.push_back(InternalBufferSize(params));
+    //     break;
+    // }
     default:
         assert(false);
         break;
@@ -141,15 +181,21 @@ void GroupNormalizationKernelRef::SetKernelArguments(const group_normalization_p
 }
 
 KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
-    const group_normalization_params& parameters = static_cast<const group_normalization_params&>(params);
     KernelData kd = KernelData::Default<group_normalization_params>(params, eKernelsNum);
+    group_normalization_params& parameters = *static_cast<group_normalization_params*>(kd.params.get());
+
     kd.internalBufferDataType = Datatype::F32;
+    //std::cout << "==========params.outputs[0].ElementSize: " << parameters.outputs[0].ElementSize() << std::endl;
     for (KernelId id = eCalcMeanKernel; id < eKernelsNum; ++id) {
+    //{
+        //KernelId id = eMergedNormalize;
+        //auto& kernel = kd.kernels[0];
         auto& kernel = kd.kernels[id];
         const auto entryPoint = GetEntryPoint(kernelName, parameters.layerID, params, options, id);
         auto jitConstants = GetJitConstants(id, parameters);
         const auto jit = CreateJit(kernelName, jitConstants, entryPoint);
         const auto dispatchData = SetDefault(id, parameters);
+
         FillCLKernelData(kernel,
                          dispatchData,
                          params.engineInfo,

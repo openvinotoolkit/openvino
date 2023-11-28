@@ -25,6 +25,8 @@
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
+#include "group_normalization_inst.h"
+#include "detection_output_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
@@ -1410,6 +1412,26 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
+
+        // auto& node = inst->get_node();
+        // static int s_test = 0;
+        // if (node.is_type<group_normalization>()) {
+        // //if (node.is_type<reorder>()) {
+        // //if (node.is_type<detection_output>()) {
+        //     s_test += 1;
+        //     if (s_test == 2)
+        //     {
+        //         //get_stream().finish();
+        //         //std::cout << "------------add wait(): " << s_test << std::endl;
+        //         get_stream().wait();
+        //     }
+
+        //     // if (s_test == 2)
+        //          // get_stream().enqueue_barrier();
+
+        //     //get_stream().wait();
+        //     //get_stream().finish();
+        // }
     }
 
     // Store events only in case of OOO queue or enabled Profiling
