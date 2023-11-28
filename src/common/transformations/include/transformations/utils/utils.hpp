@@ -192,9 +192,29 @@ TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<N
 TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const PartialShape& expected,
                                                                     const PartialShape& actual);
 
+/**
+ * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
+ * and calls "func" for each ov::Node.
+ *
+ * \param node  The node from which constant path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ */
 TRANSFORMATIONS_API void visit_shape_path(ov::Node* node,
                                           std::unordered_set<ov::Node*>& visited,
                                           std::function<void(ov::Node*)> func);
+
+/**
+ * \brief Traverses a constant path starting from "node", and calls "func" for each ov::Node.
+ * If the function was called for non-constant subgraph, exception is thrown.
+ *
+ * \param node  The node from which constant path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ */
+TRANSFORMATIONS_API void visit_constant_path(ov::Node* node,
+                                             std::unordered_set<ov::Node*>& visited,
+                                             std::function<void(ov::Node*)> func);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
