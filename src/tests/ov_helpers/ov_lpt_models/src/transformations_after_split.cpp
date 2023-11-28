@@ -102,7 +102,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
         const auto outShape = ov::opset1::Constant::create(element::i64, Shape{ 4 }, { 1, 4, 32, 32 });
 
-        op::v0::InterpolateAttrs attributes;
+        ov::op::v0::Interpolate::Attributes attributes;
         attributes.axes = AxisSet{ 2, 3 };
         attributes.mode = "nearest";
         attributes.align_corners = false;

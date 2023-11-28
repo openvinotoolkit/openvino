@@ -4,7 +4,7 @@
 
 #pragma once
 
-
+#include "openvino/op/constant.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -19,18 +19,18 @@ public:
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-        const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
+        const std::shared_ptr<ov::op::v0::Constant>& value = nullptr);
     static std::shared_ptr<Node> getWeights(
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
-        const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
+        const std::shared_ptr<ov::op::v0::Constant>& value = nullptr);
     static std::shared_ptr<Node> getWeights(
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
         const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-        const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
+        const std::shared_ptr<ov::op::v0::Constant>& value = nullptr);
     static std::shared_ptr<ov::Model> get(
         const element::Type netPrecision,
         const PartialShape& inputShape,

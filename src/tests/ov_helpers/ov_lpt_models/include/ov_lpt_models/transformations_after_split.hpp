@@ -7,6 +7,8 @@
 #include <string>
 #include <memory>
 
+#include "openvino/core/model.hpp"
+
 namespace ngraph {
 namespace builder {
 namespace subgraph {

@@ -5,6 +5,9 @@
 #pragma once
 
 #include <memory>
+
+#include "openvino/op/interpolate.hpp"
+#include "openvino/core/model.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace ngraph {

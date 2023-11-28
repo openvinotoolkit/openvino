@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets_helpers.hpp"
 

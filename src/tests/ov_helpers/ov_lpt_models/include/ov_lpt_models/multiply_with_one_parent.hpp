@@ -5,6 +5,8 @@
 #pragma once
 
 #include <memory>
+
+#include "openvino/core/partial_shape.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace ngraph {

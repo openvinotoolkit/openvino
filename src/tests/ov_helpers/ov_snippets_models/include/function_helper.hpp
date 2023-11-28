@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace test {

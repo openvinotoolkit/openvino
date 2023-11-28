@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/opsets/opset1.hpp"
 #include "snippets_helpers.hpp"
 
 namespace ov {
