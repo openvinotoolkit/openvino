@@ -51,6 +51,7 @@ bool ov::intel_cpu::ScaledDotProductAttentionStub::visit_attributes(ov::Attribut
     visitor.on_attribute("output_BLHxS", m_config.output_BLHxS);
     visitor.on_attribute("fuse_causal_attn", m_config.fuse_causal_attn);
     visitor.on_attribute("is_causal", m_config.is_causal);
+    visitor.on_attribute("fuse_concat", m_config.fuse_concat);
     visitor.finish_structure();
     return true;
 }

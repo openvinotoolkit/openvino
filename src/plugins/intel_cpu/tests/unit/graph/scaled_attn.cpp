@@ -28,10 +28,10 @@
 using namespace ov::intel_cpu;
 
 TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
-    auto build_graph = [](const ov::Shape& shape, float qkv_val, float past_kv_val) {
-        auto qkv = ov::op::v0::Constant::create(ov::element::f32, shape, {qkv_val});
+    auto build_graph = [](const ov::Shape& shape, float* qkv_val, float* past_kv_val) {
+        auto qkv = ov::op::v0::Constant::create(ov::element::f32, shape, qkv_val);
         qkv->set_friendly_name("qkv_const");
-        auto pastkv = ov::op::v0::Constant::create(ov::element::f32, shape, {past_kv_val});
+        auto pastkv = ov::op::v0::Constant::create(ov::element::f32, shape, past_kv_val);
         pastkv->set_friendly_name("pastkv_const");
         // only need a dynamic parameter but its value will not be used
         auto attn = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
@@ -101,7 +101,7 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
         graph.Infer();
     };
 
-    auto check_graph = [] (Graph& graph, std::map<std::string, std::pair<float, ov::Shape>>& expected) {
+    auto check_graph = [] (Graph& graph, std::map<std::string, std::pair<float*, ov::Shape>>& expected) {
         auto& outputNodesMap = graph.GetOutputNodesMap();
         auto is_same = [] (float a, float b) {
             return std::abs(a - b) < 0.0001f;
@@ -116,7 +116,9 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
             const auto& memory = parentEdge->getMemoryPtr();
             auto size = memory->getSize() / sizeof(float);
             auto p = reinterpret_cast<float*>(memory->getData());
-            ASSERT_EQ(std::all_of(p, p + size, [&](float v) { return is_same(v, expected.at(name).first); }), true);
+            for (size_t i = 0; i < size; i++) {
+                ASSERT_EQ(is_same(p[i], expected.at(name).first[i]), true);
+            }
             ASSERT_EQ(memory->getShape(), ov::intel_cpu::Shape(expected.at(name).second));
         }
     };
@@ -133,16 +135,25 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
         return (*itr);
     };
 
-    float qkv_val = 3.0f, past_kv_val = 3.0f;
-    ov::Shape shape{2, 2, 8, 8};
-    auto graph = build_graph(shape, qkv_val, past_kv_val);
+    auto strided_iota = [] (float* first, size_t n, float value, float stride) {
+        for (size_t i = 0; i < n; i++) {
+            *first++ = value;
+            value += stride;
+        }
+    };
+
+    ov::Shape shape{1, 1, 8, 8};
+    const size_t elements_count = std::accumulate(shape.begin(), shape.end(), size_t{1}, std::multiplies<size_t>());
+    std::vector<float> val(elements_count * 2);
+    strided_iota(val.data(), val.size(), -10.0f, 0.1f);
+    auto graph = build_graph(shape, val.data() + elements_count, val.data());
     run_graph(graph);
     // if no inplace, the pastk and pastv will concat, check shape and value
     ov::Shape expectedShape(shape);
     expectedShape[2] *= 2;
-    std::map<std::string, std::pair<float, ov::Shape>> expected{
-        {"pastk", std::make_pair(past_kv_val, expectedShape)},
-        {"pastv", std::make_pair(past_kv_val, expectedShape)}};
+    std::map<std::string, std::pair<float*, ov::Shape>> expected{
+        {"pastk", std::make_pair(val.data(), expectedShape)},
+        {"pastv", std::make_pair(val.data(), expectedShape)}};
     check_graph(graph, expected);
     auto spd = find_node_type(graph, Type::ScaledDotProductAttention)->getSelectedPrimitiveDescriptor();
     ASSERT_EQ(spd->getConfig().outConfs[1].inPlace(), -1);

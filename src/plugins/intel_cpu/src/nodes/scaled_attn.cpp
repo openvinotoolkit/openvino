@@ -578,7 +578,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     PlainTensor<T> k_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
     PlainTensor<T> v_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
     PlainTensor<int32_t> beam_table;  // i32[B, max_kvLen]
-    PlainTensor<float> attn_mask;     // f32[[B|1],[H|1], L1|1, L0+L1]
+    PlainTensor<float> attn_buf;      // f32[[B|1],[H|1], L1|1, L0+L1]
     float scale_input = 0.0f;
 
     MHAKernel<KType, T> kernel;
@@ -587,13 +587,13 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     size_t B, H, L1, L0, S;
 
     Config config;
-    AttentionExecutor(const Config& _config) : config(_config) {}
+    AttentionExecutor(const Config& _config) : attn_buf(true), config(_config) {}
 
     void prepare_attn_mask(MemoryPtr attn_input) {
-        attn_mask.resize(attn_input->getStaticDims());
+        attn_buf.resize(attn_input->getStaticDims());
         auto p = reinterpret_cast<uint8_t*>(attn_input->getData());
         for (size_t i = 0; i < attn_input->getSize(); i++)
-            attn_mask.data()[i] = p[i] ? 0.0f : -FLT_MAX;
+            attn_buf.data()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
     void concat_pastkv(const std::vector<MemoryPtr>& inputs,
@@ -610,11 +610,9 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             L0 = past_k_mem->getStaticDims()[2];
             // k,v may support multiquery
             auto Hk = past_k_mem->getStaticDims()[1];
-            // [S, B, L0, S]
-            past_k_output.resize({L0 + L1, B, Hk, S}, static_cast<T*>(outputs[1]->getData()));
-            past_v_output.resize({L0 + L1, B, Hk, S}, static_cast<T*>(outputs[2]->getData()));
-            past_k_output = past_k_output.permute({1, 2, 0, 3});
-            past_v_output = past_v_output.permute({1, 2, 0, 3});
+            // [B, H, L0, S]
+            past_k_output.reset(outputs[1]);
+            past_v_output.reset(outputs[2]);
             parallel_for3d(B, Hk, L1, [&](size_t b, size_t h, size_t m) {
                 std::memcpy(&past_k_output.at({b, h, m + L0, 0}),
                             &k_input.at({b, h, m, 0}),
@@ -623,12 +621,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                             &v_input.at({b, h, m, 0}),
                             S * sizeof(T));
             });
-            if (!config.skipPastKVCopy) {
+            if (!config.is_concat_inplaced) {
                 PlainTensor<T> past_k_input, past_v_input;
-                past_k_input.resize({L0, B, Hk, S}, static_cast<T*>(past_k_mem->getData()));
-                past_v_input.resize({L0, B, Hk, S}, static_cast<T*>(inputs[past_k_idx + 1]->getData()));
-                past_k_input = past_k_input.permute({1, 2, 0, 3});
-                past_v_input = past_v_input.permute({1, 2, 0, 3});
+                past_k_input.reset(past_k_mem);
+                past_v_input.reset(inputs[past_k_idx + 1]);
                 parallel_for3d(B, Hk, L0, [&](size_t b, size_t h, size_t m) {
                     std::memcpy(&past_k_output.at({b, h, m, 0}),
                                 &past_k_input.at({b, h, m, 0}),
@@ -658,11 +654,13 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
         v_input.reset(inputs[2]);
+        PlainTensor<float> attn_mask;
         if (input_num > 3) {
             // attn_mask
             if (inputs[3]->getDesc().getPrecision() == ov::element::u8) {
                 // bool->f32
                 prepare_attn_mask(inputs[3]);
+                attn_mask = attn_buf;
             } else {
                 attn_mask.reset(inputs[3]);
             }
@@ -749,17 +747,6 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         return;
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
-    if (rtPrecision == ov::element::bf16) {
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
-    } else {
-        // only support bf16/f32
-        rtPrecision = ov::element::f32;
-#ifdef OV_CPU_WITH_MLAS
-        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
-#else
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
-#endif
-    }
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
@@ -830,7 +817,20 @@ void ScaledDotProductAttention::createPrimitive() {
         if (desc == nullptr)
             OPENVINO_THROW("has unidentified preferable primitive descriptor");
 
-        m_config.skipPastKVCopy = desc->getConfig().outConfs[1].inPlace() >= 0;
+        m_config.is_concat_inplaced = desc->getConfig().outConfs[1].inPlace() >= 0;
+    }
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+
+    if (rtPrecision == ov::element::bf16) {
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
+    } else {
+        // only support bf16/f32
+        rtPrecision = ov::element::f32;
+#ifdef OV_CPU_WITH_MLAS
+        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
+#else
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
+#endif
     }
 }
 

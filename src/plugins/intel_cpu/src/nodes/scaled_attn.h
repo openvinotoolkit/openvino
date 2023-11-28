@@ -48,7 +48,7 @@ private:
 
     struct Config {
         ScaledDotProductAttentionStub::Config config;
-        bool skipPastKVCopy = false;
+        bool is_concat_inplaced = false;
     };
 
     struct Config m_config;
