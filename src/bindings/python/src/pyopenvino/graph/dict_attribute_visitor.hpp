@@ -84,12 +84,12 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override;
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<double>>& adapter) override;
 
+    bool contains_attribute(const std::string& name) {
+        return m_attributes.contains(name);
+    }
+
     template <typename T>
     T get_attribute(const std::string& name) {
-        OPENVINO_ASSERT(m_attributes.contains(name),
-                        "Couldn't find attribute \"",
-                        name,
-                        "\" in serialized node attribute dictionary.");
         return m_attributes[name.c_str()].cast<T>();
     }
 
