@@ -6,6 +6,10 @@ import sys
 import time
 import traceback
 from enum import Enum
+import pytest
+from openvino.runtime.utils.types import openvino_to_numpy_types_map
+from models_hub_common.utils import round_num
+from models_hub_common.constants import runtime_duration
 
 import numpy as np
 import openvino as ov
@@ -65,7 +69,6 @@ class TestModelPerformance:
     infer_timeout = 600
     threshold_ratio = 0.1
     num_heat_runs = 100
-    num_measure_runs = 500
     threshold_var = 10.0
 
     def load_model(self, model_name, model_link):
@@ -129,17 +132,26 @@ class TestModelPerformance:
         for _ in range(0, TestModelPerformance.num_heat_runs):
             ov_model(inputs)
         # measure
+        runtime_duration_ns = float(runtime_duration) * (10 ** 9)
+        left_time = float(runtime_duration) * (10 ** 9)
+        n_runs = 0
         results = []
-        for _ in range(0, TestModelPerformance.num_measure_runs):
-            t0 = time.time()
+        while left_time > 0:
+            t0 = time.perf_counter_ns()
             ov_model(inputs)
-            t1 = time.time()
-            results.append(t1 - t0)
+            t1 = time.perf_counter_ns()
+            timedelta = t1 - t0
+            results.append(timedelta)
+            left_time -= timedelta
+            n_runs += 1
+        runtime_real = runtime_duration_ns - left_time
+        throughput = runtime_real / (n_runs * (10 ** 9))
         mean = np.mean(results)
-        var = np.std(results, ddof=1) * 100 / mean
+        var = (np.std(results, ddof=1) * 100) / mean
         infer_step_t1 = time.time()
-        print('inference measurement done in {} secs'.format(infer_step_t1 - infer_step_t0))
-        return mean, var
+        print('inference measurement done in {} repeats'.format(n_runs))
+        print('inference measurement done in {} secs'.format(round_num(infer_step_t1 - infer_step_t0)))
+        return mean, var, throughput
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
@@ -152,11 +164,11 @@ class TestModelPerformance:
             print("Load the model {} (url: {})".format(model_name, model_link))
             results.status = Status.LOAD_MODEL
             model_obj, timedelta = wrap_timer(self.load_model, (model_name, model_link))
-            print('Model {} loaded in {} secs'.format(model_name, timedelta))
+            print('Model {} loaded in {} secs'.format(model_name, round_num(timedelta)))
             print("Retrieve inputs info")
             results.status = Status.GET_INPUTS_INFO
             inputs_info, timedelta = wrap_timer(self.get_inputs_info, (model_obj,))
-            print('Got inputs info in {} secs'.format(timedelta))
+            print('Got inputs info in {} secs'.format(round_num(timedelta)))
             print("Prepare input data")
             results.status = Status.PREPARE_INPUTS
             inputs = self.prepare_inputs(inputs_info)
@@ -168,16 +180,19 @@ class TestModelPerformance:
             read_model = self.compile_model(self.get_read_model(model_obj), ie_device)
             print("Infer the converted model")
             results.status = Status.INFER_CONVERTED_MODEL
-            converted_model_time, converted_model_time_variance = self.infer_model(converted_model, inputs)
-            print('converted model time infer {}'.format(converted_model_time))
-            print('converted model time infer var {}'.format(converted_model_time_variance))
+            converted_model_time, converted_model_time_variance, throughput = self.infer_model(converted_model, inputs)
+            print('converted model time infer {} nsecs'.format(round_num(converted_model_time)))
+            print('converted model time infer var {}'.format(round_num(converted_model_time_variance)))
+            print('converted model time infer throughput {}'.format(round_num(throughput)))
             print("Infer read model")
             results.status = Status.INFER_READ_MODEL
-            read_model_time, read_model_time_variance = self.infer_model(read_model, inputs)
-            print('read model time infer {}'.format(read_model_time))
-            print('read model time infer var {}'.format(read_model_time_variance))
+            read_model_time, read_model_time_variance, throughput = self.infer_model(read_model, inputs)
+            print('read model time infer {} nsecs'.format(round_num(read_model_time)))
+            print('read model time infer var {}'.format(round_num(read_model_time_variance)))
+            print('read model time infer throughput {}'.format(round_num(throughput)))
 
             infer_time_ratio = converted_model_time / read_model_time
+            print('infer ratio converted_model_time/read_model_time {} %'.format(round_num(infer_time_ratio * 100)))
 
             results.converted_infer_time = converted_model_time
             results.converted_model_time_variance = converted_model_time_variance

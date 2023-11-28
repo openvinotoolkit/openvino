@@ -6,6 +6,7 @@ import inspect
 import pytest
 from models_hub_common.utils import get_params
 from py.xml import html
+from models_hub_common.utils import round_num
 
 
 def pytest_generate_tests(metafunc):
@@ -31,13 +32,6 @@ def pytest_html_results_table_header(cells):
     cells.insert(5, html.th('read model infer time'))
     cells.insert(6, html.th('read model infer time variance'))
     cells.insert(7, html.th('model infer time ratio converted_model_time/read_model_time'))
-
-
-def round_num(n: float) -> str:
-    s = '{:.4E}'.format(n)
-    if s.endswith('E+00'):
-        return s[:-4]
-    return s
 
 
 @pytest.mark.optionalhook

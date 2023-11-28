@@ -53,6 +53,8 @@ def get_params(ie_device=None):
 
 
 def cleanup_dir(dir: str):
+    if not os.path.exists(dir):
+        return
     # remove all downloaded files from cache
     for file_name in os.listdir(dir):
         file_path = os.path.join(dir, file_name)
@@ -63,3 +65,10 @@ def cleanup_dir(dir: str):
                 shutil.rmtree(file_path)
         except Exception as e:
             pass
+
+
+def round_num(n: float) -> str:
+    s = '{:.4E}'.format(n)
+    if s.endswith('E+00'):
+        return s[:-4]
+    return s

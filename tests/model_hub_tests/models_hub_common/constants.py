@@ -5,6 +5,8 @@
 import os
 import tempfile
 
+runtime_duration = os.environ.get('RUNTIME_ARG_DURATION', '60')
+
 tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
                                   os.path.join(tempfile.gettempdir(), "tfhub_modules"))
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
