@@ -139,22 +139,15 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
     return ov::PartialShape(new_dims);
 }
 
-static std::vector<layout> resolve_shape(std::vector<layout>& target_list, std::vector<layout>& other_list) {
-    std::vector<layout> resolved_layout;
-    for (size_t i = 0; i < target_list.size(); i++) {
-        auto target = target_list[i];
-        auto other = other_list[i];
-        auto target_pshape  = target.get_partial_shape();
-        auto other_pshape   = other.get_partial_shape();
-        auto target_rank    = target_pshape.rank();
-        auto other_rank     = other_pshape.rank();
-        if (target_rank.get_length() == 0 && other_rank.get_length() == 1) {
-            resolved_layout.push_back({ov::PartialShape{1}, target.data_type, target.format});
-        } else {
-            resolved_layout.push_back(target);
-        }
+layout condition_inst::resolve_layout(layout& target, layout& other) {
+    auto target_pshape  = target.get_partial_shape();
+    auto other_pshape   = other.get_partial_shape();
+    auto target_rank    = target_pshape.rank();
+    auto other_rank     = other_pshape.rank();
+    if (target_rank.get_length() == 0 && other_rank.get_length() == 1) {
+        return {ov::PartialShape{1}, target.data_type, target.format};
     }
-    return resolved_layout;
+    return target;
 }
 
 template<typename ShapeType>
@@ -179,7 +172,6 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /*
                 output_layouts.push_back(layout{out_layout, layouts_true[i].data_type, layouts_true[i].format });
             }
         }
-
         return output_layouts;
     } else {
         auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
@@ -192,11 +184,17 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /*
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
         auto mem_ptr = memory_deps.at(0);
         auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
+        std::vector<layout> output_layouts;
         if (pred) {
-            return resolve_shape(layouts_true, layouts_false);
+            for (size_t i = 0; i < num_outputs; i++) {
+                output_layouts.push_back(condition_inst::resolve_layout(layouts_true[i], layouts_false[i]));
+            }
         } else {
-            return resolve_shape(layouts_false, layouts_true);
+            for (size_t i = 0; i < num_outputs; i++) {
+                output_layouts.push_back(condition_inst::resolve_layout(layouts_false[i], layouts_true[i]));
+            }
         }
+        return output_layouts;
     }
 }
 
