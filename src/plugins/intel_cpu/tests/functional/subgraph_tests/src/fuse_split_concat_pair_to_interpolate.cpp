@@ -6,7 +6,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace ngraph;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
 
 namespace ov {
