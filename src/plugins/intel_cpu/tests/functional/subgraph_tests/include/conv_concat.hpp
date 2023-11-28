@@ -9,34 +9,35 @@
 #include <string>
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-using commonConvParams =  std::tuple<
-    InferenceEngine::SizeVector,    // Kernel size
-    InferenceEngine::SizeVector,    // Strides
-    std::vector<ptrdiff_t>,         // Pad begin
-    std::vector<ptrdiff_t>,         // Pad end
-    InferenceEngine::SizeVector,    // Dilation
-    size_t,                         // Num out channels
-    ngraph::op::PadType,            // Padding type
-    size_t                          // Number of groups
->;
+using commonConvParams = std::tuple<std::vector<size_t>,     // Kernel size
+                                    std::vector<size_t>,     // Strides
+                                    std::vector<ptrdiff_t>,  // Pad begin
+                                    std::vector<ptrdiff_t>,  // Pad end
+                                    std::vector<size_t>,     // Dilation
+                                    size_t,                  // Num out channels
+                                    ov::op::PadType,         // Padding type
+                                    size_t                   // Number of groups
+                                    >;
 
-using convConcatCPUParams = std::tuple<
-    nodeType,                           // Ngraph convolution type
-    commonConvParams,                   // Convolution params
-    CPUTestUtils::CPUSpecificParams,    // CPU runtime params
-    InferenceEngine::SizeVector,        // Input shapes
-    int                                 // Axis for concat
->;
+using convConcatCPUParams = std::tuple<nodeType,                         // Node convolution type
+                                       commonConvParams,                 // Convolution params
+                                       CPUTestUtils::CPUSpecificParams,  // CPU runtime params
+                                       ov::Shape,                        // Input shapes
+                                       int                               // Axis for concat
+                                       >;
 
-class ConvConcatSubgraphTest : public testing::WithParamInterface<convConcatCPUParams>, public CPUTestsBase, virtual public LayerTestsUtils::LayerTestsCommon {
+class ConvConcatSubgraphTest : public testing::WithParamInterface<convConcatCPUParams>,
+                               public CPUTestsBase,
+                               virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj);
 
@@ -45,4 +46,5 @@ protected:
     std::string pluginTypeNode;
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

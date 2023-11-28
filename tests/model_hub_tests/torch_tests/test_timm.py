@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import timm
 import torch
 import pytest
-from models_hub_common.test_convert_model import TestConvertModel
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 from models_hub_common.constants import hf_hub_cache_dir
-from models_hub_common.utils import cleanup_dir
-from openvino import convert_model
+from models_hub_common.utils import cleanup_dir, get_models_list
 
 
 def filter_timm(timm_list: list) -> list:
@@ -15,7 +15,7 @@ def filter_timm(timm_list: list) -> list:
     filtered_list = []
     ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium", "big",
                   "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l", "xl"}
-    for name in timm_list:
+    for name in sorted(timm_list):
         # first: remove datasets
         name_parts = name.split(".")
         _name = "_".join(name.split(".")[:-1]) if len(name_parts) > 1 else name
@@ -30,15 +30,14 @@ def filter_timm(timm_list: list) -> list:
 
 
 def get_all_models() -> list:
-    m_list = timm.list_pretrained()
-    return filter_timm(m_list)
+    return process_pytest_marks(os.path.join(os.path.dirname(__file__), "timm_models"))
 
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
 
-class TestTimmConvertModel(TestConvertModel):
+class TestTimmConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
@@ -46,16 +45,6 @@ class TestTimmConvertModel(TestConvertModel):
         self.example = (torch.randn(shape),)
         self.inputs = (torch.randn(shape),)
         return m
-
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        return [i.numpy() for i in self.inputs]
-
-    def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
-        return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
@@ -85,3 +74,11 @@ class TestTimmConvertModel(TestConvertModel):
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
+
+    @pytest.mark.nightly
+    def test_models_list_complete(self, ie_device):
+        m_list = timm.list_pretrained()
+        all_models_ref = set(filter_timm(m_list))
+        all_models = set([m for m, _, _, _ in get_models_list(
+            os.path.join(os.path.dirname(__file__), "timm_models"))])
+        assert all_models == all_models_ref, f"Lists of models are not equal."
