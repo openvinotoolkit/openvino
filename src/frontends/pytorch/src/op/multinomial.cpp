@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
@@ -37,12 +38,13 @@ OutputVector translate_multinomial(const NodeContext& context) {
     input = context.mark_node(std::make_shared<v1::Reshape>(input, inp_shape, false));
 
     auto multinomial =
-        context.mark_node(std::make_shared<v13::Multinomial>(input, num_samples, element::i64, replacement, false));
+        context.mark_node(std::make_shared<v13::Multinomial>(input, num_samples, element::i32, replacement, false));
 
     // Torch multinomial can return [num_samples] or [bs, num_samples] based on input dim, reshape to correct shape.
     auto out_shape = context.mark_node(
         std::make_shared<v12::ScatterElementsUpdate>(input_shape, const_neg_1, num_samples, const_neg_1));
     multinomial = context.mark_node(std::make_shared<v1::Reshape>(multinomial, out_shape, false));
+    multinomial = context.mark_node(std::make_shared<v0::Convert>(multinomial, element::i64));
 
     if (!context.input_is_none(5)) {
         context.mutate_input(5, multinomial);
