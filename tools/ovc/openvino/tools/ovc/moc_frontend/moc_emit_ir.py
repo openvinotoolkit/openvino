@@ -8,8 +8,10 @@ from openvino.tools.ovc.moc_frontend.preprocessing import apply_preprocessing
 
 
 def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
-    from openvino._offline_transformations import compress_quantize_weights_transformation, apply_moc_transformations # pylint: disable=no-name-in-module,import-error
-    from openvino.tools.ovc.moc_frontend.offline_transformations import apply_moc_legacy_transformations, apply_fused_names_cleanup
+    from openvino._offline_transformations import compress_quantize_weights_transformation, \
+        apply_moc_transformations  # pylint: disable=no-name-in-module,import-error
+    from openvino.tools.ovc.moc_frontend.offline_transformations import apply_moc_legacy_transformations, \
+        apply_fused_names_cleanup
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=ngraph_function, argv=argv)

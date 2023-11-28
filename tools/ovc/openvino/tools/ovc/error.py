@@ -3,6 +3,7 @@
 
 import re
 
+
 class BasicError(Exception):
     """ Base class for all exceptions in Model Conversion API
 
