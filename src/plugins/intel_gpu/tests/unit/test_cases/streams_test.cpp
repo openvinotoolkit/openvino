@@ -77,32 +77,27 @@ public:
 
         cldnn::network::ptr network0;
         cldnn::network::ptr network1;
-        // if (is_caching_test) {
-        //     membuf mem_buf;
-        //     {
-        //         auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-        //         {
-        //             network0 = std::make_shared<cldnn::network>(prog, 0);
-        //             std::ostream out_mem(&mem_buf);
-        //             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-        //             network0->save(ob);
-        //         }
-        //     }
-        //     {
-        //         {
-        //             std::istream in_mem(&mem_buf);
-        //             BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-        //             auto pos = ib.tellg();
-        //             network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
-        //             ib.seekg(pos);
-        //             network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false, 0);
-        //         }
-        //     }
-        // } else {
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                ob.set_stream(get_test_stream_ptr().get());
+                program::build_program(engine, topology, get_test_default_config(engine))->save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                auto imported_prog = std::make_shared<cldnn::program>(engine, get_test_default_config(engine));
+                imported_prog->load(ib);
+                network0 = std::make_shared<cldnn::network>(imported_prog, 0);
+                network1 = std::make_shared<cldnn::network>(imported_prog, 1);
+            }
+        } else {
             auto prog = program::build_program(engine, topology, get_test_default_config(engine));
             network0 = std::make_shared<cldnn::network>(prog, 0);
             network1 = std::make_shared<cldnn::network>(prog, 1);
-        // }
+        }
 
 
         auto input0 = engine.allocate_memory(input0_layout);
