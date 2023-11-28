@@ -2,53 +2,53 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-class AddConvertToReorderTest : virtual public LayerTestsUtils::LayerTestsCommon {
+class AddConvertToReorderTest : virtual public SubgraphBaseStaticTest {
 public:
-    void BuildGraph(const ngraph::element::Type& secondInpType) {
+    void BuildGraph(const ov::element::Type& secondInpType) {
         secondConstantType = secondInpType;
         int axis = 2;
         std::vector<int> indices = {0, 3, 2, 1};
         std::vector<size_t> indicesShape = {2, 2};
         std::vector<size_t> inputShape = {10, 20, 30, 40};
 
-        InferenceEngine::Precision netPrecision = inPrc = outPrc = Precision::FP32;
+        ov::element::Type netPrecision = inType = outType = ov::element::f32;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
-                                    << "Indices vector size and provided indices shape doesn't fit each other";
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
-        auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-        auto gather = std::make_shared<ngraph::opset3::Gather>(params[0], indicesNode, axisNode);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
-        function = std::make_shared<ngraph::Function>(results, params, "gather");
+        ASSERT_EQ(ov::shape_size(indicesShape), indices.size())
+            << "Indices vector size and provided indices shape doesn't fit each other";
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(inputShape))};
+        auto indicesNode = ov::op::v0::Constant::create(secondConstantType, ov::Shape(indicesShape), indices);
+        auto axisNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({}), {axis});
+        auto gather = std::make_shared<ov::op::v1::Gather>(params[0], indicesNode, axisNode);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
+        function = std::make_shared<ov::Model>(results, params, "gather");
     }
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
+    std::vector<ov::Tensor> calculate_refs() override {
         // Convert the second input constant precision to i64 to run the reference function
-        if (ngraph::element::Type_t::i8 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
-        } else if (ngraph::element::Type_t::bf16 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
+        if (ov::element::i8 == secondConstantType) {
+            convert_precisions.insert({ov::element::i8, ov::element::i64});
+        } else if (ov::element::bf16 == secondConstantType) {
+            convert_precisions.insert({ov::element::bf16, ov::element::i64});
         }
-        return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
+        return SubgraphBaseTest::calculate_refs();
     }
 
 private:
-    ngraph::element::Type secondConstantType;
+    ov::element::Type secondConstantType;
 };
 
-namespace  {
+namespace {
 
 /* Test insertion of the Reorder layer if there is one.
 
@@ -63,10 +63,11 @@ namespace  {
              Output[FP32]
 */
 TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
-    BuildGraph(ngraph::element::i8);
-    Run();
-    CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
-    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 1);
+    BuildGraph(ov::element::i8);
+    run();
+    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 1);
 }
-} // namespace
-} // namespace LayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov
