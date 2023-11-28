@@ -21,7 +21,6 @@
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
-#include "tensor_conversion_util.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -487,24 +486,60 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+namespace {
+ov::Tensor wrap_tensor(const ngraph::HostTensorPtr& t) {
+    const auto& et = t->get_element_type();
+    const auto& p_shape = t->get_partial_shape();
+
+    if (et.is_dynamic() || et == ov::element::undefined) {
+        return {};
+    } else if (p_shape.is_static()) {
+        return {et, p_shape.to_shape(), t->get_data_ptr()};
+    } else {
+        return {et, ov::Shape{0}};
+    }
+}
+
+ov::TensorVector wrap_tensors(const std::vector<ngraph::HostTensorPtr>& tensors) {
+    ov::TensorVector out;
+    out.reserve(tensors.size());
+    for (const auto& ht : tensors) {
+        out.push_back(wrap_tensor(ht));
+    }
+    return out;
+}
+
+void update_output_host_tensors(const std::vector<ngraph::HostTensorPtr>& output_values,
+                                const ov::TensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size() == outputs.size());
+    for (size_t i = 0; i < output_values.size(); ++i) {
+        auto& ht = output_values[i];
+        auto& t = outputs[i];
+        if (ht->get_partial_shape().is_dynamic()) {
+            ht->set_element_type(t.get_element_type());
+            ht->set_shape(t.get_shape());
+            std::memcpy(ht->get_data_ptr(), t.data(), t.get_byte_size());
+        }
+    }
+}
+}  // namespace
+
 bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
-    OPENVINO_SUPPRESS_DEPRECATED_START
     return evaluate(output_tensors, input_tensors, evaluation_context);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
                          EvaluationContext& evaluation_context) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto outputs = ov::util::wrap_tensors(output_tensors);
-    auto inputs = ov::util::wrap_tensors(input_tensors);
+    auto outputs = wrap_tensors(output_tensors);
+    auto inputs = wrap_tensors(input_tensors);
     bool sts = evaluate(outputs, inputs, evaluation_context);
-    ov::util::update_output_host_tensors(output_tensors, outputs);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_host_tensors(output_tensors, outputs);
     return sts;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;

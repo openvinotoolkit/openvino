@@ -103,16 +103,6 @@ TContainer replace_container(const TContainer& input, const TAxes& axes) {
 }
 
 namespace util {
-Shape make_dynamic_shape() {
-    return Shape{0};
-}
-
-bool is_dynamic_shape(const Shape& s) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static const auto dyn_shape = make_dynamic_shape();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return s == dyn_shape;
-}
 
 Shape reduce(const Shape& input, const AxisSet& axes) {
     return ov::reduce_container(input, axes);
