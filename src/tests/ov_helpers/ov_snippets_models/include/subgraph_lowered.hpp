@@ -25,7 +25,7 @@ class AddFunctionLoweredBroadcast : public AddFunction {
 public:
     explicit AddFunctionLoweredBroadcast(const std::vector<PartialShape>& inputShapes, const std::vector<Shape>& broadcastShapes) :
         AddFunction(inputShapes), broadcast_shapes{broadcastShapes} {
-        NGRAPH_CHECK(input_shapes.size() == broadcast_shapes.size(),
+        OPENVINO_ASSERT(input_shapes.size() == broadcast_shapes.size(),
                      "Broadcast shapes should have the same size as input_shapes");
     }
 
@@ -40,9 +40,9 @@ class EltwiseThreeInputsLoweredFunction : public EltwiseThreeInputsFunction {
 public:
     explicit EltwiseThreeInputsLoweredFunction(const std::vector<PartialShape>& inputShapes, const std::vector<Shape>& broadcastShapes) :
             EltwiseThreeInputsFunction(inputShapes), broadcast_shapes{broadcastShapes} {
-        NGRAPH_CHECK(input_shapes.size() == broadcast_shapes.size(),
+        OPENVINO_ASSERT(input_shapes.size() == broadcast_shapes.size(),
                      "Broadcast shapes should have the same size as input_shapes");
-        NGRAPH_CHECK(input_shapes[0].is_static() && input_shapes[1].is_static() && input_shapes[2].is_static(),
+        OPENVINO_ASSERT(input_shapes[0].is_static() && input_shapes[1].is_static() && input_shapes[2].is_static(),
                      "Broadcast shapes should have the same size as input_shapes");
     }
 

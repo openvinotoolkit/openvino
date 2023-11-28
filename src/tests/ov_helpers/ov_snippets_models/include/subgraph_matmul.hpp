@@ -24,15 +24,15 @@ class MatMulFunction : public SnippetsFunctionBase {
 public:
     explicit MatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
     : SnippetsFunctionBase(inputShapes), precisions(precisions) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
         validate_precisions(precisions);
     }
     static void validate_precisions(const std::vector<ov::element::Type>& precisions) {
-        NGRAPH_CHECK(precisions.size() == 2, "Got invalid number of input element types");
+        OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of input element types");
         const bool is_f32 = ov::snippets::utils::everyone_is(element::f32, precisions[0], precisions[1]);
         const bool is_int8 = ov::snippets::utils::one_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
         const bool is_bf16 = ov::snippets::utils::everyone_is(element::bf16, precisions[0], precisions[1]);
-        NGRAPH_CHECK(is_f32 || is_bf16 || is_int8, "Invalid precisions");
+        OPENVINO_ASSERT(is_f32 || is_bf16 || is_int8, "Invalid precisions");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -44,8 +44,8 @@ protected:
 class FQMatMulFunction : public SnippetsFunctionBase {
 public:
     explicit FQMatMulFunction(const std::vector<PartialShape>& inputShapes, int pos = -1) : SnippetsFunctionBase({inputShapes[0]}), pos(pos)  {
-        NGRAPH_CHECK(inputShapes.size() == 2, "Got invalid number of input shapes");
-        NGRAPH_CHECK(pos >=-1 && pos <= 2, "Got invalid transpose position");
+        OPENVINO_ASSERT(inputShapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(pos >=-1 && pos <= 2, "Got invalid transpose position");
         const_shape = inputShapes[1];
     }
 protected:
@@ -60,7 +60,7 @@ class MatMulBiasFunction : public SnippetsFunctionBase {
 public:
     explicit MatMulBiasFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
             : SnippetsFunctionBase(inputShapes), precisions(precisions) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
         MatMulFunction::validate_precisions(precisions);
     }
 protected:
@@ -76,7 +76,7 @@ class MatMulBiasQuantizedFunction : public SnippetsFunctionBase {
 public:
     explicit MatMulBiasQuantizedFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
             : SnippetsFunctionBase(inputShapes), precisions(precisions) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
         MatMulFunction::validate_precisions(precisions);
     }
 protected:
@@ -94,7 +94,7 @@ class MatMulsQuantizedFunction : public SnippetsFunctionBase {
 public:
     explicit MatMulsQuantizedFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
             : SnippetsFunctionBase(inputShapes), precisions(precisions) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
         MatMulFunction::validate_precisions(precisions);
     }
 protected:
@@ -115,10 +115,10 @@ public:
     explicit Transpose0213MatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
                                          size_t position = 0)
     : SnippetsFunctionBase(inputShapes), transpose_position(position), precisions(precisions)  {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
-        NGRAPH_CHECK(input_shapes[0].rank().get_length() == 4 && input_shapes[1].rank().get_length() == 4,
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes[0].rank().get_length() == 4 && input_shapes[1].rank().get_length() == 4,
                      "Only rank 4 input shapes are supported by this test");
-        NGRAPH_CHECK(transpose_position >=0 && transpose_position <= 2, "Got invalid transpose position");
+        OPENVINO_ASSERT(transpose_position >=0 && transpose_position <= 2, "Got invalid transpose position");
         MatMulFunction::validate_precisions(precisions);
     }
 protected:
@@ -130,7 +130,7 @@ protected:
 class TransposeMatMulFunction : public SnippetsFunctionBase {
 public:
     explicit TransposeMatMulFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -139,7 +139,7 @@ protected:
 class TransposeMatMulBiasFunction : public SnippetsFunctionBase {
 public:
     explicit TransposeMatMulBiasFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -148,7 +148,7 @@ protected:
 class TransposeMulMatMulBiasFunction : public SnippetsFunctionBase {
 public:
     explicit TransposeMulMatMulBiasFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -163,7 +163,7 @@ class MatMulsQuantizedSoftmaxFunction : public SnippetsFunctionBase {
 public:
     explicit MatMulsQuantizedSoftmaxFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
             : SnippetsFunctionBase(inputShapes), precisions(precisions) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
         MatMulFunction::validate_precisions(precisions);
     }
 protected:

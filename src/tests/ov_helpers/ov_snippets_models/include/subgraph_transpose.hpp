@@ -23,7 +23,7 @@ class TransposeFunction : public SnippetsFunctionBase {
 public:
     explicit TransposeFunction(const std::vector<PartialShape>& inputShapes, std::vector<int> order)
     : SnippetsFunctionBase(inputShapes), order(std::move(order)) {
-        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -41,7 +41,7 @@ class TransposeMulFunction : public SnippetsFunctionBase {
 public:
     explicit TransposeMulFunction(const std::vector<PartialShape>& inputShapes, std::vector<int> order)
             : SnippetsFunctionBase(inputShapes), order(std::move(order)) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
