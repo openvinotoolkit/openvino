@@ -72,7 +72,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std:
                         m_dims,
                         TRShape(std::vector<Dimension>(attention_mask.begin(), attention_mask.end() - 2))) &&
                     TRShape::broadcast_merge_into(m_dims, n_dims, AutoBroadcastType::NUMPY) &&
-                    n_dims.compatible(m_dims);
+                    TRShape::merge_into(n_dims, m_dims);
             }
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
