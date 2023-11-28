@@ -659,7 +659,7 @@ void program::mark_if_constant(program_node& node) {
 
 // mark if the node is in data flow assuming that all dependencies are marked properly
 void program::mark_if_data_flow(program_node& node) {
-    if (node.is_type<mutable_data>() || node.is_type<input_layout>()) {
+    if (node.is_type<mutable_data>() || node.is_type<input_layout>() || node.is_type<read_value>()) {
         node.data_flow = true;
     } else {
         node.data_flow = false;

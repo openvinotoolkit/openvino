@@ -113,8 +113,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT.*MatMulWithConstantTransformation.*)",
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
             R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
-            // Dynamic state unsupported for now
-            R"(.*MemoryDynamicBatch.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
             // Issue: 123507
@@ -123,5 +121,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*RandomUniformLayerTest.*f16.*)",
             // Issue: 125165
             R"(smoke_Nms9LayerTest.*)",
+            // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
+            R"(smoke_MemoryTest.*)",
     };
 }

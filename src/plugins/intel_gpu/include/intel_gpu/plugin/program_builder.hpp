@@ -128,13 +128,6 @@ public:
 
     void add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
 
-
-    using variables_state_info_map = std::map<std::string, std::set<cldnn::layout>>;
-
-    void AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout);
-
-    const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
-
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
     bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const;
     bool is_inner_program() const { return m_is_inner_program; }
@@ -150,7 +143,6 @@ private:
     static std::mutex m_mutex;
 
     std::shared_ptr<cldnn::topology> m_topology;
-    variables_state_info_map m_variablesStateInfo;
     CustomLayerMap m_custom_layers;
 
     bool allow_new_shape_infer = false;

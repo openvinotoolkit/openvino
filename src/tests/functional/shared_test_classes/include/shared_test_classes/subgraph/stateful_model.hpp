@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/properties.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
 
-using namespace InferenceEngine;
 using namespace ov::test;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-class StatefulModelTest : public SubgraphBaseTest {
+static constexpr ov::element::Type_t test_element_type = ov::element::Type_t::f32;
+
+class StatefulModelTest : public SubgraphBaseTest, public testing::WithParamInterface<const char*> {
 public:
     static constexpr ov::element::Type_t testPrc = ov::element::Type_t::f32;
 
@@ -68,7 +71,7 @@ public:
 class StaticShapeStatefulModel : public StatefulModelTest {
 public:
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
 
         const ov::Shape inpShape = {1, 1};
@@ -86,9 +89,9 @@ public:
         // Creating ov::Model
         auto read = std::make_shared<ov::op::v6::ReadValue>(init_const, variable);
         std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
-        auto add = ngraph::builder::makeEltwise(arg, read, ngraph::helpers::EltwiseTypes::ADD);
+        auto add = std::make_shared<ov::op::v1::Add>(arg, read);
         auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
-        auto add2 = ngraph::builder::makeEltwise(add, read, ngraph::helpers::EltwiseTypes::ADD);
+        auto add2 = std::make_shared<ov::op::v1::Add>(add, read);
         auto res = std::make_shared<ov::op::v0::Result>(add2);
         function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
     }
@@ -139,7 +142,7 @@ public:
     }
 };
 
-TEST_F(StaticShapeStatefulModel, smoke_Run_Stateful_Static) {
+TEST_P(StaticShapeStatefulModel, smoke_Run_Stateful_Static) {
     prepare();
     run_test();
     reset_state();
@@ -171,7 +174,7 @@ TEST_F(StaticShapeStatefulModel, smoke_Run_Stateful_Static) {
 class StaticShapeTwoStatesModel : public StatefulModelTest {
 public:
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
 
         const ov::Shape inpShape = {1, 1};
@@ -190,10 +193,10 @@ public:
 
         // Creating ov::Model
         auto read0 = std::make_shared<ov::op::v6::ReadValue>(init_const, variable0);
-        auto add = ngraph::builder::makeEltwise(arg, read0, ngraph::helpers::EltwiseTypes::ADD);
+        auto add = std::make_shared<ov::op::v1::Add>(arg, read0);
         auto assign0 = std::make_shared<ov::op::v6::Assign>(add, variable0);
         auto read1 = std::make_shared<ov::op::v6::ReadValue>(init_const, variable1);
-        auto add2 = ngraph::builder::makeEltwise(add, read1, ngraph::helpers::EltwiseTypes::ADD);
+        auto add2 = std::make_shared<ov::op::v1::Add>(add, read1);
         auto assign1 = std::make_shared<ov::op::v6::Assign>(add2, variable1);
         auto res = std::make_shared<ov::op::v0::Result>(add2);
         function = std::make_shared<ov::Model>(
@@ -258,7 +261,7 @@ public:
     }
 };
 
-TEST_F(StaticShapeTwoStatesModel, smoke_Run_Static_Two_States) {
+TEST_P(StaticShapeTwoStatesModel, smoke_Run_Static_Two_States) {
     prepare();
     run_test();
 }
@@ -284,7 +287,7 @@ TEST_F(StaticShapeTwoStatesModel, smoke_Run_Static_Two_States) {
 class DynamicShapeStatefulModel : public StatefulModelTest {
 public:
     void SetUp(bool use_param) {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
 
         const ov::Shape inpShape = {1, 1};
@@ -304,9 +307,9 @@ public:
             std::make_shared<ov::op::v6::ReadValue>(arg, variable) :
             std::make_shared<ov::op::v6::ReadValue>(variable);
         std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
-        auto add = ngraph::builder::makeEltwise(arg, read, ngraph::helpers::EltwiseTypes::ADD);
+        auto add = std::make_shared<ov::op::v1::Add>(arg, read);
         constexpr int concat_axis = 0;
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ov::NodeVector{arg, add}, concat_axis);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{arg, add}, concat_axis);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
         auto res = std::make_shared<ov::op::v0::Result>(concat);
         function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
@@ -389,7 +392,7 @@ public:
     }
 };
 
-TEST_F(DynamicShapeStatefulModelDefault, smoke_Run_Stateful_Dynamic_Default) {
+TEST_P(DynamicShapeStatefulModelDefault, smoke_Run_Stateful_Dynamic_Default) {
     prepare();
     run_test();
     reset_state();
@@ -404,7 +407,7 @@ public:
     }
 };
 
-TEST_F(DynamicShapeStatefulModelParam, smoke_Run_Stateful_Dynamic_Param) {
+TEST_P(DynamicShapeStatefulModelParam, smoke_Run_Stateful_Dynamic_Param) {
     prepare();
     run_test();
     reset_state();
@@ -442,9 +445,8 @@ TEST_F(DynamicShapeStatefulModelParam, smoke_Run_Stateful_Dynamic_Param) {
 class DynamicShapeStatefulModelStateAsInp : public StatefulModelTest {
 public:
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
-        const_val = 42.0f;
 
         const ov::Shape inpShape = {1, 1};
         const InputShape input_shape = {{1, -1}, {{1, 1}, {1, 2}, {1, 4}, {1, 8}, {1, 16}}};
@@ -463,9 +465,9 @@ public:
         // Creating ov::Model
         auto read = std::make_shared<ov::op::v6::ReadValue>(init_param, variable);
         std::vector<std::shared_ptr<ov::Node>> args = {param1, param2, read};
-        auto add1 = ngraph::builder::makeEltwise(param1, param2, ngraph::helpers::EltwiseTypes::ADD);
+        auto add1 = std::make_shared<ov::op::v1::Add>(param1, param2);
         auto add_const = ov::op::v0::Constant::create(netPrc, ov::Shape{1, 1}, {const_val});
-        auto add2 = ngraph::builder::makeEltwise(add1, add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto add2 = std::make_shared<ov::op::v1::Add>(add1, add_const);
         constexpr int concat_axis = 1;
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{add2, read}, concat_axis);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
@@ -562,14 +564,15 @@ public:
     }
 
 private:
-    float const_val = 0.0f;
+    const float const_val = 42.0f;
 };
 
-TEST_F(DynamicShapeStatefulModelStateAsInp, smoke_Run_Stateful_Dynamic_State_As_Inp) {
+TEST_P(DynamicShapeStatefulModelStateAsInp, smoke_Run_Stateful_Dynamic_State_As_Inp) {
     prepare();
     run_test();
     reset_state();
     run_test();
 }
 
-} // namespace SubgraphTestsDefinitions
+} // namespace test
+} // namespace ov

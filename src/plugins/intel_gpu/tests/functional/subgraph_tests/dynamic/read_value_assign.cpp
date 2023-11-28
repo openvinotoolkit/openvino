@@ -51,11 +51,9 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(input_precision, shape));
         }
-        const VariableInfo variable_info { inputDynamicShapes[0], input_precision, "v0" };
-        auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(params.at(0), variable);
+        auto read_value = std::make_shared<ov::op::v3::ReadValue>(params.at(0), "v0");
         auto add = std::make_shared<ov::op::v1::Add>(read_value, params.at(0));
-        auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+        auto assign = std::make_shared<ov::op::v3::Assign>(add, "v0");
         auto res = std::make_shared<ov::op::v0::Result>(add);
         function = std::make_shared<ov::Model>(ResultVector { res }, SinkVector { assign }, params);
     }

@@ -287,14 +287,6 @@ void ProgramBuilder::init_profile_info(const cldnn::primitive& prim) {
     perfEntry.parentPrimitive = prim.origin_op_name;
 }
 
-void ProgramBuilder::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
-    auto it = m_variablesStateInfo.find(variable_id);
-    if (it != m_variablesStateInfo.end())
-        it->second.insert(layout);
-    else
-        m_variablesStateInfo.insert({variable_id, { layout }});
-}
-
 void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases) {
     OPENVINO_ASSERT(m_topology != nullptr, "[GPU] Invalid ProgramBuilder builder state: topology is nullptr");
 
