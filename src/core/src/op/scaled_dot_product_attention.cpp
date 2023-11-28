@@ -39,17 +39,18 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
 
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
-
-    for (size_t i = 0; i < get_input_size(); i++) {
-        // TODO bool allowed for inp idx 4 Attn mask
-        // TODO merge type for floats? Check transform
-        OPENVINO_ASSERT(get_input_element_type(i).is_real() || get_input_element_type(i).is_dynamic(),
-                        "The element type of the input tensor on index ",
-                        i,
-                        " must be a floating-point or dynamic (got ",
-                        get_input_element_type(i),
-                        ").");
+    auto out_type = get_input_element_type(0);
+    const auto input_size = get_input_size();
+    for (size_t i = 1; i < input_size; i++) {
+        if (i == 3 && (input_size == 4 || get_input_element_type(i) == element::boolean)) {
+            continue;
+        }
+        OPENVINO_ASSERT(element::Type::merge(out_type, out_type, get_input_element_type(i)),
+                        "Mixed input types are not supported.");
     }
+    OPENVINO_ASSERT(out_type.is_real() || out_type.is_dynamic(),
+                    "The element type of the input tensor must be a floating-point but got: ",
+                    out_type);
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
