@@ -31,7 +31,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: emscripten/emsdk
       volumes:
