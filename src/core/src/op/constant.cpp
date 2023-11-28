@@ -144,7 +144,6 @@ void Constant::allocate_buffer(bool memset_allocation) {
     // memset_allocation flag is to switch on initialization of objects in memory for element::string type
     // and set memory to zero for numeric element types
     m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
-    
     if (memset_allocation) {
         if (m_element_type == ov::element::string) {
             // initialize std::string objects in memory
