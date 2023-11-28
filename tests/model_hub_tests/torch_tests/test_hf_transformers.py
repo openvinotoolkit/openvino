@@ -259,7 +259,7 @@ class TestTransformersModel(TestConvertModel):
                     example = dict(inputs)
                 elif auto_model == 'AutoModelForTextToWaveform' and name in music_generation_models:
                     import torch
-                    from transformers import AutoProcessor, AutoModelForTextToWaveform
+                    from transformers import AutoProcessor, AutoModelForTextToWaveform, MusicgenForConditionalGeneration
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
                     
@@ -268,14 +268,14 @@ class TestTransformersModel(TestConvertModel):
                         padding=True,
                         return_tensors="pt",
                     )
-                    example = dict(inputs) 
+                    example = dict(inputs)
 
                     class MusicGenerateModel(torch.nn.Module):
                         def __init__(self, model):
                             super().__init__()
                             self.model = model
-                        def forward(self, **x):
-                            return self.model.generate(**x, max_new_tokens=256)
+                        def forward(self, input_ids, attention_mask):
+                            return self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=256)
                     model = MusicGenerateModel(model)
                 elif auto_model == 'RagTokenForGeneration':
                     import torch
@@ -285,7 +285,7 @@ class TestTransformersModel(TestConvertModel):
                     
                     input_dict = tokenizer.prepare_seq2seq_batch("who holds the record in 100m freestyle", 
                                             return_tensors="pt") 
-                    example = input_dict['input_ids']
+                    example = (input_dict['input_ids'], )
 
                     class RagTokenGenerationModel(torch.nn.Module):
                         def __init__(self, model):
@@ -296,9 +296,9 @@ class TestTransformersModel(TestConvertModel):
                     model = RagTokenGenerationModel(model)
                 elif auto_model == 'AutoModelForSeq2SeqLM' and name in visual_question_answer_models:
                     import torch
-                    from transformers import Pix2StructForConditionalGeneration, Pix2StructProcessor
+                    from transformers import AutoProcessor, Pix2StructForConditionalGeneration
                     model = Pix2StructForConditionalGeneration.from_pretrained(name)
-                    processor = Pix2StructProcessor.from_pretrained(name)
+                    processor = AutoProcessor.from_pretrained(name)
 
                     import requests
                     from PIL import Image
@@ -312,14 +312,16 @@ class TestTransformersModel(TestConvertModel):
                         def __init__(self, model):
                             super().__init__()
                             self.model = model
-                        def forward(self, **x):
-                            return self.model.generate(**x)
+                        def forward(self, flattened_patches, attention_mask):
+                            return self.model.generate(flattened_patches=flattened_patches, attention_mask=attention_mask)
                     model = DecoratorModelForSeq2SeqLM(model)
                 elif auto_model == 'RealmForOpenQA':
-                    from transformers import AutoTokenizer, RealmForOpenQA
+                    from transformers import AutoTokenizer, RealmForOpenQA, RealmRetriever
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = RealmForOpenQA.from_pretrained(name)
-                    # todo: provide example input for google/realm-orqa-nq-openqa
+                    
+                    question = "Who is the pioneer in modern computer science?"
+                    example = dict(tokenizer([question], return_tensors="pt"))
                 elif auto_model == 'AutoModelForTextToSpectrogram':
                     from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
                     from datasets import load_dataset
@@ -333,14 +335,14 @@ class TestTransformersModel(TestConvertModel):
                     # load xvector containing speaker's voice characteristics from a dataset
                     embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
                     speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-                    example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings, 'vocoder': vocoder}
+                    example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
 
                     class DecoratorModelForSeq2SeqLM(torch.nn.Module):
                         def __init__(self, model):
                             super().__init__()
                             self.model = model
-                        def forward(self, **x):
-                            return self.model.generate_speech(**x)
+                        def forward(self, input_ids, speaker_embeddings):
+                            return self.model.generate_speech(input_ids=input_ids, speaker_embeddings=speaker_embeddings, vocoder=vocoder)
                     model = DecoratorModelForSeq2SeqLM(model)
                 else:
                     from transformers import AutoTokenizer, AutoProcessor

@@ -65,7 +65,7 @@ EleutherAI/pythia-6.9b,gpt_neox
 facebook/bart-large-mnli,bart
 facebook/convnextv2-tiny-22k-384,convnextv2
 facebook/detr-resnet-50,detr
-facebook/dinov2-base,dinov2,xfail,Fails on convert_model: please check correctness of provided example_input
+facebook/dinov2-base,dinov2,xfail,Convert error: please check correctness of provided example_input
 facebook/dpr-question_encoder-single-nq-base,dpr
 facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
 facebook/esm2_t6_8M_UR50D,esm
@@ -74,8 +74,8 @@ facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
-facebook/mms-tts-eng,vits,xfail,No conversion rule found for operations: aten::softplus. Conversion is failed for: ov::align_types
-facebook/musicgen-small,musicgen,xfail,Error: No node with name input_ids
+facebook/mms-tts-eng,vits,xfail,Convert error: no conversion rule found for operations: aten::softplus. Conversion is failed for: ov::align_types
+facebook/musicgen-small,musicgen,xfail,Convert error: Killed by timout with no error
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,xfail,NoneType object has no attribute shape
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
@@ -104,9 +104,9 @@ google/mobilebert-uncased,mobilebert
 google/mobilenet_v1_0.75_192,mobilenet_v1
 google/mt5-base,mt5
 google/owlvit-base-patch32,owlvit
-google/pix2struct-docvqa-base,pix2struct,xfail,Could not get TorchScript module by tracing. With exception: bos_token_id has to be defined when no input_ids are provided.
-google/pix2struct-ai2d-base,pix2struct,xfail,Could not get TorchScript module by tracing. With exception: bos_token_id has to be defined when no input_ids are provided.
-google/realm-orqa-nq-openqa,realm,xfail,provide example input
+google/pix2struct-docvqa-base,pix2struct,xfail,Convert error: no conversion rule found for operations: aten::prod. Conversion is failed for: ov::align_types
+google/pix2struct-ai2d-base,pix2struct,xfail,Convert error: no conversion rule found for operations: aten::prod. Conversion is failed for: ov::align_types
+google/realm-orqa-nq-openqa,realm,xfail,First infer error: NoneType object is not callable
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas
 google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
@@ -249,7 +249,7 @@ microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
-microsoft/speecht5_tts,speecht5,xfail,AttributeError: 'SpeechT5HifiGan' object has no attribute 'numpy'
+microsoft/speecht5_tts,speecht5,xfail,Convert error: please check correctness of provided example_input
 microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,xfail,expected scalar type Long but found Float
