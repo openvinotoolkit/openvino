@@ -165,6 +165,71 @@ TEST(type_prop, scaled_dot_product_attention_dynamic_4d) {
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
+
+TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{1, 4}, 3, {1, 5}, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f64, PartialShape{{4, 8}, {1, 4}, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{2, 4}, 3, 5, {3, 7}});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f64, PartialShape{3, 3, {4, 7}, 5});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f64, PartialShape{});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {1, 5}, {3, 7}}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_4_inputs) {
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{1, 4}, 3, {1, 5}, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f64, PartialShape{{2, 8}, {1, 4}, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{1, 4}, 3, 5, {3, 7}});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f64, PartialShape{3, 3, {4, 7}, 5});
+    auto causal = false;
+
+    const auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 3, {4, 5}, {3, 7}}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_type_infer_5_inputs) {
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{1, 3, 5});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs) {
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f64, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f64, PartialShape{1, 3, 5});
+    auto causal = false;
+
+    const auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs_bool_attention) {
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f64, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::boolean, PartialShape{1, 3, 5});
+    auto causal = false;
+
+    const auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
 TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 5, 4});
@@ -212,4 +277,44 @@ TEST(type_prop, scaled_dot_product_unsupported_scale_shape) {
         std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
         AssertFailure,
         testing::HasSubstr("Scale input accepts only scalar tensor."));
+}
+
+TEST(type_prop, scaled_dot_product_unsupported_dtype) {
+    const auto query = std::make_shared<opset13::Parameter>(element::i32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::i32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::i32, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::i32, PartialShape{3, 3, 3, 5});
+    const auto scale = std::make_shared<opset13::Parameter>(element::i32, PartialShape{});
+    auto causal = false;
+
+    OV_EXPECT_THROW(
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+        AssertFailure,
+        testing::HasSubstr("The element type of the input tensor must be a floating-point."));
+}
+
+TEST(type_prop, scaled_dot_product_unsupported_value_dtype_mixed) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::i32, PartialShape{3, 3, 3, 5});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{});
+    auto causal = false;
+
+    OV_EXPECT_THROW(
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+        AssertFailure,
+        testing::HasSubstr("Mixed input types are not supported."));
+}
+
+TEST(type_prop, scaled_dot_product_unsuported_attention_type) {
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f64, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::i32, PartialShape{1, 3, 5});
+    auto causal = false;
+
+    OV_EXPECT_THROW(std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+                    AssertFailure,
+                    testing::HasSubstr("The element type of attention_mask must be either floating-point or boolean."));
 }
