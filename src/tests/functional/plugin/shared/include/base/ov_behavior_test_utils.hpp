@@ -27,6 +27,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -240,7 +241,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ov::test::utils::make_split_conv_concat();
     }
 };
 

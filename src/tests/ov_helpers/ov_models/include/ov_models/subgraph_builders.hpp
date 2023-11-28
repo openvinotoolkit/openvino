@@ -54,16 +54,6 @@ std::shared_ptr<ov::Model> makeNestedBranchConvConcat(std::vector<size_t> inputS
 std::shared_ptr<ov::Model> makeNestedSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                      ov::element::Type ngPrc = ov::element::Type_t::f32);
 
-std::shared_ptr<ov::Model> makeSplitConvConcatInputInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                            ov::element::Type ngPrc = ov::element::Type_t::f32);
-
-std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                             ov::element::Type ngPrc = ov::element::Type_t::f32);
-
-std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(
-    std::vector<size_t> inputShape = {1, 4, 20, 20},
-    ov::element::Type ngPrc = ov::element::Type_t::f32);
-
 std::shared_ptr<ov::Model> makeConvBias(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                         ov::element::Type type = ov::element::Type_t::f32);
 
