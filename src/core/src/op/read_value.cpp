@@ -46,12 +46,12 @@ bool ReadValue::visit_attributes(AttributeVisitor& visitor) {
 }  // namespace v3
 
 namespace v6 {
-ReadValue::ReadValue(const shared_ptr<Variable>& variable) {
+ReadValue::ReadValue(const std::shared_ptr<util::Variable>& variable) {
     m_variable = variable;
     constructor_validate_and_infer_types();
 }
 
-ReadValue::ReadValue(const Output<Node>& init_value, const std::shared_ptr<Variable>& variable)
+ReadValue::ReadValue(const Output<Node>& init_value, const std::shared_ptr<util::Variable>& variable)
     : ReadValueBase({init_value}) {
     m_variable = variable;
     constructor_validate_and_infer_types();
