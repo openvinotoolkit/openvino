@@ -8,7 +8,6 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -53,13 +52,11 @@ std::shared_ptr<Node> Reshape::clone_with_new_inputs(const OutputVector& new_arg
 }
 
 bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs) const {
-    std::vector<PartialShape> input_shapes;
-    input_shapes.reserve(inputs.size());
-    for (const auto& in : inputs) {
-        input_shapes.push_back(in.get_shape());
-    }
+    const auto output_shape =
+        shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs))
+            .front()
+            .to_shape();
 
-    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     if (outputs.empty()) {
         outputs.emplace_back(inputs[0].get_element_type(), output_shape);
     } else {
@@ -94,11 +91,7 @@ bool Reshape::evaluate_upper(ov::TensorVector& output_values) const {
 }
 
 bool Reshape::evaluate_label(TensorLabelVector& output_labels) const {
-    if (!get_input_tensor(1).has_and_set_bound())
-        return false;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, {0}, output_labels);
 }
 
 bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
@@ -106,13 +99,12 @@ bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inp
         return false;
     }
 
-    const auto& shape = get_output_shape(0);
-
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<v0::Constant>(*data_const, get_output_shape(0));
         return true;
+    } else {
+        return false;
     }
-    return false;
 }
 }  // namespace v1
 }  // namespace op
