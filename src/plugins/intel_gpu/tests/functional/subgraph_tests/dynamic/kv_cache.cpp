@@ -210,4 +210,114 @@ TEST(KVCacheTest, smoke_multipleIterations) {
     }
 }
 
+TEST(KVCacheTest, smoke_multipleIterations_stateful) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+
+    const size_t batch = 1;
+    const size_t n_heads = 32;
+    const size_t n_features = 80;
+    const size_t context_size = 20;
+    size_t cache_size = 0;
+
+    ov::element::Type element_type = ov::element::f16;
+
+    auto model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type, true);
+    auto ref_model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type, false);
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+
+    auto input0 = model->get_parameters().at(0);
+    auto input1 = model->get_parameters().at(1);
+    auto output0 = model->get_results().at(0);
+
+    auto get_ref_results = [&ref_model](const ov::Tensor& kv_cache, const ov::Tensor& new_token_data, const ov::Tensor& matmul_data) {
+        auto input0 = ref_model->get_parameters().at(0);
+        auto input1 = ref_model->get_parameters().at(1);
+        auto input2 = ref_model->get_parameters().at(2);
+        ngraph::helpers::resize_function(ref_model, {kv_cache.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
+        return ngraph::helpers::interpretFunction(ref_model, {{input0, kv_cache}, {input1, new_token_data}, {input2, matmul_data}});
+    };
+
+    auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
+            ASSERT_EQ(expected.size(), actual.size());
+            ASSERT_EQ(expected.size(), model->get_results().size());
+            auto compareMap = ov::test::utils::getCompareMap();
+            const auto& results = model->get_results();
+            for (size_t j = 0; j < results.size(); j++) {
+                const auto result = results[j];
+                for (size_t i = 0; i < result->get_input_size(); ++i) {
+                    std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+                    if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
+                        std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
+                        if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                            inputNode = nextNodePtr;
+                        }
+                    }
+                    auto it = compareMap.find(inputNode->get_type_info());
+                    ASSERT_NE(it, compareMap.end());
+                    it->second(inputNode, i, expected[j], actual[j], 1e-4f, 1e-4f);
+                }
+            }
+    };
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto matmul_out = infer_request.get_tensor(output0);
+    auto new_token_input = infer_request.get_tensor(input0);
+    auto matmul_input = infer_request.get_tensor(input1);
+
+    infer_request.set_tensor(input0, new_token_input);
+    infer_request.set_tensor(input1, matmul_input);
+
+    ov::Tensor ref_kv_cache;
+
+    {
+        const ov::Shape new_token_size_initial = {batch, context_size, n_heads, n_features};
+        const ov::Shape kv_cache_size_initial = {batch, n_heads, cache_size, n_features};
+        const ov::Shape matmul_in_size_initial = {batch, n_heads, context_size, context_size};
+
+        auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size_initial);
+        auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_initial);
+
+        new_token_input.set_shape(new_token_data.get_shape());
+        matmul_input.set_shape(matmul_data.get_shape());
+
+        new_token_data.copy_to(new_token_input);
+        matmul_data.copy_to(matmul_input);
+
+        ref_kv_cache = ov::Tensor(element_type, kv_cache_size_initial);
+
+        auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data);
+        ref_kv_cache = ref_results[0];
+
+        infer_request.infer();
+
+        compare_tensors({ ref_results[1] }, {matmul_out});
+
+        cache_size += context_size;
+    }
+
+    const size_t input_tokens = 1;
+    const size_t niters = 10;
+    const ov::Shape new_token_size = {batch, input_tokens, n_heads, n_features};
+    size_t context_length = cache_size + input_tokens;
+    for (size_t i = 0; i < niters; i++, context_length += input_tokens) {
+        ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
+        auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
+        auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
+        auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data);
+        ref_kv_cache = ref_results[0];
+
+        new_token_input.set_shape(new_token_data.get_shape());
+        matmul_input.set_shape(matmul_data.get_shape());
+        new_token_data.copy_to(new_token_input);
+        matmul_data.copy_to(matmul_input);
+
+        infer_request.infer();
+
+        compare_tensors({ ref_results[1] }, {matmul_out});
+    }
+}
+
 } // namespace SubgraphTestsDefinitions
