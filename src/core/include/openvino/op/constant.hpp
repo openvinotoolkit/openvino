@@ -656,7 +656,7 @@ private:
     template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void fill_data(const std::string& value) {
         auto num_elements = shape_size(m_shape);
-        std::fill_n(get_data_ptr_nc<Type>(), num_elements, value);
+        std::uninitialized_fill_n(get_data_ptr_nc<Type>(), num_elements, value);
     }
 
     template <element::Type_t Type,
@@ -728,7 +728,7 @@ private:
         // elements of string ov::Tensor is already pre-initialized in allocate_buffer
         auto p = get_data_ptr_nc<Type>();
         auto num_elements = std::min(shape_size(m_shape), source.size());
-        std::copy_n(source.begin(), num_elements, p);
+        std::uninitialized_copy_n(source.begin(), num_elements, p);
     }
 
     template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
