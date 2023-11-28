@@ -690,8 +690,8 @@ if platform.system() == 'Darwin':
 if platform.system() == 'Linux' and platform.machine() == 'arm64':
     tests_expected_to_fail.extend(
         [
-            (xfail_issue_122775, "test_resize_downsample_scales_linear_cpu"),
-            (xfail_issue_122776, "test_mish_expanded_cpu")
+            (xfail_issue_122775, "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"),
+            (xfail_issue_122776, "OnnxBackendNodeModelTest.test_mish_expanded_cpu")
         ]
     )
 

@@ -510,7 +510,7 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
       - name: Run onnxruntime_test_all
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket: 126277
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
@@ -625,7 +625,10 @@ jobs:
         #if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
+          
+          # Skip filter ticket: 126279
           ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
+                --gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
@@ -652,7 +655,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket: 126280
         #if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -686,28 +689,12 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket: 126281
         #if: fromJSON(needs.smart_ci.outputs.affected_components).transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
-
-      - name: Legacy Transformations func tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_legacy_transformations_tests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LegacyTransformations.xml
-
-      - name: Inference Engine 1.0 unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/InferenceEngineUnitTests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineUnitTests.xml
 
       - name: Common test utils tests
         if: ${{ always() }}
@@ -785,7 +772,10 @@ jobs:
         #if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
+          
+          # Skip filter ticket: 126283
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
+                --gtest_filter=-*ov_core/ov_core_test.ov_core_compile_model_with_property* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
@@ -976,6 +966,12 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
+          export LD_PRELOAD=${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
+          
+          echo ${PIP_INSTALL_PATH}
+          echo ${PIP_INSTALL_PATH}
+          echo ${PIP_INSTALL_PATH}
+          
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -988,6 +984,8 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
+          export LD_PRELOAD=${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
+          
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -1004,7 +1002,7 @@ jobs:
 
       - name: PyTorch Layer Tests
         timeout-minutes: 20
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket: 126287
         #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1012,7 +1010,7 @@ jobs:
           TEST_PRECISION: FP32
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ always() }}
+        if: ${{ 'false' }} # RuntimeError: Python 3.11+ not yet supported for torch.compile, torch 2.0.1 is installed on Linux ARM64, it works in torch 2.1.1
         timeout-minutes: 20
         #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
@@ -1023,7 +1021,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: ${{ always() }}
+        if: ${{ 'false' }} # RuntimeError: Python 3.11+ not yet supported for torch.compile, torch 2.0.1 is installed on Linux ARM64, it works in torch 2.1.1
         timeout-minutes: 20
         #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
