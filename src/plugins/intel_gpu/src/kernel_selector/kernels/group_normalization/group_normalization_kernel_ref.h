@@ -32,6 +32,7 @@ public:
     using DispatchData = CommonDispatchData;
     enum KernelId {
         eCalcMeanKernel,
+        eCalcPow,
         eCalcStandardDeviationKernel,
         eNormalize,
         eKernelsNum
@@ -50,7 +51,7 @@ public:
 
 protected:
     DispatchData SetDefault(KernelId id, const group_normalization_params& params) const;
-    JitConstants GetJitConstants(KernelId kernelId, const group_normalization_params& params) const;
+    JitConstants GetJitConstants(KernelId kernelId, const group_normalization_params& params, const int sub_kernel_num) const;
     static void SetKernelArguments(const group_normalization_params& params,
                                    KernelId kernelId,
                                    cldnn::arguments_desc& arguments,

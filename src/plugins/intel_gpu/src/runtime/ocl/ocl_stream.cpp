@@ -370,15 +370,33 @@ event::ptr ocl_stream::create_base_event() {
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
-void ocl_stream::flush() const { get_cl_queue().flush(); }
-void ocl_stream::finish() const { get_cl_queue().finish(); }
+void ocl_stream::flush() const {
+    //std::cout << "=== ocl_stream::flush()" << std::endl;
+    get_cl_queue().flush(); }
+void ocl_stream::finish() const { 
+    //std::cout << "=== ocl_stream::finish()" << std::endl;
+    get_cl_queue().finish(); }
 
 void ocl_stream::wait() {
     cl::Event ev;
-
+    //std::cout << "=== ocl_stream::wait()" << std::endl;
     // Enqueue barrier with empty wait list to wait for all previously enqueued tasks
     _command_queue.enqueueBarrierWithWaitList(nullptr, &ev);
-    ev.wait();
+    try {
+        // cl_int param = 0;
+        // auto info = ev.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS, &param);
+        // std::cout << "---WaitForEvents find1 "  << ", info=" << info << ", param=" << param << std::endl;
+
+        ev.wait();
+
+    //     info = ev.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS, &param);
+    //     std::cout << "---WaitForEvents find2 "  << ", info=" << info << ", param=" << param << std::endl;
+    } catch (cl::Error const& err) {
+        // cl_int param = 0;
+        // auto info = ev.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS, &param);
+        // std::cout << "---WaitForEvents find3 , err=" << err.what() << ", info=" << info << ", param=" << param << std::endl;
+         throw ocl_error(err);
+    }
 }
 
 void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
@@ -400,6 +418,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (needs_barrier) {
         try {
             cl::Event barrier_ev;
+            //std::cout << "=== ocl_stream::wait_for_events()" << std::endl;
             _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
             clevents.push_back(barrier_ev);
         } catch (cl::Error const& err) {
@@ -425,6 +444,7 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
 
     if (needs_barrier) {
         try {
+            //std::cout << "=== ocl_stream::sync_events()" << std::endl;
             if (is_output)
                 _command_queue.enqueueBarrierWithWaitList(nullptr, &_last_barrier_ev);
             else

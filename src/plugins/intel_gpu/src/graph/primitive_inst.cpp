@@ -456,6 +456,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (_impl == nullptr)
             return ev;
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+        std::cout << "==============id=" << _node->id() << ", ibuf_layouts.size=" << ibuf_layouts.size() << std::endl;
         if (ibuf_layouts.empty())
             return ev;
 
@@ -1116,6 +1117,9 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
     GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
                   << " " << ret_mem->buffer_ptr() << std::endl;
+
+    // std::cout << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
+    //             << " " << ret_mem->buffer_ptr() << ", layout=" << layout  << std::endl;
     return ret_mem;
 }
 
