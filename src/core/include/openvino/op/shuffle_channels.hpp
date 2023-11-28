@@ -50,7 +50,6 @@ public:
     bool has_evaluate() const override;
 
 private:
-    bool evaluate_shuffle_channels(TensorVector& outputs, const TensorVector& inputs) const;
     int64_t m_axis{1};
     int64_t m_group{1};
 };

@@ -53,7 +53,8 @@ std::shared_ptr<Node> ShuffleChannels::clone_with_new_inputs(const OutputVector&
     return std::make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
 }
 
-bool ShuffleChannels::evaluate_shuffle_channels(TensorVector& outputs, const TensorVector& inputs) const {
+bool ShuffleChannels::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v0_ShuffleChannels_evaluate);
     OPENVINO_ASSERT(inputs.size() == 1);
     OPENVINO_ASSERT(outputs.size() == 1);
 
@@ -67,12 +68,7 @@ bool ShuffleChannels::evaluate_shuffle_channels(TensorVector& outputs, const Ten
     const auto out = static_cast<char*>(output.data());
     const auto elem_size = input.get_element_type().size();
     reference::shuffle_channels(arg, out, data_shape, elem_size, m_axis, m_group);
-
     return true;
-}
-bool ShuffleChannels::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v0_ShuffleChannels_evaluate);
-    return evaluate_shuffle_channels(outputs, inputs);
 }
 
 bool ShuffleChannels::has_evaluate() const {
