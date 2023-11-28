@@ -462,7 +462,7 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_${{ matrix.architecture }}
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO package
@@ -695,7 +695,7 @@ jobs:
 
       - name: Legacy Transformations func tests
         if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test && matrix.architecture == 'x86_64'
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_legacy_transformations_tests --gtest_print_time=1 \
@@ -703,7 +703,7 @@ jobs:
 
       - name: Inference Engine 1.0 unit tests
         if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test && matrix.architecture == 'x86_64'
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/InferenceEngineUnitTests --gtest_print_time=1 \
@@ -930,6 +930,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
+        timeout-minutes: 30
         if: ${{ always() }}
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
@@ -943,14 +944,9 @@ jobs:
         if: ${{ always() }}
         #if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
-          if [[ "${{ matrix.architecture }}" == "x86_64" ]]; then
-            # required for MxNet. MxNet is not supported on ARM
-            apt-get install -y libgomp1 libquadmath0
-          fi
-          
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              ${{ matrix.architecture == 'arm64' && '--ignore-glob=**/mo/front/mxnet/**' || '' }}
+              --ignore-glob="**/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
         if: ${{ always() }}
@@ -1007,6 +1003,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
+        timeout-minutes: 20
         if: ${{ always() }}
         #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
@@ -1016,7 +1013,8 @@ jobs:
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test && matrix.architecture == 'x86_64'
+        timeout-minutes: 20
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1026,7 +1024,8 @@ jobs:
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
         if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test && matrix.architecture == 'x86_64'
+        timeout-minutes: 20
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1127,7 +1126,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-python-${{ matrix.architecture }}
+          name: test-results-python
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -1154,13 +1153,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_${{ matrix.architecture }}
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_${{ matrix.architecture }}
+          name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
