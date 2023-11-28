@@ -68,7 +68,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(model->is_dynamic() ? model : nullptr)
     , m_model_name(model->get_friendly_name())
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
@@ -92,7 +91,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(nullptr)
     , m_model_name("")
     , m_loaded_from_cache(true) {
     {
