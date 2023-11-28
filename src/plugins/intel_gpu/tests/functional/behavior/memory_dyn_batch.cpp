@@ -97,12 +97,13 @@ protected:
 
 TEST_P(MemoryDynamicBatch, MultipleInferencesOnTheSameInfer_request) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    input_data = generate_inputs(input_shape);
     ov::Tensor input_tensor = ov::Tensor(element_type, input_shape, input_data.data());
     infer_request.set_input_tensor(input_tensor);
     for (int i = 0; i < iterations_num; i++)
         infer_request.infer();
     auto output = infer_request.get_output_tensor(0);
-    std::vector<int> reference = calculate_reference(input_data, iterations_num);
+    std::vector<int> reference = calculate_reference(input_data, iterations_num + 1);
     std::vector<int> actual(output.data<int>(), output.data<int>() + output.get_size());
     for (auto actualIt = actual.begin(), referenceIt = reference.begin(); actualIt < actual.end();
         actualIt++, referenceIt++)

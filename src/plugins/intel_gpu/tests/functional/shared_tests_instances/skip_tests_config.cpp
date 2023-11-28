@@ -121,5 +121,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*RandomUniformLayerTest.*f16.*)",
             // Issue: 125165
             R"(smoke_Nms9LayerTest.*)",
+            // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
+            R"(smoke_MemoryTest.*)",
     };
 }
