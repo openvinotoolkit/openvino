@@ -113,7 +113,7 @@ Run the command below:
 
 .. code-block:: sh
 
-   python -c "from openvino.runtime import Core; print(Core().available_devices)"
+   python -c "from openvino import Core; print(Core().available_devices)"
 
 If installation was successful, you will see the list of available devices.
 
