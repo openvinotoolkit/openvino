@@ -123,19 +123,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
         std::vector<ov::Tensor> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i) {
             auto tensor = op->output(i).get_tensor_ptr();
-            ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
             auto output = op->output(i);
             if (op::util::is_output(op) || it == tensor_map.end() || !it->second) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                host_tensor = ov::Tensor(
-                    output.get_element_type(),
-                    output.get_partial_shape().is_dynamic() ? ov::util::make_dynamic_shape() : output.get_shape());
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                op_outputs.emplace_back(output);
             } else {
-                host_tensor = it->second;
+                op_outputs.push_back(it->second);
             }
-            op_outputs.push_back(host_tensor);
         }
 
         {

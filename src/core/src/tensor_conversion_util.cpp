@@ -18,7 +18,7 @@ Tensor wrap_tensor(const ngraph::HostTensorPtr& t) {
     } else if (p_shape.is_static()) {
         return {et, p_shape.to_shape(), t->get_data_ptr()};
     } else {
-        return {et, make_dynamic_shape()};
+        return {et, Shape{0}};
     }
 }
 
@@ -31,7 +31,7 @@ Tensor wrap_tensor(const Output<Node>& output) {
     } else if (p_shape.is_static()) {
         return {et, p_shape.to_shape()};
     } else {
-        return {et, make_dynamic_shape()};
+        return {et, Shape{0}};
     }
 }
 

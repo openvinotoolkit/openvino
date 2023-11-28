@@ -35,13 +35,7 @@ public:
 
     HostTensorWrapper(const ngraph::HostTensorPtr& tensor) : tensor{tensor}, m_type(tensor->get_element_type()) {
         const auto& p_shape = tensor->get_partial_shape();
-        if (p_shape.is_static()) {
-            m_shape = p_shape.to_shape();
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            m_shape = ov::util::make_dynamic_shape();
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
+        m_shape = p_shape.is_static() ? p_shape.to_shape() : ov::Shape{0};
         update_strides();
     }
 

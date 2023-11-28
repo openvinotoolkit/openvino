@@ -550,7 +550,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    output_tensors.push_back(util::wrap_tensor(v));
+                    output_tensors.emplace_back(v);
                 } else {
                     output_tensors.push_back(it->second);
                 }

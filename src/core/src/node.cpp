@@ -19,7 +19,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
-#include "tensor_conversion_util.hpp"
 
 using namespace std;
 
@@ -720,7 +719,7 @@ protected:
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
-    } else if (ov::util::is_dynamic_shape(t.get_shape())) {
+    } else if (t.get_shape() == ov::Shape{0}) {
         return std::make_shared<DynamicTensor>(t.get_element_type());
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
@@ -826,9 +825,13 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     }
 
     TensorVector output_tensors;
-    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& output : outputs()) {
-        output_tensors.push_back(ov::util::wrap_tensor(output));
+        const auto& et = output.get_element_type();
+        if (et != element::undefined && et.is_static()) {
+            output_tensors.emplace_back(output);
+        } else {
+            output_tensors.emplace_back();
+        }
     }
 
     if (evaluate(output_tensors, input_tensors)) {
@@ -838,7 +841,6 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         }
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

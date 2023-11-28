@@ -104,7 +104,7 @@ TContainer replace_container(const TContainer& input, const TAxes& axes) {
 
 namespace util {
 Shape make_dynamic_shape() {
-    return Shape{0, std::numeric_limits<size_t>::max()};
+    return Shape{0};
 }
 
 bool is_dynamic_shape(const Shape& s) {

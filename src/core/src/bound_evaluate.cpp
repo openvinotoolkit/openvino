@@ -10,7 +10,6 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "tensor_conversion_util.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 
@@ -70,6 +69,10 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     return are_eq;
 }
 
+bool is_type_allocable(const element::Type& type) {
+    return type != element::undefined && type.is_static();
+}
+
 ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     if (is_upper && output.get_tensor().get_upper_value()) {
         return output.get_tensor().get_upper_value();
@@ -84,9 +87,11 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                outputs.push_back(util::wrap_tensor(out));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                if (is_type_allocable(out.get_element_type())) {
+                    outputs.emplace_back(out);
+                } else {
+                    outputs.emplace_back();
+                }
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -312,10 +317,13 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
         for (const auto& node : order) {
             ov::TensorVector outputs_lower, outputs_upper;
             for (const auto& out : node->outputs()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                outputs_lower.push_back(util::wrap_tensor(out));
-                outputs_upper.push_back(util::wrap_tensor(out));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                if (is_type_allocable(out.get_element_type())) {
+                    outputs_lower.emplace_back(out);
+                    outputs_upper.emplace_back(out);
+                } else {
+                    outputs_lower.emplace_back();
+                    outputs_upper.emplace_back();
+                }
             }
             if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
                 break;
@@ -602,9 +610,7 @@ bool ov::default_label_evaluator(const Node* node,
         for (size_t i = 0; i < outputs_count; ++i) {
             const auto& partial_shape = node->get_output_partial_shape(i);
             // Set shape for static or special dynamic if partial shape is dynamic.
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : util::make_dynamic_shape();
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto& shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
             outputs.emplace_back(element::from<label_t>(), shape);
         }
 

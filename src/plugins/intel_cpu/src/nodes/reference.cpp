@@ -72,7 +72,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             if (mem_desc->isDefined()) {
                 outputs.emplace_back(ovCoreNode->get_output_element_type(i), mem_desc->getShape().getStaticDims());
             } else {
-                outputs.emplace_back(ovCoreNode->get_output_element_type(i), ov::util::make_dynamic_shape());
+                outputs.emplace_back(ovCoreNode->get_output_element_type(i), ov::Shape{0});
             }
         }
     } else {
