@@ -39,11 +39,7 @@ public:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (ov::element::bf16 == (inType = outType = this->GetParam()))
-            configuration.insert(
-                {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES});
-        else
-            configuration.insert(
-                {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+            configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
 
         const ov::Shape inputShape = {1, 3, 3, 11};
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape)};
