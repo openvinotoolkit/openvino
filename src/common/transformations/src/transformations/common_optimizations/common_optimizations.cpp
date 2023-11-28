@@ -14,6 +14,7 @@
 #include "transformations/common_optimizations/binarize_weights.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/concat_fusion.hpp"
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
@@ -219,6 +220,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertInterpolate11ToInterpolate4)
     REGISTER_PASS(manager, ConvertPad12ToPad1)
     REGISTER_PASS(manager, ConvertScatterElementsUpdate12ToScatterElementsUpdate3)
+    REGISTER_PASS(manager, ConcatFusion)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
