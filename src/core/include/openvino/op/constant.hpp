@@ -527,9 +527,8 @@ private:
 
     template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
     void cast_vector(std::vector<std::string>& output_vector, size_t num_elements) const {
-        OPENVINO_ASSERT(false,
-                        "cast_vector does not support casting ov::Tensor of type " +
-                            ov::element::Type(Type).to_string() + "to std::vector of std::string elements");
+        OPENVINO_THROW("cast_vector does not support casting ov::Tensor of type " +
+                       ov::element::Type(Type).to_string() + "to std::vector of std::string elements");
     }
 
     template <element::Type_t Type,
@@ -537,9 +536,8 @@ private:
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
         auto output_type = std::string(typeid(OUT_T{}).name());
-        OPENVINO_ASSERT(false,
-                        "cast_vector does not support casting string ov::Tensor to std::vector with elements of type " +
-                            output_type);
+        OPENVINO_THROW("cast_vector does not support casting string ov::Tensor to std::vector with elements of type " +
+                       output_type);
     }
 
     template <element::Type_t Type,
@@ -665,8 +663,7 @@ private:
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void fill_data(const T& value) {
         std::string type_name(typeid(value).name());
-        OPENVINO_ASSERT(false,
-                        "fill_data does not support to fill ov::Tensor of string type with value of " + type_name);
+        OPENVINO_THROW("fill_data does not support to fill ov::Tensor of string type with value of " + type_name);
     }
 
     template <element::Type_t Type,
@@ -733,9 +730,8 @@ private:
 
     template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
     void write_buffer(const std::vector<std::string>& source) {
-        OPENVINO_ASSERT(false,
-                        "write_buffer does not support writing std::string elements into ov::Tensor of type:" +
-                            ov::element::Type(Type).to_string());
+        OPENVINO_THROW("write_buffer does not support writing std::string elements into ov::Tensor of type:" +
+                       ov::element::Type(Type).to_string());
     }
 
     template <element::Type_t Type,
@@ -744,9 +740,8 @@ private:
     void write_buffer(const std::vector<T>& source) {
         if (source.size() > 0) {
             auto source_type = std::string(typeid(source[0]).name());
-            OPENVINO_ASSERT(
-                false,
-                "write_buffer does not support writing elements of type " + source_type + " into string ov::Tensor");
+            OPENVINO_THROW("write_buffer does not support writing elements of type " + source_type +
+                           " into string ov::Tensor");
         }
     }
 
