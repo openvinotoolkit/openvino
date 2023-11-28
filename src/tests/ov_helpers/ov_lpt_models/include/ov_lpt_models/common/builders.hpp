@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ops.hpp>
-#include <ngraph/op/constant.hpp>
+
+#include "openvino/op/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"

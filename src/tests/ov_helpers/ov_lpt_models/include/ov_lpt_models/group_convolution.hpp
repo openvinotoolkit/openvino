@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/constant.hpp"
 
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -23,7 +23,7 @@ public:
         const size_t groupCount,
         const int groupCalculationDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ov::opset1::Constant> weightsConst,
+        std::shared_ptr<ov::op::v0::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
     static std::shared_ptr<ov::Model> getOriginal(
@@ -44,7 +44,7 @@ public:
         const size_t groupCount,
         const int calculatedDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ov::opset1::Constant> weightsConst,
+        std::shared_ptr<ov::op::v0::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
         const ov::element::Type precisionAfterOperation,

@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <vector>
+
+#include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {
 namespace builder {

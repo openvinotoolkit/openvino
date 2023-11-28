@@ -5,8 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/constant.hpp"
 
 #include "ov_lpt_models/common/constant.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
@@ -34,8 +33,8 @@ public:
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,
         const ov::element::Type& precision,
-        const std::shared_ptr<ov::opset1::Constant>& weights,
-        const std::shared_ptr<ov::opset1::Constant>& biases,
+        const std::shared_ptr<ov::op::v0::Constant>& weights,
+        const std::shared_ptr<ov::op::v0::Constant>& biases,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 };
 
