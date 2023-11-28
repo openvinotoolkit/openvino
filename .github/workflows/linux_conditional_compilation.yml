@@ -35,7 +35,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
@@ -210,7 +210,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
@@ -306,7 +306,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-8-cores
+    runs-on: aks-linux-8-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
     env:
