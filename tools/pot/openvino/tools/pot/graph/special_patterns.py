@@ -279,20 +279,6 @@ def create_softmax_reshape_matmul_pattern():
     return pattern.set_name('softmax_reshape_matmul').pattern
 
 
-@registry_ignore_patterns('blocks')
-def create_softmax_reshape_transpose_matmul_pattern():
-    pattern = PatternBuilder()
-    pattern_2 = PatternBuilder()
-    softmax_out = pattern.append_single_op('SoftMax', 'softmax').get_last_node()
-    pattern_2.append_single_op('Add', 'add').get_last_node()
-    pattern_2.append_op_const('Reshape', 'reshape')
-    transp_out = pattern_2.append_single_op('Transpose', 'transpose').get_last_node()
-    pattern.pattern['nodes'] += pattern_2.pattern['nodes']
-    pattern.pattern['edges'] += pattern_2.pattern['edges']
-    pattern.insert_single_op([transp_out, softmax_out], None, 'MatMul', 'matmul')
-    return pattern.set_name('softmax_reshape_transpose_matmul').pattern
-
-
 # Stable diffusion UNet
 @registry_ignore_patterns('blocks')
 def create_stable_diffusion_pattern():
