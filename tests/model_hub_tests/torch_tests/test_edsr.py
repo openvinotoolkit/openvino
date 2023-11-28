@@ -56,13 +56,12 @@ class TestEdsrConvertModel(TestTorchConvertModel):
         super().teardown_method()
 
     @pytest.mark.parametrize("name,scale", [("edsr", 2)])
-    #@pytest.mark.precommit
+    @pytest.mark.precommit
     def test_convert_model_precommit(self, name, scale, ie_device):
         self.scale = scale
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.precommit # todo: remove
     @pytest.mark.parametrize("name,scale", [
         ("a2n", random.randint(2, 4)),
         ("awsrn-bam", random.randint(2, 4)),
@@ -78,8 +77,8 @@ class TestEdsrConvertModel(TestTorchConvertModel):
         ("mdsr-bam", random.randint(2, 4)),
         ("pan", random.randint(2, 4)),
         ("pan-bam", random.randint(2, 4)),
-        ("han", random.randint(2, 4)),
-        ("rcan-bam", random.randint(2, 4)),
+        ("han", 4),
+        ("rcan-bam", 4),
     ])
     def test_convert_model_all_models(self, name, scale, ie_device):
         self.scale = scale
