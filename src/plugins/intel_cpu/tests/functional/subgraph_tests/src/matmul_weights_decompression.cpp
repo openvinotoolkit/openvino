@@ -7,6 +7,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
 
+using namespace ngraph;
+using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
 
@@ -56,7 +58,7 @@ using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,
                                                     bool,                   // transpose on weights
                                                     bool,                   // decompression subtract
                                                     bool,                   // reshape on decompression constants
-                                                    ov::AnyMap,             // additional config
+                                                    std::map<std::string, std::string>,  // additional config
                                                     fusingSpecificParams,
                                                     bool>;  // should use decompression implementation
 
@@ -71,7 +73,7 @@ public:
         bool transpose;
         bool decompression_sub;
         bool reshape_on_decompression;
-        ov::AnyMap additional_config;
+        std::map<std::string, std::string> additional_config;
         fusingSpecificParams fusing_params;
         bool should_fuse;
 
@@ -97,7 +99,7 @@ public:
 
         result << "config=(";
         for (const auto& configEntry : additional_config) {
-            result << configEntry.first << ", " << configEntry.second.as<std::string>() << ":";
+            result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")";
         result << CpuTestWithFusing::getTestCaseName(fusing_params);
@@ -143,7 +145,7 @@ protected:
 
         auto weights = ngraph::builder::makeConstant<int8_t>(weights_precision, transformed_weights_shape, {}, true, 7);
         weights->set_friendly_name("Compressed_weights");
-        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
+        auto weights_convert = std::make_shared<ngraph::opset1::Convert>(weights, decompression_precision);
 
         std::shared_ptr<ov::Node> mul_parent = weights_convert;
         auto output_channels = *weights_shape.rbegin();
@@ -164,7 +166,7 @@ protected:
             scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
         if (add_subtract) {
             auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, scaleshift_const_shape, {}, true, 7);
-            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
+            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ngraph::opset1::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
                 auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);
@@ -232,7 +234,7 @@ protected:
         bool transpose_weights;
         bool decompression_sub;
         bool reshape_on_decompression;
-        ov::AnyMap additional_config;
+        std::map<std::string, std::string> additional_config;
         fusingSpecificParams fusing_params;
         bool should_fuse;
 
@@ -250,7 +252,7 @@ protected:
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
-        ElementType netType = ov::element::f32;
+        ElementType netType = element::f32;
         inType = outType = netType;
 
         function = initSubgraph(inputDynamicShapes[0],
@@ -264,7 +266,7 @@ protected:
                                 reshape_on_decompression);
     }
 
-    void check_results() {
+    void checkResults() {
         const auto& test_param = GetParam();
         const auto& weights_precision = std::get<1>(test_param);
 
@@ -288,19 +290,19 @@ protected:
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    check_results();
+    checkResults();
 }
 
 namespace {
 
-std::vector<ov::AnyMap> filter_additional_config_basic() {
-    std::vector<ov::AnyMap> additional_config = {CPUTestUtils::empty_plugin_config};
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigBasic() {
+    std::vector<std::map<std::string, std::string>> additional_config = {CPUTestUtils::cpuEmptyPluginConfig};
     return additional_config;
 }
-std::vector<ov::AnyMap> filter_additional_config_amx() {
-    std::vector<ov::AnyMap> additional_config = {};
-    if (ov::with_cpu_x86_avx512_core_amx())
-        additional_config.push_back({{ov::hint::inference_precision(ov::element::bf16)}});
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigAMX() {
+    std::vector<std::map<std::string, std::string>> additional_config = {};
+    if (with_cpu_x86_avx512_core_amx())
+        additional_config.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
     return additional_config;
 }
 
@@ -343,7 +345,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
@@ -356,7 +358,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::ValuesIn(filter_additional_config_amx()),
+                                            ::testing::ValuesIn(filterAdditionalConfigAMX()),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
@@ -385,7 +387,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
@@ -398,7 +400,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_amx,
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(filter_additional_config_amx()),
+                                            ::testing::ValuesIn(filterAdditionalConfigAMX()),
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
