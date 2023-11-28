@@ -52,7 +52,6 @@ from openvino.runtime import layout_helpers
 
 # Set version for openvino package
 from openvino.runtime import get_version
-
 __version__ = get_version()
 
 # Tools
