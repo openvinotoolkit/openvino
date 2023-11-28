@@ -81,7 +81,7 @@ public:
         // For each such a pair, its own variable object must be created.
         const std::string variable_name("variable0");
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
+            ov::op::util::VariableInfo{inpShape, netPrc, variable_name});
 
         // Creating ov::Model
         auto read = std::make_shared<ov::op::v6::ReadValue>(init_const, variable);
@@ -183,10 +183,10 @@ public:
         // The ReadValue/Assign operations must be used in pairs in the model.
         // For each such a pair, its own variable object must be created.
         auto variable0 = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, "variable0"});
+            ov::op::util::VariableInfo{inpShape, netPrc, "variable0"});
 
         auto variable1 = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, "variable1"});
+            ov::op::util::VariableInfo{inpShape, netPrc, "variable1"});
 
         // Creating ov::Model
         auto read0 = std::make_shared<ov::op::v6::ReadValue>(init_const, variable0);
@@ -263,8 +263,8 @@ TEST_F(StaticShapeTwoStatesModel, smoke_Run_Static_Two_States) {
     run_test();
 }
 
-// ┌─────────┐    ┌───────────┐
-// │ Param1  │--->│ ReadValue │..
+// ┌─────────┐Vary┌───────────┐
+// │ Param1  │--->| ReadValue │..
 // └───┬──┬──┘    └─────┬─────┘ .
 //     │  │             │       .
 //     │  │             │       .
@@ -283,7 +283,7 @@ TEST_F(StaticShapeTwoStatesModel, smoke_Run_Static_Two_States) {
 
 class DynamicShapeStatefulModel : public StatefulModelTest {
 public:
-    void SetUp() override {
+    void SetUp(bool use_param) {
         targetDevice = ov::test::utils::DEVICE_CPU;
         ov::element::Type netPrc = testPrc;
 
@@ -297,10 +297,12 @@ public:
         // For each such a pair, its own variable object must be created.
         const std::string variable_name("variable0");
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
+            ov::op::util::VariableInfo{inputDynamicShapes.front(), netPrc, variable_name});
 
         // Creating ov::Model
-        auto read = std::make_shared<ov::op::v6::ReadValue>(arg, variable);
+        auto read = use_param ?
+            std::make_shared<ov::op::v6::ReadValue>(arg, variable) :
+            std::make_shared<ov::op::v6::ReadValue>(variable);
         std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
         auto add = ngraph::builder::makeEltwise(arg, read, ngraph::helpers::EltwiseTypes::ADD);
         constexpr int concat_axis = 0;
@@ -374,9 +376,35 @@ public:
             float_compare(vec_state.data(), actual_state, vec_state.size());
         }
     }
+
+private:
+    using StatefulModelTest::TestsCommon::Test::SetUp;
 };
 
-TEST_F(DynamicShapeStatefulModel, smoke_Run_Stateful_Dynamic) {
+class DynamicShapeStatefulModelDefault : public DynamicShapeStatefulModel {
+public:
+    void SetUp() override {
+        constexpr bool use_param = false;
+        DynamicShapeStatefulModel::SetUp(use_param);
+    }
+};
+
+TEST_F(DynamicShapeStatefulModelDefault, smoke_Run_Stateful_Dynamic_Default) {
+    prepare();
+    run_test();
+    reset_state();
+    run_test();
+}
+
+class DynamicShapeStatefulModelParam : public DynamicShapeStatefulModel {
+public:
+    void SetUp() override {
+        constexpr bool use_param = true;
+        DynamicShapeStatefulModel::SetUp(use_param);
+    }
+};
+
+TEST_F(DynamicShapeStatefulModelParam, smoke_Run_Stateful_Dynamic_Param) {
     prepare();
     run_test();
     reset_state();
@@ -430,7 +458,7 @@ public:
         // For each such a pair, its own variable object must be created.
         const std::string variable_name("variable0");
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
+            ov::op::util::VariableInfo{{-1, -1}, netPrc, variable_name});
 
         // Creating ov::Model
         auto read = std::make_shared<ov::op::v6::ReadValue>(init_param, variable);

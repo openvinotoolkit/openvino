@@ -42,6 +42,11 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+op::v6::ReadValue::ReadValue(const shared_ptr<Variable>& variable) {
+    m_variable = variable;
+    constructor_validate_and_infer_types();
+}
+
 op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Variable>& variable)
     : ReadValueBase({init_value}) {
     m_variable = variable;
@@ -50,36 +55,81 @@ op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Va
 
 void op::v6::ReadValue::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ReadValue_validate_and_infer_types);
-    const auto arg_t = get_input_element_type(0);
-    const auto& input_shape = get_input_partial_shape(0);
 
     OPENVINO_ASSERT(m_variable, "Variable is not initialized.");
-    VariableInfo var_info = {input_shape, element::dynamic, m_variable->get_info().variable_id};
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
-                          "Variables types are inconsistent.");
-    NODE_VALIDATION_CHECK(this,
-                          ov::PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
-                          "Variable shape and output shape are inconsistent.");
-    m_variable->update(var_info);
-    set_output_type(0, arg_t, input_shape);
+    const auto& variable_info = m_variable->get_info();
+    const auto& variable_type = variable_info.data_type;
+    const auto& variable_shape = variable_info.data_shape;
+
+    // If no inputs provided, it means this ReadValue doesn't have initial subgraph. This is valid.
+    if (get_input_size() > 0) {
+        const auto& initial_type = get_input_element_type(0);
+        const auto& initial_shape = get_input_partial_shape(0);
+
+        // Variable's shape/type determine a permissible range of values for shape/type inferred from initial_subgraph.
+        // If initial_subgraph is set, then we need to check that shape/type inferred from initial_subgraph
+        // is within the permissible range.
+
+        const auto compatible_type = variable_type.is_dynamic() || initial_type == variable_type;
+        const auto compatible_shape = variable_shape.relaxes(initial_shape);
+
+        OPENVINO_ASSERT(compatible_shape,
+                        "The shape specified in the Variable has to extend (relax) the shape "
+                        "inferred from the initializing subgraph.",
+                        " Variable shape: ",
+                        variable_shape,
+                        " Initialization shape: ",
+                        initial_shape);
+        OPENVINO_ASSERT(compatible_type,
+                        "The type specified in the Variable has to extend (relax) the type "
+                        "inferred from the initializing subgraph.",
+                        " Variable type: ",
+                        variable_type,
+                        " Initialization type: ",
+                        initial_type);
+        // workaround:
+        // dynamic rank/type can be derived from the IRs generated via the prev versions of OV,
+        // but dynamic rank/type are not supported in plugins,
+        // so we are trying to fix them here using the rank/type of ReadValue 1st input, if it exists
+        if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() &&
+            variable_info.data_type.is_dynamic()) {
+            set_output_type(0, initial_type, initial_shape);
+            return;
+        }
+    }
+
+    set_output_type(0, variable_type, variable_shape);
 }
 
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ReadValue>(new_args.at(0), m_variable);
+
+    switch (new_args.size()) {
+    case 0:
+        return make_shared<ReadValue>(m_variable);
+    case 1:
+        return make_shared<ReadValue>(new_args[0], m_variable);
+    default:
+        OPENVINO_THROW("Unable to clone ReadValue ",
+                       this->get_friendly_name(),
+                       " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
+                       new_args.size());
+    }
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v6_ReadValue_visit_attributes);
     visitor.on_attribute("variable_id", m_variable);
+
+    auto variable_info = m_variable->get_info();
+    visitor.on_attribute("variable_type", variable_info.data_type);
+    visitor.on_attribute("variable_shape", variable_info.data_shape);
+    m_variable->update(variable_info);
     return true;
 }
 
 void op::v6::ReadValue::revalidate_and_infer_types() {
-    VariableInfo var_info{ov::PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
-    m_variable->update(var_info);
     Node::revalidate_and_infer_types();
 }
 
