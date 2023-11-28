@@ -190,11 +190,11 @@ Here are code examples of how to use these methods with different model formats:
          .. tab-item:: CLI
             :sync: cli
 
-            You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+            You can use ``ovc`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
 
             .. code-block:: sh
 
-               mo --input_model <INPUT_MODEL>.pb
+               ovc <INPUT_MODEL>.pb
 
             For details on the conversion, refer to the
             :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`.
@@ -312,7 +312,7 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: sh
 
-                 mo --input_model <INPUT_MODEL>.tflite
+                 ovc <INPUT_MODEL>.tflite
 
               For details on the conversion, refer to the
               :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`.
@@ -427,7 +427,7 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: sh
 
-                 mo --input_model <INPUT_MODEL>.onnx
+                 ovc <INPUT_MODEL>.onnx
 
               For details on the conversion, refer to the
               :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
@@ -549,7 +549,7 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: sh
 
-                 mo --input_model <INPUT_MODEL>.pdmodel
+                 ovc <INPUT_MODEL>.pdmodel
 
               For details on the conversion, refer to the
               :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
