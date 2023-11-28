@@ -171,5 +171,8 @@ TEST_F(RepeatPatternExtractorUnitTest, get_node_queque) {
     this->get_node_queque(nodes_queue, start_ops.front());
     auto nodes_queue_ref = test_model.get_queue();
     ASSERT_EQ(nodes_queue, nodes_queue_ref);
+    for (const auto a : nodes_queue_ref) {
+        std::cout << a << std::endl;
+    }
 }
 }  // namespace
