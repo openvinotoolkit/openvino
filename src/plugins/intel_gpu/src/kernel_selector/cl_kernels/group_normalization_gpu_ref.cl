@@ -121,12 +121,12 @@ KERNEL (normalize_ref)(  __global INPUT0_TYPE* input
     const int y = get_global_id(2) / OUTPUT_SIZE_X;
     const int x = get_global_id(2) % OUTPUT_SIZE_X;
     const int group = feature / NUM_CHANNELS_IN_GROUP;
-    float mean = mean_values[batch * NUM_GROUPS + group];
-    float standard_deviation = standard_deviation_values[batch * NUM_GROUPS + group];
+    const float mean = mean_values[batch * NUM_GROUPS + group];
+    const float standard_deviation = standard_deviation_values[batch * NUM_GROUPS + group];
 #if OUTPUT_DIMS == 4
-    size_t output_idx = OUTPUT_GET_INDEX(batch, feature, y, x);
+    const size_t output_idx = OUTPUT_GET_INDEX(batch, feature, y, x);
 #elif OUTPUT_DIMS == 5
-    size_t output_idx = OUTPUT_GET_INDEX(batch, feature, z, y, x);
+    const size_t output_idx = OUTPUT_GET_INDEX(batch, feature, z, y, x);
 #endif
     OUTPUT_TYPE res = ((input[output_idx] - mean) / standard_deviation) * scale_values[feature] + bias_values[feature];
 #if HAS_FUSED_OPS
@@ -135,6 +135,12 @@ KERNEL (normalize_ref)(  __global INPUT0_TYPE* input
 #else
     output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
+    // if (output_idx < 0 || output_idx >= 33554432)
+    //     printf("---------------------in_idx:%d, mean=%f, sd=%f\n", output_idx, mean, standard_deviation);
+
+    // if (output_idx == 0) {
+    //     printf("----output_idx: %d, addr mean_values:%d, standard_deviation_values=%d\n", output_idx, mean_values, standard_deviation_values);
+    // }
 }
 
 #endif

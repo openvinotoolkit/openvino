@@ -34,6 +34,7 @@ public:
         eCalcMeanKernel,
         eCalcStandardDeviationKernel,
         eNormalize,
+        //eMergedNormalize,
         eKernelsNum
     };
 
