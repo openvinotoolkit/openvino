@@ -149,7 +149,7 @@
 
    .. code-block:: sh
 
-      python -c "from openvino.runtime import Core; print(Core().available_devices)"
+      python -c "from openvino import Core; print(Core().available_devices)"
       
    If OpenVINO was successfully installed, you will see a list of available devices.
 
