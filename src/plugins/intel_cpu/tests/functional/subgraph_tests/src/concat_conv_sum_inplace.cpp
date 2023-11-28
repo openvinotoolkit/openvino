@@ -41,9 +41,9 @@ class ReLuConcatConvSumInPlaceTest : virtual public SubgraphBaseStaticTest {
 public:
     void SetUp() override {
         const ov::Shape inputShape = {1, 64, 12, 12};
-        const std::vector<uint64_t> kernel = {1, 1};
-        const std::vector<uint64_t> stride = {1, 1};
-        const std::vector<uint64_t> dilation = {1, 1};
+        const std::vector<size_t> kernel = {1, 1};
+        const std::vector<size_t> stride = {1, 1};
+        const std::vector<size_t> dilation = {1, 1};
         const std::vector<ptrdiff_t> padBegin = {0, 0};
         const std::vector<ptrdiff_t> padEnd = {0, 0};
         const size_t convOutChannels = 64;
