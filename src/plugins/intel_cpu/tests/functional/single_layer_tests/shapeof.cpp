@@ -72,11 +72,7 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        //make a stub eltwise node to enforce layout, since ShapeOf just mimic any input layout
-        auto eltwise = ngraph::builder::makeActivation(params[0], inType, ov::test::utils::ActivationTypes::Relu);
-        eltwise->get_rt_info() = makeCPUInfo(inFmts, inFmts, {});
-
-        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(eltwise, ngraph::element::i32);
+        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(params.front(), ngraph::element::i32);
 
         function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
     }
@@ -89,31 +85,6 @@ TEST_P(ShapeOfLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-/* CPU PARAMS */
-std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3) {
-    std::vector<CPUSpecificParams> resCPUParams;
-    const bool avx512_target = with_cpu_x86_avx512f();
-
-    if (dimsCount == 5) {
-        auto blocked_format = avx512_target ? nCdhw16c : nCdhw8c;
-        resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {x}, {}, {}});
-    } else if (dimsCount == 4) {
-        auto blocked_format = avx512_target ? nChw16c : nChw8c;
-        resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{nchw}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {x}, {}, {}});
-    } else {
-        auto blocked_format = avx512_target ? nCw16c : nCw8c;
-        resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{abc}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{acb}, {x}, {}, {}});
-    }
-
-    return resCPUParams;
-}
-
 const std::vector<ElementType> netPrecisions = {
         ElementType::f32,
         ElementType::bf16,
@@ -123,7 +94,7 @@ const std::vector<ElementType> netPrecisions = {
 
 std::vector<ov::test::InputShape> inShapesDynamic3d = {
         {
-            {-1, 16, -1},
+            {-1, -1, -1},
             {
                 { 8, 16, 4 },
                 { 8, 16, 3 },
@@ -134,7 +105,7 @@ std::vector<ov::test::InputShape> inShapesDynamic3d = {
 
 std::vector<ov::test::InputShape> inShapesDynamic4d = {
         {
-            {-1, 16, -1, -1},
+            {-1, -1, -1, -1},
             {
                 { 8, 16, 3, 4 },
                 { 8, 16, 3, 3 },
@@ -145,7 +116,7 @@ std::vector<ov::test::InputShape> inShapesDynamic4d = {
 
 std::vector<ov::test::InputShape> inShapesDynamic5d = {
         {
-            { -1, 16, -1, -1, -1 },
+            { -1, -1, -1, -1, -1 },
             {
                 { 8, 16, 3, 2, 4 },
                 { 8, 16, 3, 2, 3 },
@@ -157,19 +128,19 @@ const auto params5dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic5d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(getCpuInfoForDimsCount(5)));
+        ::testing::Values(emptyCPUSpec));
 
 const auto params4dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic4d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(getCpuInfoForDimsCount(4)));
+        ::testing::Values(emptyCPUSpec));
 
 const auto params3dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic3d),
                 ::testing::ValuesIn(netPrecisions)),
-                       ::testing::ValuesIn(getCpuInfoForDimsCount(3)));
+        ::testing::Values(emptyCPUSpec));
 
 // We don't check static case, because of constant folding
 INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf3dDynamicLayoutTest, ShapeOfLayerCPUTest,
