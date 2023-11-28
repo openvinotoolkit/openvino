@@ -74,7 +74,7 @@ facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
-facebook/mms-tts-eng,vits,xfail,aten::softplus, ov::align_types
+facebook/mms-tts-eng,vits,xfail,No conversion rule found for operations: aten::softplus. Conversion is failed for: ov::align_types
 facebook/musicgen-small,musicgen,xfail,Error: No node with name input_ids
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,xfail,NoneType object has no attribute shape
@@ -104,9 +104,9 @@ google/mobilebert-uncased,mobilebert
 google/mobilenet_v1_0.75_192,mobilenet_v1
 google/mt5-base,mt5
 google/owlvit-base-patch32,owlvit
-google/pix2struct-docvqa-base,pix2struct,xfail,Provide example input
+google/pix2struct-docvqa-base,pix2struct,xfail,Could not get TorchScript module by tracing. With exception: bos_token_id has to be defined when no input_ids are provided.
 google/pix2struct-ai2d-base,pix2struct,xfail,Could not get TorchScript module by tracing. With exception: bos_token_id has to be defined when no input_ids are provided.
-google/realm-orqa-nq-openqa,realm,skip,Load problem
+google/realm-orqa-nq-openqa,realm,xfail,provide example input
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas
 google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
@@ -169,7 +169,7 @@ HJHGJGHHG/GAU-Base-Full,gau,skip,Load problem
 huggingface/autoformer-tourism-monthly,autoformer,xfail,missing 2 required positional arguments
 huggingface/informer-tourism-monthly,informer,xfail,missing 2 required positional arguments
 huggingface/time-series-transformer-tourism-monthly,time_series_transformer,xfail,missing 2 required positional arguments
-HuggingFaceM4/tiny-random-idefics,idefics,xfail, Exactly 1 of pixel_values, image_encoder_embeddings or perceiver_embeddings
+HuggingFaceM4/tiny-random-idefics,idefics,xfail,Exactly 1 of pixel_values image_encoder_embeddings or perceiver_embeddings
 HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
 HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
 HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
@@ -257,7 +257,7 @@ microsoft/xclip-base-patch32,xclip,xfail,'NoneType' object has no attribute 'sha
 microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
-MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,xfail,Dimension out of range (expected to be in range of [-3, 2], but got 3)
+MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,xfail,Dimension out of range (expected to be in range of [-3 2] but got 3)
 Mizuiro-sakura/luke-japanese-large-sentiment-analysis-wrime,luke
 mlml-chip/thyme2_colon_e2e,cnlpt,skip,Load problem
 mnaylor/mega-base-wikitext,mega,skip,Load problem
