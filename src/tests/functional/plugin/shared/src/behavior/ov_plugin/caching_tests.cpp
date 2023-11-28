@@ -21,6 +21,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -85,7 +86,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
         inputShapeWrapper(ov::test::utils::make_split_conv_concat, {1, 4, 20, 20}),
         "SplitConvConcat"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_kso_function, {1, 4, 20, 20}),
         "KSOFunction"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),

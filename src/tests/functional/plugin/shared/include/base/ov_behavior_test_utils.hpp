@@ -28,6 +28,7 @@
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
 
 namespace ov {
 namespace test {
@@ -182,7 +183,7 @@ public:
         // Multinput to substruct network
         multinputNetwork = ngraph::builder::subgraph::makeConcatWithParams();
         // Network with KSO
-        ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
+        ksoNetwork = ov::test::utils::make_kso_function();
     }
 
     virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
