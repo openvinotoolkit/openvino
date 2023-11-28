@@ -1186,7 +1186,9 @@ static bool requires_conversion(const ov::Output<ov::Node>& input) {
     return std::find(unsupp_types.begin(), unsupp_types.end(), input.get_element_type()) != unsupp_types.end();
 }
 
-static std::tuple<ov::OutputVector, bool> get_inputs(const std::shared_ptr<ov::Node>& node, const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
+static std::tuple<ov::OutputVector, bool> get_inputs(
+    const std::shared_ptr<ov::Node>& node,
+    const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
     bool all_constants = true;
     bool inputs_converted = false;
     size_t num_inputs = node->get_input_size();
@@ -1237,7 +1239,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
             node_has_bounds_set = node_has_bounds_set && tensor_has_bounds_set;
             if (tensor_has_bounds_set) {
                 const auto& lower = node->get_output_tensor(i).get_lower_value();
-                auto constant = std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());
+                auto constant = std::make_shared<ov::op::v0::Constant>(lower);
                 node_map[node->output(i)] = constant;
             }
         }
@@ -1257,7 +1259,6 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
         if (inputs_converted) {
             node->clone_with_new_inputs(inputs);
         }
-
 
         OutputVector outputs(node->get_output_size());
         if (node->constant_fold(outputs, inputs)) {

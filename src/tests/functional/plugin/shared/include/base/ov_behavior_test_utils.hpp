@@ -32,8 +32,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
-                                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
+                                                                              ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
     return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
 }
 
@@ -170,7 +170,7 @@ inline ov::Core createCoreWithTemplate() {
 
 class OVClassNetworkTest {
 public:
-    std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
+    std::shared_ptr<ov::Model> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
 
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -233,7 +233,7 @@ class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> actualNetwork;
+    std::shared_ptr<ov::Model> actualNetwork;
 
 public:
     void SetUp() override {
