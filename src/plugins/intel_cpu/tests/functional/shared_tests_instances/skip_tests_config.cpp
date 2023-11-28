@@ -294,7 +294,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
 
-    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (!ov::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
@@ -305,7 +305,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+    if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
@@ -318,7 +318,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
 #endif // OV_CPU_ARM_ENABLE_FP16
 #endif
-    if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+    if (!ov::with_cpu_x86_avx512_core_vnni() && !ov::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
@@ -326,11 +326,11 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
     }
-    if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
+    if (!ov::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
         retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
-    if (!InferenceEngine::with_cpu_x86_avx512_core_amx_bf16() && !InferenceEngine::with_cpu_x86_bfloat16()) {
+    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
