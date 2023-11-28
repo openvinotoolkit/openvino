@@ -30,12 +30,10 @@ template <class TOp, class TShape>
 void attributes(const TOp* op, const TShape& data_shape, const Strides& dilations) {
     const auto& data_rank = data_shape.rank();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(data_rank, {3, 4, 5}),
+                          ov::util::is_rank_compatible_any_of(data_rank, {3, 4, 5}),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           data_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& kernel = op->get_kernel();
     const auto num_spatial = kernel.size();
@@ -252,7 +250,7 @@ TRShape out_shape_infer(const TOp* op, const std::vector<TShape>& input_shapes, 
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(data_rank, {3, 4, 5}),
+                          ov::util::is_rank_compatible_any_of(data_rank, {3, 4, 5}),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           data_shape);
     OPENVINO_SUPPRESS_DEPRECATED_END
