@@ -36,9 +36,6 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
 Napi::Object InferRequestWrap::Init(Napi::Env env, Napi::Object exports) {
     auto func = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
 
     exports.Set("InferRequest", func);
     return exports;

@@ -50,9 +50,6 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
 Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
     auto func = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
 
     exports.Set("Tensor", func);
     return exports;

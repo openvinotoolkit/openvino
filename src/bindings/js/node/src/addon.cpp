@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "addon.hpp"
+
 #include <napi.h>
 
 #include "compiled_model.hpp"
@@ -10,12 +12,15 @@
 #include "model_wrap.hpp"
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
-#include "tensor.hpp"
 #include "partial_shape_wrap.hpp"
 #include "preprocess/preprocess.hpp"
+#include "tensor.hpp"
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
+    auto data = new AddonData();
+    env.SetInstanceData<AddonData>(data);
+
     ModelWrap::Init(env, exports);
     CoreWrap::Init(env, exports);
     CompiledModelWrap::Init(env, exports);

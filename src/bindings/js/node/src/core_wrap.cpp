@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "core_wrap.hpp"
-#include "read_model_args.hpp"
 
 #include <thread>
 
+#include "addon.hpp"
 #include "compiled_model.hpp"
 #include "model_wrap.hpp"
+#include "read_model_args.hpp"
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), env(info.Env()) {}
 
@@ -27,7 +28,8 @@ Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
     *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
+    auto data = env.GetInstanceData<AddonData>();
+    data->core_prototype = constructor;
 
     exports.Set("Core", func);
     return exports;
@@ -71,11 +73,16 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                                const Napi::Object& model,
-                                                const Napi::String& device) {
-    auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-    const auto& compiled_model = _core.compile_model(m->get_model(), device);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+                                         const Napi::Object& model,
+                                         const Napi::String& device) {
+    if (model.InstanceOf(info.Env().GetInstanceData<AddonData>()->model_prototype->Value().As<Napi::Function>())) {
+        auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
+        const auto& compiled_model = _core.compile_model(m->get_model(), device);
+        return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    } else {
+        reportError(info.Env(), "Passed Napi::Object is not a Model.");
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
