@@ -677,7 +677,7 @@ constexpr uint32_t Limitations::kBytesPerCropElement;
 constexpr uint32_t Limitations::kBytesPerConcatElement;
 constexpr uint32_t Limitations::kMemoryPageSize;
 
-InferenceEngine::ThreadLocal<std::shared_ptr<Limitations>> Limitations::kInstance{nullptr};
+ov::threading::ThreadLocal<std::shared_ptr<Limitations>> Limitations::kInstance{nullptr};
 
 Limitations::Limitations(const DeviceVersion& target) {
     m_use_only_16bit_conv_weights =

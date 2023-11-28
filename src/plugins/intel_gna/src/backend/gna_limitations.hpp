@@ -20,9 +20,9 @@
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "openvino/runtime/threading/thread_local.hpp"
 #include "ops/gna_convolution.hpp"
 #include "ops/gna_max_pool.hpp"
-#include "threading/ie_thread_local.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -316,7 +316,7 @@ private:
     size_t m_mem_alignment = 0;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
 
-    static InferenceEngine::ThreadLocal<std::shared_ptr<Limitations>> kInstance;
+    static ov::threading::ThreadLocal<std::shared_ptr<Limitations>> kInstance;
 };
 
 inline std::shared_ptr<Limitations> Limitations::get_instance() {
