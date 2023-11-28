@@ -6,7 +6,6 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "ov_models/builders.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace test {
@@ -137,16 +136,6 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         auto scale_act = ov::op::v0::Constant::create(element::f32, input_intervals_shape, {20.0 / 255.0});
         activations = std::make_shared<ov::op::v1::Multiply>(activations, scale_act);
 
-<<<<<<< HEAD
-        auto output_low_weights = opset8::Constant::create(element::f32, Shape{}, {0});
-        auto output_high_weights = opset8::Constant::create(element::f32, Shape{}, {254});
-        weights = std::make_shared<opset8::FakeQuantize>(weights, low_weights, high_weights, output_low_weights, output_high_weights, 255);
-        weights = std::make_shared<opset8::Convert>(weights, element::i8);
-        weights = ov::util::constantfold_subgraph(weights);
-        weights = std::make_shared<opset8::Convert>(weights, element::f32);
-        auto scale_weights = opset8::Constant::create(element::f32, weights_intervals_shape, {2.0 / 255.0});
-        weights = std::make_shared<opset8::Multiply>(weights, scale_weights);
-=======
         auto output_low_weights = ov::op::v0::Constant::create(element::f32, Shape{}, {0});
         auto output_high_weights = ov::op::v0::Constant::create(element::f32, Shape{}, {254});
         weights = std::make_shared<ov::op::v0::FakeQuantize>(weights, low_weights, high_weights, output_low_weights, output_high_weights, 255);
@@ -157,7 +146,6 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::f32);
         auto scale_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {2.0 / 255.0});
         weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_weights);
->>>>>>> master
     }
     if (transpose_on_weights) {
         weights = std::make_shared<ov::op::v1::Transpose>(weights, ov::op::v0::Constant::create(element::i32, Shape{4}, {1, 3, 0, 2}));
