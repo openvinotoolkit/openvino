@@ -41,21 +41,32 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
     auto out_type = get_input_element_type(0);
     const auto input_size = get_input_size();
+    if (input_size == 4) {
+        auto attention_type = get_input_element_type(3);
+        NODE_VALIDATION_CHECK(
+            this,
+            attention_type.is_real() || attention_type == element::boolean || attention_type.is_dynamic(),
+            "The element type of attention_mask must be either floating-point or boolean.");
+    }
     for (size_t i = 1; i < input_size; i++) {
-        if (i == 3 && (input_size == 4 || get_input_element_type(i) == element::boolean)) {
+        auto element_type = get_input_element_type(i);
+        if (i == 3 && element_type == element::boolean) {
+            // Skip checking attention_mask in loop when boolean to not affect merged dtype.
             continue;
         }
-        OPENVINO_ASSERT(element::Type::merge(out_type, out_type, get_input_element_type(i)),
-                        "Mixed input types are not supported.");
+        NODE_VALIDATION_CHECK(this,
+                              element::Type::merge(out_type, out_type, element_type),
+                              "Mixed input types are not supported.");
     }
-    OPENVINO_ASSERT(out_type.is_real() || out_type.is_dynamic(),
-                    "The element type of the input tensor must be a floating-point but got: ",
-                    out_type);
+    NODE_VALIDATION_CHECK(this,
+                          out_type.is_real() || out_type.is_dynamic(),
+                          "The element type of the input tensor must be a floating-point.");
+
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto output_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(0, out_type, output_shapes[0]);
 }
 
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {
