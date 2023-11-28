@@ -217,6 +217,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
         // Issue: 122356
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
+#ifdef OPENVINO_ARCH_32_BIT
+        // Issue: 126177
+        R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.CompareWithRefs/.*_eltwiseOpType=Bitwise.*_NetType=i32_.*)"
+#endif
     };
 
 #if defined(OPENVINO_ARCH_X86)
