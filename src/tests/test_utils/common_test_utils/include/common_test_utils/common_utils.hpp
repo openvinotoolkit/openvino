@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 
 namespace ov {
@@ -189,25 +188,6 @@ inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& config) {
     }
     os << ")";
     return os;
-}
-
-template <class opType>
-inline ov::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType>>& ops) {
-    ov::NodeVector nodes;
-    for (const auto& op : ops) {
-        nodes.push_back(std::dynamic_pointer_cast<ov::Node>(op));
-    }
-    return nodes;
-}
-
-inline ov::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
-    ov::OutputVector outs;
-    std::for_each(nodes.begin(), nodes.end(), [&outs](const std::shared_ptr<ov::Node>& n) {
-        for (const auto& out_p : n->outputs()) {
-            outs.push_back(out_p);
-        }
-    });
-    return outs;
 }
 
 std::string generateTestFilePrefix();

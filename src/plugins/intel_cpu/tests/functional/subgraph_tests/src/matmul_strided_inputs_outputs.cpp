@@ -40,8 +40,7 @@ protected:
         std::vector<ov::Shape> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
         ov::ParameterVector concatInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[0]),
                                                std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[1])};
-        const auto concatOutputNodes = ov::test::utils::convert2OutputVector(
-            ov::test::utils::castOps2Nodes<ov::op::v0::Parameter>(concatInputParams));
+        const auto concatOutputNodes = convert2OutputVector(castOps2Nodes<ov::op::v0::Parameter>(concatInputParams));
         const auto concat = std::make_shared<ov::op::v0::Concat>(concatOutputNodes, 2);
 
         const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), concat, false, false);
@@ -55,6 +54,26 @@ protected:
 
         ov::ParameterVector inputParams = {splitInputParams[0], concatInputParams[0], concatInputParams[1], matmulInputParams[0]};
         function = makeNgraphFunction(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
+    }
+
+private:
+    template <class opType>
+    ov::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType>>& ops) {
+        ov::NodeVector nodes;
+        for (const auto& op : ops) {
+            nodes.push_back(std::dynamic_pointer_cast<ov::Node>(op));
+        }
+        return nodes;
+    }
+
+    ov::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+        ov::OutputVector outs;
+        std::for_each(nodes.begin(), nodes.end(), [&outs](const std::shared_ptr<ov::Node>& n) {
+            for (const auto& out_p : n->outputs()) {
+                outs.push_back(out_p);
+            }
+        });
+        return outs;
     }
 };
 
