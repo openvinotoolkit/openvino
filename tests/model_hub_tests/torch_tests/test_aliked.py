@@ -1,19 +1,19 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import math
 import os
-import subprocess
 import sys
+import math
 import tempfile
-
-import numpy as np
-import openvino.runtime.opset12 as ops
-import pytest
 import torch
-from models_hub_common.test_convert_model import TestConvertModel
+import pytest
+import subprocess
+from torch_utils import TestTorchConvertModel
 from openvino import convert_model, Model, PartialShape, Type
+import openvino.runtime.opset12 as ops
 from openvino.frontend import ConversionExtension
+import numpy as np
+
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
@@ -71,14 +71,15 @@ def read_image(path, idx):
     return img_tensor.unsqueeze_(0)
 
 
-class TestAlikedConvertModel(TestConvertModel):
+class TestAlikedConvertModel(TestTorchConvertModel):
     def setup_class(self):
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
             f"git clone https://github.com/mvafin/ALIKED.git {self.repo_dir.name}")
-        subprocess.check_call(["git", "checkout", "6008af43942925eec7e32006814ef41fbd0858d8"], cwd=self.repo_dir.name)
+        subprocess.check_call(
+            ["git", "checkout", "6008af43942925eec7e32006814ef41fbd0858d8"], cwd=self.repo_dir.name)
         subprocess.check_call([sys.executable, "-m", "pip", "install",
-                               "-r", os.path.join(self.repo_dir.name, "requirements.txt")])
+                              "-r", os.path.join(self.repo_dir.name, "requirements.txt")])
         subprocess.check_call(["sh", "build.sh"], cwd=os.path.join(
             self.repo_dir.name, "custom_ops"))
 
@@ -92,14 +93,8 @@ class TestAlikedConvertModel(TestConvertModel):
         self.example = (img_tensor,)
         img_tensor2 = read_image(os.path.join(
             self.repo_dir.name, "assets", "st_pauls_cathedral"), 2)
-        self.input = (img_tensor2,)
+        self.inputs = (img_tensor2,)
         return m
-
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        return [i.numpy() for i in self.input]
 
     def convert_model(self, model_obj):
         m = convert_model(model_obj,

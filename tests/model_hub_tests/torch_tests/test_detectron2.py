@@ -2,15 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-
 import pytest
 import torch
-from models_hub_common.test_convert_model import TestConvertModel
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 from models_hub_common.utils import get_models_list, compare_two_tensors
-from openvino import convert_model
 
 
-class TestDetectron2ConvertModel(TestConvertModel):
+class TestDetectron2ConvertModel(TestTorchConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
@@ -54,16 +52,6 @@ class TestDetectron2ConvertModel(TestConvertModel):
         self.example = adapter.flattened_inputs
         return adapter
 
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        return [i.numpy() for i in self.example]
-
-    def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
-        return ov_model
-
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):
@@ -99,8 +87,7 @@ class TestDetectron2ConvertModel(TestConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r
-                              in get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_models"))])
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "detectron2_models")))
     @pytest.mark.nightly
     def test_detectron2_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
