@@ -113,7 +113,7 @@ public:
      * @note Does not perform memory allocation internally
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param host_ptr Pointer to pre-allocated host memory
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
      * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
      * on shape and element size
      */
@@ -130,7 +130,7 @@ public:
      * @brief Constructs Tensor using port from node. Wraps allocated host memory.
      * @note Does not perform memory allocation internally
      * @param port port from node
-     * @param host_ptr Pointer to pre-allocated host memory
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
      * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
      * on shape and element size
      */
