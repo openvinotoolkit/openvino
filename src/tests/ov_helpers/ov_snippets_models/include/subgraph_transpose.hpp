@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/ngraph.hpp"
 #include "snippets_helpers.hpp"
 
 /* This file contains definitions of relatively simple functions (models) that will be used

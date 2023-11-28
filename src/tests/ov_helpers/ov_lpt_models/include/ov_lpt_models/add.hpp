@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <low_precision/layer_transformation.hpp>
+
+#include "low_precision/layer_transformation.hpp"
 
 #include "elementwise.hpp"
 #include "ov_lpt_models/common/builders.hpp"

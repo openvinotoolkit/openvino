@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include "fake_quantize_on_data.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace builder {

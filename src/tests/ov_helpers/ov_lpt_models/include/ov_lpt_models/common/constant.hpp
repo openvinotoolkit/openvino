@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
 
 namespace ngraph {
 namespace builder {

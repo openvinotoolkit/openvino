@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/op/constant.hpp>
 #include "ov_ops/type_relaxed.hpp"

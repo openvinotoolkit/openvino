@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
 #include "elementwise.hpp"
 #include "ov_lpt_models/common/constant.hpp"

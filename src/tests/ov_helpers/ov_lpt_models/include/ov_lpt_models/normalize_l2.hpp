@@ -9,7 +9,6 @@
 #include <string>
 #include <map>
 
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 

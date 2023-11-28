@@ -5,8 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 

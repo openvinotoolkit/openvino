@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset1.hpp>
 

@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include <ngraph/ngraph.hpp>
 
 #include "common/add.hpp"
 #include "common/fake_quantize_on_data.hpp"

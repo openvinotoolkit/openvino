@@ -6,7 +6,7 @@
 
 #include <map>
 
-
+#include "openvino/pass/manager.hpp"
 
 #include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"

@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "common/dequantization_operations.hpp"
 #include "common/add.hpp"

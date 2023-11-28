@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"

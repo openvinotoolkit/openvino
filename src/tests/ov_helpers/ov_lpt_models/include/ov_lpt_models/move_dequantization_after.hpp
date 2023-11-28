@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_models/subgraph_builders.hpp"

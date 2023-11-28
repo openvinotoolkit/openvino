@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/ngraph.hpp"
 #include "snippets_helpers.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 /* This file contains definitions of rather complex functions (models) that support (and require)
  * specification of some the internal operations. This flexibility is required to extend coverage of

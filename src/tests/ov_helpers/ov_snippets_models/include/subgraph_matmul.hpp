@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/ngraph.hpp"
 #include "./snippets_helpers.hpp"
 #include "snippets/utils.hpp"
 

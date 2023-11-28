@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "common/fake_quantize_on_data.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ngraph {
 namespace builder {
