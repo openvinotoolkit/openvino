@@ -760,7 +760,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -1180,7 +1180,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-8-cores
+    runs-on: aks-linux-8-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -1287,7 +1287,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
@@ -1680,7 +1680,7 @@ jobs:
       - name: Check status of all jobs
         if: >-
           ${{
-            contains(needs.*.result, 'failure') || 
+            contains(needs.*.result, 'failure') ||
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1
