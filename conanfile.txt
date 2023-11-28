@@ -1,5 +1,5 @@
 [requires]
-ade/0.1.2c
+ade/0.1.2d
 onetbb/[>=2021.2.1]
 pugixml/[>=1.10]
 protobuf/3.21.12
