@@ -8,8 +8,7 @@ import tempfile
 
 import pytest
 import torch
-from models_hub_common.test_convert_model import TestConvertModel
-from openvino import convert_model
+
 from torch_utils import TestTorchConvertModel
 
 # To make tests reproducible we seed the random generator
@@ -38,8 +37,8 @@ class TestSpeechTransformerConvertModel(TestTorchConvertModel):
                         torch.stack(sorted(torch.randint(55, 250, [32]), reverse=True)),
                         torch.randint(-1, 4232, [32, 20]))
         self.inputs = (torch.randn(32, 209, 320),
-                      torch.stack(sorted(torch.randint(55, 400, [32]), reverse=True)),
-                      torch.randint(-1, 4232, [32, 25]))
+                       torch.stack(sorted(torch.randint(55, 400, [32]), reverse=True)),
+                       torch.randint(-1, 4232, [32, 25]))
         return m
 
     def infer_fw_model(self, model_obj, inputs):
