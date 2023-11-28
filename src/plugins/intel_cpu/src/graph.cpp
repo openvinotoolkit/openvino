@@ -1883,7 +1883,7 @@ void Graph::SearchInternalStateNodes() {
         if (node->getType() == Type::MemoryInput) {
             auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
             if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
             }
             internalStateNodes.insert({cur_node->getId(), cur_node});
         }
