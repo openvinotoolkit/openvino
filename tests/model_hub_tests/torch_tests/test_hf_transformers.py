@@ -33,7 +33,6 @@ torch.manual_seed(0)
 
 visual_question_answer_models = [
     "google/pix2struct-docvqa-base",
-    'google/pix2struct-ai2d-base',
 ]
 
 music_generation_models = [
