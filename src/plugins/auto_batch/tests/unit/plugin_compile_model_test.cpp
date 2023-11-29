@@ -10,6 +10,7 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -119,12 +120,12 @@ public:
 };
 
 TEST_P(PluginCompileModelTest, PluginCompileModelTestCase) {
-    m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+    m_model = ov::test::utils::make_multi_single_conv();
     ASSERT_NO_THROW(m_plugin->compile_model(m_model, m_plugin_properities));
 }
 
 TEST_P(PluginCompileModelTest, PluginCompileModelWithRemoteContextTestCase) {
-    m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+    m_model = ov::test::utils::make_multi_single_conv();
     ASSERT_NO_THROW(m_plugin->compile_model(m_model, m_plugin_properities, m_remote_context));
 }
 

@@ -20,6 +20,7 @@
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 namespace {
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
@@ -30,7 +31,7 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
         fn_ptrs = {ov::test::utils::make_split_multi_conv_concat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv(),
+                   ov::test::utils::make_multi_single_conv(),
                    ov::test::utils::make_ti_with_lstm_cell()};
     };
 public:
