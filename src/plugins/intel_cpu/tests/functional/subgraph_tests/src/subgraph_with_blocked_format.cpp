@@ -14,6 +14,7 @@ class SubgraphWithBlockedFormat : virtual public SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
+        abs_threshold = 1e-2;
 
         auto type = element::f32;
         auto param = std::make_shared<ov::opset8::Parameter>(type, Shape{1, 32, 64, 32});

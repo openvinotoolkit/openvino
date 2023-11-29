@@ -7,7 +7,6 @@
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace test {
@@ -67,11 +66,11 @@ void SetUp() override {
     pConstStorage.reset(new AlignedBufferWrapper<float>(elemsCount, alignment));
 
     auto constTensor = std::make_shared<ngraph::HostTensor>(rtPrc, inpShape, pConstStorage->get_ptr());
-    auto constNode = std::make_shared<ov::opset1::Constant>(constTensor);
+    auto constNode = std::make_shared<ov::op::v0::Constant>(constTensor);
     ov::NodeVector input = {params[0], constNode};
-    auto concat = std::make_shared<ov::opset1::Concat>(input, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(input, 1);
 
-    ov::ResultVector results{std::make_shared<ov::opset1::Result>(concat->output(0))};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat->output(0))};
 
     function = std::make_shared<ov::Model>(results, params, "denormal_check");
 }

@@ -6,7 +6,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -147,7 +146,7 @@ protected:
         const auto batchSize  = targetStaticShapes.front()[0][0];
         const auto maxSeqLen  = targetStaticShapes.front()[0][1];
         std::vector<int> lengths(batchSize, static_cast<int>(maxSeqLen));
-        auto seq_lengths = ov::opset1::Constant::create(element::i64, Shape{batchSize}, lengths);
+        auto seq_lengths = ov::op::v0::Constant::create(element::i64, Shape{batchSize}, lengths);
 
         if (rnnType == "LSTMSequence") {
             hasCell = true;

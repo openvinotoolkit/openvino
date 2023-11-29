@@ -5,8 +5,6 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -83,7 +81,7 @@ public:
     }
 
     virtual std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode, const ov::ParameterVector& inputParams) {
-        auto sum = std::make_shared<ov::opset3::Add>(lastNode, inputParams[1]);
+        auto sum = std::make_shared<ov::op::v1::Add>(lastNode, inputParams[1]);
 
         fusedOps.insert(fusedOps.begin(), "Add"); // as we always fuse the sum first
         return sum;
@@ -114,7 +112,7 @@ public:
 
         if (bias) {
             auto biasNode = ngraph::builder::makeConstant<float>(ov::element::Type_t::f32, ov::Shape({1, _convOutChannels, 1, 1}), {}, true);
-            conv = std::make_shared<ov::opset3::Add>(conv, biasNode);
+            conv = std::make_shared<ov::op::v1::Add>(conv, biasNode);
         }
 
         auto sum = addSum(conv, inputParams);
@@ -199,16 +197,16 @@ class ConvSumInPlaceTestInt8 : public ConvSumInPlaceTest {
 public:
     ov::ParameterVector makeParams() override {
         ov::ParameterVector outs(2);
-        outs[0] = std::make_shared<ov::opset1::Parameter>(ov::element::u8, inputDynamicShapes[0]);
-        outs[1] = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputDynamicShapes[1]);
+        outs[0] = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, inputDynamicShapes[0]);
+        outs[1] = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[1]);
         return outs;
     }
 
     std::shared_ptr<ov::Node> makeConv(const ov::ParameterVector& inputParams) override {
         auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputParams.front()->get_partial_shape());
 
-        auto convolutionNodeRelaxed = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
-            *as_type_ptr<ov::opset1::Convolution>(ov::test::utils::make_convolution(inputParamsFP32,
+        auto convolutionNodeRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
+            *as_type_ptr<ov::op::v1::Convolution>(ov::test::utils::make_convolution(inputParamsFP32,
                                                                                     element::f32,
                                                                                     _kernel,
                                                                                     _stride,
@@ -241,7 +239,7 @@ public:
 
         auto secondTerm = ngraph::builder::makeFakeQuantize(inputParams[1], ov::element::f32, 256, fqShape);
 
-        auto sum = std::make_shared<ov::opset3::Add>(lastNode, secondTerm);
+        auto sum = std::make_shared<ov::op::v1::Add>(lastNode, secondTerm);
         additionalFusedOps.push_back("Add");
 
         fusedOps.insert(fusedOps.begin(), additionalFusedOps.begin(), additionalFusedOps.end());
@@ -268,11 +266,11 @@ TEST_P(ConvSumInPlaceTestInt8, CompareWithRefs) {
 class ConvSumInPlaceTestSeveralConsumers : public ConvSumInPlaceTest {
 public:
     std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode, const ov::ParameterVector& inputParams) override {
-        auto sum = std::make_shared<ov::opset3::Add>(lastNode, inputParams[1]);
+        auto sum = std::make_shared<ov::op::v1::Add>(lastNode, inputParams[1]);
         fusedOps.insert(fusedOps.begin(), "Add");
 
-        auto shapeOf = std::make_shared<ov::opset3::ShapeOf>(sum);
-        return std::make_shared<ov::opset3::Reshape>(sum, shapeOf, true);
+        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(sum);
+        return std::make_shared<ov::op::v1::Reshape>(sum, shapeOf, true);
     }
 };
 
@@ -289,12 +287,12 @@ const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNo
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
             auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::opset1::Multiply>(cfg.input, constNode);
+            return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
             auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::opset1::Add>(cfg.input, constNode);
+            return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
@@ -304,24 +302,24 @@ const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNo
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
             auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::opset1::Multiply>(cfg.input, constNode);
+            return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
             auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::opset1::Add>(cfg.input, constNode);
+            return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
             auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
-            return std::make_shared<ov::opset1::Divide>(cfg.input, secondMultInput);
+            return std::make_shared<ov::op::v1::Divide>(cfg.input, secondMultInput);
         }, "Divide(PerChannel)"},
         {[](postNodeConfig& cfg){
             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
             auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
-            return std::make_shared<ov::opset1::Subtract>(cfg.input, secondMultInput);
+            return std::make_shared<ov::op::v1::Subtract>(cfg.input, secondMultInput);
         }, "Subtract(PerChannel)"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
@@ -331,7 +329,7 @@ const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>
 
 const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
-            return ngraph::builder::makeActivation(cfg.input, cfg.type, ov::test::utils::Sigmoid);
+            return ov::test::utils::make_activation(cfg.input, cfg.type, ov::test::utils::Sigmoid);
         }, "Sigmoid"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
@@ -346,7 +344,7 @@ const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesM
 
 const auto fusingClampFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
-            return ngraph::builder::makeActivation(cfg.input, cfg.type, ov::test::utils::Clamp, {}, {3.0f, 6.0f});
+            return ov::test::utils::make_activation(cfg.input, cfg.type, ov::test::utils::Clamp, {}, {3.0f, 6.0f});
         }, "Clamp"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
