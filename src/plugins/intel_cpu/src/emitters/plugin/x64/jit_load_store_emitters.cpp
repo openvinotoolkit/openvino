@@ -1211,7 +1211,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
             }
         } else if (mayiuse(cpu::x64::avx2_vnni_2)) {
             // to avoid src vmm pollution
-            if (src_prc_ == Precision::FP32) {
+            if (src_prc_ == ov::element::f32) {
                 xmm = Xmm(aux_vec_idxs[0]);
             }
             h->vcvtps2ph(xmm, ymm, 0x4);
