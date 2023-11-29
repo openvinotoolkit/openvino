@@ -7,9 +7,9 @@
 
 using namespace SubgraphTestsDefinitions;
 using namespace ov::test;
-using namespace InferenceEngine;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 class ParameterResultCustomBlobTest : public ParameterResultSubgraphTestLegacyApi {
 protected:
@@ -21,7 +21,7 @@ protected:
         auto inputBlob = inputs.front();
         const size_t elementsCount = inputBlob->size();
         for (size_t i = 0; i < inferIterations; ++i) {
-            ov::test::utils::fill_data_random<Precision::FP32>(inputBlob, 10, 0, 1, i);
+            ov::test::utils::fill_data_random<InferenceEngine::Precision::FP32>(inputBlob, 10, 0, 1, i);
             auto inputsInfo = cnnNetwork.getInputsInfo().begin()->second;
             std::string inputName = cnnNetwork.getInputsInfo().begin()->first;
 
@@ -30,7 +30,7 @@ protected:
             std::copy(inpBlobData, inpBlobData + elementsCount, customInpData.begin());
 
             auto& tensorDesc = inputsInfo->getTensorDesc();
-            auto customBlob = make_shared_blob<float>(tensorDesc, customInpData.data(), elementsCount);
+            auto customBlob = InferenceEngine::make_shared_blob<float>(tensorDesc, customInpData.data(), elementsCount);
             inferRequest.SetBlob(inputName, customBlob);
 
             inferRequest.Infer();
@@ -46,8 +46,8 @@ protected:
 TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
     // Just to show that it is not possible to set different precisions for inputs and outputs with the same name.
     // If it was possible, the input would have I8 precision and couldn't store data from the custom blob.
-    inPrc = Precision::I8;
-    outPrc = Precision::FP32;
+    inPrc = InferenceEngine::Precision::I8;
+    outPrc = InferenceEngine::Precision::FP32;
 
     Run();
 }
@@ -84,4 +84,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Check_Same_Blob,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ParameterResultSubgraphTestBase::getTestCaseName);
 }  // namespace
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
