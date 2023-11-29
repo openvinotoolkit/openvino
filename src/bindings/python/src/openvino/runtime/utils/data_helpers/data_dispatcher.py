@@ -137,7 +137,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> dict:
-    return {k.any_name: to_c_style(v) if is_shared else v for k, v in inputs.items()}
+    return {k.index: to_c_style(v) if is_shared else v for k, v in inputs.items()}
 
 
 @normalize_arrays.register(list)

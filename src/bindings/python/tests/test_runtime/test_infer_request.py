@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from contextlib import nullcontext as does_not_raise
 from collections.abc import Iterable
 from copy import deepcopy
 import numpy as np
@@ -1252,3 +1253,34 @@ def test_infer_request_share_memory(device, share_inputs, share_outputs, is_posi
     else:
         assert not out_tensor_shares
         assert results[0].flags["OWNDATA"] is True
+
+
+def test_output_result_to_input():
+    from openvino import compile_model
+    from itertools import cycle
+
+    def create_model(input_names, output_names):
+        inputs = [ops.parameter(Shape([1, 1]), Type.i32) for _ in input_names]
+        for name, inp in zip(input_names, inputs):
+            inp.set_friendly_name(name)
+
+        adds = [ops.add(inp, ops.constant(i, Type.i32)) for i, (inp, _) in enumerate(zip(cycle(inputs), output_names))]
+
+        outputs = []
+        for name, add in zip(output_names, adds):
+            output = add.output(0)
+            output.tensor.set_names({name})
+            outputs.append(output)
+
+        return Model(outputs, inputs)
+
+    inputs_1 = ["input_1"]
+    outputs_1 = inputs_2 = ["output_1_1", "outputs_1_2"]
+    outputs_2 = ["output_2_1", "outputs_2_2"]
+    model_1 = create_model(inputs_1, outputs_1)
+    model_2 = create_model(inputs_2, outputs_2)
+    compiled_1, compiled_2 = compile_model(model_1), compile_model(model_2)
+    input_data = np.array([[1]])
+    result_1 = compiled_1(input_data)
+    with does_not_raise():
+        compiled_2(result_1)

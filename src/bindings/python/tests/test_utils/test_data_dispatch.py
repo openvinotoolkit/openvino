@@ -10,7 +10,6 @@ from tests.utils.helpers import generate_relu_compiled_model
 
 from openvino import Type, Shape, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
-from openvino.runtime.ie_api import OVDict
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 
@@ -162,43 +161,3 @@ def test_ndarray_copied_dispatcher(device, input_shape):
     test_data[0] = 2.0
 
     assert not np.array_equal(infer_request.input_tensors[0].data, test_data)
-
-
-@pytest.mark.parametrize("input_data", 
-                         {},
-                         [],
-                         (),
-                         OVDict())
-def test_container_types(device, input_data, input_shape):
-    result, infer_request = _run_dispatcher(device, input_data, False, input_shape)
-    from openvino import compile_model
-    from openvino.runtime import op, opset13 as opset
-    from itertools import cycle
-    def create_model(input_names, output_names):
-        inputs = [op.Parameter(Type.i32, Shape([1, 1])) for _ in input_names]
-        for name, inp in zip(input_names, inputs):
-            inp.set_friendly_name(name)
-
-        adds = [
-            opset.add(inp, opset.constant(i, Type.i32))
-            for i, (inp, _) in enumerate(zip(cycle(inputs), output_names))
-        ]
-
-        outputs = []
-        for name, add in zip(output_names, adds):
-            output = add.output(0)
-            output.tensor.set_names({name})
-            outputs.append(output)
-
-        return Model(outputs, inputs)
-
-
-    inputs_1 = ["input_1"]
-    outputs_1 = inputs_2 = ["output_1_1", "outputs_1_2"]
-    outputs_2 = ["output_2_1", "outputs_2_2"]
-    model_1 = create_model(inputs_1, outputs_1)
-    model_2 = create_model(inputs_2, outputs_2)
-    compiled_1, compiled_2 = compile_model(model_1), compile_model(model_2)
-    example_input = np.array([[1]])
-    example_output_1 = compiled_1(example_input)
-    example_output_2 = compiled_2(example_output_1)
