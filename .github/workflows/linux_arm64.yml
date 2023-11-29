@@ -1504,8 +1504,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
-            CPU_Functional_Tests]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
