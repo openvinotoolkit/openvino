@@ -58,7 +58,6 @@ class TestGFPGANConvertModel(TestTorchConvertModel):
 
         fw_eps = 5e-2
         is_ok = True
-        print(f"len outputs: {len(ov_outputs)}")
         for i in range(len(ov_outputs)):
             cur_fw_res = fw_outputs[i]
             cur_ov_res = ov_outputs[i]
@@ -66,7 +65,6 @@ class TestGFPGANConvertModel(TestTorchConvertModel):
                 np.testing.assert_allclose(
                     cur_ov_res, cur_fw_res, fw_eps, fw_eps)
             except AssertionError as e:
-                print(f"Validation failed for output {i}")
                 print(e)
                 # The model has aten::normal_ operation which produce random numbers.
                 #  Cannot reliably validate the output 0
