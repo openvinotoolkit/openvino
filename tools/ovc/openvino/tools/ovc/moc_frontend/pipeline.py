@@ -4,7 +4,6 @@
 import argparse
 import logging as log
 import sys
-from copy import copy
 from typing import List
 
 import numpy as np
@@ -16,10 +15,10 @@ from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-mo
 from openvino.runtime.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.moc_frontend.analysis import json_model_analysis_dump
-from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, fe_output_user_data_repack
-from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict, get_dimension_index_by_label
+from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, \
+    fe_output_user_data_repack
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.utils import np_map_cast, mo_array, validate_batch_in_shape
+from openvino.tools.ovc.utils import np_map_cast, mo_array
 
 
 def get_enabled_and_disabled_transforms():
@@ -57,7 +56,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :return: converted nGraph function ready for serialization
     """
 
-    share_weights = getattr(argv, 'share_weights', True)    #FIXME: Should be controlled by default value
+    share_weights = getattr(argv, 'share_weights', True)  # FIXME: Should be controlled by default value
     if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
         # frozen format with v1 checkpoints
         input_model = moc_front_end.load([part for part in argv.input_model], share_weights)
@@ -119,7 +118,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     model_inputs = input_model.get_inputs()
     inputs_equal = True
     if user_shapes:
-
         # TODO: Remove this line when new 'cut' helper is introduced
         raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
 
@@ -242,7 +240,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
-
 
     ov_model = moc_front_end.convert(input_model)
 

@@ -43,15 +43,6 @@ inline bool can_use_usm_host(const cldnn::engine& engine) {
     return can_use_usm;
 }
 
-inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
-    ov::Shape res(pshape.size());
-    for (size_t i = 0; i < pshape.size(); i++) {
-        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
-    }
-
-    return res;
-}
-
 inline std::string get_port_name(const ov::Output<const ov::Node>& port, const bool is_legacy_api) {
     std::string name;
     // TODO: Should use tensor name as the port name, but many legacy tests still use legacy name
@@ -177,18 +168,6 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     return device_ptr == host_ptr;
 }
 
-ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
-    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
-    const auto& preallocation_shape = prealloc_info.second;
-    auto can_preallocate_buffer = prealloc_info.first &&
-                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
-    if (can_preallocate_buffer) {
-        return preallocation_shape;
-    }
-
-    return current_shape;
-}
-
 inline bool all_remote_buffers(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     return std::all_of(tensors.begin(), tensors.end(), [](const ov::SoPtr<ov::ITensor>& tensor) {
         if (auto remote_ptr = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor._ptr)) {
@@ -262,13 +241,9 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
-    const auto& variable_states = m_graph->get_network()->get_variable_memories();
-    for (const auto& pair : variable_states) {
-        ret.emplace_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine()));
+    for (const auto& pair : m_variables) {
+        ret.emplace_back(pair.second, nullptr);
     }
-    auto expected_states_count = m_graph->get_network()->get_variables_state_info().size();
-    OPENVINO_ASSERT(expected_states_count == ret.size(), "[GPU] Mismatch of expected states count (",
-                                                         expected_states_count,  ") and actual size (", ret.size(), ")");
     return ret;
 }
 
@@ -411,8 +386,13 @@ void SyncInferRequest::enqueue() {
         std::move(events.begin(), events.end(), std::back_inserter(dependencies));
     }
 
+    for (const auto& it : m_variables) {
+        const auto& name = it.first;
+        const auto& variable = it.second;
+        prepare_state(name, variable);
+    }
+
     auto network = m_graph->get_network();
-    network->assign_variables_memories();
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
@@ -687,7 +667,16 @@ void SyncInferRequest::allocate_outputs() {
 }
 
 void SyncInferRequest::allocate_states() {
-    m_graph->get_network()->allocate_variables_memories();
+    const auto& network = m_graph->get_network();
+    const auto& variables_info = network->get_variables_info();
+    for (auto& vi : variables_info) {
+        auto variable = std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor);
+        m_variables.emplace(vi.first, variable);
+    }
+}
+
+void SyncInferRequest::prepare_state(const std::string& name, const VariableState::Ptr variable) {
+    m_graph->get_network()->set_variable(name, variable);
 }
 
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(const std::string& name,
