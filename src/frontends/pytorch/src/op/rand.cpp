@@ -25,7 +25,7 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-OutputVector make_random_normal(const NodeContext& context, Output<Node> sizes, element::Type target_type) {
+OutputVector make_random_normal(const NodeContext& context, Output<Node> sizes, element::Type target_type, float scale=1, float mean=0) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<uint64_t> distrib(0, 9999);
@@ -57,8 +57,8 @@ OutputVector make_random_normal(const NodeContext& context, Output<Node> sizes, 
     auto multiply_two_pi_uniform_2 = context.mark_node(std::make_shared<v1::Multiply>(multiply_two_pi, uniform_2));
     auto cos = context.mark_node(std::make_shared<v0::Cos>(multiply_two_pi_uniform_2));
 
-    auto scale_const = context.mark_node(v0::Constant::create(target_type, Shape{1}, {1}));
-    auto mean_const = context.mark_node(v0::Constant::create(target_type, Shape{1}, {0}));
+    auto scale_const = context.mark_node(v0::Constant::create(target_type, Shape{1}, {scale}));
+    auto mean_const = context.mark_node(v0::Constant::create(target_type, Shape{1}, {mean}));
     auto sqrt_x_cos = context.mark_node(std::make_shared<v1::Multiply>(sqrt, cos));
     auto product = context.mark_node(std::make_shared<v1::Multiply>(scale_const, sqrt_x_cos));
     auto sum = context.mark_node(std::make_shared<v1::Add>(product, mean_const));
@@ -282,6 +282,17 @@ OutputVector translate_randint(const NodeContext& context) {
     }
     return {res};
 };
+
+OutputVector translate_normal_(const NodeContext& context) {
+    num_inputs_check(context, 3, 4);
+    auto inp_tensor = context.get_input(0);
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(inp_tensor, element::i32));
+    auto dtype = element::f32;
+    auto res = make_random_normal(context, sizes, dtype);
+    res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], inp_tensor));
+    context.mutate_input(0, res[0]);
+    return res;
+}
 
 }  // namespace op
 }  // namespace pytorch
