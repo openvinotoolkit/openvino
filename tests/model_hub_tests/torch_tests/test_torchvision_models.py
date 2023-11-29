@@ -78,6 +78,9 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             self.inputs = prepare_frames_for_raft(model_name,
                                                   [frames[75], frames[125]],
                                                   [frames[76], frames[126]])
+        elif "vit_h_14" in model_name:
+            self.example = (torch.randn(1, 3, 518, 518),)
+            self.inputs = (torch.randn(1, 3, 518, 518),)
         else:
             self.example = (torch.randn(1, 3, 224, 224),)
             self.inputs = (torch.randn(1, 3, 224, 224),)
@@ -99,7 +102,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.cache_dir.cleanup()
         super().teardown_method()
 
-    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
+    @pytest.mark.parametrize("model_name", ["vit_b_16","vit_b_32","vit_h_14","vit_l_16","vit_l_32", "efficientnet_b7", "raft_small", "swin_v2_s"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
