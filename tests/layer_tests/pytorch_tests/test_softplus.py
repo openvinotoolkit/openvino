@@ -7,7 +7,7 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class aten_glu(torch.nn.Module):
+class aten_softplus(torch.nn.Module):
     def forward(self, x):
         return torch.nn.functional.softplus(x)
 
@@ -19,6 +19,6 @@ class TestSoftplus(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_glu(self, ie_device, precision, ir_version):
-        self._test(aten_glu(), None, "aten::softplus",
+    def test_softplus(self, ie_device, precision, ir_version):
+        self._test(aten_softplus(), None, "aten::softplus",
                    ie_device, precision, ir_version)
