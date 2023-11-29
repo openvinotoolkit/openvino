@@ -59,26 +59,6 @@ inline void assert_dt<float16>(ov::element::Type dt) {
 }
 
 template <typename T>
-struct data_type_name {
-    static constexpr const char* value = "?";
-};
-
-template <>
-struct data_type_name<float> {
-    static constexpr const char* value = "float";
-};
-
-template <>
-struct data_type_name<bfloat16> {
-    static constexpr const char* value = "bfloat16";
-};
-
-template <>
-struct data_type_name<uint8_t> {
-    static constexpr const char* value = "uint8_t";
-};
-
-template <typename T>
 struct precision_of {
     static constexpr ov::element::Type_t value = ov::element::Type_t::undefined;
 };
@@ -110,7 +90,6 @@ struct precision_of<float16> {
 
 #define PLAINTENSOR_RANK_MAX 8
 
-template <typename DT>
 struct PlainTensor {
     size_t m_strides[PLAINTENSOR_RANK_MAX];
     size_t m_dims[PLAINTENSOR_RANK_MAX];
@@ -118,6 +97,8 @@ struct PlainTensor {
     void* m_ptr = nullptr;
     size_t m_capacity = 0;
     bool with_storage = false;
+    size_t m_element_size = 0;
+    ov::element::Type_t m_dt = ov::element::Type_t::undefined;
     MemoryPtr m_mem;        // hold memory ptr reference
 
     operator bool() const {
@@ -149,7 +130,7 @@ struct PlainTensor {
     }
 
     // copy construct (always not take ownership)
-    PlainTensor<DT> operator=(const PlainTensor<DT>& other) {
+    PlainTensor operator=(const PlainTensor& other) {
         OPENVINO_ASSERT(!with_storage);
         memcpy(&m_strides, &other.m_strides, sizeof(m_strides));
         memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
@@ -169,23 +150,21 @@ struct PlainTensor {
     }
 
     void reset(MemoryPtr mem) {
-        const auto& mem_desc = mem->getDesc();
-        assert_dt<DT>(mem_desc.getPrecision());
-        const auto* desc_ptr = mem_desc.as<BlockedMemoryDesc>();
+        auto mem_desc = mem->getDescWithType<BlockedMemoryDesc>();
         // not support block layout
-        OPENVINO_ASSERT(desc_ptr && desc_ptr->getOrder().size() == mem->getStaticDims().size());
+        OPENVINO_ASSERT(mem_desc && mem_desc->getOrder().size() == mem->getStaticDims().size());
         m_mem = mem;
-        VectorDims strides(desc_ptr->getStrides().size());
-        const auto& orders = desc_ptr->getOrder();
+        VectorDims strides(mem_desc->getStrides().size());
+        const auto& orders = mem_desc->getOrder();
         for (size_t i = 0; i < orders.size(); i++) {
-            strides[orders[i]] = desc_ptr->getStrides()[i];
+            strides[orders[i]] = mem_desc->getStrides()[i];
         }
         // this reshape_to() can do reshape w/o additional cost
-        resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()), &strides);
+        resize(mem->getStaticDims(), mem_desc->getPrecision().size(), mem_desc->getPrecision(), mem->getData(), strides.data());
     }
 
     ov::element::Type get_precision(void) {
-        return precision_of<DT>::value;
+        return m_dt;
     }
 
     struct tensor_index {
@@ -223,8 +202,8 @@ struct PlainTensor {
         }
     };
 
-    PlainTensor<DT> index(const std::initializer_list<tensor_index>& indices) {
-        PlainTensor<DT> sub_tensor;
+    PlainTensor index(const std::initializer_list<tensor_index>& indices) {
+        PlainTensor sub_tensor;
         assert(indices.size() <= m_rank);
         int i_src = 0;
         int i_dst = 0;
@@ -246,13 +225,13 @@ struct PlainTensor {
             i_src++;
         }
         sub_tensor.m_rank = i_dst;  // index may imply squeeze
-        sub_tensor.m_ptr = reinterpret_cast<void*>(reinterpret_cast<DT*>(m_ptr) + off);
+        sub_tensor.m_ptr = reinterpret_cast<void*>(reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size);
         return sub_tensor;
     }
 
     // slice: return a sub-view (w/o ownership/refcount to original data)
-    PlainTensor<DT> slice(int axis, int start, int end, int step = 1) const {
-        PlainTensor<DT> sub_tensor;
+    PlainTensor slice(int axis, int start, int end, int step = 1) const {
+        PlainTensor sub_tensor;
         assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
@@ -277,7 +256,7 @@ struct PlainTensor {
         }
 
         auto off = start * m_strides[axis];
-        auto* data = reinterpret_cast<DT*>(m_ptr) + off;
+        auto* data = reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size;
         sub_tensor.m_ptr = reinterpret_cast<void*>(data);
 
         return sub_tensor;
@@ -310,17 +289,16 @@ struct PlainTensor {
 
        simplified form is when whole tensor is dense
     */
-    PlainTensor<DT> reshape(const std::vector<size_t>& target_shape) const {
+    PlainTensor reshape(const std::vector<size_t>& target_shape) const {
         // only valid for dense memory
-        PlainTensor<DT> new_tensor_view;
+        PlainTensor new_tensor_view;
         assert(is_dense());
-        //assert(shape_size(target_shape) == shape_size(m_dims));
-        new_tensor_view.resize(VectorDims(target_shape), reinterpret_cast<DT*>(m_ptr));
+        new_tensor_view.resize(target_shape, m_element_size, m_dt, m_ptr);
         return new_tensor_view;
     }
 
-    PlainTensor<DT> permute(const std::vector<size_t>& order) const {
-        PlainTensor<DT> new_tensor_view;
+    PlainTensor permute(const std::vector<size_t>& order) const {
+        PlainTensor new_tensor_view;
         assert(order.size() == m_rank);
         new_tensor_view.m_capacity = 0;
         new_tensor_view.m_ptr = m_ptr;
@@ -336,19 +314,21 @@ struct PlainTensor {
         return new_tensor_view;
     }
 
-    void resize(const VectorDims& new_dims, DT* data = nullptr, const VectorDims* strides = nullptr) {
+    void resize(const VectorDims& new_dims, size_t element_size, ov::element::Type_t dt, void* data = nullptr, const size_t* strides = nullptr) {
+        m_element_size = element_size;
+        m_dt = dt;
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
-            m_strides[i] = strides ? (*strides)[i] : stride;
+            m_strides[i] = strides ? strides[i] : stride;
             stride *= new_dims[i];
         }
 
         if (!data) {
-            auto capacity_new = m_strides[0] * m_dims[0] * sizeof(DT);
+            auto capacity_new = m_strides[0] * m_dims[0] * m_element_size;
             if (capacity_new > m_capacity) {
                 if (!with_storage) {
                     throw std::bad_alloc();
@@ -368,11 +348,18 @@ struct PlainTensor {
         }
     }
 
+    template<typename DT>
+    void resize(const VectorDims& new_dims, DT* data = nullptr, const size_t* strides = nullptr) {
+        resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
+    }
+
+    template <typename DT>
     DT* data() const {
         return reinterpret_cast<DT*>(m_ptr);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
+    template <typename DT>
     DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
         size_t off = 0;
         auto it = index.begin();
@@ -389,7 +376,8 @@ struct PlainTensor {
         return reinterpret_cast<DT*>(m_ptr)[off];
     }
 
-    PlainTensor<DT>& operator=(const DT& value) {
+    template <typename DT>
+    PlainTensor& operator=(const DT& value) {
         // assign every element to value
         std::vector<size_t> index(m_rank, 0);
         auto* dst = reinterpret_cast<DT*>(m_ptr);
@@ -412,8 +400,9 @@ struct PlainTensor {
         return *this;
     }
 
+    template <typename DT>
     DT& operator()(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
-        return at(index, allow_broadcast);
+        return at<DT>(index, allow_broadcast);
     }
 
     void assert_dims(const std::initializer_list<size_t>& expect_dims, bool special_zero = false) const {
@@ -452,7 +441,7 @@ struct PlainTensor {
             return "{empty}";
         }
         std::stringstream ss;
-        ss << data_type_name<DT>::value << " shape=[";
+        ss << m_dt << " shape=[";
         const char* sep = "";
         size_t sz = 1;
         for (size_t i = 0; i < m_rank; i++) {
@@ -475,7 +464,6 @@ struct PlainTensor {
         size_t cur_line_elecnt = 0;
         size_t cur_row_elecnt = 0;
         size_t i;
-        auto* p = reinterpret_cast<DT*>(m_ptr);
         for (i = 0; i < sz && max_total_lines > 0; i++) {
             if ((i % last_dim_size) == 0) {
                 ss << row_id << ":\t\t";
@@ -485,10 +473,20 @@ struct PlainTensor {
 
             // display current element if we still have buget
             if (cur_row_lines_left > 0) {
-                if (std::is_integral<DT>::value)
-                    ss << static_cast<int64_t>(p[i]) << ",";
+                if (m_dt == ov::element::Type_t::f32)
+                    ss << reinterpret_cast<float*>(m_ptr)[i] << ",";
+                else if (m_dt == ov::element::Type_t::bf16)
+                    ss << reinterpret_cast<bfloat16*>(m_ptr)[i] << ",";
+                else if (m_dt == ov::element::Type_t::f16)
+                    ss << reinterpret_cast<float16*>(m_ptr)[i] << ",";
+                else if (m_dt == ov::element::Type_t::i32)
+                    ss << reinterpret_cast<int32_t*>(m_ptr)[i] << ",";
+                else if (m_dt == ov::element::Type_t::i8)
+                    ss << static_cast<int32_t>(reinterpret_cast<int8_t*>(m_ptr)[i]) << ",";
+                else if (m_dt == ov::element::Type_t::u8)
+                    ss << static_cast<int32_t>(reinterpret_cast<uint8_t*>(m_ptr)[i]) << ",";
                 else
-                    ss << p[i] << ",";
+                    ss << "?,";
                 cur_line_elecnt++;
                 cur_row_elecnt++;
                 if ((cur_line_elecnt % 16) == 15 || (cur_row_elecnt == last_dim_size)) {
@@ -514,12 +512,10 @@ struct PlainTensor {
         return ss.str();
     }
 
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& os, const PlainTensor<U>& dt);
+    friend std::ostream& operator<<(std::ostream& os, const PlainTensor& dt);
 };
 
-template <typename U>
-std::ostream& operator<<(std::ostream& os, const PlainTensor<U>& dt) {
+inline std::ostream& operator<<(std::ostream& os, const PlainTensor& dt) {
     os << dt.repr();
     return os;
 }
