@@ -19,6 +19,8 @@
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
+
 using namespace ov;
 using namespace testing;
 
@@ -307,7 +309,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_detachment) {
-    auto f = ngraph::builder::subgraph::makeDetectionOutput();
+    auto f = ov::test::utils::make_detection_output();
     auto& data = f->get_parameters()[0];
 
     ov::pass::Manager m;

@@ -19,6 +19,7 @@
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
 
 namespace {
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
@@ -220,7 +221,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
-    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ov::element::f32);
+    auto fn = ov::test::utils::make_detection_output(ov::element::f32);
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -259,7 +260,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
-    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ov::element::f32);
+    auto fn = ov::test::utils::make_detection_output(ov::element::f32);
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
