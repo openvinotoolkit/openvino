@@ -17,7 +17,7 @@
   `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2023.3.0 ../src/bindings/js/node/bin`
   `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2330 ../src/bindings/js/node/bin`
   `cp ../bin/intel64/Release/libopenvino.so.2330 ../src/bindings/js/node/bin`
-  `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2330 ../src/bindings/js/node/bin`
+  `cp ../bin/intel64/Release/libopenvino.so.2023.3.0 ../src/bindings/js/node/bin`
 - Now you can install dependencies packages `npm install`
 - Run tests `npm run test` to make sure that **openvinojs-node** built successfully
 

@@ -1,6 +1,6 @@
 {
   "name": "openvinojs-node",
-  "version": "1.0.0",
+  "version": "2023.2-preview",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "license": "Apache-2.0",
   "main": "./dist/index.js",
@@ -8,6 +8,9 @@
   "scripts": {
     "build": "npm run tsc",
     "prepare": "npm run build",
+    "postinstall": "npm run install_bins",
+    "download_bins": "node ./scripts/download_bins.js",
+    "install_bins": "npm run download_bins -- --ignore-if-exists",
     "lint": "eslint .",
     "test": "node --test ./tests/",
     "tsc": "tsc"
@@ -22,5 +25,16 @@
   },
   "engines": {
     "node": ">=18.16.0"
+  },
+  "dependencies": {
+    "decompress": "^4.2.1",
+    "https-proxy-agent": "^7.0.2"
+  },
+  "binary": {
+    "version": "2023.2",
+    "url": "https://storage.openvinotoolkit.org/repositories/openvino/packages/",
+    "linux": "l_openvino_toolkit_centos7_2023.2.0.13089.cfd42bd2cb0_x86_64.tgz",
+    "windows": "w_openvino_toolkit_windows_2023.2.0.13089.cfd42bd2cb0_x86_64.zip",
+    "macos": "m_openvino_toolkit_macos_10_15_2023.2.0.13089.cfd42bd2cb0_x86_64.tgz"
   }
 }
