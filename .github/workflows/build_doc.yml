@@ -4,7 +4,6 @@ on:
 
 env:
   DOXY_VER: '1.9.6'
-  DOXYREST_VER: '2.1.3'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
@@ -40,19 +39,18 @@ jobs:
           python3 -m pip install -r docs/requirements.txt
           (cd docs/openvino_sphinx_theme && python3 setup.py install)
 
-      - name: Download and install doxygen && doxyrest
+      - name: Download and install doxygen
         run: |
-          # install doxyrest
-          wget https://github.com/vovkos/doxyrest/releases/download/doxyrest-$DOXYREST_VER/doxyrest-$DOXYREST_VER-linux-amd64.tar.xz
-          tar -xf doxyrest-$DOXYREST_VER-linux-amd64.tar.xz
-          echo "$(pwd)/doxyrest-$DOXYREST_VER-linux-amd64/bin/" >> $GITHUB_PATH
           # install doxygen
           wget https://www.doxygen.nl/files/doxygen-$DOXY_VER.linux.bin.tar.gz
           tar -xzf doxygen-$DOXY_VER.linux.bin.tar.gz
           echo "$(pwd)/doxygen-$DOXY_VER/bin/" >> $GITHUB_PATH
 
-      - name: CMake configure
-        run: cmake -DENABLE_DOCS=ON -B build
+      - name: Build docs
+        run: |
+          rm -rf build && mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -DENABLE_CPP_API=ON
+          cmake --build . --target sphinx_docs
 
       - name: Cache documentation
         id: cache_sphinx_docs
@@ -60,13 +58,6 @@ jobs:
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache
-
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v2
-        id: cpu-cores
-
-      - name: Build docs
-        run: cmake --build build --target sphinx_docs --parallel ${{ steps.cpu-cores.outputs.count }}
 
       - name: Archive docs HTML
         run: (cd build/docs && zip -r openvino_docs_html.zip _build)
@@ -97,14 +88,13 @@ jobs:
       - name: Run Pytest
         run: |
           pytest --doxygen="./build/docs/doxygen.log" \
-                 --include_pot \
                  --sphinx="./build/docs/sphinx.log" \
-                 --suppress-warnings="./docs/suppress_warnings.txt" \
+                 --suppress-warnings="./docs/scripts/tests/suppress_warnings.txt" \
                  --confcutdir="./docs/scripts/tests/" \
                  --html="./build/docs/_artifacts/doc-generation.html" \
                  --doxygen-strip="$(pwd)" \
-                 --sphinx-strip="$(pwd)/build/docs/rst" \
-                 --doxygen-xfail="./docs/doxygen-xfail.txt" \
+                 --sphinx-strip="$(pwd)/build/docs/sphinx_source" \
+                 --xfail="./docs/scripts/tests/xfail.txt" \
                  --self-contained-html ./docs/scripts/tests/test_docs.py
 
       - name: 'Upload test results'

@@ -3,6 +3,7 @@ atomicwrites==1.4.0
 attrs==22.1.0
 Babel==2.11.0
 beautifulsoup4==4.9.3
+breathe==4.35.0
 certifi==2023.7.22
 colorama==0.4.6
 Cython==0.29.33
@@ -16,6 +17,7 @@ Jinja2==3.1.2
 lxml>=4.9.2
 MarkupSafe==2.1.1
 mistune==2.0.3
+myst-parser==0.18.1
 packaging==23.0
 pluggy==0.13.1
 pydata-sphinx-theme==0.7.2
