@@ -38,20 +38,11 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.run(linear_ir);
 
-    // lowered::pass::PassPipeline reference_pipeline;
-    // reference_pipeline.register_pass<lowered::pass::InsertTailLoop>();
-    // reference_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
-    // reference_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
-    // auto clone = *linear_ir.clone();
-    // reference_pipeline.run(clone);
-    // clone.serialize("/home/vgolubev/models/specific_iteration_reference.xml", "");
-
     lowered::pass::PassPipeline target_pipeline;
     target_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     target_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     target_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     target_pipeline.run(linear_ir);
-    linear_ir.serialize("/home/vgolubev/models/specific_iteration.xml", "/dev/null");
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")

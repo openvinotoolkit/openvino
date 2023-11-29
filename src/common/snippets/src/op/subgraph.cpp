@@ -411,7 +411,6 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
-    manager.register_pass<ov::pass::Serialize>("/home/vgolubev/models/data_flow.xml", "");
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
