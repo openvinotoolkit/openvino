@@ -451,7 +451,7 @@ def scatter_nd_update(
     updates: NodeInput,
     name: Optional[str] = None,
 ) -> Node:
-    """"Return a node which performs ScatterNDUpdate.
+    """Return a node which performs ScatterNDUpdate.
 
     :param data: Node input representing the tensor to be updated.
     :param indices: Node input representing the indices at which updates will be applied.
