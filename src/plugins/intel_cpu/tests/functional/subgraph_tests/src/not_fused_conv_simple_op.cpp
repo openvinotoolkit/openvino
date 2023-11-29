@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace ngraph;
-using ngraph::helpers::EltwiseTypes;
+namespace ov {
+namespace test {
 
-namespace SubgraphTestsDefinitions {
-
-class NotFusedConvSimpleOp : virtual public LayerTestsUtils::LayerTestsCommon {
+class NotFusedConvSimpleOp : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 9}),
-                                        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 12, 9})};
+        ov::ParameterVector inputParams{
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 9}),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 12, 9})};
 
         std::shared_ptr<Node> conv;
         {
@@ -27,20 +29,29 @@ protected:
             const std::vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = builder::makeConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+            conv = ov::test::utils::make_convolution(inputParams[0],
+                                                     element::f32,
+                                                     kernelSize,
+                                                     strides,
+                                                     padBegin,
+                                                     padEnd,
+                                                     dilation,
+                                                     paddingType,
+                                                     numOutChannels);
         }
-        const auto sharedNode = builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
-        const auto postOpCandidate = builder::makeEltwise(conv, sharedNode, EltwiseTypes::ADD);
+        const auto sharedNode = ngraph::builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
+        const auto postOpCandidate = ov::test::utils::makeEltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
 
-        const auto secondConsumpt = builder::makeEltwise(inputParams[1], sharedNode, EltwiseTypes::ADD);
+        const auto secondConsumpt = ov::test::utils::makeEltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
 
         NodeVector results{postOpCandidate, secondConsumpt};
-        function = std::make_shared<ngraph::Function>(results, inputParams, "NotFusedConvSimpleOp");
+        function = std::make_shared<ov::Model>(results, inputParams, "NotFusedConvSimpleOp");
     }
 };
 
 TEST_F(NotFusedConvSimpleOp, smoke_CompareWithRefs) {
-    Run();
+    run();
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

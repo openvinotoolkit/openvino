@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <string>
+#include "exec_graph_info.hpp"
 #include "ie_system_conf.h"
+#include "openvino/runtime/compiled_model.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include <exec_graph_info.hpp>
-#include <openvino/runtime/compiled_model.hpp>
-#include "ie_system_conf.h"
+
+#include <string>
 
 namespace CPUTestUtils {
     typedef enum {
@@ -176,6 +176,8 @@ const std::map<std::string, std::string> cpuFP32PluginConfig =
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 
+const ov::AnyMap cpu_fp32_plugin_config = {{ov::hint::inference_precision(ov::element::f32)}};
+const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);
