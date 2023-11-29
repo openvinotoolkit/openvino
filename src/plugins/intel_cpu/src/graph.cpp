@@ -1703,9 +1703,11 @@ void Graph::EnforceInferencePrecision() {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        // "Ignore the 'If' node because it contains two subgraphs. Enforcing the graph's input/output with the 'If'
-        // node will not be effective, and doing so will cause its output to differ from its subgraphs, resulting in
-        // memory out-of-bounds errors."
+        // Skip BF16 enforcement for the 'If' node.
+        // Because "If" contains two subgraphs. Whether any of nodes in subgraph is enforced to bf16 or not, the
+        // precision of input & output of the subgraph will be unchanged, so the input and output of "If" node itself
+        // should be also remained unchanged. since "If" node only copies I/O data from it's parent edges into
+        // subgraph's input or verse versa, it can not handle precision conversion.
         if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput, Type::If))
             continue;
 
