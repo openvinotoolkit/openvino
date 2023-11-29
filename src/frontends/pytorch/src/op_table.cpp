@@ -468,6 +468,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
+        // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
+        // when complex dtype will be supported
+        // for real dtypes, these operations return input tensor without changes and can be skipped
+        {"aten::resolve_conj", op::skip_node},
+        {"aten::resolve_neg", op::skip_node},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::translate_rsqrt},
@@ -493,6 +498,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
+        {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
         {"aten::sqrt", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten::square", op::translate_square},
