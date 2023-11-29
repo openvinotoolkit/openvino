@@ -23,6 +23,8 @@ OV_OP(BroadcastMove, ov::snippets::op)
 OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
 OV_OP(RankNormalization, ov::snippets::op)
+OV_OP(ReduceMax, ov::snippets::op)
+OV_OP(ReduceSum, ov::snippets::op)
 
 OV_OP(PerfCountBegin, ov::snippets::op)
 OV_OP(PerfCountEnd, ov::snippets::op)
