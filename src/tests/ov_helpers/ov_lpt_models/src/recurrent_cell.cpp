@@ -4,7 +4,8 @@
 
 #include "ov_lpt_models/recurrent_cell.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset5.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -75,7 +76,7 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
     std::shared_ptr<ov::op::util::RNNCellBase> rnn_layer;
     switch (type) {
     case RNNType::LSTMSequence:
-        rnn_layer = std::make_shared<ov::op::v0::LSTMSequence>(parent_X,
+        rnn_layer = std::make_shared<ov::opset5::LSTMSequence>(parent_X,
                                                                parent_H,
                                                                C,
                                                                seq_lengths,
@@ -87,7 +88,7 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
         rnn_layer->set_friendly_name("lstm_sequense");
         break;
     case RNNType::GRUSequence:
-        rnn_layer = std::make_shared<ov::op::v5::GRUSequence>(parent_X,
+        rnn_layer = std::make_shared<ov::opset5::GRUSequence>(parent_X,
                                                               parent_H,
                                                               seq_lengths,
                                                               parent_W,
