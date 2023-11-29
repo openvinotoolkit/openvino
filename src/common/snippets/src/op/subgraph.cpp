@@ -44,6 +44,8 @@
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
+#include "snippets/lowered/pass/reduce_max_decomposition.hpp"
+#include "snippets/lowered/pass/reduce_sum_decomposition.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -437,7 +439,10 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     PassPipeline pipeline;
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
+    // TODO: remove SoftmaxDecomposition pass
     pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
+    pipeline.register_pass<lowered::pass::ReduceMaxDecomposition>(vector_size);
+    pipeline.register_pass<lowered::pass::ReduceSumDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
@@ -485,15 +490,11 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::vector<PassPipel
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
-<<<<<<< HEAD
-    control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+    control_flow_transformations(linear_ir, lowering_result, control_flow_passes);
     if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
         lowered::pass::InsertPerfCount perf_count_pass;
         perf_count_pass.run(linear_ir);
     }
-=======
-    control_flow_transformations(linear_ir, lowering_result, control_flow_passes);
->>>>>>> [Snippets] Specific loop iterations handler
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();

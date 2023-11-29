@@ -598,7 +598,7 @@ void LinearIR::LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new
     OPENVINO_ASSERT(m_map.count(new_id) == 1, "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     auto& loop_ids = expr->m_loop_ids;
     OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
-                    "Expression cannot have several the same Loop IDs");
+                    "Expression cannot have several identical Loop IDs");
     auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
     if (target_id != SIZE_MAX) {
         insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);

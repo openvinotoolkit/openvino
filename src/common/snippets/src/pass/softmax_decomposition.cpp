@@ -57,9 +57,11 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
             subtensor[i] = PortDescriptor::ServiceDimensions::FULL_DIM;
 
         PortDescriptorUtils::set_port_descriptor_ptr(reduce_max->input(0), std::make_shared<PortDescriptor>(reduce_max->input(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(reduce_sum->input(0), std::make_shared<PortDescriptor>(reduce_sum->input(0), subtensor));
         PortDescriptorUtils::set_port_descriptor_ptr(reduce_max->output(0), std::make_shared<PortDescriptor>(reduce_max->output(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(reduce_sum->input(0), std::make_shared<PortDescriptor>(reduce_sum->input(0), subtensor));
         PortDescriptorUtils::set_port_descriptor_ptr(reduce_sum->output(0), std::make_shared<PortDescriptor>(reduce_sum->output(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(power->input(0), std::make_shared<PortDescriptor>(power->input(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(power->output(0), std::make_shared<PortDescriptor>(power->output(0), subtensor));
 
         return ov::replace_node_update_name(softmax, multiply);
     };
