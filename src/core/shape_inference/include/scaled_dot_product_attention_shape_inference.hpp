@@ -63,7 +63,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     if (has_attention_mask_input && !iscausal) {
         const auto attention_mask = input_shapes[3];
-        if (attention_mask.rank().is_static()) {
+        if (attention_mask.rank().is_static() && attention_mask.rank() != 0) {
             auto attention_mask_rank_len = attention_mask.rank().get_length();
             bool attention_mask_input_correctness = attention_mask_rank_len >= 2 &&
                                                     DimType::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
@@ -83,10 +83,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     if (has_scale_input) {
         const auto scale = input_shapes[4];
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               scale.rank().is_dynamic() || scale.rank() == 0,
-                               "Scale input accepts only scalar tensor.");
+        if (scale.rank().is_static()) {
+            NODE_SHAPE_INFER_CHECK(op, input_shapes, scale.rank() == 0, "Scale input accepts only scalar tensor.");
+        }
     }
 
     auto out_pshape = n_dims;
