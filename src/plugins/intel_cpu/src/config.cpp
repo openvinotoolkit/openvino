@@ -327,7 +327,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (modelType != ModelType::CNN)
                 inferencePrecision = ov::element::f16;
 #else
-            if (mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2))
+            if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
 #endif
         } else {
