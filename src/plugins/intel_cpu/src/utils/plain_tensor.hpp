@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <dnnl_extension_utils.h>
 #include <node.h>
 
 #include <stdlib.h>
@@ -163,7 +162,7 @@ struct PlainTensor {
         resize(mem->getStaticDims(), mem_desc->getPrecision().size(), mem_desc->getPrecision(), mem->getData(), strides.data());
     }
 
-    ov::element::Type get_precision(void) {
+    ov::element::Type get_precision() const {
         return m_dt;
     }
 

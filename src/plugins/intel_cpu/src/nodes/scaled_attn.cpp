@@ -28,9 +28,7 @@
 
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
-#include "kernels/scaled_attn/dot_product.hpp"
-#include "kernels/scaled_attn/acc_value.hpp"
-#include "kernels/scaled_attn/reduce.hpp"
+#include "kernels/scaled_attn/mha_single_token.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
@@ -449,27 +447,19 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
 #endif
 
 // 2nd token case : only 1 token in query
-template <typename T>
 struct MHASingleToken {
     PlainTensor m_attn_w;
     PlainTensor m_temp;
 
-    MHASingleToken() : m_attn_w(true), m_temp(true), select_nfltmax_at_0(false) {}
-
-    PlainTensor causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
-    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
-        causal_mask = mask;
-        select_nfltmax_at_0 = _select_nfltmax_at_0;
-    }
+    MHASingleToken() : m_attn_w(true), m_temp(true) {}
 
     // Q, K, V is ready, do attention
     // query         [B, H, q_len, S]
     // present_key   [B, H, kv_len, S]  stride of last dim maybe > 1
     // present_value [B, H, kv_len, S]
-    // attention_mask [B, 1, q_len, kv_len]
     // alibi
-    // output_emb    [B, L1, H*S]
+    // attention_mask [B, 1, q_len, kv_len]
+    // output_emb    [B, L1, H, S]
     void operator()(PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -480,98 +470,8 @@ struct MHASingleToken {
                     bool has_out_transpose,
                     bool auto_causal,
                     float d_scale = 0.0f) {
-        auto B = query.size(0);
-        auto H = query.size(1);
-        auto q_len = query.size(2);
-        auto S = query.size(3);
-        auto kv_len = present_key.size(2);
-
-        if (d_scale == 0.0f)
-            d_scale = 1.0f / sqrt(S);
-
-        // use per-token kernel, for each k,v token
-        //  attn mask is a matrix of q_len(kv_len)
-        m_attn_w.resize<float>({B, H, q_len, kv_len});
-
-        parallel_for3d(B, H, kv_len, [&](size_t b, size_t h, size_t pk) {
-            // which batch item should be used at postion pk?
-            auto b_kv = beams ? beams.at<int32_t>({b, pk}) : b;
-            std::vector<T*> as(q_len), bs(q_len);
-            std::vector<float*> cs(q_len);
-            for (size_t pq = 0; pq < q_len; pq++) {
-                as[pq] = &query.at<T>({b, h, pq, 0});
-                bs[pq] = &present_key.at<T>({b_kv, h, pk, 0}, true);
-                cs[pq] = &m_attn_w.at<float>({b, h, pq, pk});
-            }
-            attn_dot_products(reinterpret_cast<void**>(as.data()),
-                              reinterpret_cast<void**>(bs.data()),
-                              reinterpret_cast<void**>(cs.data()),
-                              q_len,
-                              S,
-                              precision_of<T>::value);
-        });
-
-        parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            // apply attention mask & sofmax
-            auto ncausal = auto_causal ? (kv_len - q_len + pq + 1) : kv_len;
-            float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
-            float* attn_mask_ptr = attention_mask ? &attention_mask.at<float>({b, h, pq, 0}, true) : nullptr;
-            uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
-            attn_softmax(&m_attn_w.at<float>({b, h, pq, 0}),
-                         &m_attn_w.at<float>({b, h, pq, 0}),
-                         d_scale,
-                         alibi_ptr,
-                         attn_mask_ptr,
-                         cmask_ptr,
-                         select_nfltmax_at_0,
-                         ncausal,
-                         kv_len,
-                         ov::element::f32);
-        });
-
-        // attn_w * V
-        auto nthr = parallel_get_max_threads();
-        m_temp.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
-        // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-            size_t start{0}, end{0};
-            splitter(B * H * kv_len, nthr, ithr, start, end);
-
-            memset(&m_temp.at<float>({ithr, 0, 0, 0, 0}), 0, m_temp.stride(0) * sizeof(float));
-
-            size_t b, h, pv;
-            if (start < end) {
-                parallel_it_init(start, b, B, h, H, pv, kv_len);
-                std::vector<T*> vs(q_len * (end - start));
-                std::vector<float> weights(q_len * (end - start));
-                std::vector<float*> outs(q_len * (end - start));
-                size_t idx = 0;
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.at<int32_t>({b, pv}) : b;
-                    auto* v = &present_value.at<T>({b_kv, h, pv, 0}, true);
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        outs[idx] = &m_temp.at<float>({ithr, b, pq, h, 0});
-                        weights[idx] = m_attn_w.at<float>({b, h, pq, pv});
-                        vs[idx] = v;
-                        idx++;
-                    }
-                    parallel_it_step(b, B, h, H, pv, kv_len);
-                }
-                attn_acc_values(outs.data(),
-                                weights.data(),
-                                reinterpret_cast<void**>(vs.data()),
-                                q_len * (end - start),
-                                S,
-                                precision_of<T>::value);
-            }
-        });
-
-        parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto* temp = &m_temp.at<float>({0, b, pq, h, 0});
-            size_t temp_stride = m_temp.stride(0);
-            auto* dst = has_out_transpose ? &output_emb.at<T>({b, pq, h*S}) : &output_emb.at<T>({b, h, pq});
-            attn_reduce(dst, temp, nthr, S, temp_stride, precision_of<T>::value);
-        });
+        mha_single_token(query, present_key, present_value, alibi_mask, attention_mask, beams, output_emb,
+            m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale);
     }
 };
 
@@ -585,7 +485,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     float scale_input = 0.0f;
 
     MHAKernel<KType, T> kernel;
-    MHASingleToken<T> kernel_single_token;
+    MHASingleToken kernel_single_token;
 
     size_t B, H, L1, L0, S;
 

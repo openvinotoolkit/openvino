@@ -161,23 +161,9 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/dot_product.cpp
-        API         src/nodes/kernels/scaled_attn/dot_product.hpp
-        NAME        attn_dot_products
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/acc_value.cpp
-        API         src/nodes/kernels/scaled_attn/acc_value.hpp
-        NAME        attn_acc_values
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/reduce.cpp
-        API         src/nodes/kernels/scaled_attn/reduce.hpp
-        NAME        attn_reduce
+                    src/nodes/kernels/scaled_attn/mha_single_token.cpp
+        API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
+        NAME        mha_single_token
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
