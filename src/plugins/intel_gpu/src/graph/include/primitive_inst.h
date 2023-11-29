@@ -75,11 +75,23 @@ struct primitive_impl {
         ob << can_reuse_memory;
         ob << _kernel_name;
         ob << _is_dynamic;
+        if (_weights_reorder_params == nullptr) {
+            ob << false;
+        } else {
+            ob << true;
+            _weights_reorder_params->save(ob);
+        }
     }
     virtual void load(cldnn::BinaryInputBuffer& ib) {
         ib >> can_reuse_memory;
         ib >> _kernel_name;
         ib >> _is_dynamic;
+        bool has_weights_reorder_params;
+        ib >> has_weights_reorder_params;
+        if (has_weights_reorder_params) {
+            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            _weights_reorder_params->load(ib);
+        }
     }
     // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
     virtual std::pair<std::string, std::string> get_kernels_dump_info() const {

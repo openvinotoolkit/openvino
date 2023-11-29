@@ -1757,19 +1757,14 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
-            ob << get_node_ptr(impl_id)->get_selected_impl()->is_dynamic();
-            if (get_node_ptr(impl_id)->get_selected_impl()->is_dynamic()) {
+            if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
+                ob << true;
+                auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+                ob.setKernelImplParams(params.get());
                 ob << get_node_ptr(impl_id)->selected_impl;
             } else {
-                if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
-                    ob << true;
-                    auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
-                    ob.setKernelImplParams(params.get());
-                    ob << get_node_ptr(impl_id)->selected_impl;
-                } else {
-                    ob << false;
-                    ob << get_node_ptr(impl_id)->selected_impl;
-                }
+                ob << false;
+                ob << get_node_ptr(impl_id)->selected_impl;
             }
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
@@ -1873,24 +1868,14 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         for (auto& impl_id : impl_ids) {
             auto& p_node = get_node(impl_id);
 
-            bool is_dynamic_impl;
-            ib >> is_dynamic_impl;
-
-            if (is_dynamic_impl) {
+            bool is_onednn;
+            ib >> is_onednn;
+            if (is_onednn) {
+                auto params = p_node.get_kernel_impl_params();
+                ib.setKernelImplParams(params.get());
                 ib >> p_node.selected_impl;
-                // auto p_impl = p_node.type()->choose_impl(p_node);
-                // p_impl->set_node_params(p_node);
-                // p_node.set_selected_impl(std::move(p_impl));
             } else {
-                bool is_onednn;
-                ib >> is_onednn;
-                if (is_onednn) {
-                    auto params = p_node.get_kernel_impl_params();
-                    ib.setKernelImplParams(params.get());
-                    ib >> p_node.selected_impl;
-                } else {
-                    ib >> p_node.selected_impl;
-                }
+                ib >> p_node.selected_impl;
             }
 
             std::vector<std::string> cached_kernel_ids;
