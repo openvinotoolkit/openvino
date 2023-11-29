@@ -20,6 +20,10 @@
 #include <snippets/op/subgraph.hpp>
 #include <snippets/lowered/pass/optimize_domain.hpp>
 #include "snippets/pass/matmul_to_brgemm.hpp"
+#include "snippets/pass/propagate_precision.hpp"
+#include "snippets/pass/positioned_pass.hpp"
+#include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
 #include "utils/cpu_utils.hpp"
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
@@ -327,11 +331,10 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     // * precision propagation & align element types
     // * data flow optimizations
     // The result of these transformations will be reused by all shapes
-    using Manager = snippets::pass::Manager;
-    std::vector<Manager::PositionedPass> backend_passes;
+    std::vector<ov::snippets::pass::Manager::PositionedPassBase> backend_passes;
 #if defined(OPENVINO_ARCH_X86_64)
-    using PassPosition = snippets::pass::Manager::PassPosition;
-    using Place = snippets::pass::Manager::PassPosition::Place;
+    using PassPosition = ov::snippets::pass::PassPosition;
+    using Place = PassPosition::Place;
 #   define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
             backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
 #else
@@ -344,12 +347,13 @@ void Snippet::initOptimalPrimitiveDescriptor() {
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
         SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ov::snippets::pass::MatMulToBrgemm);
-        SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "MatMulToBrgemm"), pass::EnforcePrecision, element::f32, element::bf16);
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::After, ov::snippets::pass::MatMulToBrgemm::get_type_info_static()),
+                               pass::EnforcePrecision, element::f32, element::bf16);
     }
-
-    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
-
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, ov::snippets::pass::PropagatePrecision::get_type_info_static()),
+                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU::get_type_info_static()),
+                           ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::MulAddToFMA);
 
@@ -579,14 +583,26 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
 }
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
-    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
-    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking)
+    std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> backend_passes;
 
-    ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
-    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert)
-    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
-    schedule = snippetAttrs.snippet->generate_from_linear_ir(control_flow_markup_pipeline,
-                                                             control_flow_pipeline,
+#if defined(OPENVINO_ARCH_X86_64)
+    using PassPosition = ov::snippets::pass::PassPosition;
+    using Place = PassPosition::Place;
+#   define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
+        backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...)
+#endif  // OPENVINO_ARCH_X86_64
+
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, ov::snippets::lowered::pass::MarkLoops::get_type_info_static()),
+                           ov::intel_cpu::pass::BrgemmBlocking);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, ov::snippets::lowered::pass::InsertLoops::get_type_info_static()),
+                           ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert::get_type_info_static()),
+                           ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+
+    schedule = snippetAttrs.snippet->generate_from_linear_ir(std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
+                                                             backend_passes,
                                                              reinterpret_cast<const void*>(jcp));
 }
 
