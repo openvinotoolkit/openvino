@@ -33,9 +33,7 @@ OutputVector translate_Atan2_op(const NodeContext& node) {
     // handle the first condition : x>0
     auto div_y_x = make_shared<v1::Divide>(y, x);
     auto atan = make_shared<v0::Atan>(div_y_x);
-    auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
-    auto is_x_positive = make_shared<v1::Greater>(x, const_zero);
-    auto result = make_shared<v1::Select>(is_x_positive, atan, result);
+    auto result = atan;
 
     // handle the second condition : x<0 && y>=0
     auto const_pi = create_same_type_const_scalar<double>(x, std::atan(1.0) * 4);
