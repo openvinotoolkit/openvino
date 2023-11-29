@@ -265,12 +265,12 @@ inline void FUNC(fc_bf_tiled_kernel_tile_b1)(
 #if DECOMPRESSION_SCALE_POST_OP
         unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
             unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                const uint offset_ofm = out_f + fi*SIMD + sglid;
+                const uint offset_ofm = out_f + fi*SIMD;
 
                 #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                     const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
                                                 ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                    ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                    ACCUMULATOR_TYPE ds = BLOCK_READN(ACCUMULATOR_TYPE, 1, decompression_scale, scale_offset);
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
