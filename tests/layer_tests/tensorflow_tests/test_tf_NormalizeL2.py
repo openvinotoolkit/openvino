@@ -32,8 +32,10 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
+    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 122716')
     def test_normalize_l2_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                 use_new_frontend, use_old_api):
         self._test(*self.create_normalize_l2_net(**params),

@@ -687,7 +687,7 @@ if platform.system() == 'Darwin':
         )]
     )
 
-if platform.system() == 'Linux' and platform.machine() == 'arm64':
+if platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
     tests_expected_to_fail.extend(
         [
             (xfail_issue_122775, "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"),

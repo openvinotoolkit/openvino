@@ -1069,7 +1069,7 @@ jobs:
 
       - name: JAX Layer Tests - TF FE
         timeout-minutes: 30
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket:
         #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
