@@ -12,6 +12,7 @@
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
+#include "snippets/pass/softmax_decomposition.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/set_softmax_ports.hpp"
@@ -402,7 +403,11 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
-        manager.register_pass<snippets::pass::SetSoftmaxPorts>();
+        if (getenv("DISABLE_DATA_FLOW_DECOMPOSITION")) {
+            manager.register_pass<snippets::pass::SetSoftmaxPorts>();
+        } else {
+            manager.register_pass<snippets::pass::SoftmaxDecomposition>();
+        }
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
