@@ -30,6 +30,7 @@
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 
 using Device = std::string;
 using Config = std::map<std::string, std::string>;
@@ -155,7 +156,7 @@ TEST_P(CoreThreadingTests, smoke_GetMetric) {
 // tested function: QueryNetwork
 TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
     InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
+    InferenceEngine::CNNNetwork network(ov::test::utils::make_2_input_subtract());
 
     ie.SetConfig(config, target_device);
     InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, target_device);
@@ -233,7 +234,7 @@ protected:
                 networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_conv_pool_relu()));
             }
         } else {
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_2_input_subtract()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_multi_single_conv()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_single_conv()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_split_conv_concat()));

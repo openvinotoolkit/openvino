@@ -8,8 +8,8 @@
 namespace ov {
 namespace test {
 namespace utils {
-std::shared_ptr<ov::Model> make_kso_function(ov::Shape input_shape = {1, 4, 20, 20},
-                                             ov::element::Type type = ov::element::f32);
+std::shared_ptr<ov::Model> make_2_input_subtract(ov::Shape input_shape = {1, 3, 24, 24},
+                                                 ov::element::Type type = ov::element::f32);
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

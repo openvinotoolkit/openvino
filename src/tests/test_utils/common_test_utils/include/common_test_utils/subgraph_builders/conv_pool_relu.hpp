@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "openvino/core/node.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace test {

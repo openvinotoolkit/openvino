@@ -14,6 +14,7 @@
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 
 using namespace InferenceEngine::details;
 using namespace InferenceEngine;
@@ -85,7 +86,7 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnly
         inputShapeWrapper(ov::test::utils::make_single_conv, {1, 3, 24, 24}),
         "SingleConv"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_2_input_subtract, {1, 3, 24, 24}),
         "2InputSubtract"});
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),

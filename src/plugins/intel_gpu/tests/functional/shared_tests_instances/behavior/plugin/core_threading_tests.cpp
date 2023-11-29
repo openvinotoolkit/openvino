@@ -8,6 +8,7 @@
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
@@ -30,7 +31,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     std::atomic<unsigned int> counter{0u};
 
     std::vector<InferenceEngine::CNNNetwork> networks;
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_2_input_subtract()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_multi_single_conv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_single_conv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_split_conv_concat()));

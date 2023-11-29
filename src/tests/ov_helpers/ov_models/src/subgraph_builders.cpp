@@ -263,16 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> make2InputSubtract(std::vector<size_t> inputShape, ov::element::Type_t type) {
-    auto param0 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
-    auto subtract = std::make_shared<ov::op::v1::Subtract>(param0, param1);
-    auto result = std::make_shared<ov::op::v0::Result>(subtract);
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
-    fn_ptr->set_friendly_name("TwoInputSubtract");
-    return fn_ptr;
-}
-
 std::shared_ptr<ov::Model> makeNestedBranchConvConcat(std::vector<size_t> inputShape, ov::element::Type ngPrc) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto relu0 = std::make_shared<ov::op::v0::Relu>(params[0]);
