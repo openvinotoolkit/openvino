@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/activation.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace ov::test;
-using namespace ngraph;
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 using RemoveConvertCPUTestParams = std::tuple<ElementType, InputShape>;
 
 class RemoveUselessBF16ConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
-                             virtual public SubgraphBaseTest,
-                             public CPUTestsBase {
+                                        virtual public SubgraphBaseTest,
+                                        public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
         ElementType inType;
@@ -44,9 +43,9 @@ public:
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
         auto convert = std::make_shared<ov::op::v0::Convert>(input_params, element::f32);
-        auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto begin = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
         auto slice = std::make_shared<ov::op::v1::StridedSlice>(convert,
                                                                 begin,
                                                                 end,
@@ -84,12 +83,14 @@ public:
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
 
-        // Such complicated graph is necessary to cover the case when Convert has several children and connected to non zero output
-        const auto split_axis = builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
-        const auto split_lengths = builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
+        // Such complicated graph is necessary to cover the case when Convert has several children and connected to non
+        // zero output
+        const auto split_axis = ngraph::builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        const auto split_lengths =
+            ngraph::builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
         const auto split = std::make_shared<ov::opset10::VariadicSplit>(input_params, split_axis, split_lengths);
         auto convert = std::make_shared<ov::op::v0::Convert>(split->output(1), inType);
-        auto relu = builder::makeActivation(convert, inType, ::helpers::ActivationTypes::Relu);
+        auto relu = ov::test::utils::make_activation(convert, inType, ov::test::utils::ActivationTypes::Relu);
 
         ov::ResultVector results{
             std::make_shared<ov::opset10::Result>(split->output(0)),
@@ -131,4 +132,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          ::testing::Combine(::testing::Values(ElementType::f32), ::testing::Values(inputShapes[0])),
                          RemoveUselessConvertCPUTest::getTestCaseName);
 }  // namespace
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
