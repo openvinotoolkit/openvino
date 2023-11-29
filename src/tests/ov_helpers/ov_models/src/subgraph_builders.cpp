@@ -263,28 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> makeConvBias(std::vector<size_t> inputShape, ov::element::Type type) {
-    ov::ParameterVector parameter{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape))};
-    parameter[0]->set_friendly_name("parameter");
-    auto weights = ov::op::v0::Constant::create(type, ov::Shape{6, 3, 1, 1}, {1});
-    auto biases = ov::op::v0::Constant::create(type, ov::Shape{6, 1, 1}, {1});
-    auto conv = std::make_shared<ov::op::v1::Convolution>(parameter[0],
-                                                          weights,
-                                                          ov::Strides{1, 1},
-                                                          ov::CoordinateDiff{0, 0},
-                                                          ov::CoordinateDiff{0, 0},
-                                                          ov::Strides{1, 1});
-    conv->set_friendly_name("conv");
-    auto add = std::make_shared<ov::op::v1::Add>(conv, biases);
-    add->set_friendly_name("add");
-    auto result = std::make_shared<ov::op::v0::Result>(add);
-    result->set_friendly_name("result");
-    std::shared_ptr<ov::Model> fn_ptr =
-        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
-    fn_ptr->set_friendly_name("ConvBias");
-    return fn_ptr;
-}
-
 std::shared_ptr<ov::Model> makeReadConcatSplitAssign(std::vector<size_t> inputShape, ov::element::Type type) {
     ov::ParameterVector parameter{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape))};
     parameter[0]->set_friendly_name("parameter");
