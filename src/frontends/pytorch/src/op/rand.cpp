@@ -25,7 +25,11 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-OutputVector make_random_normal(const NodeContext& context, Output<Node> sizes, element::Type target_type, float scale=1, float mean=0) {
+OutputVector make_random_normal(const NodeContext& context,
+                                Output<Node> sizes,
+                                element::Type target_type,
+                                float scale = 1,
+                                float mean = 0) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<uint64_t> distrib(0, 9999);
