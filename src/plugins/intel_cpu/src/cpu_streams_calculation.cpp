@@ -457,7 +457,7 @@ int get_model_prefer_threads(const int num_streams,
                     (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::NONE))) {
             config.modelPreferThreads = 8;
         }
-#elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
+#elif((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
