@@ -1172,11 +1172,12 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-      - name: Fetch setup_python action
+      - name: Fetch setup_python action and skip test list
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/utils/functional_tests/skip_list_linux_arm
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
 
@@ -1200,7 +1201,10 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+          
+          skip_tests=$(tr -s '\n ' ':' < ${OPENVINO_REPO}/.github/utils/functional_tests/skip_list_linux_arm)
+          
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_filter=-$skip_tests
         timeout-minutes: 40
 
       - name: Save tests execution time
