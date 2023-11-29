@@ -37,8 +37,8 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
-        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1});
-        auto axis = ov::op::v0::Constant::create(element::i64, {3}, {0, 1});
+        auto indices = ov::op::v0::Constant::create(element::i64, {2}, {0, 1});
+        auto axis = ov::op::v0::Constant::create(element::i64, {1}, {0});
 
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
 
