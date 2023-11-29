@@ -1703,7 +1703,10 @@ void Graph::EnforceInferencePrecision() {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
+        // "Ignore the 'If' node because it contains two subgraphs. Enforcing the graph's input/output with the 'If'
+        // node will not be effective, and doing so will cause its output to differ from its subgraphs, resulting in
+        // memory out-of-bounds errors."
+        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput, Type::If))
             continue;
 
 #ifdef CPU_DEBUG_CAPS
