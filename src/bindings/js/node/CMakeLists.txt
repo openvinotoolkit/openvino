@@ -2,26 +2,27 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.18)
 project(ov_node_addon)
 
 set(CMAKE_CXX_STANDARD 17)
 add_definitions(-DNAPI_VERSION=6)
 
-set(dist_folder "${CMAKE_SOURCE_DIR}/bin/")
-set(ov_runtime_folder "$ENV{OV_RUNTIME_DIR}")
+include(FetchContent)
 
-if (NOT DEFINED ENV{OV_RUNTIME_DIR})
-    message(FATAL_ERROR "You must set OV_RUNTIME_DIR environment variable")
-endif()
+FetchContent_Declare(
+    node-api-headers
+    URL      https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.1.0.tar.gz
+    URL_HASH SHA256=70608bc1e6dddce280285f3462f18a106f687c0720a4b90893e1ecd86e5a8bbf
+)
+FetchContent_MakeAvailable(node-api-headers)
 
-# Include directories
-include_directories(${CMAKE_SOURCE_DIR}/thirdparty/node-api-headers/include)
+FetchContent_Declare(
+    node-addon-api
+    URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v7.0.0.tar.gz
+    URL_HASH SHA256=e0cf2ef9bed9965ac8f498b4a7007b9f0002fa022c1ff665f256ab54260d6305
+)
+FetchContent_MakeAvailable(node-addon-api)
 
-include_directories(${ov_runtime_folder}/include)
-include_directories(${ov_runtime_folder}/include/ie)
-
-# Create a library
 add_library(${PROJECT_NAME} SHARED
     src/node_output.cpp
     src/async_reader.cpp
@@ -45,43 +46,20 @@ add_library(${PROJECT_NAME} SHARED
     src/element_type.cpp
     src/partial_shape_wrap.cpp
 )
-target_link_directories(${PROJECT_NAME} PRIVATE ${ov_runtime_folder}/lib/intel64)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${ov_runtime_folder}/lib/intel64/libopenvino.so.2023.3.0)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${ov_runtime_folder}/lib/intel64/libopenvino_intel_cpu_plugin.so)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${ov_runtime_folder}/lib/intel64/libopenvino_ir_frontend.so.2023.3.0)
 
-# Set library properties
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "$ORIGIN/"
-    PREFIX ""
-    SUFFIX ".node"
-    BUILD_WITH_INSTALL_RPATH TRUE
-    INSTALL_RPATH_USE_LINK_PATH FALSE)
-
-# Specify include directories for the library
-target_include_directories(${PROJECT_NAME} PUBLIC
-    ${CMAKE_SOURCE_DIR}/thirdparty/node-addon-api
-    include
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    "${node-api-headers_SOURCE_DIR}/include"
+    "${node-addon-api_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${dist_folder}
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${dist_folder}
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${ov_runtime_folder}/lib/intel64/libopenvino.so.2023.3.0
-        ${dist_folder}
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${ov_runtime_folder}/lib/intel64/libopenvino.so.2330
-        ${dist_folder}
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${ov_runtime_folder}/lib/intel64/libopenvino_intel_cpu_plugin.so
-        ${dist_folder}
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${ov_runtime_folder}/lib/intel64/libopenvino_ir_frontend.so.2023.3.0
-        ${dist_folder}
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${ov_runtime_folder}/lib/intel64/libopenvino_ir_frontend.so.2330
-        ${dist_folder}
-  )
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    PREFIX ""
+    SUFFIX ".node"
+)
+
+install(TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION openvinojs-node/bin/ COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
+)
