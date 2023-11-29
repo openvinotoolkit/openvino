@@ -57,7 +57,7 @@ TEST_F(OVTensorTest, canCreateStringTensor) {
     ASSERT_EQ(shape, t.get_shape());
     ASSERT_NE(shape, t.get_strides());
     ASSERT_EQ(byteStrides(ov::Strides({6, 2, 1}), t.get_element_type()), t.get_strides());
-    ASSERT_EQ(ov::element::string.size() * totalSize, t.get_byte_size());
+    ASSERT_EQ(string_size * totalSize, t.get_byte_size());
     ASSERT_THROW(t.data(ov::element::i64), ov::Exception);
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
 }
@@ -244,7 +244,7 @@ TEST_F(OVTensorTest, canAccessExternalDataStringTensor) {
         ASSERT_THROW(t.data<std::int16_t>(), ov::Exception);
         ASSERT_EQ(byteStrides(ov::row_major_strides(shape), t.get_element_type()), t.get_strides());
         ASSERT_EQ(ov::shape_size(shape), t.get_size());
-        ASSERT_EQ(ov::shape_size(shape) * ov::element::string.size(), t.get_byte_size());
+        ASSERT_EQ(ov::shape_size(shape) * string_size, t.get_byte_size());
     }
 }
 
@@ -263,8 +263,7 @@ TEST_F(OVTensorTest, canAccessExternalDataWithStrides) {
 TEST_F(OVTensorTest, canAccessExternalDataWithStridesStringTensor) {
     ov::Shape shape = {2, 3};
     std::string data[] = {"abdcd efg hi", "01234", "xyz  ", "   ", "$%&%&& (*&&", "", "\n ", "\t "};
-    ov::Strides strides = {shape[1] * ov::element::string.size() + ov::element::string.size(),
-                           ov::element::string.size()};
+    ov::Strides strides = {shape[1] * string_size + string_size, string_size};
     ov::Tensor t{ov::element::string, shape, data, strides};
     ASSERT_EQ(strides, t.get_strides());
     {
@@ -510,10 +509,7 @@ TEST_F(OVTensorTest, canChangeShapeOnStridedTensor) {
 
 TEST_F(OVTensorTest, canChangeShapeOnStridedTensorStringTensor) {
     std::string data[64 * 4];
-    ov::Tensor t{ov::element::string,
-                 {4, 2, 2},
-                 data,
-                 {8 * ov::element::string.size(), 3 * ov::element::string.size(), ov::element::string.size()}};
+    ov::Tensor t{ov::element::string, {4, 2, 2}, data, {8 * string_size, 3 * string_size, string_size}};
     const ov::Shape incorrect_shape({2, 2, 4});
     const ov::Shape correct_shape({1, 1, 2});
 
@@ -541,7 +537,7 @@ TEST_F(OVTensorTest, makeRangeRoiStringTensor) {
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};
     ov::Shape ref_shape = {1, 3, 4, 2};
     ptrdiff_t ref_offset_elems = 7;
-    ptrdiff_t ref_offset_bytes = ref_offset_elems * ov::element::string.size();
+    ptrdiff_t ref_offset_bytes = ref_offset_elems * string_size;
     ov::Strides ref_strides = {90, 30, 5, 1};
     ASSERT_EQ(roi_tensor.get_shape(), ref_shape);
     ASSERT_EQ(roi_tensor.data<std::string>() - t.data<std::string>(), ref_offset_elems);
