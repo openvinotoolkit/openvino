@@ -28,12 +28,6 @@ std::shared_ptr<ov::Model> makeSplitConvConcat(std::vector<size_t> inputShape = 
 std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                            ov::element::Type_t ngPrc = ov::element::Type_t::f32);
 
-std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC = ov::element::Type_t::f32,
-                                              size_t N = 32,   // Batch size
-                                              size_t L = 10,   // Sequence length
-                                              size_t I = 8,    // Input size
-                                              size_t H = 32);  // Hidden size
-
 std::shared_ptr<ov::Model> makeSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                           ov::element::Type_t type = ov::element::Type_t::f32);
 

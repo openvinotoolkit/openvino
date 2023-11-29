@@ -18,6 +18,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 
 namespace {
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
@@ -29,7 +30,7 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
         std::tie(num_streams, num_requests) = this->GetParam();
         fn_ptrs = {ov::test::utils::make_split_multi_conv_concat(),
                    ngraph::builder::subgraph::makeMultiSingleConv(),
-                   ngraph::builder::subgraph::makeTIwithLSTMcell()};
+                   ov::test::utils::make_ti_with_lstm_cell()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcurrencyTestParams>& obj) {
