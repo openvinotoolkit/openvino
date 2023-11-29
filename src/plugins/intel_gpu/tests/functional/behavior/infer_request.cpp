@@ -11,6 +11,7 @@
 #include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 
 namespace {
 typedef std::tuple<
@@ -197,7 +198,7 @@ TEST(VariablesTest, smoke_canSetStateTensor) {
     const ov::Shape virable_shape = {1, 3, 2, 4};
     const ov::Shape input_shape = {1, 3, 2, 4};
     const ov::element::Type et = ov::element::f16;
-    auto model = ngraph::builder::subgraph::makeReadConcatSplitAssign(input_shape, et);
+    auto model = ov::test::utils::make_read_concat_split_assign(input_shape, et);
     auto compiled_model = ov.compile_model(model, ov::test::utils::DEVICE_GPU);
     auto request = compiled_model.create_infer_request();
 

@@ -27,6 +27,7 @@
 #include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -123,7 +124,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
 std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        inputShapeWrapper(ov::test::utils::make_read_concat_split_assign, {1, 1, 2, 4}),
         "ReadConcatSplitAssign"});
     return res;
 }
