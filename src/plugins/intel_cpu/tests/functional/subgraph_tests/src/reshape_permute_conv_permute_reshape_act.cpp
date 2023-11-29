@@ -34,7 +34,7 @@ std::vector<ov::element::Type> model_types = {
     ov::element::f16,
 };
 
-std::map<std::string, std::string> additional_config = {};
+ov::AnyMap additional_config = {};
 
 INSTANTIATE_TEST_SUITE_P(smoke_basic,
                          ConvReshapeAct,
