@@ -110,6 +110,14 @@ def test_deprecation():
                 (log.Level.TRACE, "Level.TRACE", 4),
             ),
         ),
+        (
+            intel_auto.SchedulePolicy,
+            (
+                (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
+                (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEFAULT", 1),
+                (intel_auto.SchedulePolicy.DEVICE_PRIORITY, "SchedulePolicy.DEVICE_PRIORITY", 1),
+            ),
+        ),
     ],
 )
 def test_properties_enums(ov_enum, expected_values):

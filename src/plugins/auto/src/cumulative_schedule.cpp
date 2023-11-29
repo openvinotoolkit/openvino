@@ -12,12 +12,13 @@ namespace ov {
 namespace auto_plugin {
 std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInformation>& devices,
                                                   std::size_t current_device_index) {
+    std::string selected_device_name = "";
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         m_n_ctput_schedule_next_device =
             m_n_ctput_schedule_next_device >= devices.size() ? 0 : m_n_ctput_schedule_next_device;
+        selected_device_name = devices[m_n_ctput_schedule_next_device].device_name;
     }
-    auto selected_device_name = devices[m_n_ctput_schedule_next_device].device_name;
     auto schedule_policy = m_context->m_schedule_policy;
     if (schedule_policy == ov::intel_auto::SchedulePolicy::ROUND_ROBIN) {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
