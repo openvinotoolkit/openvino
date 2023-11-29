@@ -64,6 +64,7 @@ OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
+OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -332,6 +333,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::embedding", op::translate_embedding},
         {"aten::embedding_bag", op::translate_embedding_bag},
         {"aten::empty", op::translate_empty},
+        {"aten::empty_like", op::translate_empty_like},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erf_", op::inplace_op<op::translate_erf>},
@@ -466,6 +468,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
+        // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
+        // when complex dtype will be supported
+        // for real dtypes, these operations return input tensor without changes and can be skipped
+        {"aten::resolve_conj", op::skip_node},
+        {"aten::resolve_neg", op::skip_node},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::translate_rsqrt},
