@@ -8,6 +8,7 @@
 
    OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
    Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
+   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
    Apache MXNet, Caffe, and Kaldi <mxnet_caffe_kaldi>
@@ -48,10 +49,18 @@ offering.
 |   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
 |   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
 
+| **OpenVINO Deployment Manager**
+|   *New solution:* the tool is no longer needed
+|   *Old solution:* discontinuation planned for OpenVINO 2024.0 
+|
+|   It is recommended to explore alternative deployment solutions available in OpenVINO.
+|   :doc:`See how to deploy locally <openvino_deployment_guide>`
+
+
 
 | **Open Model ZOO**
 |   *New solution:* users are encouraged to use public model repositories
-|   *Old solution:* discontinuation planned for OpenVINO 2024.0
+|   *Old solution:* discontinuation planned for OpenVINO 2025.0
 |
 |   Open Model ZOO provided a collection of models prepared for use with OpenVINO,
     and a small set of tools enabling a level of automation for the process.
@@ -76,7 +85,7 @@ offering.
 
 | **Post-training Optimization Tool (POT)**
 |   *New solution:* NNCF extended in OpenVINO 2023.0
-|   *Old solution:* POT discontinuation planned for 2024
+|   *Old solution:* POT discontinuation planned for 2024.0
 |    
 |   Neural Network Compression Framework (NNCF) now offers the same functionality as POT,
     apart from its original feature set. It is currently the default tool for performing 

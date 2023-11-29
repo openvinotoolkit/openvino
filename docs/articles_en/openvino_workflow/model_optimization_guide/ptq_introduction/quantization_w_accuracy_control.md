@@ -33,7 +33,7 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_f
 Prepare validation function
 ############################
 
-Validation function receives ``openvino.runtime.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
+Validation function receives ``openvino.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
 
 .. tab-set::
 
@@ -72,6 +72,17 @@ After that the model can be compiled and run with OpenVINO:
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
          :language: python
          :fragment: [inference]
+
+To save the model in the OpenVINO Intermediate Representation (IR), use ``ov.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``ov.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
+
+.. tab-set::
+
+   .. tab-item:: OpenVINO
+      :sync: openvino
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
+         :language: python
+         :fragment: [save]
 
 ``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API, to quantize a model with accuracy control and a custom configuration.
 

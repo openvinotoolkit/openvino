@@ -158,19 +158,27 @@ ov::Shape StaticShapeRef::get_shape() const {
 }   // namespace intel_cpu
 
 template <>
-void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void NodeValidationFailure::create(const char* file,
+                                   int line,
+                                   const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
                                    const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(check_loc_info,
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
 
 template <>
-void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void NodeValidationFailure::create(const char* file,
+                                   int line,
+                                   const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShapeRef>*>&& ctx,
                                    const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(check_loc_info,
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }

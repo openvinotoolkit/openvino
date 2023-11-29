@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Type
+from openvino import Type
 
 
 @pytest.fixture()

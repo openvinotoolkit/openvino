@@ -2,16 +2,12 @@
 // SPDX-License-corer: Apache-2.0
 //
 
-#include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "ov_models/builders.hpp"
 
-
 #include <openvino/opsets/opset9.hpp>
-#include <ie/ie_core.hpp>
 
 namespace {
 
@@ -28,10 +24,10 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
     auto add_const = ngraph::builder::makeConstant(precision, {1, 1024}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(matmul, add_const, ngraph::helpers::EltwiseTypes::ADD);
+    auto add = ngraph::builder::makeEltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 
-    ngraph::NodeVector results{softmax};
+    ov::NodeVector results{softmax};
     return std::make_shared<ov::Model>(results, params, "MatMulModel");
 }
 
