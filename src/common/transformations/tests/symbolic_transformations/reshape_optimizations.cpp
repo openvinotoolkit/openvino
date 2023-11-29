@@ -22,11 +22,11 @@ using namespace ov::op;
 using namespace std;
 
 namespace {
-    void label_shape(ov::PartialShape& shape) {
-        auto table = std::make_shared<ov::TableOfEquivalence>(42);
-        auto tracker = ov::DimensionTracker(table);
-        tracker.set_up_for_tracking(shape);
-    }
+void label_shape(ov::PartialShape& shape) {
+    auto table = std::make_shared<ov::TableOfEquivalence>(42);
+    auto tracker = ov::DimensionTracker(table);
+    tracker.set_up_for_tracking(shape);
+}
 }  // namespace
 
 TEST_F(TransformationTestsF, FlattenOptimization) {
@@ -42,9 +42,8 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
 
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
 
-        auto merged_dim = make_shared<v1::Multiply>(
-                make_shared<v1::Gather>(shape_of, indices, axis),
-                make_shared<v1::Gather>(shape_of, indices, axis));
+        auto merged_dim = make_shared<v1::Multiply>(make_shared<v1::Gather>(shape_of, indices, axis),
+                                                    make_shared<v1::Gather>(shape_of, indices, axis));
 
         auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, merged_dim}, 0);
 
