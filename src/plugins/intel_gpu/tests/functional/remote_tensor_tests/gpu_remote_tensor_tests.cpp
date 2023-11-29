@@ -13,6 +13,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/convert_transpose.hpp"
 
 class OVRemoteTensor_Test : public ov::test::TestsCommon {
 protected:
@@ -1370,7 +1371,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvertTranspose({1, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_convert_transpose({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1437,7 +1438,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvertTranspose({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_convert_transpose({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -2371,7 +2372,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
 
     const auto gpuDeviceFirst = gpuDevices[0];
     const auto gpuDeviceSecond = gpuDevices[1];
-    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto model = ov::test::utils::make_convert_transpose();
 
     auto compiledModelFirst = core.compile_model(model, gpuDeviceFirst);
     auto compiledModelSecond = core.compile_model(model, gpuDeviceSecond);
@@ -2412,7 +2413,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
     check_contexts_are_same(default_ctx,  core.get_default_context(ov::test::utils::DEVICE_GPU));
 
     // Ensure compiled model uses default context too
-    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto model = ov::test::utils::make_convert_transpose();
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     check_contexts_are_same(default_ctx, compiled_model.get_context());
     ASSERT_EQ(2, compiled_model.get_property(ov::streams::num));

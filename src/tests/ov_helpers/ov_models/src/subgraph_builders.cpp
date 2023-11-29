@@ -263,27 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> makeConvertTranspose(std::vector<size_t> inputShape,
-                                                std::vector<size_t> inputOrder,
-                                                ov::element::Type type) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape))};
-    params.front()->set_friendly_name("Param_1");
-    params.front()->output(0).get_tensor().set_names({"data"});
-    const auto order = ov::op::v0::Constant::create(element::i32, {inputOrder.size()}, inputOrder);
-
-    auto convert = std::make_shared<ov::op::v0::Convert>(params.front(), type);
-    convert->set_friendly_name("convert");
-    auto transpose = std::make_shared<ov::op::v1::Transpose>(convert, order);
-    transpose->set_friendly_name("transpose");
-    auto result = std::make_shared<ov::op::v0::Result>(transpose);
-    result->set_friendly_name("result");
-
-    std::shared_ptr<ov::Model> fn_ptr =
-        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{params});
-    fn_ptr->set_friendly_name("ConvertTranspose");
-    return fn_ptr;
-}
-
 std::shared_ptr<ov::Model> makeMultipleInputOutputReLU(std::vector<size_t> inputShape, ov::element::Type_t type) {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
     param1->set_friendly_name("param1");
