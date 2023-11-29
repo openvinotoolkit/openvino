@@ -5,10 +5,10 @@
 #include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace test {

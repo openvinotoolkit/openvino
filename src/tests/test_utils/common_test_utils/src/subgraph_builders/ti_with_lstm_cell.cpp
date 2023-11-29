@@ -4,11 +4,11 @@
 
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 
 namespace ov {

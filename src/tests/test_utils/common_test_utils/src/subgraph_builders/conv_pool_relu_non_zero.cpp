@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
-#include "openvino/op/gather.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -52,7 +51,8 @@ std::shared_ptr<ov::Model> make_conv_pool_relu_non_zero(ov::Shape input_shape, o
     non_zero->set_friendly_name("nonZero_1");
     non_zero->output(0).get_tensor().set_names({"nonZero"});
 
-    auto gather_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto gather_indices =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
     gather_indices->set_friendly_name("gather_indices_1");
     gather_indices->output(0).get_tensor().set_names({"gather_indices"});
 

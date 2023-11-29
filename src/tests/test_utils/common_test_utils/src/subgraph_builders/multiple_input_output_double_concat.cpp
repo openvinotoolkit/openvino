@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
-
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
-std::shared_ptr<ov::Model> make_multiple_input_output_double_concat(ov::Shape input_shape,
-                                                               ov::element::Type type) {
+std::shared_ptr<ov::Model> make_multiple_input_output_double_concat(ov::Shape input_shape, ov::element::Type type) {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(type, input_shape);
     param1->set_friendly_name("param1");
     param1->output(0).get_tensor().set_names({"data1"});

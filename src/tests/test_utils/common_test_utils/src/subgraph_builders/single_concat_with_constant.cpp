@@ -5,10 +5,10 @@
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace test {
@@ -31,6 +31,7 @@ std::shared_ptr<ov::Model> make_single_concat_with_constant(ov::Shape input_shap
         std::make_shared<ov::Model>(ov::ResultVector({res}), ov::ParameterVector{parameter});
     model->set_friendly_name("SingleConcatWithConstant");
     return model;
-}}  // namespace utils
+}
+}  // namespace utils
 }  // namespace test
 }  // namespace ov

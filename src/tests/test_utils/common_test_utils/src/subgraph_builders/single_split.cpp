@@ -4,9 +4,9 @@
 
 #include "common_test_utils/subgraph_builders/single_split.hpp"
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 
 namespace ov {

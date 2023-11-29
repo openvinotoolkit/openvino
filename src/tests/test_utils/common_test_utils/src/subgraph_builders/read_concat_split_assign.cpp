@@ -4,10 +4,10 @@
 
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/split.hpp"
 
 namespace ov {

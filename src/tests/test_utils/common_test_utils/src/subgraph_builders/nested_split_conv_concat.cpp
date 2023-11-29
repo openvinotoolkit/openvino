@@ -5,11 +5,11 @@
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/relu.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
 
 namespace ov {
@@ -22,25 +22,25 @@ std::shared_ptr<ov::Model> make_nested_split_conv_concat(ov::Shape input_shape, 
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
     auto conv1 = ov::test::utils::make_convolution(split->output(0),
-                                                  type,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  5);
+                                                   type,
+                                                   {3, 3},
+                                                   {1, 1},
+                                                   {0, 0},
+                                                   {0, 0},
+                                                   {1, 1},
+                                                   ov::op::PadType::EXPLICIT,
+                                                   5);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(conv1);
 
     auto conv2 = ov::test::utils::make_convolution(split->output(1),
-                                                  type,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {1, 1},
-                                                  {1, 1},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  10);
+                                                   type,
+                                                   {3, 3},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   ov::op::PadType::EXPLICIT,
+                                                   10);
     auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
 
     auto split2_axis_op =
@@ -48,25 +48,25 @@ std::shared_ptr<ov::Model> make_nested_split_conv_concat(ov::Shape input_shape, 
     auto split2 = std::make_shared<ov::op::v1::Split>(relu2, split2_axis_op, 2);
 
     auto conv3 = ov::test::utils::make_convolution(split2->output(0),
-                                                  type,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  5);
+                                                   type,
+                                                   {3, 3},
+                                                   {1, 1},
+                                                   {0, 0},
+                                                   {0, 0},
+                                                   {1, 1},
+                                                   ov::op::PadType::EXPLICIT,
+                                                   5);
     auto relu3 = std::make_shared<ov::op::v0::Relu>(conv3);
 
     auto conv4 = ov::test::utils::make_convolution(split2->output(1),
-                                                  type,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  5);
+                                                   type,
+                                                   {3, 3},
+                                                   {1, 1},
+                                                   {0, 0},
+                                                   {0, 0},
+                                                   {1, 1},
+                                                   ov::op::PadType::EXPLICIT,
+                                                   5);
     auto relu4 = std::make_shared<ov::op::v0::Relu>(conv4);
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{relu3->output(0), relu4->output(0)}, 1);

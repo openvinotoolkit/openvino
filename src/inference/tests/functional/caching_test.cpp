@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -32,7 +33,6 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"

@@ -5,15 +5,15 @@
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
 
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/detection_output.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/tile.hpp"
 
 namespace ov {
 namespace test {

@@ -11,6 +11,7 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -19,7 +20,6 @@
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "common_test_utils/subgraph_builders/detection_output.hpp"
 
 using namespace ov;
 using namespace testing;

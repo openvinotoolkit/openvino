@@ -4,11 +4,11 @@
 
 #include "common_test_utils/subgraph_builders/conv_bias.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {

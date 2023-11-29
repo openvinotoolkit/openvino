@@ -5,12 +5,12 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {

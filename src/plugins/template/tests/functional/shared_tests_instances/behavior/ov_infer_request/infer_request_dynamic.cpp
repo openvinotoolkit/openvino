@@ -3,9 +3,10 @@
 //
 
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
-#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
 #include <vector>
+
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
 using namespace ov::test::behavior;
 

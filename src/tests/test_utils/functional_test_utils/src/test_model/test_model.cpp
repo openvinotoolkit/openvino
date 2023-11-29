@@ -4,10 +4,10 @@
 
 #include "functional_test_utils/test_model/test_model.hpp"
 
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace ov {
 namespace test {
