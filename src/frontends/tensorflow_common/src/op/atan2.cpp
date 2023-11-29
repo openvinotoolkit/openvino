@@ -65,7 +65,7 @@ OutputVector translate_Atan2_op(const NodeContext& node) {
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
 
-    set_node_name(node.get_name(), result);
+    set_node_name(node.get_name(), result.get_node_shared_ptr());
     return result->outputs();
 }
 
