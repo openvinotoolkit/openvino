@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+namespace ov {
+namespace test {
 
 /*This test runs the following subgraph:
 
@@ -22,14 +22,13 @@ using namespace ov::test;
           Softmax
             |
           Output_1
-    
+
     Output_1 -> Param_1
 
   The main purpose of this test is checking the code path when the output tensor is reused as an input tensor of the
   next infer request.
 */
 
-namespace SubgraphTestsDefinitions {
 class InputOutputTensorReuse : public SubgraphBaseTest {
 public:
     void SetUp() override {
@@ -45,16 +44,17 @@ public:
         input_params[1]->set_friendly_name("Param_1");
 
         auto first_soft_max = std::make_shared<ov::op::v1::Softmax>(input_params[1], softmax_axis);
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{input_params[0], first_soft_max}, concat_axis);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(ov::NodeVector{input_params[0], first_soft_max}, concat_axis);
         auto last_soft_max = std::make_shared<ov::op::v1::Softmax>(concat, softmax_axis);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < last_soft_max->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(last_soft_max->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(last_soft_max->output(i)));
 
         results.front()->set_friendly_name("Output_1");
 
-        function = std::make_shared<ngraph::Function>(results, input_params, "InputOutputTensorReuseTest");
+        function = std::make_shared<ov::Model>(results, input_params, "InputOutputTensorReuseTest");
     }
 };
 
@@ -68,9 +68,11 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Binding) {
     for (size_t i = 0; i < num_iter; i++) {
         auto outputTensor = inferRequest.get_output_tensor(0);
         inputShapes.back() = outputTensor.get_shape();
-        auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
-            return item.first->get_friendly_name() == "Param_1";
-        });
+        auto itr = std::find_if(inputs.begin(),
+                                inputs.end(),
+                                [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+                                    return item.first->get_friendly_name() == "Param_1";
+                                });
         ASSERT_NE(itr, inputs.end());
         itr->second = outputTensor;
         const auto& expectedOutputs = calculate_refs();
@@ -91,9 +93,10 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Bind_Once) {
 
     auto outputTensor = inferRequest.get_output_tensor(0);
     inputShapes.back() = outputTensor.get_shape();
-    auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
-        return item.first->get_friendly_name() == "Param_1";
-    });
+    auto itr =
+        std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+            return item.first->get_friendly_name() == "Param_1";
+        });
     ASSERT_NE(itr, inputs.end());
     itr->second = outputTensor;
 
@@ -107,9 +110,11 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Bind_Once) {
 
         inferRequest.infer();
         compare(expectedOutputs, {outputTensor});
-        auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
-            return item.first->get_friendly_name() == "Param_1";
-        });
+        auto itr = std::find_if(inputs.begin(),
+                                inputs.end(),
+                                [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+                                    return item.first->get_friendly_name() == "Param_1";
+                                });
         ASSERT_NE(itr, inputs.end());
         itr->second = expectedOutputs.front();
     }
@@ -123,9 +128,10 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Bind_Once_Empty_Tensor) {
 
     auto outputTensor = inferRequest.get_output_tensor(0);
     inputShapes.back() = outputTensor.get_shape();
-    auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
-        return item.first->get_friendly_name() == "Param_1";
-    });
+    auto itr =
+        std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+            return item.first->get_friendly_name() == "Param_1";
+        });
     ASSERT_NE(itr, inputs.end());
     itr->second = outputTensor;
 
@@ -139,12 +145,15 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Bind_Once_Empty_Tensor) {
 
         inferRequest.infer();
         compare(expectedOutputs, {outputTensor});
-        auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
-            return item.first->get_friendly_name() == "Param_1";
-        });
+        auto itr = std::find_if(inputs.begin(),
+                                inputs.end(),
+                                [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+                                    return item.first->get_friendly_name() == "Param_1";
+                                });
         ASSERT_NE(itr, inputs.end());
         itr->second = expectedOutputs.front();
     }
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
