@@ -248,7 +248,6 @@ class TestTransformersModel(TestTorchConvertModel):
                     inputs = tokenizer(text, return_tensors="pt")
                     example = dict(inputs)
                 elif auto_model == 'AutoModelForTextToWaveform' and name in music_generation_models:
-                    import torch
                     from transformers import AutoProcessor, AutoModelForTextToWaveform, MusicgenForConditionalGeneration
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
@@ -268,7 +267,6 @@ class TestTransformersModel(TestTorchConvertModel):
                             return self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=256)
                     model = MusicGenerateModel(model)
                 elif auto_model == 'RagTokenForGeneration':
-                    import torch
                     from transformers import AutoTokenizer, RagTokenForGeneration
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = RagTokenForGeneration.from_pretrained(name)
@@ -285,7 +283,6 @@ class TestTransformersModel(TestTorchConvertModel):
                             return self.model.generate(x)
                     model = RagTokenGenerationModel(model)
                 elif auto_model == 'AutoModelForSeq2SeqLM' and name in visual_question_answer_models:
-                    import torch
                     from transformers import AutoProcessor, Pix2StructForConditionalGeneration
                     model = Pix2StructForConditionalGeneration.from_pretrained(name)
                     processor = AutoProcessor.from_pretrained(name)
@@ -315,7 +312,6 @@ class TestTransformersModel(TestTorchConvertModel):
                 elif auto_model == 'AutoModelForTextToSpectrogram':
                     from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
                     from datasets import load_dataset
-                    import torch
 
                     processor = SpeechT5Processor.from_pretrained(name)
                     model = SpeechT5ForTextToSpeech.from_pretrained(name)
