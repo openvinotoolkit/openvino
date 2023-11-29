@@ -15,10 +15,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-SerializeControlFlow::SerializeControlFlow(const std::string& xml_path, const std::string& bin_path)
-    : m_xml_path(xml_path),
-      m_bin_path(bin_path) {}
-
 bool SerializeControlFlow::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SerializeControlFlow")
     if (linear_ir.empty())

@@ -26,6 +26,11 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
     bool visit_attributes(AttributeVisitor &visitor) override;
 
+    _OPENVINO_HIDDEN_METHOD static const DiscreteTypeInfo& get_type_info_static() {
+        static ::ov::DiscreteTypeInfo type_info_static{"SerializationNode", "SnippetsOpset"};
+        return type_info_static;
+    }
+
     const ::ov::DiscreteTypeInfo& get_type_info() const override {
         return m_expr->get_node()->get_type_info();
     }

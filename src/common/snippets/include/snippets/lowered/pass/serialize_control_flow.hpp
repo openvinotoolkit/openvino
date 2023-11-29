@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include "serialize_base.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
 namespace ov {
@@ -17,15 +17,11 @@ namespace pass {
  * @brief Serializes control flow graph of LinearIR
  * @ingroup snippets
  */
-class SerializeControlFlow : public Pass {
+class SerializeControlFlow : public SerializeBase {
 public:
-    OPENVINO_RTTI("SerializeControlFlow", "Pass")
-    SerializeControlFlow(const std::string& xml_path, const std::string& bin_path = "");
+    OPENVINO_RTTI("SerializeControlFlow", "Pass", SerializeBase)
+    SerializeControlFlow(const std::string& xml_path) : SerializeBase(xml_path) {}
     bool run(LinearIR& linear_ir) override;
-
-private:
-    const std::string m_xml_path;
-    const std::string m_bin_path;
 };
 
 } // namespace pass

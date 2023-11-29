@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include "serialize_base.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
 namespace ov {
@@ -15,20 +15,15 @@ namespace pass {
 /**
  * @interface SerializeDataFlow
  * @brief Serializes data flow graph of LinearIR
- * @attention
- *  - This pass can not be run on the LinearIR after tail loop insertion.
- *  - Control flow operations (e.g. LoopBegin/LoopEnd) are not serialized
+ * @attention - This pass can not be run on the LinearIR after tail loop insertion.
+ * @attention - Control flow operations (e.g. LoopBegin/LoopEnd) are not serialized
  * @ingroup snippets
  */
-class SerializeDataFlow : public Pass {
+class SerializeDataFlow : public SerializeBase {
 public:
-    OPENVINO_RTTI("SerializeDataFlow", "Pass")
-    SerializeDataFlow(const std::string& xml_path, const std::string& bin_path = "");
+    OPENVINO_RTTI("SerializeDataFlow", "Pass", SerializeBase)
+    SerializeDataFlow(const std::string& xml_path) : SerializeBase(xml_path) {}
     bool run(LinearIR& linear_ir) override;
-
-private:
-    const std::string m_xml_path;
-    const std::string m_bin_path;
 };
 
 } // namespace pass
