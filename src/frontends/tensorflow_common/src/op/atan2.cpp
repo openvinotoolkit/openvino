@@ -16,7 +16,6 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 
-
 using namespace std;
 using namespace ov::op;
 
