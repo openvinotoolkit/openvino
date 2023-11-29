@@ -73,6 +73,7 @@ Table of Contents
 * :doc:`ExperimentalDetectronTopKROIs_6 <openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6>`
 * :doc:`ExtractImagePatches <openvino_docs_ops_movement_ExtractImagePatches_3>`
 * :doc:`Eye <openvino_docs_ops_generation_Eye_9>`
+* :doc:`FakeConvert <openvino_docs_ops_quantization_FakeConvert_13>`
 * :doc:`FakeQuantize <openvino_docs_ops_quantization_FakeQuantize_1>`
 * :doc:`Floor <openvino_docs_ops_arithmetic_Floor_1>`
 * :doc:`FloorMod <openvino_docs_ops_arithmetic_FloorMod_1>`

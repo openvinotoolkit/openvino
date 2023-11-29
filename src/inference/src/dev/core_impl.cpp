@@ -366,7 +366,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
-                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
+                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, std::move(fallback)};
             } else {
                 auto dev_order = defaultConfig[ov::device::priorities.name()].as<std::vector<std::string>>();
                 auto begin_it = std::find(dev_order.begin(), dev_order.end(), dev_name);

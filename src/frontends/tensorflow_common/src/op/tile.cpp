@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/tile.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -18,7 +19,7 @@ OutputVector translate_tile_op(const NodeContext& node) {
     auto input = node.get_input(0);
     auto multiples = node.get_input(1);
 
-    auto tile = make_shared<Tile>(input, multiples);
+    auto tile = make_shared<v0::Tile>(input, multiples);
     set_node_name(node.get_name(), tile);
     return {tile};
 }
