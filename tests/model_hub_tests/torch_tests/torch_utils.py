@@ -3,8 +3,8 @@
 
 import pytest
 import torch
-from models_hub_common.utils import get_models_list
 from models_hub_common.test_convert_model import TestConvertModel
+from models_hub_common.utils import get_models_list
 from openvino import convert_model
 
 
@@ -26,7 +26,9 @@ def flattenize_structure(outputs):
 
 
 def process_pytest_marks(filepath: str):
-    return [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n for n, _, m, r in get_models_list(filepath)]
+    return [
+        pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n
+        for n, _, m, r in get_models_list(filepath)]
 
 
 class TestTorchConvertModel(TestConvertModel):

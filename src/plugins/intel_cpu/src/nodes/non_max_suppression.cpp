@@ -285,13 +285,13 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
 
     const size_t valid_outputs = std::min(start_offset, max_number_of_boxes);
 
+    const size_t stride = 3lu;
+    if (!m_out_static_shape) {
+        VectorDims new_dims{valid_outputs, stride};
+        redefineOutputMemory({new_dims, new_dims, {1}});
+    }
+
     if (m_defined_outputs[NMS_SELECTED_INDICES]) {
-        const size_t stride = 3lu;
-
-        if (!m_out_static_shape) {
-            redefineOutputMemory(NMS_SELECTED_INDICES, { valid_outputs, stride });
-        }
-
         auto out_ptr = reinterpret_cast<int32_t *>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->getData());
         int32_t* boxes_ptr = &(m_filtered_boxes[0].batch_index);
 
@@ -308,12 +308,6 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (m_defined_outputs[NMS_SELECTED_SCORES]) {
-        const size_t stride = 3lu;
-
-        if (!m_out_static_shape) {
-            redefineOutputMemory(NMS_SELECTED_SCORES, { valid_outputs, stride });
-        }
-
         auto out_ptr = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTED_SCORES)[0]->getMemoryPtr()->getData());
 
         size_t idx = 0lu;
