@@ -522,7 +522,7 @@ private:
         auto output_size = std::min(num_elements, shape_size(m_shape));
         output_vector.reserve(output_size);
         const auto p = get_data_ptr<Type>();
-        std::copy(p, p + output_size, std::back_inserter(output_vector));
+        std::copy_n(p, output_size, std::back_inserter(output_vector));
     }
 
     template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
