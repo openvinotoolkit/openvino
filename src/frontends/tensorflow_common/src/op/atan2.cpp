@@ -24,7 +24,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_Atan2_op(const NodeContext& node) {
+OutputVector translate_atan2_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Atan2"});
     auto y = node.get_input(0);
     auto x = node.get_input(1);
