@@ -9,51 +9,51 @@
 #include <string>
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-using FuseTransposeAndReorderParams = std::tuple<
-        InferenceEngine::SizeVector,    // Input shape
-        InferenceEngine::Precision      // Input precision
->;
+using FuseTransposeAndReorderParams = std::tuple<ov::Shape,         // Input shape
+                                                 ov::element::Type  // Input precision
+                                                 >;
 
 class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>, public CPUTestsBase,
-        virtual public LayerTestsUtils::LayerTestsCommon {
+        virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj);
 
 protected:
     void SetUp() override;
-    virtual void CreateGraph();
-    void CheckTransposeCount(size_t expectedTransposeCount);
+    virtual void create_model();
+    void check_transpose_count(size_t expectedTransposeCount);
 
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision inPrec;
+    ov::Shape input_shape;
+    ov::element::Type in_prec;
 };
 
 class FuseTransposeAndReorderTest1 : public FuseTransposeAndReorderTest {
 protected:
-    void CreateGraph() override;
+    void create_model() override;
 };
 
 class FuseTransposeAndReorderTest2 : public FuseTransposeAndReorderTest {
 protected:
-    void CreateGraph() override;
+    void create_model() override;
 };
 
 class FuseTransposeAndReorderTest3 : public FuseTransposeAndReorderTest {
 protected:
-    void CreateGraph() override;
+    void create_model() override;
 };
 
 class FuseTransposeAndReorderTest4 : public FuseTransposeAndReorderTest {
 protected:
-    void CreateGraph() override;
+    void create_model() override;
 };
-
-} // namespace SubgraphTestsDefinitions
+} // namespace test
+} // namespace ov
