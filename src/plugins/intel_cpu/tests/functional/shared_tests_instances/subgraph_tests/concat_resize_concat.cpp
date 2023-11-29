@@ -11,9 +11,8 @@
 namespace ov {
 namespace test {
 
-typedef std::tuple<ov::Node::type_info_t,  // Node type
-                   int,                    // channels count
-                   int                     // batch count
+typedef std::tuple<int,  // channels count
+                   int   // batch count
                    >
     ConcResizeConcParams;
 
@@ -21,12 +20,10 @@ class ConcatResizeConcatTest : public testing::WithParamInterface<ConcResizeConc
                                public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcResizeConcParams>& obj) {
-        ov::Node::type_info_t resize_type;
         int channels_count;
         int batch_count;
-        std::tie(resize_type, channels_count, batch_count) = obj.param;
+        std::tie(channels_count, batch_count) = obj.param;
         std::ostringstream result;
-        result << resize_type.name << "_";
         result << "Batches=" << batch_count << "_";
         result << "Channels=" << channels_count << "_";
         result << obj.index;
@@ -36,10 +33,9 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ov::Node::type_info_t resize_type;
         int channels_count;
         int batch_count;
-        std::tie(resize_type, channels_count, batch_count) = this->GetParam();
+        std::tie(channels_count, batch_count) = this->GetParam();
 
         std::vector<int> dims1({batch_count, channels_count, 2, 2});
         std::vector<int> dims2({batch_count, channels_count, 3, 3});
@@ -108,9 +104,7 @@ const std::vector<int> channel_count = {1, 2};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcResizeConc,
                          ConcatResizeConcatTest,
-                         ::testing::Combine(::testing::Values(ov::op::v4::Interpolate::get_type_info_static()),
-                                            ::testing::ValuesIn(channel_count),
-                                            ::testing::ValuesIn(batch_count)),
+                         ::testing::Combine(::testing::ValuesIn(channel_count), ::testing::ValuesIn(batch_count)),
                          ConcatResizeConcatTest::getTestCaseName);
 
 }  // namespace
