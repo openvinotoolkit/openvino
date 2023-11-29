@@ -15,3 +15,5 @@ protobuf
 soundfile
 pandas
 super-image
+basicsr
+facexlib
