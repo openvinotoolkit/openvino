@@ -38,12 +38,13 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
         auto indices = ov::op::v0::Constant::create(element::i64, {2}, {0, 1});
-        auto axis = ov::op::v0::Constant::create(element::i64, {1}, {0});
+        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
 
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
 
-        auto merged_dim = make_shared<v1::Multiply>(make_shared<v1::Gather>(shape_of, indices, axis),
-                                                    make_shared<v1::Gather>(shape_of, indices, axis));
+        auto merged_dim = make_shared<v1::Multiply>(
+            make_shared<v1::Gather>(shape_of, ov::op::v0::Constant::create(element::i64, {1}, {2}), axis),
+            make_shared<v1::Gather>(shape_of, ov::op::v0::Constant::create(element::i64, {1}, {3}), axis));
 
         auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, merged_dim}, 0);
 

@@ -29,7 +29,6 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
         const auto& reshape = ov::as_type_ptr<v1::Reshape>(m.get_match_root());
         if (!reshape)
             return false;
-
         const auto& in_shape = reshape->get_input_partial_shape(0);
         const auto& out_shape = reshape->get_output_partial_shape(0);
 
@@ -41,6 +40,7 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
             if (std::count(output_pattern.begin(), output_pattern.end(), -1) == 1) {
                 auto new_pattern =
                     ov::op::v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
+                ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
                 reshape->set_special_zero(true);
                 reshape->input(1).replace_source_output(new_pattern->output(0));
                 return true;
