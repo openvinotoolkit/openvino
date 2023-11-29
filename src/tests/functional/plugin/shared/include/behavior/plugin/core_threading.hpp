@@ -28,6 +28,7 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 using Device = std::string;
 using Config = std::map<std::string, std::string>;
@@ -233,7 +234,7 @@ protected:
         } else {
             networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_single_conv()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_split_conv_concat()));
             networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_split_multi_conv_concat()));
         }

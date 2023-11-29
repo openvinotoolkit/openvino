@@ -12,6 +12,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -29,7 +30,7 @@ class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(), ngraph::builder::subgraph::makeMultiSingleConv()};
+        fn_ptrs = {ov::test::utils::make_single_conv(), ngraph::builder::subgraph::makeMultiSingleConv()};
     };
 
 public:

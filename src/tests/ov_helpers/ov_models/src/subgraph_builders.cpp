@@ -263,24 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> makeSingleConv(std::vector<size_t> inputShape, ov::element::Type_t type) {
-    auto param0 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
-
-    auto conv1 = ngraph::builder::makeConvolution(param0,
-                                                  type,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  4);
-    auto result = std::make_shared<ov::op::v0::Result>(conv1);
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0});
-    fn_ptr->set_friendly_name("SingleConv");
-    return fn_ptr;
-}
-
 std::shared_ptr<ov::Model> makeDetectionOutput(ov::element::Type_t type) {
     const auto& data = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{1, 4, 10, 10});
 

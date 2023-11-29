@@ -23,6 +23,7 @@
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -90,7 +91,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
         inputShapeWrapper(ov::test::utils::make_kso_function, {1, 4, 20, 20}),
         "KSOFunction"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_single_conv, {1, 3, 24, 24}),
         "SingleConv"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),

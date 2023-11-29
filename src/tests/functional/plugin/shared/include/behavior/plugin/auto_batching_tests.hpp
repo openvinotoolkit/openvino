@@ -14,6 +14,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -30,7 +31,7 @@ class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
                           public testing::WithParamInterface<AutoBatchTwoNetsParams> {
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(),
+        fn_ptrs = {ov::test::utils::make_single_conv(),
                    ngraph::builder::subgraph::makeMultiSingleConv()};
     };
 public:
