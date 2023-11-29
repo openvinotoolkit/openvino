@@ -181,8 +181,13 @@ def runCommandList(commit, cfgData, enforceClean=False):
                 preProcess(cfgData, commit)
                 continue
         makeCmd = cfgData["makeCmd"]
+        # {commit}, {makeCmd}, {appPath} placeholders
         strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
+        pathExists, appPath = getCashedAppPath(commit, cfgData)
+        if pathExists:
+            strCommand = cmd["cmd"].format(appPath=appPath)
         formattedCmd = strCommand.split()
+        # define command launch destination
         cwd = defRepo
         if "path" in cmd:
             cwd = cmd["path"].format(buildPath=buildPath, gitPath=gitPath)
