@@ -14,6 +14,10 @@
 #include "openvino/runtime/tensor.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/single_split.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -144,7 +148,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
 
 TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    std::shared_ptr<ov::Model> function = ov::test::utils::make_single_concat_with_constant();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
@@ -421,7 +425,7 @@ TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
 TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
@@ -435,7 +439,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
@@ -449,7 +453,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeConcatWithParams();
+    function = ov::test::utils::make_concat_with_params();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
@@ -491,7 +495,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeSingleSplit();
+    function = ov::test::utils::make_single_split();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);

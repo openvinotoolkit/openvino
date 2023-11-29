@@ -297,45 +297,6 @@ std::shared_ptr<ov::Model> makeConcatWithParams(std::vector<size_t> inputShape, 
     fn_ptr->set_friendly_name("SingleConcatWithParams");
     return fn_ptr;
 }
-
-std::shared_ptr<ov::Model> makeSingleSplit(std::vector<size_t> inputShape, ov::element::Type_t type) {
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{inputShape});
-    param1->set_friendly_name("param1");
-    param1->output(0).get_tensor().set_names({"data1"});
-    auto axis_node = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
-    auto split = std::make_shared<ov::op::v1::Split>(param1, axis_node, 2);
-    split->set_friendly_name("split");
-    split->output(0).get_tensor().set_names({"tensor_split_1"});
-    split->output(1).get_tensor().set_names({"tensor_split_2"});
-    auto result1 = std::make_shared<ov::op::v0::Result>(split->output(0));
-    result1->set_friendly_name("result1");
-    auto result2 = std::make_shared<ov::op::v0::Result>(split->output(1));
-    result2->set_friendly_name("result2");
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1});
-    fn_ptr->set_friendly_name("SingleSplit");
-    return fn_ptr;
-}
-
-std::shared_ptr<ov::Model> makeSplitConcat(std::vector<size_t> inputShape, ov::element::Type_t type) {
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{inputShape});
-    param1->set_friendly_name("Param1");
-    param1->output(0).get_tensor().set_names({"data1"});
-    auto axis_node = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
-    auto split = std::make_shared<ov::op::v1::Split>(param1, axis_node, 2);
-    split->set_friendly_name("Split");
-    split->output(0).get_tensor().set_names({"tensor_split_1"});
-    split->output(1).get_tensor().set_names({"tensor_split_2"});
-
-    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{split->output(0), split->output(1)}, 1);
-    concat->set_friendly_name("Concat_op");
-    concat->output(0).get_tensor().set_names({"Concat"});
-    auto result = std::make_shared<ov::op::v0::Result>(concat);
-    result->set_friendly_name("Result");
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
-    fn_ptr->set_friendly_name("SplitConcat");
-    return fn_ptr;
-}
-
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph

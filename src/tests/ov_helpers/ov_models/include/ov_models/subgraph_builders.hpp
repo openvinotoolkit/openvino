@@ -33,13 +33,6 @@ std::shared_ptr<ov::Model> makeSingleConcatWithConstant(std::vector<size_t> inpu
 
 std::shared_ptr<ov::Model> makeConcatWithParams(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                 ov::element::Type_t type = ov::element::Type_t::f32);
-
-std::shared_ptr<ov::Model> makeSingleSplit(std::vector<size_t> inputShape = {1, 4, 32, 32},
-                                           ov::element::Type_t type = ov::element::Type_t::f32);
-
-std::shared_ptr<ov::Model> makeSplitConcat(std::vector<size_t> inputShape = {1, 4, 24, 24},
-                                           ov::element::Type_t type = ov::element::Type_t::f32);
-
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
