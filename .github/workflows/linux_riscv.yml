@@ -41,7 +41,7 @@ jobs:
 
   Build:
     needs: Smart_CI
-    timeout-minutes: 150
+    timeout-minutes: 200
     defaults:
       run:
         shell: bash
