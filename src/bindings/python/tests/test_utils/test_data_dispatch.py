@@ -7,6 +7,7 @@ import pytest
 import numpy as np
 
 from tests.utils.helpers import generate_relu_compiled_model
+
 from openvino import Type, Shape, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
 from openvino.runtime.ie_api import OVDict
