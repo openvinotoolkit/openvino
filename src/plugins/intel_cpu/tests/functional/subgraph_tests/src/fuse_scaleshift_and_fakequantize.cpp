@@ -6,8 +6,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
-
 namespace ov {
 namespace test {
 typedef std::tuple<Shape,                                              // Input shape
@@ -30,10 +28,11 @@ public:
         std::tie(inputShape, inputPrecision, scaleShift, quantizeIntervals, targetName) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << inputShape << "_InPRC=" << inputPrecision << "_Scale=" << vector_to_string(scaleShift.first)
-                << "_Shift=" << vector_to_string(scaleShift.second) << "_Intervals=";
+        results << "IS=" << inputShape << "_InPRC=" << inputPrecision
+                << "_Scale=" << ngraph::vector_to_string(scaleShift.first)
+                << "_Shift=" << ngraph::vector_to_string(scaleShift.second) << "_Intervals=";
         for (const auto& vecInt : quantizeIntervals) {
-            results << vector_to_string(vecInt) << ",";
+            results << ngraph::vector_to_string(vecInt) << ",";
         }
 
         results << "targetDevice=" << targetName;
@@ -60,14 +59,14 @@ protected:
             std::make_shared<ov::op::v0::Constant>(inputPrecision, constShape, scaleShift.first));
         Shape inConstShape = Shape(inputShape.size(), 1);
         inConstShape[1] = quantizeIntervals[0].size();
-        const auto quantize = builder::makeFakeQuantize(multiply,
-                                                        inputPrecision,
-                                                        256,
-                                                        inConstShape,
-                                                        quantizeIntervals[0],
-                                                        quantizeIntervals[1],
-                                                        quantizeIntervals[2],
-                                                        quantizeIntervals[3]);
+        const auto quantize = ngraph::builder::makeFakeQuantize(multiply,
+                                                                inputPrecision,
+                                                                256,
+                                                                inConstShape,
+                                                                quantizeIntervals[0],
+                                                                quantizeIntervals[1],
+                                                                quantizeIntervals[2],
+                                                                quantizeIntervals[3]);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(quantize)};
         function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "FuseScaleShiftAndQuantize");
     }
