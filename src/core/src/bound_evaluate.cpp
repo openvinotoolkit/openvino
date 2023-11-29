@@ -472,10 +472,10 @@ bool ov::interval_bound_evaluator(const Node* node,
         } else {
             // Can not set to get_constant_min_of_type(lower_output_values[i]->get_element_type()) yet
             const auto& lower = lower_output_values[i];
-            const auto typed_zero = op::v0::Constant::create(lower.get_element_type(), Shape{1}, {0});
+            const auto typed_zero = op::v0::Constant::create(lower.get_element_type(), Shape{}, {0});
             const auto then = Tensor{Output<Node>{typed_zero}};
             op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower});
-            node->get_output_tensor(i).set_lower_value(lower_output_values[i]);
+            node->get_output_tensor(i).set_lower_value(lower);
         }
     }
     return fully_defined;
