@@ -498,6 +498,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
+        {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
         {"aten::sqrt", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten::square", op::translate_square},
