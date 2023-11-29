@@ -16,7 +16,7 @@ from openvino._offline_transformations import (
     apply_fused_names_cleanup,
 )
 
-from openvino.runtime import Model, PartialShape, Core, serialize, save_model
+from openvino import Model, PartialShape, Core, serialize, save_model
 import openvino.runtime as ov
 
 from tests.utils.helpers import create_filename_for_test, compare_models, _compare_models
