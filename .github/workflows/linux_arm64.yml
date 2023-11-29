@@ -1177,7 +1177,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
-            .github/utils/functional_tests/skip_list_linux_arm
+            .github/utils/cpu_functional_tests/skip_list_linux_arm
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
 
@@ -1202,7 +1202,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
-          skip_tests=$(tr -s '\n ' ':' < ${OPENVINO_REPO}/.github/utils/functional_tests/skip_list_linux_arm)
+          skip_tests=$(tr -s '\n ' ':' < ${OPENVINO_REPO}/.github/utils/cpu_functional_tests/skip_list_linux_arm)
           
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_filter=-$skip_tests
         timeout-minutes: 40
