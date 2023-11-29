@@ -66,7 +66,7 @@ OutputVector translate_Atan2_op(const NodeContext& node) {
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
 
     set_node_name(node.get_name(), result.get_node_shared_ptr());
-    return result->outputs();
+    return {result};
 }
 
 }  // namespace op
