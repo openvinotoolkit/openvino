@@ -263,63 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> makeNestedBranchConvConcat(std::vector<size_t> inputShape, ov::element::Type ngPrc) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto relu0 = std::make_shared<ov::op::v0::Relu>(params[0]);
-
-    auto conv1 = ngraph::builder::makeConvolution(relu0,
-                                                  ngPrc,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  5);
-    auto relu1 = std::make_shared<ov::op::v0::Relu>(conv1);
-
-    auto conv2 = ngraph::builder::makeConvolution(relu0,
-                                                  ngPrc,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {1, 1},
-                                                  {1, 1},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  10);
-    auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
-
-    auto conv3 = ngraph::builder::makeConvolution(relu2,
-                                                  ngPrc,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  5);
-    auto relu3 = std::make_shared<ov::op::v0::Relu>(conv3);
-
-    auto conv4 = ngraph::builder::makeConvolution(relu2,
-                                                  ngPrc,
-                                                  {3, 3},
-                                                  {1, 1},
-                                                  {0, 0},
-                                                  {0, 0},
-                                                  {1, 1},
-                                                  ov::op::PadType::EXPLICIT,
-                                                  5);
-    auto relu4 = std::make_shared<ov::op::v0::Relu>(conv4);
-
-    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{relu3->output(0), relu4->output(0)}, 1);
-
-    auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{relu1->output(0), concat}, 1);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat1)};
-    std::shared_ptr<ov::Model> fnPtr = std::make_shared<ov::Model>(results, params);
-    fnPtr->set_friendly_name("NestedBranchConvConcat");
-    return fnPtr;
-}
-
 std::shared_ptr<ov::Model> makeNestedSplitConvConcat(std::vector<size_t> inputShape, ov::element::Type ngPrc) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto split_axis_op =
