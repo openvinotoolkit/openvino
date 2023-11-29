@@ -727,7 +727,7 @@ pass::EliminateTranspose::EliminateTranspose() {
         const auto& order_values = order_const->cast_vector<int64_t>();
         vector<int64_t> ref_values(order_values.size());
         iota(ref_values.begin(), ref_values.end(), 0);
-        if (order_values != ref_values) {
+        if (order_values.size() == 0 || order_values != ref_values) {
             return false;
         }
 

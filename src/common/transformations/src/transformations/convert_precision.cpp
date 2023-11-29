@@ -947,7 +947,7 @@ bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions
             auto relaxed_op = std::make_shared<op::TypeRelaxed<opset1::Reverse>>(
                 *casted,
                 ov::element::TypeVector{casted->get_input_element_type(0), ov::element::boolean},
-                ov::element::TypeVector{casted->get_output_element_type(0)});
+                ov::element::TypeVector{});
             replace_node(node, relaxed_op);
         }
         return true;
