@@ -34,8 +34,9 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
 
     // compute indices of max/min values using TopK
     auto k = make_shared<v0::Constant>(element::i64, Shape{}, 1);
-    // TODO: define sort attribute for TensorFlow case
-    auto top_k = std::make_shared<v11::TopK>(input, k, axis, mode, "none", output_type);
+    auto top_k_mode = (mode == "max" ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN);
+    auto sort_type = v11::TopK::SortType::SORT_VALUES;
+    auto top_k = make_shared<v11::TopK>(input, k, axis, top_k_mode, sort_type, output_type, true);
 
     auto axis_to_remove = make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>({axis}));
     auto res = make_shared<v0::Squeeze>(top_k->output(1), axis_to_remove);
