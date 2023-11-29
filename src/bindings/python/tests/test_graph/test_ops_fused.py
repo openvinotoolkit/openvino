@@ -5,8 +5,8 @@
 import numpy as np
 import pytest
 
-import openvino.runtime as ov_runtime
 import openvino.runtime.opset8 as ov
+from openvino import Type
 
 
 def test_elu_operator_with_scalar_and_array():
@@ -131,7 +131,7 @@ def test_squared_difference_operator():
     model = ov.squared_difference(parameter_x1, parameter_x2)
     assert model.get_type_name() == "SquaredDifference"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
 
 
@@ -144,7 +144,7 @@ def test_shuffle_channels_operator():
     model = ov.shuffle_channels(parameter, axis, groups)
     assert model.get_type_name() == "ShuffleChannels"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 15, 2, 2]
 
 
@@ -156,7 +156,7 @@ def test_unsqueeze():
     model = ov.unsqueeze(parameter_data, axes)
     assert model.get_type_name() == "Unsqueeze"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 3, 4, 5, 1]
 
 
@@ -168,7 +168,7 @@ def test_grn_operator():
     model = ov.grn(parameter_data, bias)
     assert model.get_type_name() == "GRN"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
 
 
@@ -184,7 +184,7 @@ def test_prelu_operator():
     expected = np.clip(data_value, 0, np.inf) + np.clip(data_value, -np.inf, 0) * slope_value
     assert model.get_type_name() == "PRelu"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == list(expected.shape)
 
 
@@ -197,7 +197,7 @@ def test_selu_operator():
     model = ov.selu(parameter_data, alpha, lambda_value)
     assert model.get_type_name() == "Selu"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [4, 2, 3, 1]
 
 
@@ -210,7 +210,7 @@ def test_hard_sigmoid_operator():
     model = ov.hard_sigmoid(parameter_data, parameter_alpha, parameter_beta)
     assert model.get_type_name() == "HardSigmoid"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [3]
 
 
@@ -225,7 +225,7 @@ def test_mvn_operator():
     model = ov.mvn(parameter_data, axes, normalize_variance, eps, eps_mode)
     assert model.get_type_name() == "MVN"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [3, 3, 3, 1]
 
 
@@ -240,7 +240,7 @@ def test_space_to_depth_operator():
     model = ov.space_to_depth(parameter_data, mode, block_size)
     assert model.get_type_name() == "SpaceToDepth"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 8, 2, 2]
 
     batch_size = 2
@@ -278,7 +278,7 @@ def test_space_to_depth_operator():
     )
     assert model.get_type_name() == "SpaceToDepth"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [batch_size, hidden_size]
 
 
@@ -297,7 +297,7 @@ def test_group_convolution_operator():
     model = ov.group_convolution(parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations)
     assert model.get_type_name() == "GroupConvolution"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
 
 
@@ -317,7 +317,7 @@ def test_group_convolution_backprop_data():
 
     assert model.get_type_name() == "GroupConvolutionBackpropData"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 1, 6, 6]
 
 
@@ -336,5 +336,5 @@ def test_group_convolution_backprop_data_output_shape():
 
     assert model.get_type_name() == "GroupConvolutionBackpropData"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == ov_runtime.Type.f32
+    assert model.get_output_element_type(0) == Type.f32
     assert list(model.get_output_shape(0)) == [1, 1, 1, 14]

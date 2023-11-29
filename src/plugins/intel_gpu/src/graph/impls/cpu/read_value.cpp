@@ -47,16 +47,23 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             e->wait();
         }
 
-        auto& variable = instance.get_network().get_variable_memory(variable_id);
+        auto& variable = instance.get_network().get_variable(variable_id);
+        auto &stream = instance.get_network().get_stream();
 
-        if (variable.memory->get_layout() != instance.get_output_layout()) {
-            CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
+        OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
+                "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
+                " read_value output layout: ", instance.get_output_layout().to_short_string());
+
+        if (!variable.is_set()) {
+            if (instance.get_impl_params()->input_layouts.size() > 0) {
+                variable.get_memory()->copy_from(stream, instance.dep_memory(0), true);
+            } else {
+                variable.get_memory()->fill(stream, 0);
+            }
         }
 
-        if (!variable.is_set) {
-            auto &stream = instance.get_network().get_stream();
-            const auto ev_set_output = instance.output_memory().fill(stream, 0);
-            return ev_set_output;
+        if (!instance.can_be_optimized()) {
+            return instance.output_memory(0).copy_from(stream, *variable.get_memory(), false);
         }
 
         return instance.get_network().get_stream().create_user_event(true);
@@ -73,7 +80,8 @@ public:
 namespace detail {
 
 attach_read_value_impl::attach_read_value_impl() {
-    implementation_map<read_value>::add(impl_types::cpu, read_value_impl::create, {});
+    implementation_map<read_value>::add(impl_types::cpu, shape_types::dynamic_shape, read_value_impl::create, {});
+    implementation_map<read_value>::add(impl_types::cpu, shape_types::static_shape, read_value_impl::create, {});
 }
 
 }  // namespace detail

@@ -47,6 +47,11 @@ run tasks in current thread.
 class OPENVINO_RUNTIME_API ITaskExecutor {
 public:
     /**
+     * A shared pointer to ITaskExecutor interface
+     */
+    using Ptr = std::shared_ptr<ITaskExecutor>;
+
+    /**
      * @brief      Destroys the object.
      */
     virtual ~ITaskExecutor() = default;
