@@ -25,6 +25,7 @@
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
+#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -98,7 +99,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
         inputShapeWrapper(ov::test::utils::make_2_input_subtract, {1, 3, 24, 24}),
         "2InputSubtract"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_nested_split_conv_concat, {1, 4, 20, 20}),
         "NestedSplitConvConcat"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_input_in_branch, {1, 4, 20, 20}),
