@@ -93,7 +93,7 @@ Supported Input Parameter Types
 
 If the model has a single input, the following input types are supported in ``example_input``:
 
-* ``openvino.runtime.Tensor``
+* ``openvino.Tensor``
 * ``torch.Tensor``
 * ``tuple`` or any nested combination of tuples
 

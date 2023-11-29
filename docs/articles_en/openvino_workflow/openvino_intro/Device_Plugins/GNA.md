@@ -241,7 +241,7 @@ With the following methods, you can collect profiling information with various p
    .. tab-item:: Python
       :sync: py
    
-      ``openvino.runtime.InferRequest.get_profiling_info``
+      ``openvino.InferRequest.get_profiling_info``
 
    .. tab-item:: C++
       :sync: cpp

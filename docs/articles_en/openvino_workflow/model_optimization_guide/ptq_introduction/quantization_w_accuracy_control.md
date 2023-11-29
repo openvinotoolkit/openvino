@@ -33,7 +33,7 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_f
 Prepare validation function
 ############################
 
-Validation function receives ``openvino.runtime.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
+Validation function receives ``openvino.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
 
 .. tab-set::
 
@@ -91,7 +91,7 @@ If the accuracy or performance of the quantized model is not satisfactory, you c
 Examples of NNCF post-training quantization with control of accuracy metric:
 #############################################################################
 
-* `Post-Training Quantization of Anomaly Classification OpenVINO model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/quantize_with_accuracy_control>`__
+* `Post-Training Quantization of Anomaly Classification OpenVINO model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/anomaly_stfpm_quantize_with_accuracy_control>`__
 * `Post-Training Quantization of YOLOv8 OpenVINO Model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8_quantize_with_accuracy_control>`__
 
 See also

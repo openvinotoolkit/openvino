@@ -68,6 +68,7 @@
    ExperimentalDetectronTopKROIs-6 <openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6>
    ExtractImagePatches-3 <openvino_docs_ops_movement_ExtractImagePatches_3>
    Eye-9 <openvino_docs_ops_generation_Eye_9>
+   FakeConvert-13 <openvino_docs_ops_quantization_FakeConvert_13>
    FakeQuantize-1 <openvino_docs_ops_quantization_FakeQuantize_1>
    FloorMod-1 <openvino_docs_ops_arithmetic_FloorMod_1>
    Floor-1 <openvino_docs_ops_arithmetic_Floor_1>
