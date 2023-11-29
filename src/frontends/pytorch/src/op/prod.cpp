@@ -32,6 +32,13 @@ OutputVector translate_prod(const NodeContext& context) {
     }
     if (!context.input_is_none(dtype_idx)) {
         input = apply_dtype(context, dtype_idx, input);
+    } else {
+        // ReduceProd doesn't support boolean inputs
+        auto data_dtype = simplified_type_interpret(context.get_input_type(0));
+        if (input.get_element_type() == element::boolean ||
+            (data_dtype.is<element::Type>() && data_dtype.as<element::Type>() == element::boolean)) {
+            input = context.mark_node(std::make_shared<ov::op::v0::Convert>(input, element::i64));
+        }
     }
     Output<Node> prod = context.mark_node(std::make_shared<ov::op::v1::ReduceProd>(input, dim, keepdim));
     return {prod};
