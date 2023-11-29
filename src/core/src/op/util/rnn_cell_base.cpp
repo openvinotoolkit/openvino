@@ -88,6 +88,19 @@ ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta) {}
 
+ov::op::util::RNNCellBase::RNNMultiCellBase(const OutputVector& args,
+                                            size_t hidden_size,
+                                            float clip,
+                                            const std::vector<std::string>& activations,
+                                            const std::vector<float>& activations_alpha,
+                                            const std::vector<float>& activations_beta)
+    : Op(args),
+      m_hidden_size(hidden_size),
+      m_clip(clip),
+      m_activations(to_lower_case(activations)),
+      m_activations_alpha(activations_alpha),
+      m_activations_beta(activations_beta) {}
+
 bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_RNNCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);

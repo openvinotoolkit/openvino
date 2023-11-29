@@ -128,6 +128,7 @@
    Mod-1 <openvino_docs_ops_arithmetic_Mod_1>
    MulticlassNonMaxSuppression-8 <openvino_docs_ops_sort_MulticlassNonMaxSuppression_8>
    MulticlassNonMaxSuppression-9 <openvino_docs_ops_sort_MulticlassNonMaxSuppression_9>
+   MultiLSTMSequence-13 <openvino_docs_ops_sort_MultiLSTMSequence_13>
    Multinomial-13 <openvino_docs_ops_generation_Multinomial_13>
    Multiply-1 <openvino_docs_ops_arithmetic_Multiply_1>
    Negative-1 <openvino_docs_ops_arithmetic_Negative_1>
