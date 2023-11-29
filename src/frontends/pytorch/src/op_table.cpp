@@ -129,6 +129,7 @@ OP_CONVERTER(translate_new_zeros);
 OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
+OP_CONVERTER(translate_normal);
 OP_CONVERTER(translate_normal_);
 OP_CONVERTER(translate_not);
 OP_CONVERTER(translate_numel);
@@ -439,6 +440,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::new_zeros", op::translate_new_zeros},
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
+        {"aten::normal", op::translate_normal},
         {"aten::normal_", op::translate_normal_},
         {"aten::numel", op::translate_numel},
         {"aten::numpy_T", op::translate_t},

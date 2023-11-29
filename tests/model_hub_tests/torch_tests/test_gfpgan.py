@@ -48,7 +48,7 @@ class TestGFPGANConvertModel(TestTorchConvertModel):
 
     def convert_model(self, model_obj):
         ov_model = convert_model(
-            model_obj, example_input=self.example, verbose=True, input=[1, 3, 512, 512])
+            model_obj, example_input=self.example, input=[1, 3, 512, 512], verbose=True)
         return ov_model
 
     def compare_results(self, fw_outputs, ov_outputs):
