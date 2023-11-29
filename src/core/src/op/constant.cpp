@@ -81,9 +81,10 @@ Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
         if (m_element_type == ov::element::string) {
             // we need to re-initialize memory with separate (newly created) std::string objects with the same values
+            // because currenly it references std::string objects from input (not host) tensor
             auto size = shape_size(m_shape);
             auto string_ptr = static_cast<std::string*>(get_data_ptr_nc());
-            std::transform(string_ptr, string_ptr + size, string_ptr, [](std::string value) {
+            std::transform(string_ptr, string_ptr + size, string_ptr, [](std::string& value) {
                 return value;
             });
         }

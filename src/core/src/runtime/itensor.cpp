@@ -166,9 +166,7 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
             auto dst_string = reinterpret_cast<std::string*>(dst_data + dst_idx);
             auto src_string = reinterpret_cast<const std::string*>(src_data + src_idx);
             size_t num_elements_stride = src_strides[src_strides.size() - 1] / element::string.size();
-            for (size_t idx = 0; idx < num_elements_stride; ++idx) {
-                *(dst_string++) = *(src_string++);
-            }
+            std::copy_n(src_string, num_elements_stride, dst_string);
         } else {
             memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
         }
