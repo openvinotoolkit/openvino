@@ -343,11 +343,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streamExecutorConfig._streams_changed = true;
     }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: multi-stream execution has functional issues on ARM target
-    streamExecutorConfig._streams = 1;
-    streamExecutorConfig._streams_changed = true;
-#endif
     this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());

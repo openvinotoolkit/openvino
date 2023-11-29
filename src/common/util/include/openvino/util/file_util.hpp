@@ -95,7 +95,7 @@ std::wstring string_to_wstring(const std::string& str);
 
 /// \brief Remove path components which would allow traversing up a directory tree.
 /// \param path A path to file
-/// \return A sanitiazed path
+/// \return A sanitized path
 std::string sanitize_path(const std::string& path);
 
 /// \brief Returns the name with extension for a given path
