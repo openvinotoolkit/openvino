@@ -75,7 +75,7 @@ facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
 facebook/mms-tts-eng,vits,xfail,No conversion rule found for aten::index_put_ aten::softplus prim::DictConstruct
-facebook/musicgen-small,musicgen,xfail,Convert error: Killed by timout with no error
+facebook/musicgen-small,musicgen
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
