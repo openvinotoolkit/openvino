@@ -258,13 +258,9 @@ class TestTransformersModel(TestTorchConvertModel):
                     )
                     example = dict(inputs)
 
-                    class MusicGenerateModel(torch.nn.Module):
-                        def __init__(self, model):
-                            super().__init__()
-                            self.model = model
-                        def forward(self, input_ids, attention_mask):
-                            return self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=256)
-                    model = MusicGenerateModel(model)
+                    pad_token_id = model.generation_config.pad_token_id
+                    example["decoder_input_ids"] = torch.ones(
+                        (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
                 elif auto_model == 'RagTokenForGeneration':
                     from transformers import AutoTokenizer, RagTokenForGeneration
                     tokenizer = AutoTokenizer.from_pretrained(name)
