@@ -157,7 +157,8 @@ Engine::SchedulerGuard::~SchedulerGuard() {
     // To save the state of scheduler after ACLScheduler has been executed
     // TODO: find out the cause of the state
     std::lock_guard<std::mutex> lock{this->dest_mutex};
-    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+    if (!arm_compute::Scheduler::is_available(arm_compute::Scheduler::Type::CUSTOM))
+        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 }
 #endif
 
