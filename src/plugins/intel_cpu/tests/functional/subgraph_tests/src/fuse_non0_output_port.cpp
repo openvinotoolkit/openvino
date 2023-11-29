@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ov_models/builders.hpp"
