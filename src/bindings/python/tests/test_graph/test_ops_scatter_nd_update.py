@@ -5,10 +5,9 @@
 import numpy as np
 import pytest
 
-from openvino.runtime import PartialShape
+from openvino.runtime import PartialShape, Type
 
 import openvino.runtime.opset13 as ov
-from openvino.runtime import Type
 
 
 def test_scatter_nd_update():
