@@ -17,6 +17,7 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 namespace {
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
@@ -26,7 +27,7 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
                           public testing::WithParamInterface<ConcurrencyTestParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
+        fn_ptrs = {ov::test::utils::make_split_multi_conv_concat(),
                    ngraph::builder::subgraph::makeMultiSingleConv(),
                    ngraph::builder::subgraph::makeTIwithLSTMcell()};
     };
@@ -144,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
 TEST(canSwapTensorsBetweenInferRequests, inputs) {
     std::vector<ov::Tensor> ref;
     std::vector<ov::Tensor> input_tensors;
-    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    auto fn = ov::test::utils::make_split_multi_conv_concat();
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -283,7 +284,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     std::vector<ov::Tensor> ref;
     std::vector<ov::Tensor> input_tensors;
     std::vector<ov::Tensor> output_tensors;
-    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    auto fn = ov::test::utils::make_split_multi_conv_concat();
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));

@@ -5,6 +5,7 @@
 #include <behavior/plugin/core_threading.hpp>
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
@@ -31,7 +32,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_split_conv_concat()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_split_multi_conv_concat()));
 
     auto ocl_instance = std::make_shared<OpenCL>();
     ie.SetConfig(config, target_device);

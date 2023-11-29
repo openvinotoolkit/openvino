@@ -12,13 +12,14 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 class OVRemoteTensor_Test : public ov::test::TestsCommon {
 protected:
     std::shared_ptr<ov::Model> fn_ptr;
 
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::test::utils::make_split_multi_conv_concat();
     }
 };
 
@@ -740,7 +741,7 @@ protected:
 
 public:
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::test::utils::make_split_multi_conv_concat();
         deviceName = ov::test::utils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) {

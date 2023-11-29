@@ -10,6 +10,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 namespace {
 typedef std::tuple<
@@ -88,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto core = ov::Core();
     using namespace ov::preprocess;
-    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
     p.input().tensor().set_element_type(ov::element::i8);
     p.input().preprocess().convert_element_type(ov::element::f32);
 
@@ -135,7 +136,7 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
 TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     auto core = ov::Core();
     using namespace ov::preprocess;
-    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
     p.input().tensor().set_element_type(ov::element::i8);
     p.input().preprocess().convert_element_type(ov::element::f32);
 
@@ -172,7 +173,7 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
 TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
     auto ov = ov::Core();
     using namespace ov::preprocess;
-    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
     p.input().tensor().set_element_type(ov::element::i8);
     p.input().preprocess().convert_element_type(ov::element::f32);
     auto function = p.build();
