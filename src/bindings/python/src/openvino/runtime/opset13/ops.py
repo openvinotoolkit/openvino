@@ -20,6 +20,7 @@ from openvino.runtime.utils.types import (
     NodeInput,
     NumericType,
     as_nodes,
+    make_constant_node,
 )
 
 _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
@@ -255,13 +256,18 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
-        query, key, value, scale)
+    inputs = [query, key, value]
+    if attention_mask is not None:
+        inputs.append(attention_mask)
+    else:
+        inputs.append(make_constant_node(0, np.float32))
+    if scale is not None:
+        inputs.append(scale)
 
     attributes = {
         "causal": causal,
     }
-    return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
+    return _get_node_factory_opset13().create("ScaledDotProductAttention", as_nodes(*inputs), attributes)
 
 
 @nameable_op
