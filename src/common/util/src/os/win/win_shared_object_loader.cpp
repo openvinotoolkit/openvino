@@ -92,15 +92,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
         IEGetDllDirectoryA(nBufferLength, &lpBuffer.front());
 
         // GetDirname
-        auto dirname = [path] {
-            auto pos = strchr(path, '\\');
-            if (pos == nullptr) {
-                return std::string{path};
-            }
-            std::string original(path);
-            original[pos - path] = 0;
-            return original;
-        }();
+        auto dirname = get_directory(path);
 
         SetDllDirectoryA(dirname.c_str());
         shared_object = LoadLibraryA(path);
