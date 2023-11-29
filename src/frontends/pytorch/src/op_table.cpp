@@ -470,7 +470,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::reshape_as", op::translate_reshape_as},
         // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
         // when complex dtype will be supported
-        // for real dtypes, these operation return tensor without changes and can be skipped
+        // for real dtypes, these operations return input tensor without changes and can be skipped
         {"aten::resolve_conj", op::skip_node},
         {"aten::resolve_neg", op::skip_node},
         {"aten::roll", op::translate_roll},
