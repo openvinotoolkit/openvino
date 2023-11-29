@@ -71,4 +71,3 @@ OutputVector translate_Atan2_op(const NodeContext& node) {
 }  // namespace frontend
 }  // namespace ov
 
-+
