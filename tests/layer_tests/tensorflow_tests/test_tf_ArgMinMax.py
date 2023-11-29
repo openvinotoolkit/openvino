@@ -48,7 +48,6 @@ class TestArgMinMax(CommonTFLayerTest):
     @pytest.mark.parametrize("input_type", [np.float32, np.int32])
     @pytest.mark.parametrize("output_type", [tf.int32, tf.int64])
     @pytest.mark.parametrize("op_type", [tf.raw_ops.ArgMax, tf.raw_ops.ArgMin])
-    @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_argmin_max_net(self, params, input_type, output_type, op_type, ie_device, precision, ir_version, temp_dir,
