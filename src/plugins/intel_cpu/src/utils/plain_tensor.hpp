@@ -244,7 +244,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     PlainTensor<DT> slice(int axis, int start, int end, int step = 1) const {
         PlainTensor<DT> sub_tensor;
-        assert(axis < m_rank);
+        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
