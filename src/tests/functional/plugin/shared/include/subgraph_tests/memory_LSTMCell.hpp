@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(MemoryLSTMCellTest, CompareWithRefs) {
-    Run();
+    run();
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -5,6 +5,7 @@
 #include "openvino/op/fake_convert.hpp"
 
 #include "element_visitor.hpp"
+#include "fake_convert_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/fake_convert.hpp"
@@ -69,8 +70,26 @@ const std::string& FakeConvert::get_destination_type() const {
 
 void FakeConvert::validate_and_infer_types() {
     OV_OP_SCOPE(v13_FakeConvert_validate_and_infer_types);
-    validate_type();
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    validate_destination_type();
+    auto out_type = get_input_element_type(0);
+    for (size_t i = 1; i < get_input_size(); i++) {
+        OPENVINO_ASSERT(element::Type::merge(out_type, out_type, get_input_element_type(i)),
+                        "Mixed input types are not supported.");
+    }
+    switch (out_type) {
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::dynamic:
+        break;
+    default:
+        OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", out_type);
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, out_type, output_shapes[0]);
 }
 
 std::shared_ptr<ov::Node> FakeConvert::clone_with_new_inputs(const ov::OutputVector& new_args) const {
@@ -90,7 +109,7 @@ bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-void FakeConvert::validate_type() const {
+void FakeConvert::validate_destination_type() const {
     const auto& valid_types = fake_convert_details::get_valid_types();
     const auto is_supported_type =
         std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end();

@@ -43,24 +43,24 @@ public:
         auto ext_it = m_opset_so_extensions.find(op_type_name);
         if (ext_it != m_opset_so_extensions.end()) {
             auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_it->second->extension());
-            NGRAPH_CHECK(op_extension);  // guaranteed by add_extension method
+            OPENVINO_ASSERT(op_extension);  // guaranteed by add_extension method
             util::DictAttributeDeserializer visitor(attributes, m_variables);
             auto outputs = op_extension->create(arguments, visitor);
 
-            NGRAPH_CHECK(outputs.size() > 0,
-                         "Failed to create extension operation with type: ",
-                         op_type_name,
-                         " because it doesn't contain output ports. Operation should has at least one output port.");
+            OPENVINO_ASSERT(outputs.size() > 0,
+                            "Failed to create extension operation with type: ",
+                            op_type_name,
+                            " because it doesn't contain output ports. Operation should has at least one output port.");
 
             auto node = outputs[0].get_node_shared_ptr();
             return node;
         } else {
             std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
 
-            NGRAPH_CHECK(op_node != nullptr, "Couldn't create operation: ", op_type_name);
-            NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
-                         "Currently NodeFactory doesn't support Constant operation: ",
-                         op_type_name);
+            OPENVINO_ASSERT(op_node != nullptr, "Couldn't create operation: ", op_type_name);
+            OPENVINO_ASSERT(!ov::op::util::is_constant(op_node),
+                            "Currently NodeFactory doesn't support Constant operation: ",
+                            op_type_name);
 
             util::DictAttributeDeserializer visitor(attributes, m_variables);
 
@@ -76,18 +76,18 @@ public:
         // Check for available extensions first, because they may override ops from main opset
         auto ext_it = m_opset_so_extensions.find(op_type_name);
         // No way to instantiate operation without inputs, so if extension operation is found report an error.
-        NGRAPH_CHECK(ext_it == m_opset_so_extensions.end(),
-                     "Couldn't create operation of type ",
-                     op_type_name,
-                     " from an extension library as no inputs were provided. Currently NodeFactory doesn't support ",
-                     "operations without inputs. Provide at least one input.");
+        OPENVINO_ASSERT(ext_it == m_opset_so_extensions.end(),
+                        "Couldn't create operation of type ",
+                        op_type_name,
+                        " from an extension library as no inputs were provided. Currently NodeFactory doesn't support ",
+                        "operations without inputs. Provide at least one input.");
 
         std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
 
-        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operation: ", op_type_name);
-        NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
-                     "Currently NodeFactory doesn't support Constant node: ",
-                     op_type_name);
+        OPENVINO_ASSERT(op_node != nullptr, "Couldn't create operation: ", op_type_name);
+        OPENVINO_ASSERT(!ov::op::util::is_constant(op_node),
+                        "Currently NodeFactory doesn't support Constant node: ",
+                        op_type_name);
 
         OPENVINO_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
 

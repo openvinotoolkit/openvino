@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
         uses: actions/checkout@v4
@@ -39,11 +40,8 @@ jobs:
           commit_sha: ${{ github.sha }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show affected components
-        run: |
-          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
-        shell: bash
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 
   Build:
     needs: Smart_CI
@@ -51,7 +49,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -72,7 +70,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
-    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
+    if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Install git
@@ -529,7 +527,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1278,7 +1276,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 25 }}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -1364,7 +1362,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 25 }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -1550,7 +1548,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
       volumes:
