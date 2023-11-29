@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/openvino.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 #include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 class EdgeWithSameNameInTwoModels : public ::testing::Test, public CPUTestsBase {};
 
@@ -24,36 +26,52 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
     const std::vector<ptrdiff_t> padsBegin{0, 0};
     const std::vector<ptrdiff_t> padsEnd{0, 0};
     const std::vector<size_t> dilations{1, 1};
-    const ngraph::op::PadType autoPad(ngraph::op::PadType::EXPLICIT);
+    const ov::op::PadType autoPad(ov::op::PadType::EXPLICIT);
 
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         std::tie(inFmts, outFmts, priority, selectedType) = conv_avx512_2D;
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         std::tie(inFmts, outFmts, priority, selectedType) = conv_avx2_2D;
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         std::tie(inFmts, outFmts, priority, selectedType) = conv_sse42_2D;
     }
 
     // first model
-    const std::vector<std::vector<size_t>> shapes1{{1, 16, 720, 1280}};
+    const std::vector<ov::Shape> shapes1{{1, 16, 720, 1280}};
     ov::ParameterVector params1;
     for (auto&& shape : shapes1) {
-        params1.push_back(std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape)));
+        params1.push_back(std::make_shared<ov::op::v0::Parameter>(type, shape));
     }
     const size_t convOutCh1 = 32;
-    auto conv1 = ngraph::builder::makeConvolution(params1.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh1);
+    auto conv1 = ov::test::utils::make_convolution(params1.front(),
+                                                   type,
+                                                   kernel,
+                                                   strides,
+                                                   padsBegin,
+                                                   padsEnd,
+                                                   dilations,
+                                                   autoPad,
+                                                   convOutCh1);
     conv1->set_friendly_name(convName);
     conv1->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
     auto model1 = makeNgraphFunction(type, params1, conv1, "Model1");
 
     // second model
-    const std::vector<std::vector<size_t>> shapes2{{1, 32, 24, 24}};
+    const std::vector<ov::Shape> shapes2{{1, 32, 24, 24}};
     ov::ParameterVector params2;
     for (auto&& shape : shapes2) {
-        params2.push_back(std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape)));
+        params2.push_back(std::make_shared<ov::op::v0::Parameter>(type, shape));
     }
     const size_t convOutCh2 = 16;
-    auto conv2 = ngraph::builder::makeConvolution(params2.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh2);
+    auto conv2 = ov::test::utils::make_convolution(params2.front(),
+                                                   type,
+                                                   kernel,
+                                                   strides,
+                                                   padsBegin,
+                                                   padsEnd,
+                                                   dilations,
+                                                   autoPad,
+                                                   convOutCh2);
     conv2->set_friendly_name(convName);
     conv2->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
     auto model2 = makeNgraphFunction(type, params2, conv2, "Model2");
@@ -78,4 +96,5 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
     inferReq2.infer();
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
