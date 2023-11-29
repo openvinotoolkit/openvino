@@ -263,23 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> makeMatMulBias(std::vector<size_t> inputShape, ov::element::Type type) {
-    ov::ParameterVector parameter{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape))};
-    parameter[0]->set_friendly_name("parameter");
-    auto weights = ov::op::v0::Constant::create(type, ov::Shape{24, 24}, {1});
-    auto biases = ov::op::v0::Constant::create(type, ov::Shape{1, 24}, {1});
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(parameter[0], weights);
-    matmul->set_friendly_name("matmul");
-    auto add = std::make_shared<ov::op::v1::Add>(matmul, biases);
-    add->set_friendly_name("add");
-    auto result = std::make_shared<ov::op::v0::Result>(add);
-    result->set_friendly_name("result");
-    std::shared_ptr<ov::Model> fn_ptr =
-        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
-    fn_ptr->set_friendly_name("MatMulBias");
-    return fn_ptr;
-}
-
 std::shared_ptr<ov::Model> makeConvertTranspose(std::vector<size_t> inputShape,
                                                 std::vector<size_t> inputOrder,
                                                 ov::element::Type type) {

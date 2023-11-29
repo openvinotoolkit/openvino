@@ -17,6 +17,7 @@
 #include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 
 using namespace InferenceEngine::details;
 using namespace InferenceEngine;
@@ -106,7 +107,7 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnly
         inputShapeWrapper(ov::test::utils::make_conv_bias, {1, 3, 24, 24}),
         "ConvBias"});
     res.push_back(nGraphFunctionWithName{
-        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_matmul_bias, {1, 3, 24, 24}),
         "MatMulBias" });
     return res;
 }

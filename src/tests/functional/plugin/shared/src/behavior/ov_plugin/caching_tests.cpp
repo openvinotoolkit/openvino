@@ -28,6 +28,7 @@
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/conv_bias.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -116,7 +117,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
         inputShapeWrapper(ov::test::utils::make_conv_bias, {1, 3, 24, 24}),
         "ConvBias"});
     res.push_back(ovModelWithName{
-        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_matmul_bias, {1, 3, 24, 24}),
         "MatMulBias" });
     return res;
 }
