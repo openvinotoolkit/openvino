@@ -42,10 +42,12 @@ public:
         enum class Place {Before, After, PipelineStart, PipelineEnd};
         using PassListType = std::vector<std::shared_ptr<ov::pass::PassBase>>;
         explicit PassPosition(Place pass_place);
-        explicit PassPosition(Place pass_place, std::string pass_name, size_t pass_instance = 0);
+        explicit PassPosition(Place pass_place, const DiscreteTypeInfo& pass_type_info, size_t pass_instance = 0);
+
         PassListType::const_iterator get_insert_position(const PassListType& pass_list) const;
+
     private:
-        const std::string m_pass_name;
+        const DiscreteTypeInfo m_pass_type_info = {};
         const size_t m_pass_instance{0};
         const Place m_place{Place::Before};
     };

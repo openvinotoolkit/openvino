@@ -10,30 +10,19 @@ namespace snippets {
 namespace pass {
 Manager::PassPosition::PassPosition(Place pass_place) : m_place(pass_place) {
     OPENVINO_ASSERT(m_place == Place::PipelineStart || m_place == Place::PipelineEnd,
-                    "Invalid arg: pass_name and pass_instance args could be omitted only for Place::PipelineStart/Place::PipelineEnd");
+                    "Invalid arg: pass_type_info and pass_instance args could be omitted only for Place::PipelineStart/Place::PipelineEnd");
 }
-Manager::PassPosition::PassPosition(Place pass_place, std::string pass_name, size_t pass_instance)
-: m_pass_name(std::move(pass_name)), m_pass_instance(pass_instance), m_place(pass_place) {
-    OPENVINO_ASSERT((m_place == Place::Before || m_place == Place::After) && !m_pass_name.empty(),
-                    "Invalid args combination: pass_place must be Place::Before/Place::After and pass_name must be non-empty");
+Manager::PassPosition::PassPosition(Place pass_place, const DiscreteTypeInfo& pass_type_info, size_t pass_instance)
+: m_pass_type_info(pass_type_info), m_pass_instance(pass_instance), m_place(pass_place) {
+    OPENVINO_ASSERT((m_place == Place::Before || m_place == Place::After) && m_pass_type_info != DiscreteTypeInfo(),
+                    "Invalid args combination: pass_place must be Place::Before/Place::After and pass_type_info must be non-empty");
 }
 
 Manager::PassPosition::PassListType::const_iterator
 Manager::PassPosition::get_insert_position(const PassListType& pass_list) const {
     size_t pass_count = 0;
     auto match = [this, &pass_count](const std::shared_ptr<PassBase>& p) {
-        auto name = p->get_name();
-        // Note that MatcherPass and ModelPass currently have different naming policies:
-        // - MatcherPass have names without namespaces, e.g. ConvertToSwishCPU
-        // - Similar ModelPass name includes namespaces: ov::snippets::pass::ConvertToSwishCPU
-        // So we have to remove everything before the last ':', and ':' itself
-        if (name.size() > m_pass_name.size()) {
-            const auto pos = name.find_last_of(':');
-            if (pos == std::string::npos)
-                return false;
-            name = name.substr(pos + 1);
-        }
-        if (name == m_pass_name) {
+        if (p->get_type_info() == m_pass_type_info) {
             if (m_pass_instance == pass_count)
                 return true;
             pass_count++;
@@ -46,7 +35,7 @@ Manager::PassPosition::get_insert_position(const PassListType& pass_list) const 
         case Place::Before:
         case Place::After: {
             auto insert_it = std::find_if(pass_list.cbegin(), pass_list.cend(), match);
-            OPENVINO_ASSERT(insert_it != pass_list.cend(), "snippets::pass::Manager failed to find pass ", m_pass_name);
+            OPENVINO_ASSERT(insert_it != pass_list.cend(), "snippets::pass::Manager failed to find pass ", m_pass_type_info);
             return m_place == Place::After ?  std::next(insert_it) : insert_it;
         }
         default:
