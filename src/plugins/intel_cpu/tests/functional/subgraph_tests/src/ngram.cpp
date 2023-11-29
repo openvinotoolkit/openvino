@@ -2,39 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
 #include <debug.h>
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ov_models/builders.hpp>
+
+#include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
+
 #include "common_test_utils/common_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "test_utils/cpu_test_utils.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
 using namespace ngraph::helpers;
 
-namespace CPUSubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-typedef std::tuple<
-    std::vector<InputShape>,
-    ElementType,
-    ElementType,
-    size_t
-> NgramTestParams;
+typedef std::tuple<std::vector<InputShape>, ElementType, ElementType, size_t> NgramTestParams;
 
 static std::shared_ptr<ov::Node> getStridedSlice(const std::shared_ptr<ov::Node>& data,
                                                  const std::shared_ptr<ov::Node>& begin,
                                                  const std::shared_ptr<ov::Node>& end,
                                                  const std::vector<int64_t>& shrink_axis_mask = {}) {
     std::vector<int64_t> default_mask(begin->get_shape()[0], 0);
-    return std::make_shared<ov::opset1::StridedSlice>(data, begin, end, default_mask, default_mask,
-                                                      std::vector<int64_t>{}, shrink_axis_mask);
+    return std::make_shared<ov::opset1::StridedSlice>(data,
+                                                      begin,
+                                                      end,
+                                                      default_mask,
+                                                      default_mask,
+                                                      std::vector<int64_t>{},
+                                                      shrink_axis_mask);
 }
 
 static std::shared_ptr<ov::Node> getReshape(const std::shared_ptr<ov::Node>& data,
@@ -96,7 +99,8 @@ static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input
         }
         auto eq_left_reshape = getReshape(eq_left_bias, {1}, idces_et);
         auto eq_left_concat_const = ov::opset1::Constant::create(idces_et, {1}, {1});
-        auto eq_left_concat = std::make_shared<ov::opset1::Concat>(ov::OutputVector{eq_left_reshape, eq_left_concat_const}, 0);
+        auto eq_left_concat =
+            std::make_shared<ov::opset1::Concat>(ov::OutputVector{eq_left_reshape, eq_left_concat_const}, 0);
         auto eq_left_ss_begin = ov::opset1::Constant::create(idces_et, {2}, std::vector<size_t>{cur_idx, 0ul});
         auto eq_left_ss = getStridedSlice(idces_padded, eq_left_ss_begin, eq_left_concat, {0, 1});
 
@@ -107,7 +111,8 @@ static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input
         }
         auto eq_right_reshape = getReshape(eq_right_bias, {1}, idces_et);
         auto eq_right_concat_const = ov::opset1::Constant::create(idces_et, {1}, {1});
-        auto eq_right_concat = std::make_shared<ov::opset1::Concat>(ov::OutputVector{eq_right_reshape, eq_right_concat_const}, 0);
+        auto eq_right_concat =
+            std::make_shared<ov::opset1::Concat>(ov::OutputVector{eq_right_reshape, eq_right_concat_const}, 0);
         auto eq_right_ss_begin = ov::opset1::Constant::create(idces_et, {2}, std::vector<size_t>{mid_idx, 0ul});
         auto eq_right_ss = getStridedSlice(idces_padded, eq_right_ss_begin, eq_right_concat, {0, 1});
 
@@ -145,9 +150,11 @@ static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input
     return std::make_shared<ov::Model>(final_concat, params, "ngram");
 }
 
-class NgramCPUTest : public testing::WithParamInterface<NgramTestParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
+class NgramCPUTest : public testing::WithParamInterface<NgramTestParams>,
+                     virtual public SubgraphBaseTest,
+                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<NgramTestParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<NgramTestParams>& obj) {
         std::vector<InputShape> input_shapes;
         size_t k;
         ElementType data_et;
@@ -177,7 +184,6 @@ public:
         const auto& data_shape = targetInputStaticShapes[0];
         auto embeddings_tensor = ov::test::utils::create_and_fill_tensor_consistently(data_et, data_shape, 100, 1, 1);
         inputs.insert({model_inputs[0].get_node_shared_ptr(), embeddings_tensor});
-
 
         const auto& indices_et = model_inputs[1].get_element_type();
         const auto& indices_shape = targetInputStaticShapes[1];
@@ -222,28 +228,21 @@ TEST_P(NgramCPUTest, CompareWithRefs) {
 namespace {
 
 std::vector<std::vector<InputShape>> inputShapes = {
-    {
-        InputShape{{-1, 2}, {{3, 2}, {5, 2}, {7, 2}}},
-        InputShape{{-1, 2}, {{3, 2}, {5, 2}, {7, 2}}}
-    },
-    {
-        InputShape{{-1, 256}, {{12, 256}, {25, 256}}},
-        InputShape{{-1, 2}, {{12, 2}, {25, 2}}}
-    },
-    {
-        InputShape{{-1, 1}, {{12, 1}}},
-        InputShape{{-1, 2}, {{12, 2}}}
-    },
+    {InputShape{{-1, 2}, {{3, 2}, {5, 2}, {7, 2}}}, InputShape{{-1, 2}, {{3, 2}, {5, 2}, {7, 2}}}},
+    {InputShape{{-1, 256}, {{12, 256}, {25, 256}}}, InputShape{{-1, 2}, {{12, 2}, {25, 2}}}},
+    {InputShape{{-1, 1}, {{12, 1}}}, InputShape{{-1, 2}, {{12, 2}}}},
 };
 
 std::vector<size_t> k_values = {2, 3, 5, 7};
 std::vector<ElementType> idces_precisions = {ElementType::i32, ElementType::i64};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Ngram, NgramCPUTest,
-                        ::testing::Combine(::testing::ValuesIn(inputShapes),
-                                           ::testing::Values(ElementType::f32),
-                                           ::testing::ValuesIn(idces_precisions),
-                                           ::testing::ValuesIn(k_values)),
-                        NgramCPUTest::getTestCaseName);
-} // namespace
-} // namespace CPUSubgraphTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_Ngram,
+                         NgramCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(idces_precisions),
+                                            ::testing::ValuesIn(k_values)),
+                         NgramCPUTest::getTestCaseName);
+}  // namespace
+}  // namespace test
+}  // namespace ov
