@@ -10,7 +10,9 @@ namespace ov {
 namespace op {
 namespace v13 {
 template <class T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std::vector<T>& input_shapes) {
+std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
+                                 const std::vector<T>& input_shapes,
+                                 const bool& iscausal) {
     const auto inputs_count = input_shapes.size();
     const auto has_attention_mask_input = inputs_count >= 4;
     const auto has_scale_input = inputs_count == 5;
@@ -58,9 +60,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op, const std:
                                "Value input shape not compatible with other inputs.");
     }
 
-    if (has_attention_mask_input && !has_scale_input) {
+    if (has_attention_mask_input && !iscausal) {
         const auto attention_mask = input_shapes[3];
-        if (attention_mask.rank().is_static() && attention_mask.rank() != 0) {
+        if (attention_mask.rank().is_static()) {
             auto attention_mask_rank_len = attention_mask.rank().get_length();
             bool attention_mask_input_correctness = attention_mask_rank_len >= 2 &&
                                                     Dimension::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&

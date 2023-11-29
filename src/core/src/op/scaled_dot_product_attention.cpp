@@ -41,7 +41,8 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
     auto out_type = get_input_element_type(0);
     const auto input_size = get_input_size();
-    if (input_size == 4) {
+    const auto causal = get_causal();
+    if (input_size >= 4 && !causal) {
         auto attention_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(
             this,
@@ -50,8 +51,8 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     }
     for (size_t i = 1; i < input_size; i++) {
         auto element_type = get_input_element_type(i);
-        if (i == 3 && element_type == element::boolean) {
-            // Skip checking attention_mask in loop when boolean to not affect merged dtype.
+        if (i == 3 && (element_type == element::boolean || causal)) {
+            // Skip checking attention_mask in loop when boolean or skipped to not affect merged dtype.
             continue;
         }
         NODE_VALIDATION_CHECK(this,
@@ -65,7 +66,7 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    const auto output_shapes = shape_infer(this, input_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes, causal);
     set_output_type(0, out_type, output_shapes[0]);
 }
 
