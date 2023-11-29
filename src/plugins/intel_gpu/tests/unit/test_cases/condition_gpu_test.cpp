@@ -361,6 +361,7 @@ TEST(condition_gpu, dynamic_shapes_skip_condition) {
     const primitive_id branch_input_id = "branch_input";
     const primitive_id model_input = "input";
     const primitive_id predicate_input = "predicate";
+    const primitive_id reorder_id = "reorder";
     const primitive_id tranpose = "transpose";
 
     cldnn::topology topology;
@@ -384,7 +385,8 @@ TEST(condition_gpu, dynamic_shapes_skip_condition) {
     condition::branch branch_true = generate_simple_branch(true, branch_input_id, data_types::f32);
     condition::branch branch_false = generate_simple_branch(false, branch_input_id, data_types::f32);
 
-    topology.add(condition(condition_id, { input_info(predicate_input), tranpose }, branch_true, branch_false));
+    topology.add(reorder(reorder_id, input_info(predicate_input), { {d1, -1, -1, d2}, data_types::f32, format::bfyx }));
+    topology.add(condition(condition_id, { reorder_id, tranpose }, branch_true, branch_false));
 
     tests::random_generator rg(GET_SUITE_NAME);
     std::vector<uint8_t> predicate_data_true = { 1 };
