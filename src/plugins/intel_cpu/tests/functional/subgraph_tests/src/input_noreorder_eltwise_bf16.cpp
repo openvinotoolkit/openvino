@@ -3,38 +3,38 @@
 //
 
 #include <ov_models/builders.hpp>
+
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "ie_common.h"
 #include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-class InputNoReorderEltwiseBF16 : virtual public LayerTestsUtils::LayerTestsCommon,
-                                  public CPUTestsBase {
+class InputNoReorderEltwiseBF16 : virtual public SubgraphBaseStaticTest, public CPUTestsBase {
 protected:
     void SetUp() override {
-        auto netPrecision = inPrc = Precision::FP32;
-        outPrc = Precision::BF16;
+        auto netPrecision = inType = ov::element::f32;
+        outType = ov::element::bf16;
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::map<std::string, std::string> additional_config{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
+        ov::AnyMap additional_config{ov::hint::inference_precision(ov::element::bf16)};
         configuration.insert(additional_config.begin(), additional_config.end());
 
-        std::vector<size_t> inputShape {2, 4, 4, 1};
-        auto eltwiseType = ngraph::helpers::EltwiseTypes::ADD;
+        ov::Shape inputShape{2, 4, 4, 1};
+        auto eltwiseType = ov::test::utils::EltwiseTypes::ADD;
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputShape)};
 
-        auto tensor = ov::test::utils::create_and_fill_tensor(ngPrc, inputShape);
+        auto tensor = ov::test::utils::create_and_fill_tensor(netPrecision, inputShape);
         auto secondaryInput = std::make_shared<ov::op::v0::Constant>(tensor);
 
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 
-        function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
+        function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
     }
 };
 
@@ -53,10 +53,11 @@ protected:
              Output[BF16]
 */
 TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
-    Run();
+    run();
 
-    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 0);
-    CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
-    CheckNumberOfNodesWithTypes(executableNetwork, {"Eltwise", "Subgraph"}, 1);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
 }
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
