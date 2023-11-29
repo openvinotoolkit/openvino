@@ -22,7 +22,7 @@ FetchContent_Declare(
     URL_HASH SHA256=e0cf2ef9bed9965ac8f498b4a7007b9f0002fa022c1ff665f256ab54260d6305
 )
 FetchContent_MakeAvailable(node-addon-api)
-
+set(CMAKE_SKIP_INSTALL_RPATH OFF)
 add_library(${PROJECT_NAME} SHARED
     src/node_output.cpp
     src/async_reader.cpp
@@ -56,15 +56,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
+    INSTALL_RPATH "$ORIGIN/"
     PREFIX ""
     SUFFIX ".node"
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH FALSE
 )
 
 install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION openvinojs-node/bin/ COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
-)
-
-install(TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION openvinojs-node/bin/ COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
-    RUNTIME DESTINATION openvinojs-node/bin/ COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
+    LIBRARY DESTINATION . COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
+    RUNTIME DESTINATION . COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
 )
