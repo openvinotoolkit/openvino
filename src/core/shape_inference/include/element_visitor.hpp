@@ -52,7 +52,7 @@ struct IfTypeOf<> {
         return Visitor::visit();
     }
 
-#if defined SELECTIVE_BUILD_ANALYZER
+#if defined(SELECTIVE_BUILD_ANALYZER)
     template <class Visitor, class... Args>
     static auto apply(const std::string& region, Type_t et, Args&&... args) -> typename Visitor::result_type {
         return Visitor::visit();
