@@ -263,51 +263,6 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
     return fnPtr;
 }
 
-std::shared_ptr<ov::Model> makeMultipleInputOutputReLU(std::vector<size_t> inputShape, ov::element::Type_t type) {
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
-    param1->set_friendly_name("param1");
-    param1->output(0).get_tensor().set_names({"data1"});
-    auto param2 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
-    param2->set_friendly_name("param2");
-    param2->output(0).get_tensor().set_names({"data2"});
-    auto relu = std::make_shared<ov::op::v0::Relu>(param1);
-    relu->set_friendly_name("relu_op");
-    relu->output(0).get_tensor().set_names({"relu"});
-    auto result1 = std::make_shared<ov::op::v0::Result>(relu);
-    result1->set_friendly_name("result1");
-    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
-    concat->set_friendly_name("concat_op");
-    concat->output(0).get_tensor().set_names({"concat"});
-    auto result2 = std::make_shared<ov::op::v0::Result>(concat);
-    result2->set_friendly_name("result2");
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
-    fn_ptr->set_friendly_name("MultipleInputOutputReLU");
-    return fn_ptr;
-}
-
-std::shared_ptr<ov::Model> makeMultipleInputOutputDoubleConcat(std::vector<size_t> inputShape,
-                                                               ov::element::Type_t type) {
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{inputShape});
-    param1->set_friendly_name("param1");
-    param1->output(0).get_tensor().set_names({"data1"});
-    auto param2 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape));
-    param2->set_friendly_name("param2");
-    param2->output(0).get_tensor().set_names({"data2"});
-    auto concat1 = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
-    concat1->set_friendly_name("concat_op1");
-    concat1->output(0).get_tensor().set_names({"concat1"});
-    auto result1 = std::make_shared<ov::op::v0::Result>(concat1);
-    result1->set_friendly_name("result1");
-    auto concat2 = std::make_shared<ov::op::v0::Concat>(OutputVector{concat1, param2}, 1);
-    concat2->set_friendly_name("concat_op2");
-    concat2->output(0).get_tensor().set_names({"concat2"});
-    auto result2 = std::make_shared<ov::op::v0::Result>(concat2);
-    result2->set_friendly_name("result2");
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
-    fn_ptr->set_friendly_name("makeMultipleInputOutputDoubleConcat");
-    return fn_ptr;
-}
-
 std::shared_ptr<ov::Model> makeSingleConcatWithConstant(std::vector<size_t> inputShape, ov::element::Type type) {
     ov::ParameterVector parameter{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(inputShape))};
     parameter[0]->set_friendly_name("Param_1");

@@ -11,6 +11,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/result.hpp"
+#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -416,7 +417,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputFromFunctionWithSingleInput)
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInputs) {
-    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
+    model = ov::test::utils::make_multiple_input_output_double_concat({1, 1, 32, 32}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;
@@ -447,7 +448,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInput
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromFunctionWithSeveralOutputs) {
-    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
+    model = ov::test::utils::make_multiple_input_output_double_concat({1, 1, 32, 32}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;

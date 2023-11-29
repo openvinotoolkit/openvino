@@ -15,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -501,7 +502,7 @@ TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
 TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat();
+    function = ov::test::utils::make_multiple_input_output_double_concat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
