@@ -49,7 +49,15 @@ bool Result::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     }
 
     outputs[0].set_shape(inputs[0].get_shape());
-    inputs[0].copy_to(outputs[0]);
+    if (inputs[0].get_element_type() == element::string) {
+        // memcpy for element::string Tensor does not work because output elements
+        // will refer to input string elements but they must be separate objects in memory
+        inputs[0].copy_to(outputs[0]);
+    } else {
+        void* output = outputs[0].data();
+        const void* input = inputs[0].data();
+        memcpy(output, input, outputs[0].get_byte_size());
+    }
 
     return true;
 }
