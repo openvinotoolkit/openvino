@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import subprocess
 import pytest
 import torch
@@ -19,7 +20,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         self.image = Image.open(requests.get(url, stream=True).raw)
         self.image = self.image.resize([640, 480])
 
-        subprocess.run(["python3", "-m", "pip", "install",
+        subprocess.run([sys.executable, "-m", "pip", "install",
                        "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
     def load_model(self, model_name, model_link):
@@ -87,7 +88,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
 
     def teardown_class(self):
         subprocess.run(
-            ["python3", "-m", "pip", "uninstall", "-y", "detectron2"])
+            [sys.executable, "-m", "pip", "uninstall", "-y", "detectron2"])
 
     @pytest.mark.parametrize("name,type,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
