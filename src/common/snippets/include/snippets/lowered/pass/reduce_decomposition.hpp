@@ -12,14 +12,14 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface ReduceMaxDecomposition
- * @brief Decomposes Softmax to a range of low-level operations on linear IR
+ * @interface ReduceDecomposition
+ * @brief Decomposes supported Reduce operations to a range of low-level operations on linear IR
  * @ingroup snippets
  */
-class ReduceMaxDecomposition : public Pass {
+class ReduceDecomposition : public Pass {
 public:
-    OPENVINO_RTTI("ReduceMaxDecomposition", "Pass")
-    explicit ReduceMaxDecomposition(size_t vector_size);
+    OPENVINO_RTTI("ReduceDecomposition", "Pass")
+    explicit ReduceDecomposition(size_t vector_size);
     bool run(LinearIR& linear_ir) override;
 
 private:

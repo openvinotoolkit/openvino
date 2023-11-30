@@ -44,8 +44,7 @@
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
-#include "snippets/lowered/pass/reduce_max_decomposition.hpp"
-#include "snippets/lowered/pass/reduce_sum_decomposition.hpp"
+#include "snippets/lowered/pass/reduce_decomposition.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -441,8 +440,8 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     // TODO: remove SoftmaxDecomposition pass
     pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
-    pipeline.register_pass<lowered::pass::ReduceMaxDecomposition>(vector_size);
-    pipeline.register_pass<lowered::pass::ReduceSumDecomposition>(vector_size);
+    pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
+    // pipeline.register_pass<lowered::pass::ReduceSumDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
