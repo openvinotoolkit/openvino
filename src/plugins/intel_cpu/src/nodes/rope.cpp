@@ -54,6 +54,13 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             gather.reset(inputs[config.gather_position_arg_id]);
         }
 
+        if (t_cos.m_rank == 2) {
+            t_cos = t_cos.reshape({1, 1, t_cos.size(0), t_cos.size(1)});
+        }
+        if (t_sin.m_rank == 2) {
+            t_sin = t_sin.reshape({1, 1, t_sin.size(0), t_sin.size(1)});
+        }
+
         auto batch_size = t_src.size(0);
         auto head_cnt = t_src.size(1);
         auto seq_len = t_src.size(2);
