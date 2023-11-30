@@ -20,10 +20,6 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
 
     def setup_class(self):
         super().setup_class(self)
-        self.cache_dir = tempfile.TemporaryDirectory()
-        # set temp dir for torch cache
-        if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
-            torch.hub.set_dir(str(self.cache_dir.name))
         # sd model doesn't need token but torchbench need it to be specified
         os.environ['HUGGING_FACE_HUB_TOKEN'] = 'x'
         torch.set_grad_enabled(False)
@@ -53,11 +49,9 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
             model(*self.example)
         return model
 
-    def teardown_method(self):
+    def teardown_class(self):
         # cleanup tmpdir
-        self.cache_dir.cleanup()
         self.repo_dir.cleanup()
-        super().teardown_method()
 
     @pytest.mark.parametrize("name", process_pytest_marks(_model_list_path))
     @pytest.mark.nightly
