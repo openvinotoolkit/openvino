@@ -928,7 +928,6 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     };
 
     if (meta_devices.size() == 1) {
-        disable_startup_runtime_fallback();
         return meta_devices;
     }
 
@@ -960,7 +959,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    // disable CPU_HELP if model is stateful
+    // disable CPU_HELP and runtime fallback if model is stateful
     disable_startup_runtime_fallback();
 
     auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
