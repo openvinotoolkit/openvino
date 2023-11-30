@@ -15,6 +15,7 @@
 #include <algorithm>
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/split.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(loop)
@@ -23,7 +24,6 @@ std::map<size_t, memory::ptr> loop_node::get_memory_deps() const {
     auto memory_deps = get_const_memory_deps();
     for (auto& i : get_shape_infer_dependencies()) {
         auto& dep = get_dependency(i);
-        auto dep_id = dep.id();
         if (memory_deps.count(i) > 0 || i >= get_dependencies().size()) {
             continue;
         }
@@ -91,6 +91,17 @@ static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_par
             auto shape = loop_output_layout.get_partial_shape();
             shape[axis_to_iterate_through] = static_cast<int32_t>(num_iterations);
             loop_output_layout.set_partial_shape(shape);
+        } else {
+            // if num_iterations is zero, it means loop does not run inner body network.
+            // in the case of dynamic output layout, dynamic dimension will be replaced to zero.
+            if (num_iterations == 0) {
+                auto shape = loop_output_layout.get_partial_shape();
+                for (size_t i = 0; i < shape.size(); i++) {
+                    if (shape[i].is_dynamic())
+                        shape[i] = 0;
+                }
+                loop_output_layout.set_partial_shape(shape);
+            }
         }
         output_layouts.push_back(loop_output_layout);
     }
@@ -348,6 +359,7 @@ event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx)
 loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(const cldnn::loop::io_primitive_map& io_prim_map,
                                                                                     memory::ptr mem_ptr,
                                                                                     const int64_t num_iterations) {
+    OPENVINO_ASSERT(io_prim_map.axis >= 0, "axis should not be negative");
     const auto& external_id = io_prim_map.external_id;
     const auto& internal_id = io_prim_map.internal_id;
     auto& engine = body_network->get_engine();
@@ -360,16 +372,37 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
     // will recalculate that parameters in backedge preprocessing map after first execution.
     if (mem_ptr != nullptr) {
-        auto& out_mem = prim->output_memory(internal_id.idx);
-        layout sliced_layout = out_mem.get_layout();
+        layout sliced_layout = prim->get_output_layout(internal_id.idx);
+        auto out_mem_ptr = prim->output_memory_ptr(internal_id.idx);
+        if (out_mem_ptr != nullptr) {
+            sliced_layout = out_mem_ptr->get_layout();
+        } else {
+            // if inner body prim has no output memory because it has dynamic shape,
+            // calculate inner body prim layout using concat_mem's layout.
+            auto updated_sliced_layout = sliced_layout.get_partial_shape();
+            OPENVINO_ASSERT(updated_sliced_layout[io_prim_map.axis].is_static() || num_iterations > 0,
+                                    "Not allowed dynamic dimension for axis when num_iteraiont is negative");
+            auto concat_mem_pshape = mem_ptr->get_layout().get_partial_shape();
+            const auto shape_size = concat_mem_pshape.size();
+            for (size_t i = 0; i < shape_size; i++) {
+                if (updated_sliced_layout[i].is_dynamic()) {
+                    updated_sliced_layout[i] = concat_mem_pshape[i];
+                }
+            }
+            GPU_DEBUG_LOG << "output pshape for [" << prim->id() << "] is changed from "
+                            << sliced_layout.get_partial_shape().to_string()
+                            << " to " << updated_sliced_layout.to_string() << std::endl;
+            sliced_layout.set_partial_shape(updated_sliced_layout);
+            out_mem_ptr = engine.allocate_memory(sliced_layout);
+        }
 
-        // When trip_count is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
+        // When num_iterations is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
         if (num_iterations < 0) {
-            memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
-            sliced_mems.push_back(sliced_mem);
+            sliced_mems.push_back(out_mem_ptr);
         } else {
             sliced_mems.reserve(num_iterations);
-            for (int j=0; j < num_iterations; ++j) {
+            sliced_mems.push_back(out_mem_ptr);
+            for (int j=1; j < num_iterations; ++j) {
                 memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
                 sliced_mems.push_back(sliced_mem);
             }
@@ -539,6 +572,35 @@ void loop_inst::preprocess_backedge_memory() {
                 backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem, body_network->get_stream());
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
                             << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
+        }
+
+        if (backedge_to_prim->_node != nullptr) {
+            update_backedge_exec_deps(backedge_to_prim->get_node(), backedge_from_prim->id());
+        }
+    }
+}
+
+void loop_inst::update_backedge_exec_deps(const cldnn::program_node& node, const cldnn::primitive_id& backedge_from_prim_id) {
+    // Add _exec_deps for backedge primitives to prevent early execution in body network
+    // In below topology, input and result has shared memory as they are backedge_to/from.
+    // When op2 executes earlier thant op1, input is updated with op2 result and op1 has wrong input value if there is no proper _exec_deps.
+    // input(backedge_to) ------> op1 ----->
+    //                    |
+    //                    L-----> op2 -----> result (backedge_from)
+    for (auto& user : node.get_users()) {
+        if (user->can_be_optimized()) {
+            // Run until non opt out user
+            update_backedge_exec_deps(*user, backedge_from_prim_id);
+        } else {
+            auto user_primitive_id = user->get_primitive()->id;
+            auto user_primitive = body_network->get_primitive(user_primitive_id);
+
+            const auto backedge_from_prim = body_network->get_primitive(backedge_from_prim_id);
+            if (std::find(backedge_from_prim->_exec_deps.begin(), backedge_from_prim->_exec_deps.end(), user_primitive)
+                != backedge_from_prim->_exec_deps.end()) {
+                backedge_from_prim->_exec_dep_ids.push_back(user_primitive_id);
+                backedge_from_prim->_exec_deps.push_back(user_primitive);
+            }
         }
     }
 }
@@ -777,13 +839,59 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         auto mem = sliced_mems[i];
         pointers_to_data[stride > 0 ? i : (num_iters - i - 1)] = reinterpret_cast<char*>(mem->lock(stream));
     }
+
     char* concat_data = reinterpret_cast<char*>(concatenated_mem->lock(stream, cldnn::mem_lock_type::read));
-    ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
+
+    auto concate_layout = concatenated_mem->get_layout();
+    auto trait = format::traits(concate_layout.format);
+    if (format::is_blocked(concate_layout.format) || concate_layout.data_padding) {
+        // BE CAREFUL: ov::reference::split is extremely slow.
+        // If we encounter any case where this code path is executed, we need to optimize it
+        ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
+    } else {
+        const size_t part_length = concat_mem_shape.at(axis) / num_iters;
+        auto output_shape = concat_mem_shape;
+        auto out_data = pointers_to_data.data();
+        output_shape[axis] = part_length;
+
+        ov::Coordinate lower_bounds(concat_mem_shape.size(), 0);
+        ov::Coordinate upper_bounds = output_shape;
+        auto& lb_at_axis = lower_bounds[axis];
+        auto& ub_at_axis = upper_bounds[axis];
+
+        size_t continuous_size = 1;
+        auto dims_order = trait._order;
+        auto target_axis = std::find(dims_order.begin(), dims_order.end(), axis);
+        for (auto iter = target_axis + 1 ; iter != dims_order.end() ; ++iter) {
+            continuous_size *= ((output_shape.size() > *iter) ? output_shape[*iter] : 1);
+        }
+        auto strides = ov::Strides(lower_bounds.size(), 1);
+        strides[*(target_axis+1)] = continuous_size;
+
+        const auto strides_copy_size = elem_size * continuous_size;
+        const auto out_last = std::next(out_data, num_iters);
+        for (auto out_iter = out_data; out_iter != out_last; ++out_iter) {
+            auto dst_mem = *out_iter;
+            auto slice_ranges = ov::coordinates::slice(concat_mem_shape, lower_bounds, upper_bounds, strides);
+            for (const auto& range : slice_ranges) {
+                auto src_index = range.begin_index;
+                for (size_t i = 0; i < range.element_number; src_index += range.step, ++i) {
+                    const auto src_mem = concat_data + src_index * elem_size;
+                    std::memcpy(dst_mem, src_mem, strides_copy_size);
+                    std::advance(dst_mem, strides_copy_size);
+                }
+            }
+
+            lb_at_axis += part_length;
+            ub_at_axis += part_length;
+        }
+    }
 
     for (size_t i = 0; i < num_iters; i++) {
         sliced_mems[i]->unlock(stream);
     }
     concatenated_mem->unlock(stream);
+
     GPU_DEBUG_LOG << "slice memory [" << io_prim_map.to_short_string() << "] from concat_mem["
                     << concatenated_mem->get_layout().to_short_string()
                     << "], current_iteration: " << num_iterations << ", stride: " << stride

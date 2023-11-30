@@ -16,11 +16,11 @@ namespace snippets {
 std::vector<std::shared_ptr<Node>> FunctionHelper::makePrerequisitesOriginal() {
     std::vector<std::shared_ptr<Node>> nodes;
 
-    const auto parameter = std::make_shared<ngraph::opset1::Parameter>();
+    const auto parameter = std::make_shared<ov::opset1::Parameter>();
     parameter->set_friendly_name("parameter");
     nodes.push_back(parameter);
 
-    const auto maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
         parameter,
         Strides{ 1, 1 }, // strides
         Shape{ 0, 0 },   // pads_begin
@@ -33,12 +33,12 @@ std::vector<std::shared_ptr<Node>> FunctionHelper::makePrerequisitesOriginal() {
 }
 
 std::shared_ptr<Node> FunctionHelper::applyPrerequisites(const std::shared_ptr<Node>& parent, const std::vector<std::shared_ptr<Node>>& prerequisites) {
-    std::shared_ptr<ngraph::Node> currentParent;
+    std::shared_ptr<ov::Node> currentParent;
     if (prerequisites.empty()) {
         currentParent = parent;
     } else {
         auto begin = prerequisites[0];
-        if (is_type<ngraph::opset1::Parameter>(begin)) {
+        if (is_type<ov::opset1::Parameter>(begin)) {
             begin = prerequisites[1];
         }
         begin->set_argument(0, parent);

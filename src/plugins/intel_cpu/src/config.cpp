@@ -4,22 +4,18 @@
 
 #include "config.h"
 
-#include <string>
-#include <map>
-#include <algorithm>
-
-#include "ie_plugin_config.hpp"
 #include "cpu/cpu_config.hpp"
-#include "ie_common.h"
-#include "ie_parallel.hpp"
-#include "ie_system_conf.h"
-
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
+
+#include <algorithm>
+#include <map>
+#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -36,7 +32,7 @@ Config::Config() {
 #endif
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    if defined(__APPLE__) || defined(_WIN32)
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
     auto numaNodes = get_available_numa_nodes();
@@ -51,7 +47,6 @@ Config::Config() {
         streamExecutorConfig._threadBindingType = IStreamsExecutor::HYBRID_AWARE;
     }
 #endif
-
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
     updateProperties();
@@ -73,192 +68,253 @@ void Config::applyDebugCapsProperties() {
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys =
         streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
-    const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
-        const auto& val = kvp.second.as<std::string>();
-        IE_SUPPRESS_DEPRECATED_START
+        const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            streamExecutorConfig.set_property(key, val);
+            streamExecutorConfig.set_property(key, val.as<std::string>());
             if (key == ov::affinity.name()) {
-                const auto affinity_val = ov::util::from_string(val, ov::affinity);
-                if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
-                    enableCpuPinning = true;
-                    changedCpuPinning = true;
-                } else if (affinity_val == ov::Affinity::NUMA) {
-                    enableCpuPinning = false;
-                    changedCpuPinning = true;
+                changedCpuPinning = true;
+                try {
+                    const auto affinity_val = val.as<ov::Affinity>();
+                    enableCpuPinning =
+                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
+                                                                                                           : false;
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("Wrong value ",
+                                   val.as<std::string>(),
+                                   "for property key ",
+                                   key,
+                                   ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
             }
-        } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
-            perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::performance_mode.name()) {
+            try {
+                hintPerfMode = val.as<ov::hint::PerformanceMode>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               key,
+                               ". Expected only ov::hint::PerformanceMode::LATENCY/THROUGHPUT/CUMULATIVE_THROUGHPUT.");
+            }
+        } else if (key == ov::hint::num_requests.name()) {
+            try {
+                ov::Any value = val.as<std::string>();
+                int val_i = value.as<int>();
+                if (val_i < 0)
+                    OPENVINO_THROW("invalid value.");
+                hintNumRequests = static_cast<uint32_t>(val_i);
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::num_requests.name(),
+                               ". Expected only > 0.");
+            }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
-            if (val == InferenceEngine::PluginConfigParams::YES) {
-                enableCpuPinning = true;
+            try {
+                enableCpuPinning = val.as<bool>();
                 changedCpuPinning = true;
-            } else if (val == InferenceEngine::PluginConfigParams::NO) {
-                enableCpuPinning = false;
-                changedCpuPinning = true;
-            } else {
-                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_cpu_pinning.name()
-                           << ". Expected only true/false." << std::endl;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_cpu_pinning.name(),
+                               ". Expected only true/false.");
             }
         } else if (key == ov::hint::scheduling_core_type.name()) {
-            const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
-            if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
-                core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
-                core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
-                schedulingCoreType = core_type;
-            } else {
-                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::scheduling_core_type.name()
-                           << ". Expected only " << ov::hint::SchedulingCoreType::ANY_CORE << "/"
-                           << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
-                           << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
+            try {
+                schedulingCoreType = val.as<ov::hint::SchedulingCoreType>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::scheduling_core_type.name(),
+                               ". Expected only ",
+                               ov::hint::SchedulingCoreType::ANY_CORE,
+                               '/',
+                               ov::hint::SchedulingCoreType::PCORE_ONLY,
+                               '/',
+                               ov::hint::SchedulingCoreType::ECORE_ONLY);
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
-            if (val == InferenceEngine::PluginConfigParams::YES) {
-                enableHyperThreading = true;
+            try {
+                enableHyperThreading = val.as<bool>();
                 changedHyperThreading = true;
-            } else if (val == InferenceEngine::PluginConfigParams::NO) {
-                enableHyperThreading = false;
-                changedHyperThreading = true;
-            } else {
-                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
-                           << ". Expected only true/false." << std::endl;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_hyper_threading.name(),
+                               ". Expected only true/false.");
             }
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
             float val_f = 0.0f;
             try {
-                val_f = std::stof(val);
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << ov::intel_cpu::sparse_weights_decompression_rate.name()
-                           << ". Expected only float numbers";
+                val_f = val.as<float>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::intel_cpu::sparse_weights_decompression_rate.name(),
+                               ". Expected only float numbers");
             }
             if (val_f < 0.f || val_f > 1.f) {
-                IE_THROW() << "Wrong value for property key " << ov::intel_cpu::sparse_weights_decompression_rate.name()
-                           << ". Sparse rate must be in range [0.0f,1.0f]";
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::intel_cpu::sparse_weights_decompression_rate.name(),
+                               ". Sparse rate must be in range [0.0f,1.0f]");
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
         } else if (key == ov::enable_profiling.name()) {
-            if (val == InferenceEngine::PluginConfigParams::YES)
-                collectPerfCounters = true;
-            else if (val == InferenceEngine::PluginConfigParams::NO)
-                collectPerfCounters = false;
-            else
-                IE_THROW() << "Wrong value for property key " << ov::enable_profiling.name()
-                           << ". Expected only YES/NO";
-        } else if (key == ov::exclusive_async_requests.name()) {
-            if (val == InferenceEngine::PluginConfigParams::YES)
-                exclusiveAsyncRequests = true;
-            else if (val == InferenceEngine::PluginConfigParams::NO)
-                exclusiveAsyncRequests = false;
-            else
-                IE_THROW() << "Wrong value for property key " << ov::exclusive_async_requests.name()
-                                   << ". Expected only YES/NO";
-            IE_SUPPRESS_DEPRECATED_START
-        } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
-            IE_SUPPRESS_DEPRECATED_END
-            // empty string means that dumping is switched off
-            dumpToDot = val;
-        } else if (key.compare(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE) == 0) {
-            if (val == InferenceEngine::PluginConfigParams::NO)
-                lpTransformsMode = LPTransformsMode::Off;
-            else if (val == InferenceEngine::PluginConfigParams::YES)
-                lpTransformsMode = LPTransformsMode::On;
-            else
-                IE_THROW() << "Wrong value for property key "
-                           << InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
-        } else if (key == ov::device::id.name()) {
-            device_id = val;
-            if (!device_id.empty()) {
-                IE_THROW() << "CPU plugin supports only '' as device id";
+            try {
+                collectPerfCounters = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::enable_profiling.name(),
+                               ". Expected only true/false");
             }
+        } else if (key == ov::internal::exclusive_async_requests.name()) {
+            try {
+                exclusiveAsyncRequests = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::internal::exclusive_async_requests.name(),
+                               ". Expected only true/false");
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_START
+        } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
+            // empty string means that dumping is switched off
+            dumpToDot = val.as<std::string>();
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } else if (key == ov::intel_cpu::lp_transforms_mode.name()) {
+            try {
+                lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               key,
+                               ". Expected value only ov::intel_cpu::Config::LPTransformsMode::On/Off");
+            }
+        } else if (key == ov::device::id.name()) {
+            device_id = val.as<std::string>();
+            if (!device_id.empty()) {
+                OPENVINO_THROW("CPU plugin supports only '' as device id");
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key == InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) {
-            if (val == InferenceEngine::PluginConfigParams::YES) {
+            bool enable;
+            try {
+                enable = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               key,
+                               ". Expected only true/false");
+            }
+            if (enable) {
                 if (mayiuse(avx512_core)) {
                     inferencePrecision = ov::element::bf16;
                 } else {
-                    IE_THROW() << "Platform doesn't support BF16 format";
+                    OPENVINO_THROW("Platform doesn't support BF16 format");
                 }
-            } else if (val == InferenceEngine::PluginConfigParams::NO) {
-                inferencePrecision = ov::element::f32;
             } else {
-                IE_THROW() << "Wrong value for property key " << InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16
-                           << ". Expected only YES/NO";
+                inferencePrecision = ov::element::f32;
             }
             inferencePrecisionSetExplicitly = true;
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::inference_precision.name()) {
-            if (val == "bf16") {
-                if (mayiuse(avx512_core)) {
-                    inferencePrecision = ov::element::bf16;
-                    inferencePrecisionSetExplicitly = true;
-                }
-            } else if (val == "f16") {
+            try {
+                auto const prec = val.as<ov::element::Type>();
+                inferencePrecisionSetExplicitly = true;
+                if (prec == ov::element::bf16) {
+                    if (mayiuse(avx512_core)) {
+                        inferencePrecision = ov::element::bf16;
+                    }
+                } else if (prec == ov::element::f16) {
 #if defined(OPENVINO_ARCH_X86_64)
-                if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
-                    inferencePrecision = ov::element::f16;
-                    inferencePrecisionSetExplicitly = true;
-                }
+                    if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
+                        inferencePrecision = ov::element::f16;
+                    }
 #elif defined(OV_CPU_ARM_ENABLE_FP16)
-// TODO: add runtime FP16 feature support check for ARM
-                inferencePrecision = ov::element::f16;
-                inferencePrecisionSetExplicitly = true;
+                    // TODO: add runtime FP16 feature support check for ARM
+                    inferencePrecision = ov::element::f16;
 #endif
-            } else if (val == "f32") {
-                inferencePrecision = ov::element::f32;
-                inferencePrecisionSetExplicitly = true;
-            } else {
-                IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
-                           << ". Supported values: bf16, f32";
+                } else if (prec == ov::element::f32) {
+                    inferencePrecision = ov::element::f32;
+                } else {
+                    OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::hint::inference_precision.name(),
+                               ". Supported values: bf16, f16, f32");
             }
-        } else if (InferenceEngine::PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
+        } else if (ov::intel_cpu::cpu_runtime_cache_capacity.name() == key) {
             int val_i = -1;
             try {
-                val_i = std::stoi(val);
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key "
-                           << InferenceEngine::PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY
-                           << ". Expected only integer numbers";
+                ov::Any value = val.as<std::string>();
+                val_i = value.as<int>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::intel_cpu::cpu_runtime_cache_capacity.name(),
+                               ". Expected only integer numbers");
             }
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
         } else if (ov::intel_cpu::denormals_optimization.name() == key) {
-            if (val == InferenceEngine::PluginConfigParams::YES) {
-                denormalsOptMode = DenormalsOptMode::DO_On;
-            } else if (val == InferenceEngine::PluginConfigParams::NO) {
-                denormalsOptMode = DenormalsOptMode::DO_Off;
-            } else {
+            try {
+                denormalsOptMode = val.as<bool>() ? DenormalsOptMode::DO_On : DenormalsOptMode::DO_Off;
+            } catch (ov::Exception&) {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
-                IE_THROW() << "Wrong value for property key " << ov::intel_cpu::denormals_optimization.name()
-                           << ". Expected only YES/NO";
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::intel_cpu::denormals_optimization.name(),
+                               ". Expected only true/false");
             }
-        } else if (key == InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE) {
-            if (val == InferenceEngine::PluginConfigInternalParams::ENABLE)
-                snippetsMode = SnippetsMode::Enable;
-            else if (val == InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK)
-                snippetsMode = SnippetsMode::IgnoreCallback;
-            else if (val == InferenceEngine::PluginConfigInternalParams::DISABLE)
-                snippetsMode = SnippetsMode::Disable;
-            else
-                IE_THROW() << "Wrong value for property key "
-                           << InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE
-                           << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        } else if (key == ov::intel_cpu::snippets_mode.name()) {
+            try {
+                auto const mode = val.as<ov::intel_cpu::SnippetsMode>();
+                if (mode == ov::intel_cpu::SnippetsMode::ENABLE)
+                    snippetsMode = SnippetsMode::Enable;
+                else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK)
+                    snippetsMode = SnippetsMode::IgnoreCallback;
+                else if (mode == ov::intel_cpu::SnippetsMode::DISABLE)
+                    snippetsMode = SnippetsMode::Disable;
+                else
+                    OPENVINO_THROW("invalid value");
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::intel_cpu::snippets_mode.name(),
+                               ". Expected values: ov::intel_cpu::SnippetsMode::ENABLE/DISABLE/IGNORE_CALLBACK");
+            }
         } else if (key == ov::hint::execution_mode.name()) {
-            if (val == "PERFORMANCE") {
-                executionMode = ov::hint::ExecutionMode::PERFORMANCE;
-            } else if (val == "ACCURACY") {
-                executionMode = ov::hint::ExecutionMode::ACCURACY;
-            } else {
-                IE_THROW() << "Wrong value for property key " << ov::hint::execution_mode.name()
-                           << ". Supported values: PERFORMANCE, ACCURACY";
+            try {
+                executionMode = val.as<ov::hint::ExecutionMode>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::execution_mode.name(),
+                               ". Supported values: ov::hint::ExecutionMode::PERFORMANCE/ACCURACY");
             }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
-        IE_SUPPRESS_DEPRECATED_END
     }
     // apply execution mode after all the params are handled to prevent possible conflicts
     // when both execution_mode and inference_precision are specified
@@ -287,11 +343,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streamExecutorConfig._streams_changed = true;
     }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: multi-stream execution has functional issues on ARM target
-    streamExecutorConfig._streams = 1;
-    streamExecutorConfig._streams_changed = true;
-#endif
     this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -302,48 +353,50 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
-    using namespace InferenceEngine;
     switch (streamExecutorConfig._threadBindingType) {
     case IStreamsExecutor::ThreadBindingType::NONE:
-        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NO });
+        _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});
         break;
     case IStreamsExecutor::ThreadBindingType::CORES:
-        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::YES });
+        _config.insert({ov::internal::cpu_bind_thread.name(), "YES"});
         break;
     case IStreamsExecutor::ThreadBindingType::NUMA:
-        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
+        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::NUMA)});
         break;
     case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
+        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::HYBRID_AWARE)});
         break;
     }
     if (collectPerfCounters == true)
-        _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES });
+        _config.insert({ov::enable_profiling.name(), "YES"});
     else
-        _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::NO });
+        _config.insert({ov::enable_profiling.name(), "NO"});
     if (exclusiveAsyncRequests == true)
-        _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
+        _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
     else
-        _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
+        _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});
 
-    _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
+    _config.insert({ov::device::id.name(), device_id});
 
-    _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
+    _config.insert({ov::num_streams.name(), std::to_string(streamExecutorConfig._streams)});
+    _config.insert({ov::inference_num_threads.name(), std::to_string(streamExecutorConfig._threads)});
+    _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
+    _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
 
-    _config.insert({ PluginConfigParams::KEY_DEVICE_ID, device_id });
-
-    IE_SUPPRESS_DEPRECATED_START
-        _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
-    IE_SUPPRESS_DEPRECATED_END;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (inferencePrecision == ov::element::bf16) {
-        _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
+        _config.insert(
+            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES});
     } else {
-        _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+        _config.insert(
+            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
     }
-
-    _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
-    _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
-            std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
+    _config.insert({InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
+                    std::to_string(streamExecutorConfig._streams)});
+    _config.insert(
+        {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads)});
+    _config.insert({InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot});
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace intel_cpu

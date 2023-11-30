@@ -83,6 +83,7 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
+#include "utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -110,6 +111,8 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
+#include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/stateful_sdp_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -433,7 +436,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_COMMON(manager,
+    CPU_SET_CALLBACK_X64(manager,
         [](const_node_ptr &node) -> bool {
             std::string errorMsg;
             return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
@@ -470,7 +473,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
-    CPU_DISABLE_PASS_X64(manager, ov::pass::ScaledDotProductAttentionDecomposition);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -655,6 +657,11 @@ void Transformations::PostLpt() {
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
+
+    CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+
+    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
     postLPTPassManager.run_passes(model);
 }
 

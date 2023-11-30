@@ -51,6 +51,7 @@ constexpr inline bool implication(bool cause, bool cond) {
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
+    OPENVINO_ASSERT(b != 0, "Divider must not be zero");
     return static_cast<T>((a + b - 1) / b);
 }
 

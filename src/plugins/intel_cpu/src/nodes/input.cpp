@@ -395,6 +395,10 @@ Input::Input(const Shape& shape,
              const GraphContext::CPtr context)
     : Node(type, name, context) {
     constant = ConstantType::NoConst;
+    isDynamic = shape.isDynamic();
+    if (isDynamic) {
+        shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
+    }
     if (getType() == Type::Input) {
         outputShapes.emplace_back(shape);
         addOriginalOutputPrecision(prc);
@@ -495,6 +499,10 @@ void Input::initSupportedPdFromMemDesc() {
         config.inConfs.push_back(portConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
+}
+
+void Input::resetMemoryPtr(const MemoryCPtr& mem) {
+    memoryPtr = mem;
 }
 
 }   // namespace node

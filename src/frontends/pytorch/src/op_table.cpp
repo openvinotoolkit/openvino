@@ -64,6 +64,7 @@ OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
+OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -75,6 +76,7 @@ OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
+OP_CONVERTER(translate_fmod);
 OP_CONVERTER(translate_frobenius_norm);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
@@ -127,6 +129,8 @@ OP_CONVERTER(translate_new_zeros);
 OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
+OP_CONVERTER(translate_normal);
+OP_CONVERTER(translate_normal_);
 OP_CONVERTER(translate_not);
 OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_one_hot);
@@ -140,6 +144,7 @@ OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
 OP_CONVERTER(translate_pow);
+OP_CONVERTER(translate_prod);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
 OP_CONVERTER(translate_quantize_per_tensor);
@@ -203,6 +208,7 @@ OP_CONVERTER(translate_upsample_nearest3d);
 OP_CONVERTER(translate_upsample_trilinear3d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
+OP_CONVERTER(translate_weight_norm);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
@@ -244,6 +250,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_weight_norm", op::translate_weight_norm},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten::acos", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
@@ -296,8 +303,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::channel_shuffle", op::translate_channel_shuffle},
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_", op::inplace_op<op::translate_clamp>},
-        {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
-        {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
+        {"aten::clamp_max", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
+        {"aten::clamp_min", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
         {"aten::clip", op::translate_clamp},
         {"aten::clip_", op::inplace_op<op::translate_clamp>},
         {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
@@ -328,6 +335,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::embedding", op::translate_embedding},
         {"aten::embedding_bag", op::translate_embedding_bag},
         {"aten::empty", op::translate_empty},
+        {"aten::empty_like", op::translate_empty_like},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erf_", op::inplace_op<op::translate_erf>},
@@ -348,6 +356,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
         {"aten::floordiv", op::translate_floor_divide},
+        {"aten::fmod", op::translate_fmod},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
@@ -431,6 +440,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::new_zeros", op::translate_new_zeros},
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
+        {"aten::normal", op::translate_normal},
+        {"aten::normal_", op::translate_normal_},
         {"aten::numel", op::translate_numel},
         {"aten::numpy_T", op::translate_t},
         {"aten::one_hot", op::translate_one_hot},
@@ -444,6 +455,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
+        {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::rand", op::translate_rand},
@@ -460,6 +472,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
+        // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
+        // when complex dtype will be supported
+        // for real dtypes, these operations return input tensor without changes and can be skipped
+        {"aten::resolve_conj", op::skip_node},
+        {"aten::resolve_neg", op::skip_node},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::translate_rsqrt},
@@ -485,6 +502,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
+        {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
         {"aten::sqrt", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten::square", op::translate_square},

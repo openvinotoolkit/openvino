@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
@@ -17,9 +16,9 @@ namespace subgraph {
 
 class MoveFakeQuantize {
 public:
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type inputPrecision,
-        const std::vector<ngraph::PartialShape>& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type inputPrecision,
+        const std::vector<ov::PartialShape>& inputShape,
         const size_t concatInputsCount,
         const std::vector<FakeQuantizeOnDataWithConstant>& fqBefore,
         const DequantizationOperations::Convert& convertBefore,
@@ -29,7 +28,7 @@ public:
         const DequantizationOperations::Convert& convertAfter,
         const DequantizationOperations& dequantizationAfter,
         const std::vector<ov::Any>& concatAttributes,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const std::int64_t& axis,
         const bool oneInputWithSplit);
 };
