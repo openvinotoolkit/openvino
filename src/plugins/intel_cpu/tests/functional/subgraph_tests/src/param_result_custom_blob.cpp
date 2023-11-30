@@ -6,7 +6,6 @@
 #include "shared_test_classes/subgraph/parameter_result.hpp"
 
 using namespace SubgraphTestsDefinitions;
-using namespace ov::test;
 
 namespace ov {
 namespace test {

@@ -4,12 +4,10 @@
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
-using namespace ov::test;
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -88,14 +86,14 @@ public:
         const auto split_axis = ngraph::builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
         const auto split_lengths =
             ngraph::builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
-        const auto split = std::make_shared<ov::opset10::VariadicSplit>(input_params, split_axis, split_lengths);
+        const auto split = std::make_shared<ov::op::v1::VariadicSplit>(input_params, split_axis, split_lengths);
         auto convert = std::make_shared<ov::op::v0::Convert>(split->output(1), inType);
         auto relu = ov::test::utils::make_activation(convert, inType, ov::test::utils::ActivationTypes::Relu);
 
         ov::ResultVector results{
-            std::make_shared<ov::opset10::Result>(split->output(0)),
-            std::make_shared<ov::opset10::Result>(convert),
-            std::make_shared<ov::opset10::Result>(relu),
+            std::make_shared<ov::op::v0::Result>(split->output(0)),
+            std::make_shared<ov::op::v0::Result>(convert),
+            std::make_shared<ov::op::v0::Result>(relu),
         };
 
         function = std::make_shared<ov::Model>(results, ov::ParameterVector{input_params}, "remove_convert");

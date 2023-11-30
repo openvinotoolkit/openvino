@@ -2,16 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <debug.h>
-
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -237,16 +229,14 @@ protected:
             abs_threshold = 0.1f;
             rel_threshold = 10.f;
 
-            configuration.insert(
-                {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}});
+            configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         }
 
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
-        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+        if (!configuration.count("SNIPPETS_MODE")) {
+            configuration.insert({"SNIPPETS_MODE", 1});
         }
     }
 };
@@ -627,9 +617,8 @@ protected:
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
-        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+        if (!configuration.count("SNIPPETS_MODE")) {
+            configuration.insert({"SNIPPETS_MODE", 1});
         }
     }
 };
