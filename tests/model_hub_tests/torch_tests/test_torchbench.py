@@ -55,6 +55,5 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
 
     @pytest.mark.parametrize("name", process_pytest_marks(_model_list_path))
     @pytest.mark.nightly
-    @pytest.mark.precommit  # todo: remove
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
