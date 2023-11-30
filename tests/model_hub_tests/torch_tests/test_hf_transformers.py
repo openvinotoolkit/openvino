@@ -88,6 +88,26 @@ class TestTransformersModel(TestTorchConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif 'visual-question-answering' in mi.tags and 'pix2struct' in mi.tags:
+            from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+            model = Pix2StructForConditionalGeneration.from_pretrained(name)
+            processor = AutoProcessor.from_pretrained(name)
+
+            import requests
+            from PIL import Image
+            image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
+            image = Image.open(requests.get(image_url, stream=True).raw)
+            question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
+            inputs = processor(images=image, text=question, return_tensors="pt")
+            example = dict(inputs)
+
+            class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, flattened_patches, attention_mask):
+                    return self.model.generate(flattened_patches=flattened_patches, attention_mask=attention_mask)
+            model = DecoratorModelForSeq2SeqLM(model)
         elif "mms-lid" in name:
             # mms-lid model config does not have auto_model attribute, only direct loading available
             from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
@@ -149,12 +169,27 @@ class TestTransformersModel(TestTorchConvertModel):
                 0, 255, [16, 3, 224, 224]).to(torch.float32))
             inputs = processor(video, return_tensors="pt")
             example = dict(inputs)
-        elif 'text-to-audio' in mi.tags and 'musicgen' not in mi.tags:
+        elif 'text-to-speech' in mi.tags:
             from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(name)
             text = "some example text in the English language"
             inputs = tokenizer(text, return_tensors="pt")
             example = dict(inputs)
+        elif 'musicgen' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForTextToWaveform
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
+            
+            inputs = processor(
+                text=["80s pop track with bassy drums and synth"],
+                padding=True,
+                return_tensors="pt",
+            )
+            example = dict(inputs)
+            # works for facebook/musicgen-small
+            pad_token_id = model.generation_config.pad_token_id
+            example["decoder_input_ids"] = torch.ones(
+                (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
         else:
             try:
                 if auto_model == "AutoModelForCausalLM":
@@ -198,30 +233,6 @@ class TestTransformersModel(TestTorchConvertModel):
                     )
                     example = dict(input_ids=inputs.input_ids,
                                    decoder_input_ids=decoder_inputs.input_ids)
-                elif auto_model == "AutoModelForSeq2SeqLM" and 'visual-question-answering' in mi.tags:
-                    from transformers import AutoProcessor, AutoModelForSeq2SeqLM
-                    model_class = AutoModelForSeq2SeqLM
-                    if 'pix2struct' in mi.tags:
-                        from transformers import Pix2StructForConditionalGeneration
-                        model_class = Pix2StructForConditionalGeneration
-                    model = model_class.from_pretrained(name)
-                    processor = AutoProcessor.from_pretrained(name)
-
-                    import requests
-                    from PIL import Image
-                    image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
-                    image = Image.open(requests.get(image_url, stream=True).raw)
-                    question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
-                    inputs = processor(images=image, text=question, return_tensors="pt")
-                    example = dict(inputs)
-                    
-                    class DecoratorModelForSeq2SeqLM(torch.nn.Module):
-                        def __init__(self, model):
-                            super().__init__()
-                            self.model = model
-                        def forward(self, flattened_patches, attention_mask):
-                            return self.model.generate(flattened_patches=flattened_patches, attention_mask=attention_mask)
-                    model = DecoratorModelForSeq2SeqLM(model)
                 elif auto_model == "AutoModelForSpeechSeq2Seq":
                     from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
                     from datasets import load_dataset
@@ -241,41 +252,6 @@ class TestTransformersModel(TestTorchConvertModel):
                     input_values = processor(torch.randn(1000).numpy(),
                                              return_tensors="pt")
                     example = dict(input_values)
-                elif auto_model == "AutoModelForTableQuestionAnswering":
-                    import pandas as pd
-                    from transformers import AutoTokenizer, AutoModelForTableQuestionAnswering
-                    tokenizer = AutoTokenizer.from_pretrained(name)
-                    model = AutoModelForTableQuestionAnswering.from_pretrained(
-                        name, torchscript=True)
-                    data = {"Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
-                            "Number of movies": ["87", "53", "69"]}
-                    queries = ["What is the name of the first actor?",
-                               "How many movies has George Clooney played in?",
-                               "What is the total number of movies?", ]
-                    answer_coordinates = [[(0, 0)], [(2, 1)], [
-                        (0, 1), (1, 1), (2, 1)]]
-                    answer_text = [["Brad Pitt"], ["69"], ["209"]]
-                    table = pd.DataFrame.from_dict(data)
-                    encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
-                                              answer_text=answer_text, padding="max_length", return_tensors="pt", )
-                    example = dict(input_ids=encoded_input["input_ids"],
-                                   token_type_ids=encoded_input["token_type_ids"],
-                                   attention_mask=encoded_input["attention_mask"])
-                elif auto_model == 'AutoModelForTextToWaveform' and 'musicgen' in mi.tags:
-                    from transformers import AutoProcessor, AutoModelForTextToWaveform
-                    processor = AutoProcessor.from_pretrained(name)
-                    model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
-                    
-                    inputs = processor(
-                        text=["80s pop track with bassy drums and synth"],
-                        padding=True,
-                        return_tensors="pt",
-                    )
-                    example = dict(inputs)
-
-                    pad_token_id = model.generation_config.pad_token_id
-                    example["decoder_input_ids"] = torch.ones(
-                        (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
                 else:
                     from transformers import AutoTokenizer, AutoProcessor
                     text = "Replace me by any text you'd like."
