@@ -6,6 +6,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/opsets/opset8.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -27,7 +28,7 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
     const uint64_t seed_1 = op_seed;
     const uint64_t seed_2 = (op_seed == 0 ? op_seed : op_seed + 10000);
 
-    const auto min_val = default_opset::Constant::create(target_type, Shape{1}, {0});
+    const auto min_val = default_opset::Constant::create(target_type, Shape{1}, {std::numeric_limits<float>::min()});
     const auto max_val = default_opset::Constant::create(target_type, Shape{1}, {1});
 
     const auto uniform_1 =
@@ -45,8 +46,8 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
     const auto multiply_minus_two_log = std::make_shared<default_opset::Multiply>(log, minus_two);
     const auto sqrt = std::make_shared<default_opset::Sqrt>(multiply_minus_two_log);
 
-    const auto multiply_two_pi = std::make_shared<default_opset::Multiply>(uniform_2, pi);
-    const auto multiply_two_pi_uniform_2 = std::make_shared<default_opset::Multiply>(multiply_two_pi, uniform_2);
+    const auto multiply_pi_uniform2 = std::make_shared<default_opset::Multiply>(uniform_2, pi);
+    const auto multiply_two_pi_uniform_2 = std::make_shared<default_opset::Multiply>(multiply_pi_uniform2, two);
     auto const cos = std::make_shared<default_opset::Cos>(multiply_two_pi_uniform_2);
 
     auto const scale_const = default_opset::Constant::create(target_type, Shape{1}, {scale});
@@ -54,6 +55,10 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
     auto const product =
         std::make_shared<default_opset::Multiply>(scale_const, std::make_shared<default_opset::Multiply>(sqrt, cos));
     auto const sum = std::make_shared<default_opset::Add>(product, mean_const);
+    
+    // if we don't disable downcasting then log(float32_min) gives -inf
+    disable_fp16_compression(uniform_1);
+    disable_fp16_compression(log);
 
     return {sum};
 }

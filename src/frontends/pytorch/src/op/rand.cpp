@@ -15,6 +15,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "pt_framework_node.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -57,14 +58,17 @@ OutputVector make_random_normal(const NodeContext& context,
     auto multiply_minus_two_log = context.mark_node(std::make_shared<v1::Multiply>(log, minus_two));
     auto sqrt = context.mark_node(std::make_shared<v0::Sqrt>(multiply_minus_two_log));
 
-    auto multiply_two_pi = context.mark_node(std::make_shared<v1::Multiply>(uniform_2, pi));
-    auto multiply_two_pi_uniform_2 = context.mark_node(std::make_shared<v1::Multiply>(multiply_two_pi, uniform_2));
+    auto multiply_pi_uniform2 = context.mark_node(std::make_shared<v1::Multiply>(uniform_2, pi));
+    auto multiply_two_pi_uniform_2 = context.mark_node(std::make_shared<v1::Multiply>(multiply_pi_uniform2, two));
     auto cos = context.mark_node(std::make_shared<v0::Cos>(multiply_two_pi_uniform_2));
 
     auto sqrt_x_cos = context.mark_node(std::make_shared<v1::Multiply>(sqrt, cos));
     auto product = context.mark_node(std::make_shared<v1::Multiply>(scale_const, sqrt_x_cos));
     auto sum = context.mark_node(std::make_shared<v1::Add>(product, mean_const));
-
+    
+    // if we don't disable downcasting then log(float32_min) gives -inf
+    disable_fp16_compression(uniform_1);
+    disable_fp16_compression(log);
     return {sum};
 }
 };  // namespace
