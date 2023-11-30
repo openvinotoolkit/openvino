@@ -98,7 +98,7 @@ def test_low_latency2():
     add = ops.add(x_i, y_i)
     zo = ops.multiply(add, m_body)
 
-    body = Model([zo], [x_i, y_i, m_body], "body_model")
+    body = Model([zo], [x_i, y_i, m_body], "body_function")
 
     ti = ops.tensor_iterator()
     ti.set_body(body)

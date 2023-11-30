@@ -673,7 +673,7 @@ def test_graph_preprocess_dump():
 @pytest.mark.parametrize(
     ("layout", "layout_str"),
     [("NHCW", "[N,H,C,W]"), ("NHWC", "[N,H,W,C]")])
-def test_ngraph_set_layout_by_string(layout, layout_str):
+def test_graph_set_layout_by_string(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
@@ -688,7 +688,7 @@ def test_ngraph_set_layout_by_string(layout, layout_str):
 @pytest.mark.parametrize(
     ("layout", "layout_str"),
     [(Layout("NHCW"), "[N,H,C,W]"), (Layout("NHWC"), "[N,H,W,C]")])
-def test_ngraph_set_layout_by_layout_class(layout, layout_str):
+def test_graph_set_layout_by_layout_class(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
@@ -703,7 +703,7 @@ def test_ngraph_set_layout_by_layout_class(layout, layout_str):
 @pytest.mark.parametrize(
     ("layout"),
     [("1-2-3D"), ("5-5")])
-def test_ngraph_set_layout_by_str_thow_exception(layout):
+def test_graph_set_layout_by_str_thow_exception(layout):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
@@ -716,7 +716,7 @@ def test_ngraph_set_layout_by_str_thow_exception(layout):
     assert "Layout name is invalid" in str(e.value)
 
 
-def test_ngraph_set_layout_by_layout_class_thow_exception():
+def test_graph_set_layout_by_layout_class_thow_exception():
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
