@@ -76,7 +76,7 @@ Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
             tensor->get_size_in_bytes(),
             tensor);
     } else {
-        auto tensor_type = std::string(typeid(*tensor.get()).name());
+        auto tensor_type = std::string(typeid(*tensor).name());
         OPENVINO_ASSERT(m_element_type != ov::element::string,
                         "Creation of string constant from a tensor " + tensor_type + " is not supported");
         constructor_validate_and_infer_types();
