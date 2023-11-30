@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-
+import sys
+import subprocess
 import pytest
 import torch
 from models_hub_common.utils import get_models_list, compare_two_tensors
@@ -18,6 +19,9 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
         self.image = self.image.resize([640, 480])
+
+        subprocess.run([sys.executable, "-m", "pip", "install",
+                       "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
     def load_model(self, model_name, model_link):
         from detectron2 import model_zoo, export
@@ -81,6 +85,10 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             is_ok = compare_two_tensors(cur_ov_res[:l], cur_fw_res[:l], fw_eps)
         assert is_ok, "Accuracy validation failed"
+
+    def teardown_class(self):
+        subprocess.run(
+            [sys.executable, "-m", "pip", "uninstall", "-y", "detectron2"])
 
     @pytest.mark.parametrize("name,type,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
