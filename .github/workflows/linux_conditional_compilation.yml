@@ -65,7 +65,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    # if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Install git
@@ -310,6 +310,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU Functional Tests
+    needs: Build
     # if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     uses: ./.github/workflows/linux_cpu_functional_tests.yml
     with:

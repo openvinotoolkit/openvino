@@ -1175,6 +1175,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU Functional Tests
+    needs: Build
     # if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     uses: ./.github/workflows/linux_cpu_functional_tests.yml
     with:
