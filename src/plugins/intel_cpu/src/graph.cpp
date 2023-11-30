@@ -1441,7 +1441,7 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
     }
 }
 
-void Graph::RemoveEdge(EdgePtr& edge) {
+void Graph::RemoveEdge(const EdgePtr& edge) {
     for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
         if ((*it) == edge) {
             edge->drop();
@@ -1881,9 +1881,9 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
 void Graph::SearchInternalStateNodes() {
     for (auto&& node : graphNodes) {
         if (node->getType() == Type::MemoryInput) {
-            auto cur_node = std::dynamic_pointer_cast<node::MemoryInput>(node);
+            auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
             if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
             }
             internalStateNodes.insert({cur_node->getId(), cur_node});
         }

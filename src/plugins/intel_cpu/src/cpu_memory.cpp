@@ -245,6 +245,49 @@ void MemoryMngrWithReuse::destroy(void *ptr) {
     dnnl::impl::free(ptr);
 }
 
+void* MemoryMngrRealloc::getRawPtr() const noexcept {
+    return m_data.get();
+}
+
+void MemoryMngrRealloc::setExtBuff(void *ptr, size_t size) {
+    m_useExternalStorage = true;
+    m_memUpperBound = size;
+    m_data = decltype(m_data)(ptr, release);
+}
+
+bool MemoryMngrRealloc::resize(size_t size) {
+    constexpr int cacheLineSize = 64;
+    constexpr size_t growFactor = 2;
+    bool sizeChanged = false;
+    if (size > m_memUpperBound) {
+        size *= growFactor;
+        void *ptr = dnnl::impl::malloc(size, cacheLineSize);
+        if (!ptr) {
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
+        }
+
+        if (auto src = m_data.get()) {
+            std::memcpy(ptr, src, m_memUpperBound);
+        }
+
+        m_memUpperBound = size;
+        m_useExternalStorage = false;
+        m_data = decltype(m_data)(ptr, destroy);
+        sizeChanged = true;
+    }
+    return sizeChanged;
+}
+
+bool MemoryMngrRealloc::hasExtBuffer() const noexcept {
+    return m_useExternalStorage;
+}
+
+void MemoryMngrRealloc::release(void *ptr) {}
+
+void MemoryMngrRealloc::destroy(void *ptr) {
+    dnnl::impl::free(ptr);
+}
+
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
     return m_pMemMngr->getRawPtr();
 }
