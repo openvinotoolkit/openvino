@@ -60,7 +60,7 @@ public:
      * @param size - new memory size in bytes
      * @return status whether the memory reallocation was performed
      */
-    virtual bool resize(size_t size) = 0;
+    virtual bool resize(size_t size, const ov::element::Type& type) = 0;
 
     /**
      * @brief Check if the object has control over underlying memory buffer
@@ -77,7 +77,7 @@ public:
     MemoryMngrWithReuse() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
+    bool resize(size_t size, const ov::element::Type& type) override;
     bool hasExtBuffer() const noexcept override;
 
 private:
@@ -103,7 +103,7 @@ public:
     explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : m_pMemMngr(std::move(mngr)) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
+    bool resize(size_t size, const ov::element::Type& type) override;
     bool hasExtBuffer() const noexcept override;
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
@@ -201,11 +201,11 @@ class StaticMemory final : public IMemory {
 public:
     class StaticMemoryMngr : public IMemoryMngrObserver {
     public:
-        explicit StaticMemoryMngr(size_t size);
-        StaticMemoryMngr(void* data, size_t size);
+        explicit StaticMemoryMngr(size_t size, const ov::element::Type& type);
+        StaticMemoryMngr(void* data, size_t size, const ov::element::Type& type);
         void* getRawPtr() const noexcept override;
         void setExtBuff(void* ptr, size_t size) override;
-        bool resize(size_t size) override;
+        bool resize(size_t size, const ov::element::Type& type = ov::element::undefined) override;
         bool hasExtBuffer() const noexcept override;
         void registerMemory(Memory* memPtr) override;
         void unregisterMemory(Memory* memPtr) override;

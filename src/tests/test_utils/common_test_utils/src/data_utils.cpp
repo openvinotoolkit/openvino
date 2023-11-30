@@ -578,6 +578,28 @@ void fill_tensor_random(ov::Tensor& tensor,
 #undef CASE_FLOAT
 }
 
+// inline void fill_random_string(std::string* dst,
+//                                const size_t size,
+//                                const size_t len_range,
+//                                const size_t start_from,
+//                                const int seed) {
+//     static const int32_t char_range = 128;
+//     testing::internal::Random random_len(seed);
+//     random_len.Generate(len_range);
+//     testing::internal::Random random_char(seed);
+//     random_char.Generate(char_range);
+
+
+//     for (size_t i = 0lu; i < size; i++) {
+//         const auto len = start_from + static_cast<size_t>(random_len.Generate(len_range));
+//         auto& str = dst[i];
+//         str.resize(len);
+//         for (size_t j = 0lu; j < len; j++) {
+//             str[j] = static_cast<char>(random_len.Generate(char_range));
+//         }
+//     }
+// }
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

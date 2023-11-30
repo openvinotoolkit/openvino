@@ -529,7 +529,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
                                                                            ov::element::Type_t::f16,
                                                                            ov::element::Type_t::f32,
                                                                            ov::element::Type_t::f64,
-                                                                           ov::element::Type_t::boolean};
+                                                                           ov::element::Type_t::boolean,
+                                                                           ov::element::Type_t::string};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",

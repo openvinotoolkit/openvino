@@ -201,8 +201,18 @@ public:
         ov::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
-                new_inputs.push_back(
-                    std::make_shared<ov::opset1::Constant>(t.get_element_type(), t.get_shape(), t.data()));
+                if (t.get_element_type() == element::string) {
+                    std::vector<std::string> src_str;
+                    auto el_num = shape_size(t.get_shape());
+                    auto data = t.data<std::string>();
+                    for (size_t j = 0lu; j < el_num; j++) {
+                        src_str.push_back(data[j]);
+                    }
+                    new_inputs.push_back(std::make_shared<ov::opset1::Constant>(t.get_element_type(), t.get_shape(), src_str));
+                } else {
+                    new_inputs.push_back(
+                        std::make_shared<ov::opset1::Constant>(t.get_element_type(), t.get_shape(), t.data()));
+                }
             } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
                 new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
             } else {
