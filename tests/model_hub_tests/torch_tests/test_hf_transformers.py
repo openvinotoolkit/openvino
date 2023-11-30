@@ -149,7 +149,7 @@ class TestTransformersModel(TestTorchConvertModel):
                 0, 255, [16, 3, 224, 224]).to(torch.float32))
             inputs = processor(video, return_tensors="pt")
             example = dict(inputs)
-        elif 'musicgen' not in mi.tags:
+        elif 'text-to-audio' in mi.tags and 'musicgen' not in mi.tags:
             from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(name)
             text = "some example text in the English language"
