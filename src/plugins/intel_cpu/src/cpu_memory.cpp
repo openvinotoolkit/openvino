@@ -2,24 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
-#include <numeric>
-#include <unordered_set>
-
-#include <dnnl_types.h>
-#include <common/memory_desc_wrapper.hpp>
 #include "cpu_memory.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/cpu_convert.h"
-#include "onednn/dnnl.h"
-#include "cpu_shape.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/reorder.h"
-#include "memory_desc/cpu_memory_desc.h"
 
-using namespace InferenceEngine;
-using namespace dnnl;
+using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
 namespace ov {
 namespace intel_cpu {
@@ -116,7 +102,7 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     if (nullptr != data) {
         m_mgrHandle->setExtBuff(const_cast<void*>(data), memSize);
     } else {
-        m_mgrHandle->resize(memSize);
+        m_mgrHandle->resize(memSize, m_pMemDesc->getPrecision());
     }
 }
 
@@ -169,7 +155,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
         auto desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_memObjPtr->getDescPtr());
-        m_prim = memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
+        m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
         auto data = m_memObjPtr->getDataNoThrow();
@@ -219,17 +205,26 @@ void MemoryMngrWithReuse::setExtBuff(void *ptr, size_t size) {
     m_data = decltype(m_data)(ptr, release);
 }
 
-bool MemoryMngrWithReuse::resize(size_t size) {
+bool MemoryMngrWithReuse::resize(size_t size, const ov::element::Type& type) {
     constexpr int cacheLineSize = 64;
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
-        void *ptr = dnnl::impl::malloc(size, cacheLineSize);
+        void* ptr = nullptr;
+        if (type == element::string) {
+            ptr = new OvString[size / element::string.size()];
+        } else {
+            ptr = dnnl::impl::malloc(size, cacheLineSize);
+        }
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_memUpperBound = size;
         m_useExternalStorage = false;
-        m_data = decltype(m_data)(ptr, destroy);
+        if (type == element::string) {
+            m_data = decltype(m_data)(ptr, delete_str);
+        } else {
+            m_data = decltype(m_data)(ptr, destroy);
+        }
         sizeChanged = true;
     }
     return sizeChanged;
@@ -245,6 +240,11 @@ void MemoryMngrWithReuse::destroy(void *ptr) {
     dnnl::impl::free(ptr);
 }
 
+void MemoryMngrWithReuse::delete_str(void *ptr) {
+    auto ptr_s = reinterpret_cast<OvString *>(ptr);
+    delete[] ptr_s;
+}
+
 void* MemoryMngrRealloc::getRawPtr() const noexcept {
     return m_data.get();
 }
@@ -255,24 +255,39 @@ void MemoryMngrRealloc::setExtBuff(void *ptr, size_t size) {
     m_data = decltype(m_data)(ptr, release);
 }
 
-bool MemoryMngrRealloc::resize(size_t size) {
+bool MemoryMngrRealloc::resize(size_t size, const element::Type& type) {
     constexpr int cacheLineSize = 64;
     constexpr size_t growFactor = 2;
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
         size *= growFactor;
-        void *ptr = dnnl::impl::malloc(size, cacheLineSize);
+        void* ptr = nullptr;
+        if (type == element::string) {
+            ptr = new OvString[size / element::string.size()];
+        } else {
+            ptr = dnnl::impl::malloc(size, cacheLineSize);
+        }
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
 
         if (auto src = m_data.get()) {
-            std::memcpy(ptr, src, m_memUpperBound);
+            if (type == element::string) {
+                auto srcPtr = reinterpret_cast<OvString *>(src);
+                auto dstPtr = reinterpret_cast<OvString *>(ptr);
+                std::copy(srcPtr, srcPtr + m_memUpperBound / element::string.size(), dstPtr);
+            } else {
+                std::memcpy(ptr, src, m_memUpperBound);
+            }
         }
 
         m_memUpperBound = size;
         m_useExternalStorage = false;
-        m_data = decltype(m_data)(ptr, destroy);
+        if (type == element::string) {
+            m_data = decltype(m_data)(ptr, delete_str);
+        } else {
+            m_data = decltype(m_data)(ptr, destroy);
+        }
         sizeChanged = true;
     }
     return sizeChanged;
@@ -288,6 +303,11 @@ void MemoryMngrRealloc::destroy(void *ptr) {
     dnnl::impl::free(ptr);
 }
 
+void MemoryMngrRealloc::delete_str(void* ptr) {
+    auto ptr_s = reinterpret_cast<OvString *>(ptr);
+    delete[] ptr_s;
+}
+
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
     return m_pMemMngr->getRawPtr();
 }
@@ -297,8 +317,8 @@ void DnnlMemoryMngr::setExtBuff(void *ptr, size_t size) {
     notifyUpdate();
 }
 
-bool DnnlMemoryMngr::resize(size_t size) {
-    bool sizeChanged = m_pMemMngr->resize(size);
+bool DnnlMemoryMngr::resize(size_t size, const element::Type& type) {
+    bool sizeChanged = m_pMemMngr->resize(size, type);
     if (sizeChanged) {
         notifyUpdate();
     }
@@ -338,9 +358,9 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
     m_size = m_pMemDesc->getCurrentMemSize();
 
     if (data) {
-        m_pMemMngr = std::make_shared<StaticMemoryMngr>(const_cast<void*>(data), m_size);
+        m_pMemMngr = std::make_shared<StaticMemoryMngr>(const_cast<void*>(data), m_size, m_pMemDesc->getPrecision());
     } else {
-        m_pMemMngr = std::make_shared<StaticMemoryMngr>(m_size);
+        m_pMemMngr = std::make_shared<StaticMemoryMngr>(m_size, m_pMemDesc->getPrecision());
     }
 
     try {
@@ -348,7 +368,7 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
         // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
-        m_prim = memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
+        m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
         //
         // ========================
         if (pads_zeroing)
@@ -418,11 +438,11 @@ void StaticMemory::nullify() {
         memset(dataPtr, 0, getSize());
 }
 
-StaticMemory::StaticMemoryMngr::StaticMemoryMngr(size_t size) : m_size(size) {
-    memMngrImpl.resize(m_size);
+StaticMemory::StaticMemoryMngr::StaticMemoryMngr(size_t size, const element::Type& type) : m_size(size) {
+    memMngrImpl.resize(m_size, type);
 }
 
-StaticMemory::StaticMemoryMngr::StaticMemoryMngr(void* data, size_t size) : m_size(size) {
+StaticMemory::StaticMemoryMngr::StaticMemoryMngr(void* data, size_t size, const element::Type& type) : m_size(size) {
     memMngrImpl.setExtBuff(data, m_size);
 }
 
@@ -434,7 +454,7 @@ void StaticMemory::StaticMemoryMngr::setExtBuff(void* ptr, size_t size) {
     OPENVINO_THROW("Unexpected: StaticMemoryMngr may not be modified");
 }
 
-bool StaticMemory::StaticMemoryMngr::resize(size_t size) {
+bool StaticMemory::StaticMemoryMngr::resize(size_t size, const element::Type& type) {
     if (size != m_size) {
         OPENVINO_THROW("Unexpected: StaticMemoryMngr may not resize the memory");
     }

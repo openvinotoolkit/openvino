@@ -51,6 +51,9 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                          inGenData.resolution,
                          inGenData.seed);
         break;
+    case ov::element::Type_t::string:
+        fill_random_string(static_cast<std::string*>(tensor.data()), tensor.get_size(), range, start_from, seed);
+        break;
     default:
         OPENVINO_THROW("Unsupported element type: ", element_type);
     }

@@ -4,19 +4,8 @@
 
 #pragma once
 
-#include "ie_layouts.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "dnnl_extension_utils.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include <onednn/dnnl.h>
-#include <cpu_shape.h>
-
 #include "memory_desc/dnnl_memory_desc.h"
 
-#include <string>
-#include <functional>
-#include <memory>
-#include <vector>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -60,7 +49,7 @@ public:
      * @param size - new memory size in bytes
      * @return status whether the memory reallocation was performed
      */
-    virtual bool resize(size_t size) = 0;
+    virtual bool resize(size_t size, const ov::element::Type& type) = 0;
 
     /**
      * @brief Check if the object has control over underlying memory buffer
@@ -77,7 +66,7 @@ public:
     MemoryMngrWithReuse() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
+    bool resize(size_t size, const ov::element::Type& type) override;
     bool hasExtBuffer() const noexcept override;
 
 private:
@@ -87,6 +76,7 @@ private:
 
     static void release(void *ptr);
     static void destroy(void *ptr);
+    static void delete_str(void *ptr);
 };
 
 class MemoryMngrRealloc : public IMemoryMngr {
@@ -94,7 +84,7 @@ public:
     MemoryMngrRealloc() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
+    bool resize(size_t size, const ov::element::Type& type) override;
     bool hasExtBuffer() const noexcept override;
 
 private:
@@ -104,6 +94,7 @@ private:
 
     static void release(void *ptr);
     static void destroy(void *ptr);
+    static void delete_str(void *ptr);
 };
 
 class IMemoryMngrObserver : public IMemoryMngr {
@@ -120,7 +111,7 @@ public:
     explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : m_pMemMngr(std::move(mngr)) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
+    bool resize(size_t size, const ov::element::Type& type) override;
     bool hasExtBuffer() const noexcept override;
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
@@ -218,11 +209,11 @@ class StaticMemory final : public IMemory {
 public:
     class StaticMemoryMngr : public IMemoryMngrObserver {
     public:
-        explicit StaticMemoryMngr(size_t size);
-        StaticMemoryMngr(void* data, size_t size);
+        explicit StaticMemoryMngr(size_t size, const ov::element::Type& type);
+        StaticMemoryMngr(void* data, size_t size, const ov::element::Type& type);
         void* getRawPtr() const noexcept override;
         void setExtBuff(void* ptr, size_t size) override;
-        bool resize(size_t size) override;
+        bool resize(size_t size, const ov::element::Type& type = ov::element::undefined) override;
         bool hasExtBuffer() const noexcept override;
         void registerMemory(Memory* memPtr) override;
         void unregisterMemory(Memory* memPtr) override;

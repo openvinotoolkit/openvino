@@ -22,7 +22,7 @@ public:
 
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
+    bool resize(size_t size, const ov::element::Type& type) override;
     bool hasExtBuffer() const noexcept override;
 
     void registerMemory(Memory* memPtr) override;
