@@ -21,6 +21,9 @@ public:
     OPENVINO_RTTI("BrgemmBlocking", "Pass")
     BrgemmBlocking();
     bool run(snippets::lowered::LinearIR& linear_ir) override;
+
+private:
+    static void move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir, const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 };
 
 }  // namespace pass

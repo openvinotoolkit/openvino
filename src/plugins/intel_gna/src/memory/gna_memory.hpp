@@ -22,7 +22,7 @@
 #include "gna_mem_requests_queue.hpp"
 #include "log/log.hpp"
 #include "memory/gna_allocator.hpp"
-#include "memory_solver.hpp"
+#include "openvino/runtime/memory_solver.hpp"
 
 #ifdef GNA_MEMORY_DUMP
 #    include <iomanip>

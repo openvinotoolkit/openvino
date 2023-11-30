@@ -15,7 +15,7 @@ namespace pass {
 
 /**
  * @interface InitLoops
- * @brief The pass initialize scheduling information in LoopInfo
+ * @brief The pass initializes scheduling information in LoopInfo
  * @ingroup snippets
  */
 class InitLoops : public Pass {
