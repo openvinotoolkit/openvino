@@ -26,6 +26,8 @@ if args.__dict__["isWorkingDir"]:
                 raise CfgError("{msg} {e}".format(msg=msg, e=str(e)))
             out = out.decode("utf-8")
             commitList = out.split()
+        elif "explicitList" in cfgData["runConfig"]["commitList"]:
+            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
         else:
             raise CfgError("Commit list is mandatory")
     else:

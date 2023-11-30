@@ -95,6 +95,8 @@ class Mode(ABC):
         self.commitList = list
 
     def normalizeCfg(self, cfg):
+        if not self.traversal.isComparative():
+            cfg["checkIfBordersDiffer"] = False
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":
@@ -249,6 +251,11 @@ class Mode(ABC):
                 "Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2])
             )
 
+        def isComparative(self):
+            # redefine for uncommon traversal
+            return True
+
+
         def __init__(self, mode) -> None:
             self.mode = mode
 
@@ -361,3 +368,16 @@ class Mode(ABC):
                 self.wrappedBypass(
                     curList[mid :], list, cfg
                 )
+
+    class BruteForce(Traversal):
+        def __init__(self, mode) -> None:
+            super().__init__(mode)
+
+        def bypass(self, curList, list, cfg) -> int:
+            for commit in list:
+                self.mode.commonLogger.info(
+                    "Handle commit {}".format(commit))
+                self.mode.getPseudoMetric(commit, cfg)
+
+        def isComparative(self):
+            return False
