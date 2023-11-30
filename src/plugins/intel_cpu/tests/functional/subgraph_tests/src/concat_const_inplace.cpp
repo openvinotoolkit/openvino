@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 // Subgraph:
 /*
  *          Parameter    Constant[FP32/BF16]
@@ -27,67 +27,71 @@ namespace SubgraphTestsDefinitions {
  *        Result[FP32/BF16]
  */
 
-class ConcatConstantInPlaceTest : public testing::WithParamInterface<InferenceEngine::Precision>, virtual public LayerTestsUtils::LayerTestsCommon {
+class ConcatConstantInPlaceTest : public testing::WithParamInterface<ov::element::Type>,
+                                  virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<ov::element::Type> obj) {
         std::ostringstream result;
-        result << "ConcatConstantInPlaceTest" << obj.param.name();
+        result << "ConcatConstantInPlaceTest" << obj.param.get_type_name();
         return result.str();
     }
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        if (Precision::BF16 == (inPrc = outPrc = this->GetParam())) {
-            configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
-        } else if (Precision::FP16 == (inPrc = outPrc = this->GetParam())) {
-            configuration.insert({ov::hint::inference_precision.name(), "f16" });
+        if (ov::element::bf16 == (inType = outType = this->GetParam())) {
+            configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
+        } else if (ov::element::bf16 == (inType = outType = this->GetParam())) {
+            configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
         } else {
-            configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+            configuration.insert({ov::hint::inference_precision.name(), ov::element::f32});
         }
 
-        const std::vector<size_t> inputShape = {1, 3, 3, 11};
-        ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape))};
+        const ov::Shape inputShape = {1, 3, 3, 11};
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape)};
 
-        auto transposeOrder = ngraph::opset8::Constant::create(ngraph::element::i32, {4}, {0, 3, 2, 1});
-        auto transpose = std::make_shared<ngraph::opset8::Transpose>(inputParams[0], transposeOrder);
+        auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 2, 1});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(inputParams[0], transposeOrder);
 
-        auto concatConstantInput = ngraph::opset8::Constant::create(ngraph::element::f32, {1, 1, 3, 3}, {10.0f});
+        auto concatConstantInput = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 3, 3}, {10.0f});
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concatConstantInput, transpose}, 1);
 
         // convolution
         std::vector<float> weightValuesFP32(12);
-        ngraph::Shape convFilterShape = { 1, 12, 1, 1 };
-//        weightValuesFP32.resize(12);
+        ov::Shape convFilterShape = {1, 12, 1, 1};
         FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
-        auto weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValuesFP32);
-        std::shared_ptr<ngraph::Node> conv = std::make_shared<ngraph::opset1::Convolution>(
-            concat, weightsNode, ngraph::Strides({ 1, 1 }), ngraph::CoordinateDiff({ 0, 0 }),
-            ngraph::CoordinateDiff({ 0, 0 }), ngraph::Strides({ 1, 1 }), ngraph::op::PadType::EXPLICIT);
-            conv->set_friendly_name("CONV");
+        auto weightsNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, convFilterShape, weightValuesFP32);
+        std::shared_ptr<ov::Node> conv = std::make_shared<ov::op::v1::Convolution>(concat,
+                                                                                   weightsNode,
+                                                                                   ov::Strides({1, 1}),
+                                                                                   ov::CoordinateDiff({0, 0}),
+                                                                                   ov::CoordinateDiff({0, 0}),
+                                                                                   ov::Strides({1, 1}),
+                                                                                   ov::op::PadType::EXPLICIT);
+        conv->set_friendly_name("CONV");
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(conv)};
-        function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatConstantInPlace");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
+        function = std::make_shared<ov::Model>(results, inputParams, "ConcatConstantInPlace");
     }
 };
 
 namespace {
-    TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
-        if (this->GetParam() == Precision::FP16) {
-            if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-                GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-            }
+TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
+    if (this->GetParam() == ov::element::f16) {
+        if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+            GTEST_SKIP() << "Skipping test, platform don't support precision f16";
         }
-        Run();
-        if (this->GetParam() == Precision::BF16 || this->GetParam() == Precision::FP16)
-            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 3);
-        else
-            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 2);
     }
+    run();
+    if (this->GetParam() == ov::element::bf16 || this->GetParam() == ov::element::f16)
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
+    else
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
+}
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,
-    testing::Values(Precision::FP32, Precision::BF16, Precision::FP16),
+    testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
     ConcatConstantInPlaceTest::getTestCaseName);
-
-} // namespace
-} // namespace SubgraphTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

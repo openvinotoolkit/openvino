@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
 
-using namespace ngraph;
-using namespace ov::test;
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
-class ConvAndFQWithSharedConstants : virtual public SubgraphBaseTest,
-                                     public CpuTestWithFusing {
+namespace ov {
+namespace test {
+class ConvAndFQWithSharedConstants : virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -27,13 +24,19 @@ public:
 
         auto in_shapes = static_shapes_to_test_representation({input_static_shape});
         init_input_shapes({in_shapes});
-        ov::ParameterVector input_params {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_static_shape))};
+        ov::ParameterVector input_params{
+            std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_static_shape))};
 
-        auto shared_il = opset1::Constant::create(precision, {1, 1, 1, 1}, {0.f});
-        auto shared_ih = opset1::Constant::create(precision, {1, 1, 1, 1}, {12.5f});
-        auto shared_ol = opset1::Constant::create(precision, {1, 1, 1, 1}, {0.f});
-        auto shared_oh = opset1::Constant::create(precision, {1, 1, 1, 1}, {12.5f});
-        auto fq_before = std::make_shared<opset1::FakeQuantize>(input_params[0], shared_il, shared_ih, shared_ol, shared_oh, 256);
+        auto shared_il = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {0.f});
+        auto shared_ih = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {12.5f});
+        auto shared_ol = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {0.f});
+        auto shared_oh = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {12.5f});
+        auto fq_before = std::make_shared<ov::op::v0::FakeQuantize>(input_params[0],
+                                                                    shared_il,
+                                                                    shared_ih,
+                                                                    shared_ol,
+                                                                    shared_oh,
+                                                                    256);
 
         std::shared_ptr<Node> conv;
         {
@@ -44,29 +47,39 @@ public:
             const std::vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = builder::makeConvolution(fq_before, precision, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+            conv = ov::test::utils::make_convolution(fq_before,
+                                                     precision,
+                                                     kernelSize,
+                                                     strides,
+                                                     padBegin,
+                                                     padEnd,
+                                                     dilation,
+                                                     paddingType,
+                                                     numOutChannels);
         }
 
-        auto fq_after = std::make_shared<opset1::FakeQuantize>(conv, shared_il, shared_ih, shared_ol, shared_oh, 256);
+        auto fq_after =
+            std::make_shared<ov::op::v0::FakeQuantize>(conv, shared_il, shared_ih, shared_ol, shared_oh, 256);
         function = makeNgraphFunction(precision, input_params, fq_after, "ConvFQWithSharedContants");
     }
 };
 
 namespace {
-    TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU) {
-        run();
-        CheckPluginRelatedResults(compiledModel, "Convolution");
+TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
+
+TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
-    TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU_FP16) {
-        if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-            GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-        }
-        configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    run();
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
 
-        run();
-        CheckPluginRelatedResults(compiledModel, "Convolution");
-    }
-
-} // namespace
-} // namespace SubgraphTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

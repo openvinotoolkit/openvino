@@ -1,18 +1,15 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-""" Configuration for tests.
+"""
+Configuration for tests.
 
 Tests for documentation utilize pytest test framework for tests execution
 and reports generation.
 
-Documentation generation tests process Doxygen log to generate test per
-documentation source file (.hpp, .md, etc. files). Source files
-with errors can be skipped (--doxygen-skip) or excluded temporary
-(--doxygen-xfail).
-
-Usage:
-pytest --doxygen doxygen.log --html doc-generation.html test_doc-generation.py
+Documentation generation tests process Doxygen/Sphinx log to generate test
+per documentation source file (.hpp, .md, etc. files). Source files
+with errors can be skipped (--skip) or excluded temporary (--xfail).
 """
 
 import pytest
@@ -38,12 +35,12 @@ def pytest_addoption(parser):
         default=[],
         help='A list of warning patterns to suppress')
     parser.addoption(
-        '--doxygen-xfail',
+        '--xfail',
         action='append',
         default=[],
         help='A file with relative paths to a files with known failures')
     parser.addoption(
-        '--doxygen-skip',
+        '--skip',
         action='append',
         default=[],
         help='A file with relative paths to a files to exclude from validation')
@@ -53,30 +50,10 @@ def pytest_addoption(parser):
         default=False,
         help='Include link check for omz docs')
     parser.addoption(
-        '--include_wb',
-        action="store_true",
-        default=False,
-        help='Include link check for workbench docs')
-    parser.addoption(
-        '--include_pot',
-        action="store_true",
-        default=False,
-        help='Include link check for pot docs')
-    parser.addoption(
-        '--include_gst',
-        action="store_true",
-        default=False,
-        help='Include link check for gst docs')
-    parser.addoption(
         '--include_ovms',
         action="store_true",
         default=False,
         help='Include link check for ovms')
-    parser.addoption(
-        '--include_ote',
-        action="store_true",
-        default=False,
-        help='Include link check for ote')
 
 
 def read_lists(configs):
@@ -95,20 +72,12 @@ def read_lists(configs):
 def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
-    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms', 'ote'}
+    exclude_links = {'open_model_zoo', 'omz', 'ovms'}
     if metafunc.config.getoption('include_omz'):
         exclude_links.remove('open_model_zoo')
         exclude_links.remove('omz')
-    if metafunc.config.getoption('include_wb'):
-        exclude_links.remove('workbench')
-    if metafunc.config.getoption('include_pot'):
-        exclude_links.remove('pot')
-    if metafunc.config.getoption('include_gst'):
-        exclude_links.remove('gst')
     if metafunc.config.getoption('include_ovms'):
         exclude_links.remove('ovms')
-    if metafunc.config.getoption('include_ote'):
-        exclude_links.remove('ote')
 
     # warnings to ignore
     suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))
@@ -120,15 +89,19 @@ def pytest_generate_tests(metafunc):
         suppress_warnings.append(sphinx_ref_pattern)
         suppress_warnings.append(sphinx_ref_pattern2)
 
-    xfail_list = [xfail.lower() for xfail in read_lists(metafunc.config.getoption('doxygen_xfail'))]
+    xfail_list = [xfail.lower() for xfail in read_lists(metafunc.config.getoption('xfail'))]
+
+    all_warnings = dict()
 
     # read doxygen log
-    doxy_parser = LogParser(metafunc.config.getoption('doxygen'),
-                            strip=metafunc.config.getoption('doxygen_strip'),
-                            xfail_list=xfail_list,
-                            suppress_warnings=suppress_warnings)
-    doxy_parser.parse()
-    doxygen_warnings = doxy_parser.filter()
+    if metafunc.config.getoption('doxygen'):
+        doxy_parser = LogParser(metafunc.config.getoption('doxygen'),
+                                strip=metafunc.config.getoption('doxygen_strip'),
+                                xfail_list=xfail_list,
+                                suppress_warnings=suppress_warnings)
+        doxy_parser.parse()
+        doxygen_warnings = doxy_parser.filter()
+        all_warnings.update(doxygen_warnings)
 
     # read sphinx log
     sphinx_parser = LogParser(metafunc.config.getoption('sphinx'),
@@ -138,9 +111,6 @@ def pytest_generate_tests(metafunc):
                               )
     sphinx_parser.parse()
     sphinx_warnings = sphinx_parser.filter()
-
-    all_warnings = dict()
-    all_warnings.update(doxygen_warnings)
     all_warnings.update(sphinx_warnings)
 
     filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_warnings)
@@ -150,15 +120,15 @@ def pytest_generate_tests(metafunc):
     marks = dict()
     marks.update(
         (name, pytest.mark.xfail)
-        for name in read_lists(metafunc.config.getoption('doxygen_xfail')))
+        for name in read_lists(metafunc.config.getoption('xfail')))
     marks.update(
         (name, pytest.mark.skip)
-        for name in read_lists(metafunc.config.getoption('doxygen_skip')))
+        for name in read_lists(metafunc.config.getoption('skip')))
 
     # generate tests
-    if 'doxygen_errors' in metafunc.fixturenames:
+    if 'errors' in metafunc.fixturenames:
         metafunc.parametrize(
-            'doxygen_errors', [
+            'errors', [
                 pytest.param(errors, marks=marks[file])
                 if file in marks else errors for file, errors in files_with_errors.items()
             ],
