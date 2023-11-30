@@ -47,6 +47,9 @@ jobs:
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
 
+      - name: Check Extracted
+        run: ls -laR ${INSTALL_TEST_DIR}
+
       - name: Install OpenVINO dependencies
         run: bash ${OPENVINO_REPO}/scripts/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
