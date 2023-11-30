@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import tempfile
+
 import pytest
 import torch
-import tempfile
 import torchvision.transforms.functional as F
+
 from torch_utils import process_pytest_marks, TestTorchConvertModel
 
 
@@ -76,6 +78,9 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             self.inputs = prepare_frames_for_raft(model_name,
                                                   [frames[75], frames[125]],
                                                   [frames[76], frames[126]])
+        elif "vit_h_14" in model_name:
+            self.example = (torch.randn(1, 3, 518, 518),)
+            self.inputs = (torch.randn(1, 3, 518, 518),)
         else:
             self.example = (torch.randn(1, 3, 224, 224),)
             self.inputs = (torch.randn(1, 3, 224, 224),)
@@ -102,7 +107,8 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("name", process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.parametrize("name",
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
