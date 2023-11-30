@@ -185,15 +185,19 @@ public:
         /**
          * @brief Modify _streams_info_table and related configuration according to user-specified parameters, bind
          * threads to cpu cores if cpu_pinning is true.
-         * @param stream_nums Number of streams specified by user
-         * @param threads_per_stream Number of threads per stream specified by user
+         * @param stream_nums Number of streams specified by user. support value >= 0. If stream_nums = 0, using all
+         * physical Pcores of the platform.
+         * @param threads_per_stream Number of threads per stream specified by user. support value >= 0 or value = -1.
+         * If threads_per_stream = 0, not creating threads with TBB. If threads_per_stream = -1, using all physical
+         * Pcores of the platform.
          * @param core_type Cpu type (Big/Little/Any) specified by user
          * @param cpu_pinning Whether to bind the threads to cpu cores
+         * @return updated configured values
          */
-        void update_executor_config(int stream_nums,
-                                    int threads_per_stream,
-                                    PreferredCoreType core_type,
-                                    bool cpu_pinning);
+        Config update_executor_config(int stream_nums = 1,
+                                      int threads_per_stream = 1,
+                                      PreferredCoreType core_type = PreferredCoreType::ANY,
+                                      bool cpu_pinning = false);
         /**
          * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
          *        that is, only create one thread with TBB
