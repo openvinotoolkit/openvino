@@ -3,7 +3,6 @@
 //
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;

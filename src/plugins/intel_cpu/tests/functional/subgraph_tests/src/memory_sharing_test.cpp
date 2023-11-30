@@ -4,7 +4,6 @@
 
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/openvino.hpp"
-#include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 

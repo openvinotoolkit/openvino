@@ -4,11 +4,8 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
