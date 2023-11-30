@@ -194,8 +194,8 @@ jobs:
 
           pushd ${INSTALL_TEST_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
-              ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests \
-              ${INSTALL_TEST_DIR}/tests/functional_test_utils/layer_tests_summary/*
+              tests/ov_cpu_func_tests \
+              tests/functional_test_utils/layer_tests_summary/*
           popd
 
       - name: Upload selective build statistics package

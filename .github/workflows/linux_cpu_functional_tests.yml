@@ -36,7 +36,7 @@ jobs:
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
-        run: tar -xvzf ${INSTALL_TEST_DIR}/openvino_tests.tar.gz -C ${INSTALL_TEST_DIR}
+        run: tar -xvzf ${INSTALL_TEST_DIR}/openvino_tests.tar.gz -C ${INSTALL_DIR}
 
       - name: Fetch setup_python action and install dependencies script
         uses: actions/checkout@v4
