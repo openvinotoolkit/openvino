@@ -564,8 +564,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
         return *this;
     }
 
-    if ((proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
-         core_type == IStreamsExecutor::Config::LITTLE) ||
+    if ((proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && core_type == IStreamsExecutor::Config::LITTLE) ||
         (proc_type_table[0][MAIN_CORE_PROC] == 0 && proc_type_table[0][HYPER_THREADING_PROC] == 0 &&
          core_type == IStreamsExecutor::Config::BIG) ||
         (proc_type_table.size() > 1 && core_type == IStreamsExecutor::Config::BIG)) {

@@ -101,7 +101,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     auto fullConfig = Configuration{properties, m_cfg};
     auto streamsExecutorConfig = ov::threading::IStreamsExecutor::Config{stream_executor_name}.update_executor_config(
         fullConfig.streams_executor_config._streams,
-        -1); // Use mutiple threads according to the cores and numa nodes.
+        -1);  // Use mutiple threads according to the cores and numa nodes.
     auto compiled_model = std::make_shared<CompiledModel>(
         model->clone(),
         shared_from_this(),
