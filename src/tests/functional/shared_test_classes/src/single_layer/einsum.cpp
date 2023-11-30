@@ -41,7 +41,7 @@ void EinsumLayerTest::SetUp() {
         paramsOuts.push_back(param);
     }
 
-    const std::shared_ptr<ngraph::Node> einsum = ngraph::builder::makeEinsum(paramsOuts, equation);
+    const auto einsum = std::make_shared<ov::op::v7::Einsum>(paramsOuts, equation);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(einsum)};
     function = std::make_shared<ngraph::Function>(results, params, "einsum");
 }

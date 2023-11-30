@@ -2,40 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-using FQScaleshiftWithConstantShiftTestParams = Precision;
-
-class FQScaleshiftWithConstantShiftTest : public testing::WithParamInterface<FQScaleshiftWithConstantShiftTestParams>,
-                                       public CPUTestsBase,
-                                       virtual public LayerTestsUtils::LayerTestsCommon {
+class FQScaleshiftWithConstantShiftTest : public testing::WithParamInterface<ov::element::Type>,
+                                          public CPUTestsBase,
+                                          virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FQScaleshiftWithConstantShiftTestParams> obj) {
-        Precision netPrecision;
+    static std::string getTestCaseName(testing::TestParamInfo<ov::element::Type> obj) {
+        ov::element::Type netPrecision;
         netPrecision = obj.param;
         std::ostringstream result;
-        result << "netPRC=" << netPrecision.name() << "_";
+        result << "netPRC=" << netPrecision.get_type_name() << "_";
         return result.str();
     }
 
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        Precision netPrecision;
+        ov::element::Type netPrecision;
         netPrecision = this->GetParam();
-        const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         ov::Shape mmShape{25, 14, 14, 768};
-        SizeVector mmShape2{768, 2304};
-        SizeVector sumShape{1, 1, 1, 2304};
+        ov::Shape mmShape2{768, 2304};
+        ov::Shape sumShape{1, 1, 1, 2304};
 
         // avoid eliminations
         std::vector<int> mmInData(768 * 2304);
@@ -44,16 +42,16 @@ protected:
         std::vector<int> sumConstData(1 * 1 * 1 * 2304);
         std::iota(sumConstData.begin(), sumConstData.end(), 0);
 
-        auto constShift = ngraph::opset5::Constant::create(ngraph::element::f32, sumShape, sumConstData);
-        auto mmConst = ngraph::opset5::Constant::create(ngraph::element::f32, mmShape2, mmInData);
-        ov::ParameterVector mmParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, mmShape)};
+        auto constShift = ov::op::v0::Constant::create(ov::element::f32, sumShape, sumConstData);
+        auto mmConst = ov::op::v0::Constant::create(ov::element::f32, mmShape2, mmInData);
+        ov::ParameterVector mmParams{std::make_shared<ov::op::v0::Parameter>(netPrecision, mmShape)};
 
-        const auto mm = builder::makeMatMul(mmParams[0], mmConst, false, false);
-        auto sum = ngraph::builder::makeEltwise(constShift, mm, ngraph::helpers::EltwiseTypes::ADD);
-        auto fq = ngraph::builder::makeFakeQuantize(sum, ngraph::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
+        const auto mm = std::make_shared<ov::op::v0::MatMul>(mmParams[0], mmConst, false, false);
+        auto sum = ov::test::utils::makeEltwise(constShift, mm, ov::test::utils::EltwiseTypes::ADD);
+        auto fq = ngraph::builder::makeFakeQuantize(sum, ov::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
 
-        ngraph::ParameterVector inputParams = {mmParams[0]};
-        function = makeNgraphFunction(ngPrec, inputParams, fq, "FQScaleshiftWithConstantShift");
+        ov::ParameterVector inputParams = {mmParams[0]};
+        function = makeNgraphFunction(netPrecision, inputParams, fq, "FQScaleshiftWithConstantShift");
     }
 };
 
@@ -77,12 +75,13 @@ protected:
 */
 
 TEST_P(FQScaleshiftWithConstantShiftTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_Check, FQScaleshiftWithConstantShiftTest,
-                         ::testing::Values(Precision::FP32),
+                         ::testing::Values(ov::element::f32),
                          FQScaleshiftWithConstantShiftTest::getTestCaseName);
-} // namespace
-} // namespace SubgraphTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

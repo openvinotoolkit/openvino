@@ -63,12 +63,13 @@ void MatMulTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapeRelatedParams.input1.first))};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
-    auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
-            ngraph::builder::makeMatMul(params[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
+    auto MatMul = std::make_shared<ov::op::v0::MatMul>(params[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }

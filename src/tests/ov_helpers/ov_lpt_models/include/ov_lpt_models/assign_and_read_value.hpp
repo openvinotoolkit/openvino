@@ -6,7 +6,6 @@
 
 #include <sstream>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
@@ -16,25 +15,25 @@ namespace subgraph {
 
 class AssignAndReadValueFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::PartialShape& inputShape,
         const element::Type& inputPrecision,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const size_t opsetVersion,
         const bool FQAfterReadValue,
         const std::vector<float>& constantValue,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type originalFunctionPrecision,
+        const ov::PartialShape& inputShape,
         const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
         const size_t opsetVersion);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::PartialShape& inputShape,
         const element::Type& inputPrecision,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const size_t opsetVersion,
         const bool FQAfterReadValue,
         const std::vector<float>& constantValue,

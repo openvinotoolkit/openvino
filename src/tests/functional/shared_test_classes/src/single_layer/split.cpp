@@ -44,8 +44,10 @@ void SplitLayerTest::SetUp() {
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(params[0],
                                                                                              ngPrc, numSplits, axis));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ngraph::ResultVector results;
     for (int i = 0; i < outIndices.size(); i++) {
         results.push_back(std::make_shared<ngraph::opset5::Result>(split->output(outIndices[i])));

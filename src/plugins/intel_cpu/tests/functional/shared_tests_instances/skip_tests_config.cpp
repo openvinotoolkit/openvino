@@ -178,8 +178,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-        // Issue: 120286
-        R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
         // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765
@@ -187,8 +185,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
-        // Issue: 120279
-        R"(.*OVCompiledGraphImportExportTest.*elementType=(i16|u16|u32|u64|i64).*)",
         // Issue: 120222
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=3_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=3_.*_modelType=f16_trgDev=CPU.*)",
@@ -198,10 +194,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121228
         R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*bf16.*)",
-        // Issue: 121363
-        R"(.*smoke_Constant/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
-        R"(.*smoke_Constant_with_negative_values/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
-        R"(.*smoke_Check/ConstantResultSubgraphTest.CompareWithRefs/SubgraphType.*_IT=(u16|i16|u32|i64|u64).*)",
         // Issue: 121313
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
@@ -225,6 +217,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
         // Issue: 122356
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
+#ifdef OPENVINO_ARCH_32_BIT
+        // Issue: 126177
+        R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.CompareWithRefs/.*_eltwiseOpType=Bitwise.*_NetType=i32_.*)"
+#endif
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -335,7 +331,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
-        retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*I8.*)");
+        retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_bf16() && !InferenceEngine::with_cpu_x86_bfloat16()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");

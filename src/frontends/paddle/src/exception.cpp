@@ -15,10 +15,12 @@ std::string OpValidationFailure::get_error_msg_prefix_paddle(const paddle::NodeC
     return ss.str();
 }
 
-void OpValidationFailure::create(const CheckLocInfo& check_loc_info,
+void OpValidationFailure::create(const char* file,
+                                 int line,
+                                 const char* check_string,
                                  const NodeContext& node,
                                  const std::string& explanation) {
-    throw OpValidationFailure(make_what(check_loc_info, get_error_msg_prefix_paddle(node), explanation));
+    throw OpValidationFailure(make_what(file, line, check_string, get_error_msg_prefix_paddle(node), explanation));
 }
 }  // namespace paddle
 }  // namespace frontend

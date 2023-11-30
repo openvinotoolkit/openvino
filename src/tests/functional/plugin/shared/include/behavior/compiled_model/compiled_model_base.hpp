@@ -5,6 +5,8 @@
 #include <exec_graph_info.hpp>
 #include <fstream>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/core/preprocess/pre_post_process.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -267,6 +269,42 @@ TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
 }
 
+TEST_P(OVCompiledModelBaseTest, CanCreateTwoCompiledModelsAndCheckRuntimeModel) {
+    std::vector<ov::CompiledModel> vec;
+    for (size_t i = 0; i < 2; i++) {
+        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
+        EXPECT_NE(nullptr, vec[i].get_runtime_model());
+        EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
+    }
+}
+
+TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
+    // compare 2 networks
+    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(function, referenceNetwork);
+}
+
+TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::InputInfo& input = ppp.input();
+    input.model().set_layout("??HW");
+    input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::OutputInfo& output = ppp.output();
+    output.postprocess().convert_element_type(ov::element::u8);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto outInfo = execNet.outputs());
@@ -310,7 +348,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
     }
     int constCnt = 0;
 
-    std::shared_ptr<const ngraph::Function> getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
+    std::shared_ptr<const ov::Model> getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
     ASSERT_NE(getFunction, nullptr);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -362,7 +400,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     int constCnt = 0;
     // Store all the layers from the executable graph information represented as CNNNetwork
     bool hasOpWithValidTime = false;
-    auto getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
+    auto getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
     ASSERT_NE(nullptr, getFunction);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -526,10 +564,10 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
@@ -537,7 +575,7 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(10);
         function->set_friendly_name("SimpleConcat");
     }
@@ -549,10 +587,10 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
@@ -560,7 +598,7 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleConcat");
     }

@@ -446,6 +446,18 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
+    int32_t get_port_from_deps(primitive_id target_id) const {
+        auto deps = get_primitive()->dependencies();
+        auto iter = std::find_if(deps.begin(), deps.end(), [&](input_info& info) {
+            return target_id == info.pid;
+        });
+        if (iter != deps.end()) {
+            return iter->idx;
+        } else {
+            return 0;
+        }
+    }
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;

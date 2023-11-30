@@ -13,16 +13,11 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
-#define FIX_62820 0
-#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-#    include <threading/ie_tbb_streams_executor.hpp>
-#endif
-
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -54,8 +49,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       extensionManager(extMgr),
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache) {
-    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(m_model);
-
+    bool isFloatModel = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(m_model);
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
@@ -72,20 +66,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        m_task_executor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
-#else
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
-#endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
-        m_callback_executor = std::make_shared<ImmediateSerialExecutor>();
-#else
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
-#endif
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -115,29 +100,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         } while (!all_graphs_ready());
     } else {
         CompiledModel::get_graph();
-    }
-
-    // Save all MemoryLayer data tensors. Will use insight about mechanics
-    // of MemoryLayer implementation. It uses output edge of MemoryLayer
-    // producer as storage for tensor to keep it between infer calls.
-    if (m_graphs.size() == 1) {
-        for (auto& node : get_graph()._graph.GetNodes()) {
-            if (node->getType() == Type::MemoryInput) {
-                auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
-                if (!memoryNode) {
-                    OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
-                }
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
-
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
-
-                m_memory_states.emplace_back(new VariableState(state_name, state_store));
-            }
-        }
     }
 }
 
@@ -224,7 +186,7 @@ ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGua
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
-        IE_ASSERT(option != engConfig._config.end());
+        OPENVINO_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
     } else {
@@ -312,8 +274,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
-        return perfHint;
+        return decltype(ov::hint::performance_mode)::value_type(config.hintPerfMode);
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
@@ -326,8 +287,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::execution_mode) {
         return config.executionMode;
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
-        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+        return decltype(ov::hint::num_requests)::value_type(config.hintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {

@@ -5,7 +5,6 @@
 #include <vector>
 #include <memory>
 
-#include <ngraph/ngraph.hpp>
 #include "ov_lpt_models/split.hpp"
 
 #include "ov_models/subgraph_builders.hpp"
@@ -17,34 +16,34 @@
 namespace ngraph {
 namespace builder {
 namespace subgraph {
-std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
+std::shared_ptr<ov::Model> SplitFunction::getOriginal(
     const element::Type& precision,
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type precisionBeforeDequantization,
+    const ov::PartialShape& inputShape,
+    const ov::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const int64_t splitedAxis,
     const size_t numSplits) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     auto dequantizationStructure = dequantization;
     dequantizationStructure.multiply.outPrecision = precision;
     const auto dequantizationOp = makeDequantization(input, dequantization);
-    const auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    const auto split = std::make_shared<ngraph::opset1::Split>(dequantizationOp, constant, numSplits);
+    const auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const auto split = std::make_shared<ov::opset1::Split>(dequantizationOp, constant, numSplits);
 
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     for (size_t i = 0; i < numSplits; ++i) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
+        results.push_back(std::make_shared<ov::opset1::Result>(split->output(i)));
     }
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SplitFunction");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SplitFunction");
 }
 
-std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
-    const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> SplitFunction::getOriginal(
+    const ov::element::Type originalFunctionPrecision,
+    const ov::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     int64_t splitedAxis, size_t numSplit) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fq = fakeQuantize.empty() ? nullptr :
         ngraph::builder::makeFakeQuantize(
@@ -57,45 +56,45 @@ std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
             fakeQuantize.outputLowValues,
             fakeQuantize.outputHighValues);
 
-    auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    const std::shared_ptr<ngraph::opset1::Split> split = std::make_shared<ngraph::opset1::Split>(fq, constant, numSplit);
+    auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const std::shared_ptr<ov::opset1::Split> split = std::make_shared<ov::opset1::Split>(fq, constant, numSplit);
 
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     for (size_t i = 0; i < numSplit; ++i) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
+        results.push_back(std::make_shared<ov::opset1::Result>(split->output(i)));
     }
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SplitFunction");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SplitFunction");
 }
 
-std::shared_ptr<ngraph::Function> SplitFunction::getReference(
+std::shared_ptr<ov::Model> SplitFunction::getReference(
     const element::Type& precision,
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type inputPrecision,
+    const ov::PartialShape& inputShape,
+    const ov::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ngraph::element::Type precisionAfterOperation,
+    const ov::element::Type precisionAfterOperation,
     const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
     const int64_t splitedAxis,
     const size_t numSplit) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
-    const auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    const auto split = std::make_shared<ngraph::opset1::Split>(deqBefore, constant, numSplit);
+    const auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const auto split = std::make_shared<ov::opset1::Split>(deqBefore, constant, numSplit);
 
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     for (size_t i = 0; i < numSplit; ++i) {
         if (!dequantizationAfter.empty()) {
             auto dequantizationStructure = dequantizationAfter[i];
             if (!dequantizationStructure.multiply.empty()) {
                 dequantizationStructure.multiply.outPrecision = precision;
             }
-            results.push_back(std::make_shared<ngraph::opset1::Result>(makeDequantization(split->output(i), dequantizationAfter[i])));
+            results.push_back(std::make_shared<ov::opset1::Result>(makeDequantization(split->output(i), dequantizationAfter[i])));
         } else {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
+            results.push_back(std::make_shared<ov::opset1::Result>(split->output(i)));
         }
     }
 
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SplitTransformation");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SplitTransformation");
 }
 
 }  // namespace subgraph

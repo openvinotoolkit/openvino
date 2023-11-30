@@ -4,76 +4,76 @@
 
 #include "ov_lpt_models/reshape.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "ov_lpt_models/common/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> ReshapeFunction::getOriginal(
+    const ov::PartialShape& inputShape,
     const std::vector<int>& reshapeConstValues,
-    const ngraph::element::Type precisionBeforeDequantization,
+    const ov::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
 
     std::shared_ptr<Node> reshape_pattern;
     if (!reshapeConstValues.empty()) {
-        reshape_pattern = opset1::Constant::create(element::i64, Shape{ reshapeConstValues.size() }, reshapeConstValues);
+        reshape_pattern = ov::opset1::Constant::create(element::i64, Shape{ reshapeConstValues.size() }, reshapeConstValues);
     } else {
-        reshape_pattern = std::make_shared<opset1::ShapeOf>(dequantizationOp);
+        reshape_pattern = std::make_shared<ov::opset1::ShapeOf>(dequantizationOp);
     }
 
-    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(dequantizationOp, reshape_pattern, true);
+    const auto reshape = std::make_shared<ov::opset1::Reshape>(dequantizationOp, reshape_pattern, true);
     reshape->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(reshape) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ReshapeFunction");
 }
 
-std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> ReshapeFunction::getOriginal(
+    const ov::PartialShape& inputShape,
     const std::vector<int>& reshapeConstValues,
-    const ngraph::element::Type precisionBeforeFq,
+    const ov::element::Type precisionBeforeFq,
     const FakeQuantizeOnData& fqOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeFq, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeFq, inputShape);
 
     const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
-        std::dynamic_pointer_cast<ngraph::Node>(input) :
+        std::dynamic_pointer_cast<ov::Node>(input) :
         makeFakeQuantize(input, precisionBeforeFq, fqOnData);
 
-    const std::shared_ptr<Node> reshape = std::make_shared<ngraph::opset1::Reshape>(
+    const std::shared_ptr<Node> reshape = std::make_shared<ov::opset1::Reshape>(
         quantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ reshapeConstValues.size() }, reshapeConstValues),
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{ reshapeConstValues.size() }, reshapeConstValues),
         true);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(reshape) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ReshapeFunction");
 }
 
-std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> ReshapeFunction::getReference(
+    const ov::PartialShape& inputShape,
     const std::vector<int>& reshapeConstValues,
-    const ngraph::element::Type precisionBeforeDequantization,
+    const ov::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ngraph::element::Type precisionAfterOperation,
+    const ov::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
 
     std::shared_ptr<Node> reshape_pattern;
     if (!reshapeConstValues.empty()) {
-        reshape_pattern = opset1::Constant::create(element::i64, Shape{ reshapeConstValues.size() }, reshapeConstValues);
+        reshape_pattern = ov::opset1::Constant::create(element::i64, Shape{ reshapeConstValues.size() }, reshapeConstValues);
     } else {
         reshape_pattern = makeDequantization(quantizationOpBefore, dequantizationAfter);
-        reshape_pattern = std::make_shared<opset1::ShapeOf>(reshape_pattern);
+        reshape_pattern = std::make_shared<ov::opset1::ShapeOf>(reshape_pattern);
     }
 
-    const auto reshape = std::make_shared<opset1::Reshape>(quantizationOpBefore, reshape_pattern, true);
+    const auto reshape = std::make_shared<ov::opset1::Reshape>(quantizationOpBefore, reshape_pattern, true);
     if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {
         THROW_IE_LPT_EXCEPTION(*quantizationOpBefore) << "unexpected precision '" << precisionAfterOperation << "' after operation";
     }
@@ -84,8 +84,8 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(reshape, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(quantizationOpAfter) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ReshapeFunction");
 }
 
 }  // namespace subgraph
