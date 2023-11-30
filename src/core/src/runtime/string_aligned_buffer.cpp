@@ -7,8 +7,6 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
-StringAlignedBuffer::StringAlignedBuffer() : AlignedBuffer(), m_num_elements(0) {}
-
 StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, size_t alignment, bool initialize)
     : AlignedBuffer(byte_size, alignment),
       m_num_elements(num_elements) {
@@ -19,29 +17,6 @@ StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, 
         auto strings = reinterpret_cast<std::string*>(m_aligned_buffer);
         std::uninitialized_fill_n(strings, m_num_elements, std::string());
     }
-}
-
-StringAlignedBuffer::StringAlignedBuffer(StringAlignedBuffer&& other)
-    : AlignedBuffer(std::move(other)),
-      m_num_elements(other.m_num_elements) {
-    other.m_num_elements = 0;
-}
-
-StringAlignedBuffer& StringAlignedBuffer::operator=(StringAlignedBuffer&& other) {
-    if (this != &other) {
-        if (m_allocated_buffer != nullptr) {
-            delete[] m_allocated_buffer;
-        }
-        m_allocated_buffer = other.m_allocated_buffer;
-        m_aligned_buffer = other.m_aligned_buffer;
-        m_byte_size = other.m_byte_size;
-        m_num_elements = other.m_num_elements;
-        other.m_allocated_buffer = nullptr;
-        other.m_aligned_buffer = nullptr;
-        other.m_byte_size = 0;
-        other.m_num_elements = 0;
-    }
-    return *this;
 }
 
 StringAlignedBuffer::~StringAlignedBuffer() {

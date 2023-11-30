@@ -12,11 +12,8 @@ namespace ov {
 /// it is responsible for deallocation of std::string objects that will be stored in the buffer
 class StringAlignedBuffer : public ov::AlignedBuffer {
 public:
-    StringAlignedBuffer();
+    StringAlignedBuffer() = default;
     StringAlignedBuffer(size_t num_elements, size_t byte_size, size_t alignment, bool initialize);
-
-    StringAlignedBuffer(StringAlignedBuffer&& other);
-    StringAlignedBuffer& operator=(StringAlignedBuffer&& other);
 
     virtual ~StringAlignedBuffer();
 
