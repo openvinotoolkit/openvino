@@ -1236,9 +1236,9 @@ class TestPrecisionSensitive():
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
-                                                                                                     'arm64', 'ARM64'],
+                                                                                                     'arm64', 'ARM64'),
                        reason='Ticket - 122714, 122710')
     def test_precision_sensitive(self, create_model, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
         import numpy.testing as npt

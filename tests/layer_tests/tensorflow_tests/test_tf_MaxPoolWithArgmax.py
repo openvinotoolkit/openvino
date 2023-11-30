@@ -61,9 +61,9 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     ])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ['arm', 'armv7l',
+    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
-                                                                                                     'arm64', 'ARM64'],
+                                                                                                     'arm64', 'ARM64'),
                        reason='Ticket - 126314, 122716')
     def test_max_pool_with_argmax_basic(self, params, input_type, padding, targmax,
                                         include_batch_in_index, with_second_output,

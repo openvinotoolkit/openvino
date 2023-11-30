@@ -62,4 +62,3 @@ __pycache__
 /src/plugins/intel_cpu/tools/commit_slider/*.json
 /src/plugins/intel_cpu/tools/commit_slider/slider_cache/*
 .github/GITHUB_OUTPUT
-sample_change

@@ -1,7 +1,7 @@
 name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
 on:
   workflow_dispatch:
-  pull_request:
+  # pull_request:
   push:
     branches:
       - master
@@ -519,35 +519,30 @@ jobs:
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_shared_lib_test
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_global_thread_pools_test
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_global_thread_pools_test
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_api_tests_without_env
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_api_tests_without_env
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-operator tests
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
@@ -597,32 +592,28 @@ jobs:
       #
 
       - name: OpenVINO Core Unit Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
       - name: OpenVINO Inference Unit Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
@@ -632,16 +623,14 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
@@ -664,25 +653,22 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        #    fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+            fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
@@ -697,15 +683,12 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
-        if: ${{ always() }}
-        #if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
-        if: ${{ always() }}
         #if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -713,46 +696,40 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
-        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -760,16 +737,14 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: Inference Engine C API tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/InferenceEngineCAPITests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
@@ -779,36 +754,31 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).PROXY.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PROXY.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
@@ -911,8 +881,7 @@ jobs:
       #
 
       - name: Python API 1.0 Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
@@ -931,17 +900,15 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Model Optimizer unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
               --ignore-glob="**/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
-        #    fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
+            fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
@@ -949,8 +916,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
       - name: OVC unit tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Install Python Layer tests dependencies
@@ -960,8 +926,7 @@ jobs:
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: MO Python API Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
@@ -978,8 +943,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
@@ -992,9 +956,8 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
-        #    fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
+            fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
@@ -1033,8 +996,7 @@ jobs:
 
       - name: ONNX Layer Tests
         timeout-minutes: 30
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
@@ -1045,8 +1007,7 @@ jobs:
 
       - name: TensorFlow 1 Layer Tests - TF FE
         timeout-minutes: 30
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
@@ -1057,8 +1018,7 @@ jobs:
 
       - name: TensorFlow 2 Layer Tests - TF FE
         timeout-minutes: 30
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
@@ -1069,7 +1029,7 @@ jobs:
 
       - name: JAX Layer Tests - TF FE
         timeout-minutes: 30
-        if: ${{ 'false' }} # Ticket:
+        if: ${{ 'false' }}
         #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
@@ -1077,18 +1037,15 @@ jobs:
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
         timeout-minutes: 30
-        if: ${{ always() }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         timeout-minutes: 30
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
@@ -1096,8 +1053,7 @@ jobs:
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         timeout-minutes: 30
-        if: ${{ always() }}
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU

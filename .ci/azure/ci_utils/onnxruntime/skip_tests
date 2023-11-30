@@ -4,6 +4,3 @@ TransposeOpTest.TwoDim_int16
 GatherOpTest.Gather_axis1_indices2d_int16
 SoftmaxOperator.ThreeDimsAxis1
 SoftmaxOperator.ThreeDimsAxis0
-QuantizeLinearMatmulOpTest.QLinearMatMul2D_S8S8
-ReductionOpTest.ReductionVariationTest
-ReductionOpTest.ReduceInfLogSum
