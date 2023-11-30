@@ -87,7 +87,7 @@ def test_add_output_port():
     assert new_outs[0].get_index() == model.outputs[1].get_index()
 
 
-@pytest.mark.parametrize("args", [["relu_t1", "relu_t2"], [("relu1", 0), ("relu2", 0)]],)
+@pytest.mark.parametrize("args", [["relu_t1", "relu_t2"], [("relu1", 0), ("relu2", 0)]])
 def test_add_outputs_several_outputs(args):
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
@@ -177,11 +177,11 @@ def test_replace_parameter():
 
 @pytest.mark.parametrize(("args1", "args2", "expectation", "raise_msg"), [
     (Tensor("float32", Shape([2, 1])),
-    [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),
-     Tensor(np.array([3, 7], dtype=np.float32).reshape(2, 1))], does_not_raise(), ""),
+     [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),
+      Tensor(np.array([3, 7], dtype=np.float32).reshape(2, 1))], does_not_raise(), ""),
     (Tensor("float32", Shape([2, 1])),
-    [Tensor("float32", Shape([3, 1])),
-     Tensor("float32", Shape([3, 1]))], pytest.raises(RuntimeError), "Cannot evaluate model!"),
+     [Tensor("float32", Shape([3, 1])),
+      Tensor("float32", Shape([3, 1]))], pytest.raises(RuntimeError), "Cannot evaluate model!"),
 ])
 def test_evaluate(args1, args2, expectation, raise_msg):
     model = generate_add_model()
@@ -217,7 +217,7 @@ def test_get_batch_chwn():
     assert get_batch(model) == 4
 
 
-@pytest.mark.parametrize("batch_arg", [Dimension(1), 1],)
+@pytest.mark.parametrize("batch_arg", [Dimension(1), 1])
 def test_set_batch(batch_arg):
     model = generate_add_model()
     model_param1_method = model.get_parameters()[0]
