@@ -99,10 +99,20 @@ class TestTransformersModel(TestTorchConvertModel):
         self.cuda_available, self.gptq_postinit = None, None
 
     def load_model(self, name, type):
+        from transformers import AutoConfig
         mi = model_info(name)
         auto_processor = None
         model = None
         example = None
+        try:
+            config = AutoConfig.from_pretrained(name)
+        except Exception:
+            config = {}
+        is_gptq = is_gptq_model(config)
+        model_kwargs = {"torchscript": True}
+        if is_gptq:
+            self.cuda_available, self.gptq_postinit = patch_gptq()
+            model_kwargs["torch_dtype"] = torch.float32
         try:
             auto_model = mi.transformersInfo['auto_model']
             if "processor" in mi.transformersInfo:
@@ -129,7 +139,7 @@ class TestTransformersModel(TestTorchConvertModel):
         elif "vit-gpt2" in name:
             from transformers import VisionEncoderDecoderModel, ViTImageProcessor
             model = VisionEncoderDecoderModel.from_pretrained(
-                name, torchscript=True)
+                name, **model_kwargs)
             feature_extractor = ViTImageProcessor.from_pretrained(name)
             encoded_input = feature_extractor(
                 images=[self.image], return_tensors="pt")
@@ -146,7 +156,7 @@ class TestTransformersModel(TestTorchConvertModel):
             example = (encoded_input.pixel_values,)
         elif 'pix2struct' in mi.tags:
             from transformers import AutoProcessor, Pix2StructForConditionalGeneration
-            model = Pix2StructForConditionalGeneration.from_pretrained(name)
+            model = Pix2StructForConditionalGeneration.from_pretrained(name, **model_kwargs)
             processor = AutoProcessor.from_pretrained(name)
 
             import requests
@@ -168,7 +178,7 @@ class TestTransformersModel(TestTorchConvertModel):
             # mms-lid model config does not have auto_model attribute, only direct loading available
             from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
             model = Wav2Vec2ForSequenceClassification.from_pretrained(
-                name, torchscript=True)
+                name, **model_kwargs)
             processor = AutoFeatureExtractor.from_pretrained(name)
             input_values = processor(torch.randn(16000).numpy(),
                                      sampling_rate=16_000,
@@ -234,7 +244,7 @@ class TestTransformersModel(TestTorchConvertModel):
         elif 'musicgen' in mi.tags:
             from transformers import AutoProcessor, AutoModelForTextToWaveform
             processor = AutoProcessor.from_pretrained(name)
-            model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
+            model = AutoModelForTextToWaveform.from_pretrained(name, **model_kwargs)
             
             inputs = processor(
                 text=["80s pop track with bassy drums and synth"],
@@ -251,13 +261,8 @@ class TestTransformersModel(TestTorchConvertModel):
                 if auto_model == "AutoModelForCausalLM":
                     from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
-                    config = AutoConfig.from_pretrained(name)
-                    is_gptq = is_gptq_model(config)
-                    if is_gptq:
-                        self.cuda_available, self.gptq_postinit = patch_gptq()
-                    torch_dtype = None if not is_gptq else torch.float32
                     model = AutoModelForCausalLM.from_pretrained(
-                        name, torchscript=True, torch_dtype=torch_dtype)
+                        name, **model_kwargs)
                     text = "Replace me by any text you'd like."
                     encoded_input = tokenizer(text, return_tensors='pt')
                     inputs_dict = dict(encoded_input)
@@ -268,7 +273,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     from transformers import AutoTokenizer, AutoModelForMaskedLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForMaskedLM.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     text = "Replace me by any text you'd like."
                     encoded_input = tokenizer(text, return_tensors='pt')
                     example = dict(encoded_input)
@@ -276,7 +281,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     from transformers import AutoProcessor, AutoModelForImageClassification
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForImageClassification.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     encoded_input = processor(
                         images=self.image, return_tensors="pt")
                     example = dict(encoded_input)
@@ -284,7 +289,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForSeq2SeqLM.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     inputs = tokenizer(
                         "Studies have been shown that owning a dog is good for you", return_tensors="pt")
                     decoder_inputs = tokenizer(
@@ -299,7 +304,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     from datasets import load_dataset
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     inputs = processor(torch.randn(1000).numpy(),
                                        sampling_rate=16000,
                                        return_tensors="pt")
@@ -309,7 +314,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     from datasets import load_dataset
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForCTC.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     input_values = processor(torch.randn(1000).numpy(),
                                              return_tensors="pt")
                     example = dict(input_values)
@@ -318,7 +323,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     from transformers import AutoTokenizer, AutoModelForTableQuestionAnswering
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForTableQuestionAnswering.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     data = {"Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
                             "Number of movies": ["87", "53", "69"]}
                     queries = ["What is the name of the first actor?",
@@ -347,13 +352,8 @@ class TestTransformersModel(TestTorchConvertModel):
             except:
                 pass
         if model is None:
-            from transformers import AutoModel, AutoConfig
-            config = AutoConfig.from_pretrained(name)
-            is_gptq = is_gptq_model(config)
-            if is_gptq:
-                self.cuda_available, self.gptq_postinit = patch_gptq()
-            torch_dtype = None if not is_gptq else torch.float32
-            model = AutoModel.from_pretrained(name, torchscript=True, torch_dtype=torch_dtype)
+            from transformers import AutoModel
+            model = AutoModel.from_pretrained(name, **model_kwargs)
         if hasattr(model, "set_default_language"):
             model.set_default_language("en_XX")
         if example is None:
@@ -373,6 +373,10 @@ class TestTransformersModel(TestTorchConvertModel):
     def teardown_method(self):
         # remove all downloaded files from cache
         cleanup_dir(hf_hub_cache_dir)
+        # restore after gptq patching
+        if self.cuda_available is not None:
+            unpatch_gptq(self.cuda_available, self.gptq_postinit)
+            self.cuda_available, self.gptq_postinit = None, None
         super().teardown_method()
 
     @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
@@ -392,9 +396,3 @@ class TestTransformersModel(TestTorchConvertModel):
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)
-
-    def _run(self, model_name, model_link, ie_device):
-        super()._run(model_name, model_link, ie_device)
-        if self.cuda_available is not None:
-            unpatch_gptq(self.cuda_available, self.gptq_postinit)
-            self.cuda_available, self.gptq_postinit = None, None
