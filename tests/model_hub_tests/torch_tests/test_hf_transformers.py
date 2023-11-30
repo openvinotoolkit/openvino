@@ -262,7 +262,7 @@ class TestTransformersModel(TestTorchConvertModel):
                                    token_type_ids=encoded_input["token_type_ids"],
                                    attention_mask=encoded_input["attention_mask"])
                 elif auto_model == 'AutoModelForTextToWaveform' and 'musicgen' in mi.tags:
-                    from transformers import AutoProcessor, AutoModelForTextToWaveform, MusicgenForConditionalGeneration
+                    from transformers import AutoProcessor, AutoModelForTextToWaveform
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
                     
