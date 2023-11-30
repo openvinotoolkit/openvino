@@ -21,7 +21,7 @@ namespace {
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
     std::vector<std::map<std::string, std::string>> additionalConfig;
-    additionalConfig.push_back({{ "INFERENCE_PRECISION_HINT", "f16" }});
+    additionalConfig.push_back({{ov::hint::inference_precision.name(), ov::element::f16.to_string()}});
     return additionalConfig;
 }
 

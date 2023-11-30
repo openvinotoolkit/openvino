@@ -86,6 +86,7 @@ protected:
 };
 
 TEST_P(ConvPoolActivTest, CompareWithRefs) {
+    selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
     run();
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }

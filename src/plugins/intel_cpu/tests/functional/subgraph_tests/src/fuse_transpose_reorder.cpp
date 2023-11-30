@@ -99,7 +99,7 @@ TEST_P(FuseTransposeAndReorderTest, CompareWithRefs_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
     run();
     check_transpose_count(0);
@@ -241,7 +241,7 @@ TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
     run();
     check_transpose_count(1);
@@ -309,7 +309,7 @@ TEST_P(FuseTransposeAndReorderTest3_FP16, CompareWithRefs) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
     run();
     check_transpose_count(0);
@@ -389,7 +389,7 @@ TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
     run();
     check_transpose_count(0);
@@ -419,7 +419,7 @@ TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest_FP16) {
     model = p.build();
 
     auto core = ov::Core();
-    ASSERT_NO_THROW(core.compile_model(model, "CPU", {{ov::hint::inference_precision.name(), "f16"}}));
+    ASSERT_NO_THROW(core.compile_model(model, "CPU", {{ov::hint::inference_precision.name(), ov::element::f16}}));
 }
 
 }  // namespace test

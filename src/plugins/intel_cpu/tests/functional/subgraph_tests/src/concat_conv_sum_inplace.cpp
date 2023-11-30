@@ -84,17 +84,16 @@ public:
 };
 
 namespace {
-    TEST_F(ReLuConcatConvSumInPlaceTest, smoke_ReLuConcatConvSumInPlace_CPU) {
-        run();
+TEST_F(ReLuConcatConvSumInPlaceTest, smoke_ReLuConcatConvSumInPlace_CPU) {
+    run();
+}
+TEST_F(ReLuConcatConvSumInPlaceTest, smoke_ReLuConcatConvSumInPlace_CPU_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    TEST_F(ReLuConcatConvSumInPlaceTest, smoke_ReLuConcatConvSumInPlace_CPU_FP16) {
-        if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-            GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-        }
-        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-        run();
-    }
-
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    run();
+}
 }  // namespace
 }  // namespace test
 }  // namespace ov

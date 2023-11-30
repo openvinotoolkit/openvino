@@ -67,7 +67,7 @@ protected:
         auto netPrecision = inPrc = Precision::FP32;
         outPrc = Precision::BF16;
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::map<std::string, std::string> additional_config{{ov::hint::inference_precision.name(), "f16"}};
+        std::map<std::string, std::string> additional_config{{ov::hint::inference_precision.name(), ov::element::f16.to_string()}};
         configuration.insert(additional_config.begin(), additional_config.end());
 
         std::vector<size_t> inputShape {2, 4, 4, 1};

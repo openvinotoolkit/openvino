@@ -89,9 +89,10 @@ TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
 }
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,
-    testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
-    ConcatConstantInPlaceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU,
+                         ConcatConstantInPlaceTest,
+                         testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
+                         ConcatConstantInPlaceTest::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

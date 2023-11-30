@@ -81,7 +81,7 @@ public:
         std::tie(inType, inputShape) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (inType == ElementType::f16) {
-            configuration.insert({ov::hint::inference_precision.name(), "f16"});
+            configuration.insert({ov::hint::inference_precision.name(), ov::element::f16.to_string()});
         }
         std::tie(inFmts, outFmts, priority, selectedType) =
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};

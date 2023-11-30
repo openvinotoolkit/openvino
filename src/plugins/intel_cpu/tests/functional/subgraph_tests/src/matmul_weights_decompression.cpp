@@ -314,7 +314,7 @@ TEST_P(MatmulWeightsDecompression_FP16, CompareWithRefs) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
     run();
     checkResults_FP16();
 }
@@ -334,7 +334,7 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfigAMX() {
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
     std::vector<std::map<std::string, std::string>> additional_config;
-    additional_config.push_back({{ov::hint::inference_precision.name(), "f16"}});
+    additional_config.push_back({{ov::hint::inference_precision.name(), ov::element::f16.to_string()}});
     return additional_config;
 }
 

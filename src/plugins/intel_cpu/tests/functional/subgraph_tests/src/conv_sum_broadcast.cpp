@@ -171,9 +171,9 @@ TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
 class ConvSumInPlaceTest_FP16 : public ConvSumInPlaceTest {
 public:
     void SetUp() override {
-        // if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        //     GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-        // }
+        if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+            GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+        }
         ConvSumInPlaceTest::SetUp();
     }
     bool primTypeCheck(std::string primType) const override {

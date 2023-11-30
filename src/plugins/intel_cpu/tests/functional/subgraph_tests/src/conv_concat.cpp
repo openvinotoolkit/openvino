@@ -147,7 +147,7 @@ void ConvConcatSubgraphTest::SetUp() {
 }
 
 TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
-    selectedType += "_FP32";
+    selectedType += "_f32";
     run();
 
     CheckPluginRelatedResults(compiledModel, pluginTypeNode);
@@ -159,8 +159,8 @@ TEST_P(ConvConcatSubgraphTest_FP16, CompareWithRefs) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-    selectedType += "_FP16";
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    selectedType += "_f16";
 
     run();
 

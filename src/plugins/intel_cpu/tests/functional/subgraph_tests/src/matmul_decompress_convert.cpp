@@ -204,7 +204,7 @@ protected:
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
         } else if (additionalConfig.find(ov::hint::inference_precision.name()) != additionalConfig.end()
-                && additionalConfig[ov::hint::inference_precision.name()] == "f16") {
+                && additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16.to_string()) {
             convertOutType = inType = outType = netType = ElementType::f16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
@@ -305,7 +305,7 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BF16() {
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
     std::vector<std::map<std::string, std::string>> additionalConfig;
-    additionalConfig.push_back({{ov::hint::inference_precision.name(), "f16"}});
+    additionalConfig.push_back({{ov::hint::inference_precision.name(), ov::element::f16.to_string()}});
     return additionalConfig;
 }
 
@@ -533,7 +533,7 @@ protected:
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
         } else if (additionalConfig.find(ov::hint::inference_precision.name()) != additionalConfig.end()
-                && additionalConfig[ov::hint::inference_precision.name()] == "f16") {
+                && additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16.to_string()) {
             convertOutType = inType = outType = netType = ElementType::f16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
