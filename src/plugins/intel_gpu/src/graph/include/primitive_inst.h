@@ -295,6 +295,7 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+    size_t get_num_users() const { return _num_users; }
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -366,6 +367,8 @@ protected:
     bool _can_share_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
+    // get the number of users after loading cache
+    size_t _num_users = 0;
 
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
