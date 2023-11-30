@@ -365,17 +365,17 @@ void SubgraphBaseTest::update_ref_model() {
     }
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
-    convert_precisions.insert({ov::element::i64,     ov::element::i32});
-    convert_precisions.insert({ov::element::u64,     ov::element::i32});
-    convert_precisions.insert({ov::element::i16,     ov::element::i32});
-    convert_precisions.insert({ov::element::u16,     ov::element::i32});
-    convert_precisions.insert({ov::element::u32,     ov::element::i32});
-    convert_precisions.insert({ov::element::f64,     ov::element::f32});
-    convert_precisions.insert({ov::element::boolean, ov::element::u8});
-    convert_precisions.insert({ov::element::i4,      ov::element::i8});
-    convert_precisions.insert({ov::element::u4,      ov::element::u8});
-    convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
-    convert_precisions.insert({ ov::element::f16, ov::element::f32 });
+    // convert_precisions.insert({ov::element::i64,     ov::element::i32});
+    // convert_precisions.insert({ov::element::u64,     ov::element::i32});
+    // convert_precisions.insert({ov::element::i16,     ov::element::i32});
+    // convert_precisions.insert({ov::element::u16,     ov::element::i32});
+    // convert_precisions.insert({ov::element::u32,     ov::element::i32});
+    // convert_precisions.insert({ov::element::f64,     ov::element::f32});
+    // convert_precisions.insert({ov::element::boolean, ov::element::u8});
+    // convert_precisions.insert({ov::element::i4,      ov::element::i8});
+    // convert_precisions.insert({ov::element::u4,      ov::element::u8});
+    // convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
+    // convert_precisions.insert({ ov::element::f16, ov::element::f32 });
 
     if (!convert_precisions.empty()) {
         pass::Manager manager;

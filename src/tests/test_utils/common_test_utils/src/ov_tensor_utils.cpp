@@ -265,11 +265,11 @@ ov::runtime::Tensor create_and_fill_tensor_consistently(const ov::element::Type 
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
 inline double less(double a, double b) {
-    return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+    return ((b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
 }
 
 inline double less_or_equal(double a, double b) {
-    return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+    return ((b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a <= b);
 }
 
 struct Error {
