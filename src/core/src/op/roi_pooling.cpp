@@ -68,7 +68,8 @@ std::shared_ptr<Node> ROIPooling::clone_with_new_inputs(const OutputVector& new_
 
 bool ROIPooling::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_ROIPooling_visit_attributes);
-    visitor.on_attribute("output_size", m_output_size);
+    visitor.on_attribute("output_size", m_output_size);  // TODO: to be deprecated with get_output_size() of ROIPooling
+    visitor.on_attribute("output_roi", m_output_size);   // same as output_size
     visitor.on_attribute("pooled_h", m_output_size[0]);
     visitor.on_attribute("pooled_w", m_output_size[1]);
     visitor.on_attribute("spatial_scale", m_spatial_scale);

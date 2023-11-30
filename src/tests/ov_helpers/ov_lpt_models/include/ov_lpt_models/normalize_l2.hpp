@@ -9,7 +9,6 @@
 #include <string>
 #include <map>
 
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
@@ -19,30 +18,30 @@ namespace subgraph {
 
 class NormalizeL2Function {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const std::pair<ngraph::PartialShape, ngraph::Shape>& shapes,
-        const ngraph::element::Type precisionOnActivation,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const std::pair<ov::PartialShape, ov::Shape>& shapes,
+        const ov::element::Type precisionOnActivation,
         const std::vector<uint64_t>& axes,
         const bool fuseMultiply,
         const bool shift);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& shape,
-        const ngraph::op::EpsMode& epsMode,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::element::Type inputPrecision,
+        const ov::PartialShape& shape,
+        const ov::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& shape,
-        const ngraph::op::EpsMode& epsMode,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::element::Type inputPrecision,
+        const ov::PartialShape& shape,
+        const ov::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

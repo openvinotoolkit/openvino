@@ -98,5 +98,13 @@ OPENVINO_API std::vector<PartialShape> get_tensors_partial_shapes(const TensorVe
 ///
 /// \return Vector of PartialShapes of each input.
 OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
+
+/// \brief Check if rank is compatible to any of others ranks.
+///
+/// \param r       Rank to check.
+/// \param others  List of ranks used to check compatibility.
+///
+/// \return True if rank compatible to any of others, otherwise false.
+OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others);
 }  // namespace util
 }  // namespace ov
