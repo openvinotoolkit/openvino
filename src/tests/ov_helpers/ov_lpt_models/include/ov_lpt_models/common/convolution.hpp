@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 
 #include "constant.hpp"
 #include "dequantization_operations.hpp"
