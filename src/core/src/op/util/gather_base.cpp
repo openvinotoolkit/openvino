@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/util/gather_base.hpp"
+
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "gather_shape_inference.hpp"
@@ -9,7 +11,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/util/gather_base.hpp"
 #include "openvino/reference/gather.hpp"
 #include "validation_util.hpp"
 
@@ -100,15 +101,18 @@ struct Evaluate : element::NoAction<bool> {
                              const int64_t axis,
                              const int64_t batch_dims) {
         using namespace ov::element;
-        return IfTypeOf<i32, i64>::apply<EvaluateByIndicesType>(indices.get_element_type(),
-                                                                data.data<const DT>(),
-                                                                indices,
-                                                                out.data<DT>(),
-                                                                data_shape,
-                                                                indices_shape,
-                                                                out_shape,
-                                                                axis,
-                                                                batch_dims);
+        return IF_TYPE_OF(util_GatherBase_indices_type,
+                          OV_PP_ET_LIST(i32, i64),
+                          EvaluateByIndicesType,
+                          indices.get_element_type(),
+                          data.data<const DT>(),
+                          indices,
+                          out.data<DT>(),
+                          data_shape,
+                          indices_shape,
+                          out_shape,
+                          axis,
+                          batch_dims);
     }
 
 private:
@@ -204,15 +208,18 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     output.set_shape(out_shape);
 
     using namespace ov::element;
-    return IfTypeOf<boolean, f16, f32, i8, i32, i64, u8, u32, u64>::apply<gather::Evaluate>(data.get_element_type(),
-                                                                                            data,
-                                                                                            indices,
-                                                                                            output,
-                                                                                            data_shape,
-                                                                                            indices_shape,
-                                                                                            out_shape,
-                                                                                            axis,
-                                                                                            batch_dims);
+    return IF_TYPE_OF(util_GatherBase_evaluate,
+                      OV_PP_ET_LIST(boolean, f16, f32, i8, i32, i64, u8, u32, u64),
+                      gather::Evaluate,
+                      data.get_element_type(),
+                      data,
+                      indices,
+                      output,
+                      data_shape,
+                      indices_shape,
+                      out_shape,
+                      axis,
+                      batch_dims);
 }
 
 bool GatherBase::evaluate_lower(TensorVector& output_values) const {
