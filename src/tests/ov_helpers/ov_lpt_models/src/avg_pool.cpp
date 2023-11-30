@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
@@ -15,21 +15,21 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
-    const ngraph::element::Type precision,
-    const ngraph::element::Type inputPrecision,
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
+    const ov::element::Type precision,
+    const ov::element::Type inputPrecision,
+    const ov::PartialShape& inputShape,
     const bool addFQ,
     const std::vector<std::string>& additionalLayers,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
-    std::shared_ptr<ngraph::Node> parent = input;
+    const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
+    std::shared_ptr<ov::Node> parent = input;
 
     auto deqBeforeStructure = dequantizationBefore;
     deqBeforeStructure.multiply.outPrecision = precision;
     const auto dequantization = makeDequantization(input, deqBeforeStructure);
 
-    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
+    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::opset1::AvgPool>(
         dequantization,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
@@ -41,7 +41,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     std::shared_ptr<Node> lastLayer = avgPool;
     for (const std::string& additionalLayer : additionalLayers) {
         if (additionalLayer == "maxpool") {
-            lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+            lastLayer = std::make_shared<ov::opset1::MaxPool>(
                 lastLayer,
                 Strides{ 1, 1 },
                 Shape{ 1, 1 },
@@ -49,7 +49,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
                 Shape{ 2, 2 },
                 op::RoundingType::FLOOR);
         } else if (additionalLayer == "softmax") {
-            lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
+            lastLayer = std::make_shared<ov::opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
             lastLayer = makeConvolution(lastLayer, precision, false);
         } else if (additionalLayer == "unsupported_convolution") {
@@ -64,21 +64,21 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 
     lastLayer->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastLayer) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastLayer) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
-std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
-    const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
+    const ov::element::Type originalFunctionPrecision,
+    const ov::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
+    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::opset1::AvgPool>(
         fakeQuantize,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
@@ -87,26 +87,26 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         true,
         op::RoundingType::FLOOR);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(avgPool) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(avgPool) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
-std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
-    const ngraph::element::Type precision,
-    const ngraph::element::Type inputPrecision,
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> AvgPoolFunction::getReference(
+    const ov::element::Type precision,
+    const ov::element::Type inputPrecision,
+    const ov::PartialShape& inputShape,
     const bool addFQ,
     const std::vector<std::string>& additionalLayers,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ngraph::element::Type precisionAfterOperation,
+    const ov::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationEnd) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
     auto outPrecision = precisionAfterOperation;
-    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
-        opset1::AvgPool(
+    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::op::TypeRelaxed<ov::opset1::AvgPool>>(
+        ov::opset1::AvgPool(
             deqBefore,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
@@ -124,7 +124,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
 
     for (const std::string& additionalLayer : additionalLayers) {
         if (additionalLayer == "maxpool") {
-            lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+            lastLayer = std::make_shared<ov::opset1::MaxPool>(
                 lastLayer,
                 Strides{ 1, 1 },
                 Shape{ 1, 1 },
@@ -132,7 +132,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
                 Shape{ 2, 2 },
                 op::RoundingType::FLOOR);
         } else if (additionalLayer == "softmax") {
-            lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
+            lastLayer = std::make_shared<ov::opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
             lastLayer = makeConvolution(lastLayer, element::f32, dequantizationAfter.empty());
         } else if (additionalLayer == "unsupported_convolution") {
@@ -151,8 +151,8 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
 
     lastLayer->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastLayer) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastLayer) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
 }  // namespace subgraph

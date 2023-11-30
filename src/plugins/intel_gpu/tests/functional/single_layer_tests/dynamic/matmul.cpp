@@ -7,6 +7,7 @@
 #include "ie_precision.hpp"
 #include "ov_models/builders.hpp"
 #include <string>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -118,10 +119,17 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
-        auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
+        std::shared_ptr<ov::Node> matrixB;
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
-            params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
+            auto param = std::make_shared<ov::op::v0::Parameter>(netType, inShapeB);
+            matrixB = param;
+            params.push_back(param);
+        } else {
+            ASSERT_TRUE(inShapeB.is_static());
+            auto tensor = ov::test::utils::create_and_fill_tensor(netType, inShapeB.to_shape());
+            matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
         }
+
         auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], matrixB, transpA, transpB);
         auto makeFunction = [](const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
             ngraph::ResultVector results;

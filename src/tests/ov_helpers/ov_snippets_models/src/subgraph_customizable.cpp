@@ -14,7 +14,7 @@ namespace snippets {
 std::shared_ptr<ov::Model> ConvMulActivationFunction::initOriginal() const {
     auto conv_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     const auto channels = static_cast<size_t>(input_shapes[0][1].get_length());
-    ngraph::Shape strides(2, 1);
+    ov::Shape strides(2, 1);
     std::vector<ptrdiff_t> pad_begin(2, 1), pad_end(2, 1);
     const Shape const_shape {channels, channels, 3, 3};
     const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(const_shape), -10., 10.);
@@ -35,7 +35,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initOriginal() const {
 }
 std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto conv_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    ngraph::Shape strides(2, 1);
+    ov::Shape strides(2, 1);
     std::vector<ptrdiff_t> pad_begin(2, 1), pad_end(2, 1);
     const auto channels = static_cast<size_t>(input_shapes[0][1].get_length());
     const Shape const_shape {channels, channels, 3, 3};

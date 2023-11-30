@@ -3,7 +3,7 @@
 //
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ngraph {
 namespace builder {
@@ -11,10 +11,10 @@ namespace subgraph {
 
 DequantizationOperations::Convert::Convert() :
     isEmpty(true),
-    outPrecision(ngraph::element::undefined)
+    outPrecision(ov::element::undefined)
 {}
 
-DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision, const bool toRemove) :
+DequantizationOperations::Convert::Convert(const ov::element::Type outPrecision, const bool toRemove) :
     isEmpty(false),
     outPrecision(outPrecision)
 {}
@@ -29,27 +29,27 @@ bool DequantizationOperations::Convert::equal(const DequantizationOperations::Co
 
 DequantizationOperations::Subtract::Subtract() :
     isEmpty(true),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false)
 {}
 
 DequantizationOperations::Subtract::Subtract(const float value, const bool toRemove) :
     isEmpty(false),
     values({ value }),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
 DequantizationOperations::Subtract::Subtract(const std::vector<float>& values) :
     isEmpty(values.empty()),
     values(values),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
 DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
-    const ngraph::element::Type outPrecision) :
+    const ov::element::Type outPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
@@ -58,11 +58,11 @@ DequantizationOperations::Subtract::Subtract(
 
 DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
-    const ngraph::element::Type outPrecision,
-    const ngraph::Shape& constantShape,
+    const ov::element::Type outPrecision,
+    const ov::Shape& constantShape,
     const bool toRemove,
     const size_t constantIndex,
-    const ngraph::element::Type constantPrecision,
+    const ov::element::Type constantPrecision,
     const bool addConvert,
     const ov::Node::RTMap& attributes,
     const ov::Node::RTMap& convertAttributes) :
@@ -91,32 +91,32 @@ bool DequantizationOperations::Subtract::equal(const DequantizationOperations::S
         (constantIndex == value.constantIndex);
 }
 
-DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConstantPrecision(const ngraph::element::Type& precision) {
+DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConstantPrecision(const ov::element::Type& precision) {
     constantPrecision = precision;
     return *this;
 }
 
 DequantizationOperations::Multiply::Multiply() :
     isEmpty(true),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
 DequantizationOperations::Multiply::Multiply(const float value) :
     isEmpty(false),
     values({ value }),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
 DequantizationOperations::Multiply::Multiply(const std::vector<float>& values) :
     isEmpty(values.empty()),
     values(values),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
-DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision) :
+DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, const ov::element::Type outPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
@@ -125,11 +125,11 @@ DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, c
 
 DequantizationOperations::Multiply::Multiply(
     const std::vector<float>& values,
-    const ngraph::element::Type outPrecision,
-    const ngraph::Shape& constantShape,
+    const ov::element::Type outPrecision,
+    const ov::Shape& constantShape,
     const bool toRemove,
     const size_t constantIndex,
-    ngraph::element::Type constantPrecision) :
+    ov::element::Type constantPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
@@ -161,7 +161,7 @@ bool DequantizationOperations::equal(const DequantizationOperations& value) cons
         (multiply == value.multiply);
 }
 
-DequantizationOperations::Multiply& DequantizationOperations::Multiply::setConstantPrecision(const ngraph::element::Type& precision) {
+DequantizationOperations::Multiply& DequantizationOperations::Multiply::setConstantPrecision(const ov::element::Type& precision) {
     constantPrecision = precision;
     return *this;
 }
@@ -177,7 +177,7 @@ DequantizationOperations::DequantizationOperations(
     multiply(multiply)
 {}
 
-void DequantizationOperations::setPrecision(const ngraph::element::Type& type) noexcept {
+void DequantizationOperations::setPrecision(const ov::element::Type& type) noexcept {
     convert.outPrecision = type;
     subtract.constantPrecision = type;
     subtract.outPrecision = type;

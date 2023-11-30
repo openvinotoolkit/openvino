@@ -7,8 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets_helpers.hpp"
 
@@ -20,19 +19,19 @@ namespace snippets {
  * @class DummyAdd
  * @brief DummyAdd operation has custom validate_and_infer_types method implementation.
  */
-class DummyAdd : public ngraph::opset1::Add {
+class DummyAdd : public ov::opset1::Add {
 public:
     OPENVINO_OP("DummyAdd", "test::snippets");
 
     DummyAdd(const Output<Node>& arg0,
         const Output<Node>& arg1,
-        const ngraph::op::AutoBroadcastSpec& auto_broadcast =
-        ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY))
-        : ngraph::opset1::Add(arg0, arg1, auto_broadcast) {
+        const ov::op::AutoBroadcastSpec& auto_broadcast =
+        ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))
+        : ov::opset1::Add(arg0, arg1, auto_broadcast) {
         constructor_validate_and_infer_types();
     }
 
-    DummyAdd(const ngraph::opset1::Add& add)
+    DummyAdd(const ov::opset1::Add& add)
         : Add(add.get_input_source_output(0), add.get_input_source_output(1), add.get_autob()) {
         constructor_validate_and_infer_types();
     }
@@ -84,9 +83,9 @@ public:
 
     explicit PrecisionPropagationAddFunction(
         const std::vector<PartialShape> input_shapes,
-        const ngraph::element::Type precision1,
-        const ngraph::element::Type precision2,
-        const ngraph::element::Type constant_precision,
+        const ov::element::Type precision1,
+        const ov::element::Type precision2,
+        const ov::element::Type constant_precision,
         Actual actual,
         Expected expected) :
         SnippetsFunctionBase(input_shapes),
@@ -102,9 +101,9 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
-    const ngraph::element::Type precision1;
-    const ngraph::element::Type precision2;
-    const ngraph::element::Type constant_precision;
+    const ov::element::Type precision1;
+    const ov::element::Type precision2;
+    const ov::element::Type constant_precision;
     const Actual actual;
     const Expected expected;
 
@@ -112,12 +111,12 @@ private:
     /*
      * Returns model implicitly via getOriginal call in initOriginal.
      */
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type& precision1,
-        const ngraph::PartialShape& inputShape1,
-        const ngraph::element::Type& precision2,
-        const ngraph::PartialShape& inputShape2,
-        const ngraph::element::Type& constant_precision,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type& precision1,
+        const ov::PartialShape& inputShape1,
+        const ov::element::Type& precision2,
+        const ov::PartialShape& inputShape2,
+        const ov::element::Type& constant_precision,
         const std::pair<element::Type, element::Type>& convertion_before_op1,
         const element::Type& convertion_before_op2_1,
         const std::pair<element::Type, element::Type>& convertion_before_op2_2,

@@ -41,7 +41,6 @@ public:
 
 private:
     void on_execute() override;
-    void reuse_input();
 };
 
 using scatter_update_inst = typed_primitive_inst<scatter_update>;

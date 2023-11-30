@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/fusing_test_utils.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-using ConvPoolActivTestParams = fusingSpecificParams;
-
-class ConvPoolActivTest : public testing::WithParamInterface<ConvPoolActivTestParams>, public CpuTestWithFusing,
-                          virtual public LayerTestsUtils::LayerTestsCommon {
+class ConvPoolActivTest : public testing::WithParamInterface<fusingSpecificParams>,
+                          public CpuTestWithFusing,
+                          virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvPoolActivTestParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<fusingSpecificParams> obj) {
         fusingSpecificParams fusingParams = obj.param;
 
         std::ostringstream result;
@@ -32,7 +32,8 @@ protected:
         fusingSpecificParams fusingParams = this->GetParam();
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 40, 40})};
+        ov::ParameterVector inputParams{
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 40, 40})};
 
         std::shared_ptr<Node> conv;
         {
@@ -43,7 +44,15 @@ protected:
             const std::vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = builder::makeConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+            conv = ov::test::utils::make_convolution(inputParams[0],
+                                                     element::f32,
+                                                     kernelSize,
+                                                     strides,
+                                                     padBegin,
+                                                     padEnd,
+                                                     dilation,
+                                                     paddingType,
+                                                     numOutChannels);
         }
         std::shared_ptr<Node> pooling;
         {
@@ -52,9 +61,14 @@ protected:
             const std::vector<size_t> padBegin = {0, 0};
             const std::vector<size_t> padEnd = {0, 0};
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            ngraph::helpers::PoolingTypes poolType = ngraph::helpers::PoolingTypes::MAX;
-            ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::CEIL;
-            pooling = builder::makePooling(conv, strides, padBegin, padEnd, kernelSize, roundingType, paddingType, false, poolType);
+            ov::op::RoundingType roundingType = ov::op::RoundingType::CEIL;
+            pooling = std::make_shared<ov::op::v1::MaxPool>(conv,
+                                                            strides,
+                                                            padBegin,
+                                                            padEnd,
+                                                            kernelSize,
+                                                            roundingType,
+                                                            paddingType);
         }
 
         selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
@@ -67,27 +81,26 @@ protected:
         if (isaType == "")
             return primType == "ref";
         else
-            return primType == makeSelectedTypeStr(std::string("jit_") + isaType, element::f32)
-                || primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, element::f32);
+            return primType == makeSelectedTypeStr(std::string("jit_") + isaType, element::f32) ||
+                   primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, element::f32);
     }
 };
 
 TEST_P(ConvPoolActivTest, CompareWithRefs) {
-    Run();
-    CheckPluginRelatedResults(executableNetwork, "Convolution");
+    run();
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 namespace {
 
-const std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
-        fusingRelu,
-        fusingSwish,
-        fusingSigmoid
-};
+const std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingRelu, fusingSwish, fusingSigmoid};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check, ConvPoolActivTest, ::testing::ValuesIn(fusingParamsSet), ConvPoolActivTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check,
+                         ConvPoolActivTest,
+                         ::testing::ValuesIn(fusingParamsSet),
+                         ConvPoolActivTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
