@@ -4,13 +4,15 @@
 
 #pragma once
 
-#include <string>
-#include "ie_system_conf.h"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include <exec_graph_info.hpp>
-#include <openvino/runtime/compiled_model.hpp>
+
+// To be removed
 #include "ie_system_conf.h"
+#include "exec_graph_info.hpp"
 
 namespace CPUTestUtils {
     typedef enum {
@@ -128,13 +130,13 @@ public:
                                const std::vector<cpu_memory_format_t>& outFmts,
                                const std::vector<std::string>& priority);
    //TODO: change to setter method
-    static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
+    static std::string makeSelectedTypeStr(std::string implString, ov::element::Type_t elType);
     void updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config);
 
     CPUInfo getCPUInfo() const;
-    std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
-                                                         ngraph::ParameterVector &params,
-                                                         const std::shared_ptr<ngraph::Node> &lastNode,
+    std::shared_ptr<ov::Model> makeNgraphFunction(const ov::element::Type &ngPrc,
+                                                         ov::ParameterVector &params,
+                                                         const std::shared_ptr<ov::Node> &lastNode,
                                                          std::string name);
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::set<std::string>& nodeType) const;
@@ -153,9 +155,9 @@ protected:
      * @param lastNode The last node of the initial graph.
      * @return The last node of the modified graph.
      */
-    virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
-                                                      ngraph::ParameterVector &params,
-                                                      const std::shared_ptr<ngraph::Node> &lastNode);
+    virtual std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
+                                                      ov::ParameterVector &params,
+                                                      const std::shared_ptr<ov::Node> &lastNode);
 
     virtual bool primTypeCheck(std::string primType) const;
 

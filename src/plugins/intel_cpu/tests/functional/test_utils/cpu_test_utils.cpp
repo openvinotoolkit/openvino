@@ -3,12 +3,11 @@
 //
 
 #include "cpu_test_utils.hpp"
-#include "ie_ngraph_utils.hpp"
+
 #include "openvino/core/type/element_type.hpp"
-#include "utils/rt_info/memory_formats_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
-#include <cstdint>
+#include "utils/rt_info/memory_formats_attribute.hpp"
 
 namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
@@ -147,14 +146,14 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
-        auto getExecValueOutputsLayout = [] (const std::shared_ptr<ngraph::Node>& node) -> std::string {
+        auto getExecValueOutputsLayout = [] (const std::shared_ptr<ov::Node>& node) -> std::string {
             auto rtInfo = node->get_rt_info();
-            auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
+            auto it = rtInfo.find(ov::exec_model_info::OUTPUT_LAYOUTS);
             OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         // skip policy
-        auto should_be_skipped = [] (const ngraph::PartialShape &partialShape, cpu_memory_format_t fmt) {
+        auto should_be_skipped = [] (const ov::PartialShape &partialShape, cpu_memory_format_t fmt) {
             if (partialShape.is_dynamic()) {
                 return false;
             }
@@ -165,7 +164,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             return skip_unsquized_1D || permule_of_1;
         };
 
-        if (nodeType.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
+        if (nodeType.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (size_t i = 0; i < inFmts.size(); i++) {
@@ -211,7 +210,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             }
 
             for (size_t i = 0; i < fmtsNum; i++) {
-                const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
+                const auto actualOutputMemoryFormat = getExecValue(ov::exec_model_info::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_partial_shape(i);
 
                 if (should_be_skipped(shape, outFmts[i]))
@@ -219,7 +218,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
-            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+            auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
 
             ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected : " << primType << " Expected : " << selectedType;
         }
@@ -270,11 +269,11 @@ std::string CPUTestsBase::getPrimitiveType() const {
 #else
 std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         isaType = "jit_avx512";
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         isaType = "jit_avx2";
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         isaType = "jit_sse42";
     } else {
         isaType = "ref";
@@ -285,13 +284,13 @@ std::string CPUTestsBase::getPrimitiveType() const {
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
     std::string isaType;
-    if (!skip_amx && InferenceEngine::with_cpu_x86_avx512_core_amx()) {
+    if (!skip_amx && ov::with_cpu_x86_avx512_core_amx()) {
         isaType = "avx512_amx";
-    } else if (InferenceEngine::with_cpu_x86_avx512f()) {
+    } else if (ov::with_cpu_x86_avx512f()) {
         isaType = "avx512";
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         isaType = "avx2";
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         isaType = "sse42";
     } else {
         isaType = "";
@@ -337,25 +336,25 @@ CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
     return cpuInfo;
 }
 
-std::shared_ptr<ngraph::Function>
-CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) {
+std::shared_ptr<ov::Model>
+CPUTestsBase::makeNgraphFunction(const ov::element::Type &ngPrc, ov::ParameterVector &params,
+                                 const std::shared_ptr<ov::Node> &lastNode, std::string name) {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
-   ngraph::ResultVector results;
+   ov::ResultVector results;
 
    for (size_t i = 0; i < newLastNode->get_output_size(); i++)
-        results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(newLastNode->output(i)));
 
-   return std::make_shared<ngraph::Function>(results, params, name);
+   return std::make_shared<ov::Model>(results, params, name);
 }
 
-std::shared_ptr<ngraph::Node>
-CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
+std::shared_ptr<ov::Node>
+CPUTestsBase::modifyGraph(const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
 }
 
-std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
+std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ov::element::Type_t elType) {
     implString.push_back('_');
     implString += ov::element::Type(elType).get_type_name();
     return implString;
@@ -418,7 +417,7 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpec
 
     std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
 
-    if (!InferenceEngine::with_cpu_x86_avx512f()) {
+    if (!ov::with_cpu_x86_avx512f()) {
         for (auto& param : filteredParamsVector) {
             adjustBlockedFormatByIsa(std::get<0>(param));
             adjustBlockedFormatByIsa(std::get<1>(param));
@@ -441,7 +440,7 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
             return it->second.as<std::string>();
         };
 
-        if (nodeTypes.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
+        if (nodeTypes.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
             actualNodeCount++;
         }
     }
