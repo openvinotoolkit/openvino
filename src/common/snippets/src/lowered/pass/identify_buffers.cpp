@@ -74,18 +74,13 @@ void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrP
 }
 
 std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool) {
-    // There are several sync points for adjacency check:
-    // 1. Loop because only in Loop we increment pointers. So if some Buffers in the one Loop have conflict
-    //    (cannot be inplace: the different ptr increment and data sizes) they are called as adjacent
-    // 2. Brgemm because its blocking implementation requires Buffers with unique memory on all inputs and outputs
+    // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
+    // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
+    // they are called as adjacent
     const auto size = pool.size();
     std::vector<bool> adj(size * size, false);
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
-
-    auto is_buffer = [](const ExpressionPort& port) {
-        return ov::is_type<op::Buffer>(port.get_expr()->get_node());
-    };
 
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
@@ -207,9 +202,7 @@ auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> s
 
 bool IdentifyBuffers::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
-    // Unite Buffers using Graph coloring algorithm.
-    // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
-    //        so these Buffers are always IntermediateBuffer nonadjacent
+    // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool;
 
     for (const auto& expr : linear_ir) {

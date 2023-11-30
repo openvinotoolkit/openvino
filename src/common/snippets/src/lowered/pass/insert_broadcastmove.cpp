@@ -56,8 +56,7 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                 OPENVINO_ASSERT(last_dims[i] == 1,
                                 "Attempt to broadcast non-1 dimension. Target dim: ", broadcasted_dim,
                                 " This dim: ", last_dims[i]);
-                const auto bcast_dim = ov::Dimension(last_dims[i]);
-                const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), bcast_dim);
+                const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), broadcasted_dim);
 
                 PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), connectors[i]->get_source().get_descriptor_ptr()->clone());
                 const auto broadcast_expr = linear_ir.create_expression(broadcast, {connectors[i]});
