@@ -51,12 +51,34 @@ void ShapeOf::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
-    const LayoutType dataFormats[4] = { LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp16c, LayoutType::nCsp8c };
-    for (const auto &df : dataFormats) {
-        addSupportedPrimDesc({{df, precision}},
-                             {{LayoutType::ncsp, ov::element::i32}},
-                             impl_desc_type::ref);
-    }
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}},
+                        {{LayoutType::ncsp, ov::element::i32}},
+                        impl_desc_type::ref);
+}
+
+void ShapeOf::initOptimalPrimitiveDescriptor() {
+    // Mimic the parent node memory desc to avoid extra reorder
+    auto parentEdge = getParentEdgeAt(0);
+    auto parent = parentEdge->getParent();
+    auto parentPd = parent->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(parentPd,
+        parent->getTypeStr(), " ",
+        parent->getName(),
+        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& parentConfig = parentPd->getConfig();
+    auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "ShapeOf ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto config = selected_pd->getConfig();
+    config.inConfs.front().setMemDesc(mem_desc);
+    //bypass any checks, we enforce the parent descriptor
+    selected_pd->setConfig(config);
 }
 
 bool ShapeOf::isExecutable() const {
@@ -66,12 +88,12 @@ bool ShapeOf::isExecutable() const {
 void ShapeOf::execute(dnnl::stream strm) {
     auto inPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto inDims = inPtr->getStaticDims();
+    auto&& inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
         OPENVINO_THROW(errorPrefix, "has inconsistent input shape and output size");
 
-    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* dst = reinterpret_cast<int *>(outPtr->getData());
 
     for (size_t i = 0; i < dimsCount; i++) {
         dst[i] = inDims[i];

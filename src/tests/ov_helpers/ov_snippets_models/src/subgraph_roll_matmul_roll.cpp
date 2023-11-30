@@ -4,7 +4,7 @@
 
 #include "subgraph_roll_matmul_roll.hpp"
 #include <common_test_utils/data_utils.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ov {
 namespace test {
@@ -27,10 +27,10 @@ std::shared_ptr<ov::Model> SubgraphRollMatMulRollFunction::initOriginal() const 
     parent1->get_rt_info()["enforceBF16evenForGraphTail"] = true;
     parent1->set_friendly_name("roll1");
 
-    std::shared_ptr<ngraph::opset1::Parameter> parameter2;
+    std::shared_ptr<ov::opset1::Parameter> parameter2;
     std::shared_ptr<Node> parent2;
 
-    parameter2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    parameter2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
     parameter2->set_friendly_name("parameter2");
 
     parent2 = std::make_shared<ov::op::v7::Roll>(parameter2, shift, axes);
@@ -45,11 +45,11 @@ std::shared_ptr<ov::Model> SubgraphRollMatMulRollFunction::initOriginal() const 
     auto roll3 = std::make_shared<ov::op::v7::Roll>(parent1, shift, axes);
     roll3->set_friendly_name("roll3");
 
-    const auto result = std::make_shared<ngraph::opset1::Result>(roll3);
+    const auto result = std::make_shared<ov::opset1::Result>(roll3);
     result->set_friendly_name("result");
 
     return std::make_shared<ov::Model>(
-        ngraph::ResultVector{ result },
+        ov::ResultVector{ result },
         parameter2 == nullptr ? ParameterVector{ parameter1 } : ParameterVector{ parameter1, parameter2 },
         "SubgraphTransposeMatMulFunction");
 }

@@ -5,7 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
+#include "openvino/core/partial_shape.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace ngraph {
@@ -14,10 +15,10 @@ namespace subgraph {
 
 class MatMulWithOptimizedConstantFakeQuantizeFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape1,
-        const ngraph::PartialShape& inputShape2,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape1,
+        const ov::PartialShape& inputShape2,
         const FakeQuantizeOnData& fqOnData,
         const FakeQuantizeOnData& fqOnWeights);
 };
