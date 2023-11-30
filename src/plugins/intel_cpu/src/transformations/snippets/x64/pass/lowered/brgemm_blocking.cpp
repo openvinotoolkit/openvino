@@ -22,6 +22,20 @@ using LoopPort = LoopManager::LoopPort;
 
 BrgemmBlocking::BrgemmBlocking() : Pass() {}
 
+void BrgemmBlocking::move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir, const snippets::lowered::LinearIR::constExprIt& brgemm_it) {
+    const auto& brgemm_expr = brgemm_it->get();
+    const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
+    const auto wsp_buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(wsp_expr->get_node());
+    OPENVINO_ASSERT(wsp_buffer && wsp_buffer->is_new_memory(), "Incorrect Scratchpad buffer for Brgemm AMX");
+    // [115164] Should be fully supported by explicit loops of blocking by K, N
+    OPENVINO_ASSERT(brgemm_expr->get_loop_ids().empty() && wsp_expr->get_loop_ids().empty(), "Incorrect blocking loop marking for Brgemm AMX");
+    // If scratchpad with temp memory is not explicitly before Brgemm, need to move to there.
+    if (wsp_expr != *std::prev(brgemm_it)) {
+        const auto wsp_it = linear_ir.find(wsp_expr);
+        linear_ir.move(wsp_it, brgemm_it);
+    }
+}
+
 bool BrgemmBlocking::run(snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmBlocking")
     if (linear_ir.empty())
@@ -64,11 +78,18 @@ bool BrgemmBlocking::run(snippets::lowered::LinearIR& linear_ir) {
         const auto work_amount = m;
         const auto increment = block_size;
 
+        auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
         std::vector<LoopPort> entries{LoopPort(expr->get_input_port(0), true), LoopPort(expr->get_input_port(1), false)};
-        if (brgemm->is_with_scratchpad())
+        // Scratchpad for AMX scenario is needed only as temporary buffer for each M block - it means that the Buffer should be in this loop.
+        // Other scratchpads (that after BrgemmCopyB) should be the loop outside.
+        if (brgemm->is_with_compensations()) {
             entries.emplace_back(expr->get_input_port(2), false);
+        } else if (brgemm->is_amx()) {
+            move_new_memory_buffer(linear_ir, expr_it);
+            loop_begin_it = std::prev(expr_it);
+        }
         std::vector<LoopPort> exits{LoopPort(expr->get_output_port(0), true)};
-        loop_manager->mark_loop(expr_it, std::next(expr_it), work_amount, increment, dim_idx, entries, exits);
+        loop_manager->mark_loop(loop_begin_it, loop_end_it, work_amount, increment, dim_idx, entries, exits);
     }
 
     return modified;
