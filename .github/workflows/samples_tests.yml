@@ -54,16 +54,16 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }}
           popd
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }}
           popd
 
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: ${{ env.INSTALL_DIR }}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -85,7 +85,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Build cpp samples - GCC
-        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
+        run: ${{ env.INSTALL_DIR }}/samples/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
@@ -93,14 +93,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           apt-get install -y clang
-          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
+          ${{ env.INSTALL_DIR }}/samples/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples_clang
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
           CC: clang
           CXX: clang++
 
       - name: Build c samples
-        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
+        run: ${{ env.INSTALL_DIR }}/samples/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
@@ -111,19 +111,19 @@ jobs:
       - name: Samples tests
         # if: fromJSON(needs.smart_ci.outputs.affected_components).samples.test
         run: |
-          export WORKSPACE=${INSTALL_DIR}
-          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
-          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
-          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
+          export WORKSPACE=${{ env.INSTALL_DIR }}
+          export IE_APP_PATH=${{ env.INSTALL_DIR }}/samples_bin
+          export IE_APP_PYTHON_PATH=${{ env.INSTALL_DIR }}/samples/python
+          export SHARE=${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
 
-          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
+          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
-            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests \
+            --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml \
+            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
