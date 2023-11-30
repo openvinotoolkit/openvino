@@ -37,7 +37,7 @@ RMSKernelBase::DispatchData RMSKernelBase::SetDefault(const rms_params& params) 
     return dispatchData;
 }
 
-void RMSKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void RMSKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const rms_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -63,7 +63,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params, const opti
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,

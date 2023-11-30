@@ -28,7 +28,7 @@ struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
 
@@ -108,7 +108,7 @@ struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
 

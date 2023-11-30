@@ -47,7 +47,7 @@ MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) 
     return dispatchData;
 }
 
-void MVNKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void MVNKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const mvn_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -76,7 +76,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
     auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,

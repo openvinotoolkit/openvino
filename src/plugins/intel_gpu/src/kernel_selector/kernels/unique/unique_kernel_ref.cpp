@@ -124,7 +124,7 @@ JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
 
 }  // namespace
 
-void UniqueCountKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void UniqueCountKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = dynamic_cast<const unique_count_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -151,7 +151,7 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const opt
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
-    SetUpdateDispatchDataFunc(kernel_data);
+    GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel,
                      dispatch_data,
@@ -238,7 +238,7 @@ CommonDispatchData UniqueCountKernelRef::SetDefault(const unique_count_params& /
     return dispatch_data;
 }
 
-void UniqueGatherKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void UniqueGatherKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = dynamic_cast<const unique_gather_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -262,7 +262,7 @@ KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const op
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
-    SetUpdateDispatchDataFunc(kernel_data);
+    GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel,
                      dispatch_data,

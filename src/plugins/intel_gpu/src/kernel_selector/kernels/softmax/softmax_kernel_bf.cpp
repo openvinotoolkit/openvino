@@ -90,7 +90,7 @@ KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, c
     return FORCE_PRIORITY_6;
 }
 
-void SoftmaxKernel_bf::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void SoftmaxKernel_bf::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const softmax_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -104,7 +104,7 @@ void SoftmaxKernel_bf::SetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
     KernelsData kds = GetCommonKernelsData(params, optionalParams);
     if (!kds.empty()) {
-        SetUpdateDispatchDataFunc(kds[0]);
+        GetUpdateDispatchDataFunc(kds[0]);
     }
 
     return kds;

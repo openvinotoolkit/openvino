@@ -40,7 +40,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_
     return dispatchData;
 }
 
-void ArgMaxMinKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void ArgMaxMinKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const arg_max_min_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -61,7 +61,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
     DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto cldnn_jit = GetJitConstants(orgParams);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);

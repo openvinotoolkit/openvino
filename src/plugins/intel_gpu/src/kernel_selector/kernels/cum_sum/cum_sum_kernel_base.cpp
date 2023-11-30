@@ -66,7 +66,7 @@ CumSumKernelBase::DispatchData CumSumKernelBase::SetDefault(const cum_sum_params
     return dispatchData;
 }
 
-void CumSumKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void CumSumKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const cum_sum_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -91,7 +91,7 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
 

@@ -55,7 +55,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
 

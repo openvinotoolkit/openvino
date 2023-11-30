@@ -205,7 +205,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
     return jit;
 }
 
-void StridedSliceKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void StridedSliceKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const strided_slice_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -248,7 +248,7 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 
     auto& kernel = kd.kernels[0];
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),

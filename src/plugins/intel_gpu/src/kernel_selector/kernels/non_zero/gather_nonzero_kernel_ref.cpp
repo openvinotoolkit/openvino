@@ -67,7 +67,7 @@ CommonDispatchData GatherNonzeroKernelRef::SetDefault(const gather_nonzero_param
     return dispatchData;
 }
 
-void GatherNonzeroKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void GatherNonzeroKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const gather_nonzero_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -91,7 +91,7 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const o
 
     auto& kernel = kd.kernels[0];
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     FillCLKernelData(kernel,
                      dispatchData,

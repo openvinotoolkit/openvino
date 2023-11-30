@@ -150,7 +150,7 @@ bool GatherElementsKernelRef::Validate(const Params& p, const optional_params& o
     return true;
 }
 
-void GatherElementsKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void GatherElementsKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const gather_elements_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -174,7 +174,7 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,

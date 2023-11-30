@@ -81,7 +81,7 @@ bool ActivationKernelBase::Validate(const Params& p, const optional_params& o) c
     return true;
 }
 
-void ActivationKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void ActivationKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const activation_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -105,7 +105,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,

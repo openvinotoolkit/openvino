@@ -64,7 +64,7 @@ bool BorderKernelBase::SkipKernelExecution(const border_params& params) const {
     return params.outputs[0].LogicalSize() == 0;
 }
 
-void BorderKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const border_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -84,7 +84,7 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<border_params>(params);
-    SetUpdateDispatchDataFunc(k_data);
+    GetUpdateDispatchDataFunc(k_data);
 
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);

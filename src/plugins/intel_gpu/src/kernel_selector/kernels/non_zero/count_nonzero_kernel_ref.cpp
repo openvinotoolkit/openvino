@@ -54,7 +54,7 @@ DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const 
     return k;
 }
 
-void CountNonzeroKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void CountNonzeroKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const count_nonzero_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -86,7 +86,7 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
 
     auto& kernel = kd.kernels[0];
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     // In case of count-nonzero, the output shape is static unconditionally,
     // so it should be checked as dynamic of the input shape

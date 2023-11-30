@@ -301,7 +301,7 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-void ScatterUpdateKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void ScatterUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_update_params&>(params);
         OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
@@ -337,7 +337,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     scatter_update_params& newParams = *static_cast<scatter_update_params*>(kd.params.get());
     auto cldnn_jit = GetJitConstants(newParams);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     for (size_t i = start_with_iteration; i < 2; ++i) {
         auto dispatchData = SetDefault(newParams, (i == 1));

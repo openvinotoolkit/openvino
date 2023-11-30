@@ -50,7 +50,7 @@ JitConstants TileKernelRef::GetJitConstants(const tile_params& params) const {
     return jit;
 }
 
-void TileKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void TileKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const tile_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -72,7 +72,7 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_p
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
 

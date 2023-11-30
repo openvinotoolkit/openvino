@@ -22,7 +22,7 @@ CommonDispatchData SetDefault(const range_params &params) {
 
 }  // namespace
 
-void RangeKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void RangeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const range_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -45,7 +45,7 @@ KernelsData RangeKernelRef::GetKernelsData(const Params &params, const optional_
     auto jit_constants = MakeBaseParamsJitConstants(prim_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
 
-    SetUpdateDispatchDataFunc(kernel_data);
+    GetUpdateDispatchDataFunc(kernel_data);
 
     auto &clKernelData = kernel_data.kernels[0];
     bool is_dynamic = prim_params.has_dynamic_tensors();

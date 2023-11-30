@@ -35,7 +35,7 @@ GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& param
     return dispatchData;
 }
 
-void GemmKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void GemmKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const gemm_params&>(params);
             auto dispatchData = SetDefault(prim_params);
@@ -56,7 +56,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<gemm_params>(params);
-    SetUpdateDispatchDataFunc(k_data);
+    GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);

@@ -109,7 +109,7 @@ SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params&
     return dispatchData;
 }
 
-void SelectKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void SelectKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const select_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -134,7 +134,7 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
 
     DispatchData dispatchData = SetDefault(newParams);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,

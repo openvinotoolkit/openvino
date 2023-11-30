@@ -293,7 +293,7 @@ bool GatherKernelRef::Validate(const Params& p, const optional_params& o) const 
     return true;
 }
 
-void GatherKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void GatherKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const gather_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -319,7 +319,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
 
     auto& kernel = kd.kernels[0];
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     FillCLKernelData(kernel,
                      dispatchData,

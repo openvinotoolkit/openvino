@@ -37,6 +37,6 @@ protected:
     virtual JitConstants GetJitConstants(const select_params& params) const;
     virtual DispatchData SetDefault(const select_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
-    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

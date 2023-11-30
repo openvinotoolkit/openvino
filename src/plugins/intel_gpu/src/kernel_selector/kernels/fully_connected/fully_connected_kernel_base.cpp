@@ -71,7 +71,7 @@ FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(cons
     return dispatchData;
 }
 
-void FullyConnectedKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void FullyConnectedKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const fully_connected_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -101,7 +101,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     }
 
     KernelData kd = KernelData::Default<fully_connected_params>(params);
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
     fully_connected_params& newParams = *static_cast<fully_connected_params*>(kd.params.get());
 
     if (!bProperInput) {

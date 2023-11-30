@@ -44,7 +44,7 @@ KernelsPriority SoftmaxKernelRef::GetKernelsPriority(const Params& /*params*/, c
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-void SoftmaxKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void SoftmaxKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const softmax_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -64,7 +64,7 @@ KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params, const optiona
         const softmax_params& orgParams = static_cast<const softmax_params&>(params);
         bool is_dynamic = orgParams.outputs[0].is_dynamic();
 
-        SetUpdateDispatchDataFunc(kds[0]);
+        GetUpdateDispatchDataFunc(kds[0]);
 
         if (is_dynamic) {
             auto& args = kds[0].kernels[0].params.arguments;

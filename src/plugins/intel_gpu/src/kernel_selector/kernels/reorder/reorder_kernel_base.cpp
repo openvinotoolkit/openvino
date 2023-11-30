@@ -222,7 +222,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
     return {kd};
 }
 
-void ReorderKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void ReorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const reorder_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -248,7 +248,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
 

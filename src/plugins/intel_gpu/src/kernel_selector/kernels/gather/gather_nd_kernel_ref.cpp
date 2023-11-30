@@ -172,7 +172,7 @@ bool GatherNDKernelRef::Validate(const Params& p, const optional_params& o) cons
     return true;
 }
 
-void GatherNDKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void GatherNDKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const gather_nd_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -198,7 +198,7 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     FillCLKernelData(kernel,
                      dispatchData,

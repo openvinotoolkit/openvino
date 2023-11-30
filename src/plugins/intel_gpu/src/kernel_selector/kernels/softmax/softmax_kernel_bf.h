@@ -24,6 +24,6 @@ protected:
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE };
     }
-    void SetUpdateDispatchDataFunc(KernelData& kd) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

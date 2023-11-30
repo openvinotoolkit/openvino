@@ -76,7 +76,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         parent::load(ib);
         auto& kernel_selector = kernel_selector_t::Instance();
         auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-        kernel_impl->SetUpdateDispatchDataFunc(_kernel_data);
+        kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {

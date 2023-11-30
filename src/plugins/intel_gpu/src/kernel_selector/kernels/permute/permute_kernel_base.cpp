@@ -30,7 +30,7 @@ JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, co
     return jit;
 }
 
-void PermuteKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void PermuteKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
         const auto& prim_params = static_cast<const permute_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -52,7 +52,7 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
 
-    SetUpdateDispatchDataFunc(kd);
+    GetUpdateDispatchDataFunc(kd);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);

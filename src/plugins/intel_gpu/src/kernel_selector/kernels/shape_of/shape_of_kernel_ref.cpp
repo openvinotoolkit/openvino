@@ -32,7 +32,7 @@ bool ShapeOfKernelRef::SkipKernelExecution(const shape_of_params& params) const 
     return false;
 }
 
-void ShapeOfKernelRef::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void ShapeOfKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const shape_of_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -57,7 +57,7 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optiona
     auto &clKernelData = kernel_data.kernels[0];
     clKernelData.skip_execution = SkipKernelExecution(derived_params);
 
-    SetUpdateDispatchDataFunc(kernel_data);
+    GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
                      false, false, 0, 0, 1, derived_params.inputs[0].is_dynamic());

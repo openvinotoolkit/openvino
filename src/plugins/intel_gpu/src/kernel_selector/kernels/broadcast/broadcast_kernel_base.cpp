@@ -76,7 +76,7 @@ static std::string GetInputBlockND(const broadcast_params& params) {
     return str_result;
 }
 
-void BroadcastKernelBase::SetUpdateDispatchDataFunc(KernelData& kd) const {
+void BroadcastKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const broadcast_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -95,7 +95,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<broadcast_params>(params);
-    SetUpdateDispatchDataFunc(k_data);
+    GetUpdateDispatchDataFunc(k_data);
 
     auto cldnn_jit = GetJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(prim_params)));
