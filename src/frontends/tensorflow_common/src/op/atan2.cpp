@@ -70,4 +70,3 @@ OutputVector translate_atan2_op(const NodeContext& node) {
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
-
