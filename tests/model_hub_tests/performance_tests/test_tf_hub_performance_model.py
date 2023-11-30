@@ -12,6 +12,7 @@ from models_hub_common.constants import no_clean_cache_dir
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_performance_model import TestModelPerformance
 from models_hub_common.utils import get_models_list
+from models_hub_common.utils import get_models_list_not_skipped
 from models_hub_common.utils import cleanup_dir
 
 
@@ -50,7 +51,8 @@ class TestTFPerformanceModel(TestModelPerformance):
         self.run(model_name, model_link, ie_device)
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
+                             get_models_list_not_skipped(os.path.join(os.path.dirname(__file__), "nightly_models"),
+                                                         os.path.join(os.path.dirname(__file__), "nightly_models.skip")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
