@@ -1,0 +1,99 @@
+BERT_pytorch,None
+Background_Matting,None
+#DALLE2_pytorch,None - Not Supported on CPU
+LearningToPaint,None
+Super_SloMo,None,xfail,Unsupported ops aten::l1_loss aten::mse_loss
+#alexnet,None - Already tested by torchvision tests
+basic_gnn_edgecnn,None,xfail,Accuracy validation failed
+basic_gnn_gcn,None,xfail,Unsupported ops aten::pow_ aten::scatter_add_
+basic_gnn_gin,None,xfail,Unsupported op aten::scatter_add_
+basic_gnn_sage,None,xfail,Unsupported op aten::scatter_add_
+#cm3leon_generate,None,skip,No install.py is found
+dcgan,None
+demucs,None,xfail,Unsupported op aten::lstm
+#densenet121,None
+#detectron2_fasterrcnn_r_101_c4,None
+#detectron2_fasterrcnn_r_101_dc5,None
+#detectron2_fasterrcnn_r_101_fpn,None
+#detectron2_fasterrcnn_r_50_c4,None
+#detectron2_fasterrcnn_r_50_dc5,None
+#detectron2_fasterrcnn_r_50_fpn,None
+#detectron2_fcos_r_50_fpn,None
+#detectron2_maskrcnn,None
+#detectron2_maskrcnn_r_101_c4,None
+#detectron2_maskrcnn_r_101_fpn,None
+#detectron2_maskrcnn_r_50_c4,None
+#detectron2_maskrcnn_r_50_fpn,None
+dlrm,None,xfail,Conversion is failed for: prim::Constant - None
+#doctr_det_predictor,None - No module named 'tf2onnx'
+#doctr_reco_predictor,None - No module named 'tf2onnx'
+drq,None,skip,Tracer cannot infer type of SquashedNormal()
+fastNLP_Bert,None,skip,tuple expected at most 1 argument got 2
+functorch_dp_cifar10,None
+functorch_maml_omniglot,None
+#hf_Albert,None - Already tested by hf tests
+#hf_Bart,None - Already tested by hf tests
+#hf_Bert,None - Already tested by hf tests
+#hf_Bert_large,None - Already tested by hf tests
+#hf_BigBird,None - Already tested by hf tests
+#hf_DistilBert,None - Already tested by hf tests
+#hf_GPT2,None - Already tested by hf tests
+#hf_GPT2_large,None - Already tested by hf tests
+#hf_Longformer,None - Already tested by hf tests
+#hf_Reformer,None - Already tested by hf tests
+#hf_T5,None - Already tested by hf tests
+#hf_T5_base,None - Already tested by hf tests
+#hf_T5_generate,None,skip,No install.py is found
+#hf_T5_large,None - Already tested by hf tests
+hf_Whisper,None
+#hf_clip,None,skip,No install.py is found
+lennard_jones,None
+llama,None,skip,Type 'Tuple[Tensor int]' cannot be traced
+llama_v2_7b_16h,None,skip,Tracer cannot infer type of CausalLMOutputWithPast
+maml,None,skip,element 0 of tensors does not require grad and does not have a grad_fn
+maml_omniglot,None
+mnasnet1_0,None
+#mobilenet_v2,None - Already tested by torchvision tests
+mobilenet_v2_quantized_qat,None
+#mobilenet_v3_large,None - Already tested by torchvision tests
+#moco,None - DistributedDataParallel/allgather requires cuda
+#nanogpt,None,skip,No install.py is found
+nvidia_deeprecommender,None
+opacus_cifar10,None,skip,Modules that have backward hooks assigned can't be compiled
+phi_1_5,None
+phlippe_densenet,None
+phlippe_resnet,None
+pyhpc_equation_of_state,None,xfail,Accuracy validation failed
+pyhpc_isoneutral_mixing,None,xfail,Accuracy validation failed
+pyhpc_turbulent_kinetic_energy,None,xfail,Unsupported op aten::empty_like
+pytorch_CycleGAN_and_pix2pix,None
+pytorch_stargan,None,xfail,CPU plugin error: Unsupported operation of type: BatchNormInference
+pytorch_unet,None
+#resnet152,None - Already tested by torchvision tests
+#resnet18,None - Already tested by torchvision tests
+#resnet50,None - Already tested by torchvision tests
+resnet50_quantized_qat,None,xfail,Accuracy validation failed
+#resnext50_32x4d,None - Already tested by torchvision tests
+sam,None,xfail,Unexpected type of example_input
+#shufflenet_v2_x1_0,None - Already tested by torchvision tests
+#simple_gpt,None,skip,No install.py is found
+#simple_gpt_tp_manual,None,skip,No install.py is found
+soft_actor_critic,None,skip,Tracer cannot infer type of SquashedNormal
+speech_transformer,None
+#squeezenet1_1,None - Already tested by torchvision tests
+stable_diffusion_text_encoder,None
+stable_diffusion_unet,None
+tacotron2,None,skip,Can't be loaded without CUDA
+#timm_efficientdet,None - Already tested by timm tests
+#timm_efficientnet,None - Already tested by timm tests
+#timm_nfnet,None - Already tested by timm tests
+#timm_regnet,None - Already tested by timm tests
+#timm_resnest,None - Already tested by timm tests
+#timm_vision_transformer,None - Already tested by timm tests
+#timm_vision_transformer_large,None - Already tested by timm tests
+#timm_vovnet,None - Already tested by timm tests
+torch_multimodal_clip,None,skip,Can't be traced
+tts_angular,None,xfail,Unsupported op aten::lstm
+#vgg16,None - Already tested by torchvision tests
+#vision_maskrcnn,None,skip,Only tensors, lists, tuples of tensors, or dictionary of tensors can be output from traced functions
+yolov3,None

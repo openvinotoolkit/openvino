@@ -3,6 +3,7 @@ numpy
 pytest
 pytest-html
 torch<2.1
+torchaudio
 torchvision
 av
 transformers

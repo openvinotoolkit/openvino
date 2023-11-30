@@ -1,0 +1,66 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import os
+import sys
+import subprocess
+import pytest
+import torch
+import tempfile
+from torch_utils import process_pytest_marks, get_models_list, TestTorchConvertModel
+
+
+# To make tests reproducible we seed the random generator
+torch.manual_seed(0)
+
+
+class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
+    _model_list_path = os.path.join(
+        os.path.dirname(__file__), "torchbench_models")
+
+    def setup_class(self):
+        super().setup_class(self)
+        self.cache_dir = tempfile.TemporaryDirectory()
+        # set temp dir for torch cache
+        if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
+            torch.hub.set_dir(str(self.cache_dir.name))
+        # sd model doesn't need token but torchbench need it to be specified
+        os.environ['HUGGING_FACE_HUB_TOKEN'] = 'x'
+        torch.set_grad_enabled(False)
+
+        self.repo_dir = tempfile.TemporaryDirectory()
+        os.system(
+            f"git clone https://github.com/pytorch/benchmark.git {self.repo_dir.name}")
+        subprocess.check_call(
+            ["git", "checkout", "850364ac2678b2363f086b7549254b6cb7df2e4d"], cwd=self.repo_dir.name)
+        m_list = get_models_list(self._model_list_path)
+        m_processed_list = [m for m, _, mark, _ in m_list if mark != "skip"]
+        subprocess.check_call(
+            [sys.executable, "install.py"]+m_processed_list, cwd=self.repo_dir.name)
+
+    def load_model(self, model_name, model_link):
+        sys.path.append(self.repo_dir.name)
+        from torchbenchmark import load_model_by_name
+        try:
+            model_cls = load_model_by_name(
+                model_name)("eval", "cpu", jit=False)
+        except:
+            model_cls = load_model_by_name(model_name)("eval", "cpu")
+        model, self.example = model_cls.get_module()
+        self.inputs = self.example
+        # initialize selected models
+        if model_name in ["BERT_pytorch", "yolov3"]:
+            model(*self.example)
+        return model
+
+    def teardown_method(self):
+        # cleanup tmpdir
+        self.cache_dir.cleanup()
+        self.repo_dir.cleanup()
+        super().teardown_method()
+
+    @pytest.mark.parametrize("name", process_pytest_marks(_model_list_path))
+    @pytest.mark.nightly
+    @pytest.mark.precommit  # todo: remove
+    def test_convert_model_all_models(self, name, ie_device):
+        self.run(name, None, ie_device)
