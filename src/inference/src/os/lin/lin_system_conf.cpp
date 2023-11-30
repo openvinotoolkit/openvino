@@ -265,12 +265,12 @@ CPU::CPU() {
                            _cores);
         }
     }
-    _org_proc_type_table = _proc_type_table;
     std::vector<std::vector<std::string>>().swap(system_info_table);
 
     if (check_valid_cpu() < 0) {
         OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
     };
+    _org_proc_type_table = _proc_type_table;
 }
 
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
