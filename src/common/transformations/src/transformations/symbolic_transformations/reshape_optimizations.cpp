@@ -29,21 +29,25 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
         if (!reshape)
             return false;
         const auto& in_shape = reshape->get_input_partial_shape(0);
+        const auto& in_rank = in_shape.size();
         const auto& out_shape = reshape->get_output_partial_shape(0);
+        const auto& out_rank = out_shape.size();
 
-        if (in_shape.size() > out_shape.size()) {
-            std::vector<int64_t> output_pattern(out_shape.size(), -1);
-            for (size_t i = 0; i < out_shape.size(); ++i)
-                if (dims_are_equal(in_shape[i], out_shape[i]))
-                    output_pattern[i] = 0;
-            if (std::count(output_pattern.begin(), output_pattern.end(), -1) == 1) {
-                auto new_pattern =
-                    ov::op::v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
-                ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
-                reshape->set_special_zero(true);
-                reshape->input(1).replace_source_output(new_pattern->output(0));
-                return true;
-            }
+        std::vector<int64_t> output_pattern(out_rank, -1);
+        for (size_t i = 0; i < out_rank; ++i) {
+            if (out_shape[i].is_static())
+                output_pattern[i] = out_shape[i].get_length();
+            else if (i >= in_rank)
+                break;
+            else if (dims_are_equal(in_shape[i], out_shape[i]))
+                output_pattern[i] = 0;
+        }
+        if (std::count(output_pattern.begin(), output_pattern.end(), -1) <= 1) {
+            auto new_pattern = ov::op::v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
+            ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
+            reshape->set_special_zero(true);
+            reshape->input(1).replace_source_output(new_pattern->output(0));
+            return true;
         }
         return false;
     };

@@ -10,6 +10,7 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -29,6 +30,7 @@ void label_shape(ov::PartialShape& shape) {
 }  // namespace
 
 TEST_F(TransformationTestsF, FlattenOptimization) {
+    // [A, B, C, D] -> [A, B, C*D]
     {
         auto shape = PartialShape::dynamic(4);
         label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
@@ -62,5 +64,102 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
         model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
+    // [A, B, C, D] -> [A, B, C, D/8, 8]
+    {
+        auto shape = PartialShape::dynamic(4);
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+        auto data = make_shared<v0::Parameter>(element::f32, shape);
+
+        auto shape_of = make_shared<v3::ShapeOf>(data);
+        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2});
+        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+
+        auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
+        auto splited_dim = ov::op::v0::Constant::create(element::i64, {2}, {-1, 8});
+
+        auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, splited_dim}, 0);
+
+        auto reshape = make_shared<v1::Reshape>(data, pattern, false);
+
+        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        manager.register_pass<pass::ReshapeOptimizations>();
+    }
+    {
+        auto shape = PartialShape::dynamic(4);
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+        auto data = make_shared<v0::Parameter>(element::f32, shape);
+        auto pattern = ov::op::v0::Constant::create(element::i64, {5}, {0, 0, 0, -1, 8});
+
+        auto reshape = make_shared<v1::Reshape>(data, pattern, true);
+
+        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
+    // [A, B, C, D] -> [A, B, C, 8, D/8]
+    {
+        auto shape = PartialShape::dynamic(4);
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+        auto data = make_shared<v0::Parameter>(element::f32, shape);
+
+        auto shape_of = make_shared<v3::ShapeOf>(data);
+        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2});
+        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+
+        auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
+        auto splited_dim = ov::op::v0::Constant::create(element::i64, {2}, {8, -1});
+
+        auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, splited_dim}, 0);
+
+        auto reshape = make_shared<v1::Reshape>(data, pattern, false);
+
+        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        manager.register_pass<pass::ReshapeOptimizations>();
+    }
+    {
+        auto shape = PartialShape::dynamic(4);
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+        auto data = make_shared<v0::Parameter>(element::f32, shape);
+        auto pattern = ov::op::v0::Constant::create(element::i64, {5}, {0, 0, 0, 8, -1});
+
+        auto reshape = make_shared<v1::Reshape>(data, pattern, true);
+
+        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NegativeTest) {
+    // [A, B, C, D] -> [A, B, C, D/2, D/3, 6]
+    {
+        auto shape = PartialShape::dynamic(4);
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+        auto data = make_shared<v0::Parameter>(element::f32, shape);
+
+        auto shape_of = make_shared<v3::ShapeOf>(data);
+        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2});
+        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
+
+        auto D = make_shared<v1::Gather>(shape_of, ov::op::v0::Constant::create(element::i64, {1}, {3}), axis);
+        auto D_2 = make_shared<v1::Divide>(D, ov::op::v0::Constant::create(element::i64, {}, {2}));
+        auto D_3 = make_shared<v1::Divide>(D, ov::op::v0::Constant::create(element::i64, {}, {3}));
+        auto six = ov::op::v0::Constant::create(element::i64, {1}, {6});
+
+        auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, D_2, D_3, six}, 0);
+
+        auto reshape = make_shared<v1::Reshape>(data, pattern, false);
+
+        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        manager.register_pass<pass::ReshapeOptimizations>();
     }
 }
