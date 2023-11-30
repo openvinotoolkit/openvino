@@ -155,10 +155,10 @@ def test_scatter_nd_update_negative_updates():
 
 
 def test_scatter_nd_update_empty_indices_and_updates():
-    data = np.array([1, 2, 3], dtype=np.int64)
+    data = np.array([1, 2, 3], dtype=np.float64)
     indices = np.array([], dtype=np.int64).reshape(0, 1)
-    updates = np.array([], dtype=np.int64)
+    updates = np.array([], dtype=np.float64)
 
     result = ov.scatter_nd_update(data, indices, updates)
-    expected = np.array([1, 2, 3], dtype=np.int64)
+    expected = np.array([1, 2, 3], dtype=np.float64)
     np.testing.assert_array_equal(result, expected)
