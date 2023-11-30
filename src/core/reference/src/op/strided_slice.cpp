@@ -31,7 +31,7 @@ void strided_slice(const char* arg,
     }
 
     ov::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
-    slice(reinterpret_cast<const char*>(arg),
+    slice(arg,
           slice_out_buffer.get_ptr<char>(),
           arg_shape,
           Coordinate(sp.begins.begin(), sp.begins.end()),
