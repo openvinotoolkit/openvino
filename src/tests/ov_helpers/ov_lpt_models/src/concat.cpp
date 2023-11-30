@@ -758,7 +758,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithIntermediateWithConsta
         attributes.antialias = false;
         attributes.pads_begin = { 0 };
         attributes.pads_end = { 0 };
-        const auto outputShape = op::Constant::create(
+        const auto outputShape = ov::opset1::Constant::create(
             ov::element::i64, ov::Shape{ 2 },
             ov::Shape{
                 inputShape[2].is_dynamic() ? 9ul : static_cast<size_t>(inputShape[2].get_length()),
@@ -1870,7 +1870,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateWithConst
         attributes.pads_begin = { 0 };
         attributes.pads_end = { 0 };
 
-        const auto outputShape = op::Constant::create(
+        const auto outputShape = ov::opset1::Constant::create(
             ov::element::i64, ov::Shape{ 2 },
             ov::Shape{
                 inputShape[2].is_dynamic() ? 9ul : static_cast<size_t>(inputShape[2].get_length()),
