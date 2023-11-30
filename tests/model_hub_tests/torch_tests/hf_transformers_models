@@ -30,7 +30,7 @@ beomi/exKcBERT-kowiki,exbert,skip,Load problem
 bert-base-uncased,bert
 bigscience/bloom-560m,bloom
 Bono93/basic-cnn-example,simplecnn,skip,Load problem
-caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr,xfail,Unsupported op prim::Constant
+caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr
 camembert-base,camembert
 CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,xfail,Tracing problem
 CEBaB/bert-base-uncased.CEBaB.causalm.ambiance.2-class.exclusive.seed_42,bert_causalm,skip,Load problem
