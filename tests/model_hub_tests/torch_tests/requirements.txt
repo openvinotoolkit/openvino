@@ -18,3 +18,4 @@ pandas
 super-image
 basicsr
 facexlib
+wheel
