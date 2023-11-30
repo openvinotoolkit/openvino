@@ -26,12 +26,14 @@ struct Evaluate : public element::NoAction<bool> {
     template <element::Type_t ET, class TI = fundamental_type_for<ET>>
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
-        return IfTypeOf<CONVERT_ET_LIST>::apply<EvalByOutputType<is_lp_type(ET)>>(
-            out.get_element_type(),
-            reinterpret_cast<const TI*>(arg.data()),
-            out,
-            count,
-            ET);
+        return IF_TYPE_OF(Convert_out,
+                          CONVERT_ET_LIST,
+                          EvalByOutputType<is_lp_type(ET)>,
+                          out.get_element_type(),
+                          reinterpret_cast<const TI*>(arg.data()),
+                          out,
+                          count,
+                          ET);
     }
 
 private:
@@ -137,10 +139,13 @@ bool Convert::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
         out.set_shape(in_shape);
 
         using namespace ov::element;
-        return IfTypeOf<CONVERT_ET_LIST>::apply<convert::Evaluate>(in.get_element_type(),
-                                                                   in,
-                                                                   out,
-                                                                   shape_size(in_shape));
+        return IF_TYPE_OF(v0_Convert_in_et,
+                          CONVERT_ET_LIST,
+                          convert::Evaluate,
+                          in.get_element_type(),
+                          in,
+                          out,
+                          shape_size(in_shape));
     } else {
         return false;
     }
