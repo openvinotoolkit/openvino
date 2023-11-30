@@ -44,20 +44,41 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     if ((begin_data.empty() && !constant_mem.count(1))
         || (end_data.empty() && !constant_mem.count(2))
         || (strides_data.empty() && !constant_mem.count(3))) {
+        auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
+            size_t count = 0;
+            for (size_t i = 0; i < mask.size(); i++) {
+                if (mask[i]) {
+                    count++;
+                }
+            }
+            return count;
+        };
+
         auto input0_pshape = input0_layout.get_partial_shape();
         auto input0_len = input0_pshape.size();
-        auto out_shape = ov::PartialShape::dynamic(input0_len);
+        auto num_of_new_axis_bit = num_of_axis_mask_bit(desc->new_axis_mask);
+        auto num_of_shrink_axis_bit = num_of_axis_mask_bit(desc->shrink_axis_mask);
+        auto output_len = input0_len + num_of_new_axis_bit - num_of_shrink_axis_bit;
+
+        auto out_shape = ov::PartialShape::dynamic(output_len);
         if (input0_layout.is_dynamic()) {
             // fill with static shape until it finds dynamic
-            for (size_t i = 0; i < input0_len; i++) {
+            size_t idx = 0;
+            for (size_t i = 0; i < input0_len + num_of_new_axis_bit; i++) {
+                if (num_of_new_axis_bit > 0 && desc->new_axis_mask[i]) {
+                    out_shape[idx++] = {1};
+                    continue;
+                }
+                if (num_of_shrink_axis_bit > 0 && desc->shrink_axis_mask[i])
+                    continue;
                 if (input0_pshape[i].is_static())
-                    out_shape[i] = input0_pshape[i];
+                    out_shape[idx++] = input0_pshape[i];
                 else
                     break;
             }
         }
 
-        return { layout{out_shape, input0_layout.data_type, format::get_default_format(input0_len)} };
+        return { layout{out_shape, input0_layout.data_type, format::get_default_format(output_len)} };
     }
 
     ov::op::v1::StridedSlice op;
