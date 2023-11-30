@@ -78,7 +78,10 @@ def generate_model_list_file(input_str: str, re_exp_file_path: str, output_file_
                 dirs = [model_dir_path]
                 if dir_re_exp != "*":
                     if is_latest_only:
-                        dirs = [find_latest_dir(model_dir_path, dir_re_exp)]
+                        try:
+                            dirs = [find_latest_dir(model_dir_path, dir_re_exp)]
+                        except:
+                            dirs = []
                     else:
                         dirs = Path(model_dir_path).glob(dir_re_exp)
                 for dir in dirs:
