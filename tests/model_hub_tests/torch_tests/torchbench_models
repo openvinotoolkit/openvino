@@ -11,7 +11,7 @@ basic_gnn_sage,None,xfail,Unsupported op aten::scatter_add_
 #cm3leon_generate,None,skip,No install.py is found
 dcgan,None
 demucs,None,xfail,Unsupported op aten::lstm
-#densenet121,None
+#densenet121,None - Already tested by torchvision tests
 #detectron2_fasterrcnn_r_101_c4,None - Already tested by det2 tests
 #detectron2_fasterrcnn_r_101_dc5,None - Already tested by det2 tests
 #detectron2_fasterrcnn_r_101_fpn,None - Already tested by det2 tests
