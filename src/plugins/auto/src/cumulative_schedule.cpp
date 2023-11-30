@@ -39,7 +39,7 @@ bool CumuSchedule::select_other_device(const std::string& cur_dev_name) {
                     deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(device_name, m_context->m_device_priorities);
                 if (current_device_iter != m_context->m_device_priorities.end()) {
                     m_context->m_device_priorities.erase(current_device_iter);
-                                        return true;
+                    return true;
                 }
             }
             return false;
