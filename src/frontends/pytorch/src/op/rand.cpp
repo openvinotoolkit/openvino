@@ -25,7 +25,11 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-OutputVector make_random_normal(const NodeContext& context, Output<Node> sizes, element::Type target_type) {
+OutputVector make_random_normal(const NodeContext& context,
+                                const Output<Node>& sizes,
+                                element::Type target_type,
+                                const Output<Node>& scale_const,
+                                const Output<Node>& mean_const) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<uint64_t> distrib(0, 9999);
@@ -57,8 +61,6 @@ OutputVector make_random_normal(const NodeContext& context, Output<Node> sizes, 
     auto multiply_two_pi_uniform_2 = context.mark_node(std::make_shared<v1::Multiply>(multiply_two_pi, uniform_2));
     auto cos = context.mark_node(std::make_shared<v0::Cos>(multiply_two_pi_uniform_2));
 
-    auto scale_const = context.mark_node(v0::Constant::create(target_type, Shape{1}, {1}));
-    auto mean_const = context.mark_node(v0::Constant::create(target_type, Shape{1}, {0}));
     auto sqrt_x_cos = context.mark_node(std::make_shared<v1::Multiply>(sqrt, cos));
     auto product = context.mark_node(std::make_shared<v1::Multiply>(scale_const, sqrt_x_cos));
     auto sum = context.mark_node(std::make_shared<v1::Add>(product, mean_const));
@@ -180,7 +182,9 @@ OutputVector translate_randn(const NodeContext& context) {
     // aten::randn.out(SymInt[] size, *, Tensor(a!) out) -> Tensor(a!)
     // aten::randn.generator_out(SymInt[] size, *, Generator? generator, Tensor(a!) out) -> Tensor(a!)
     if (context.get_input_size() == 2 || context.get_input_size() == 3) {
-        auto res = make_random_normal(context, sizes, dtype);
+        auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
+        auto mean = context.mark_node(v0::Constant::create(dtype, Shape{1}, {0}));
+        auto res = make_random_normal(context, sizes, dtype, scale, mean);
         context.mutate_input(out_id, res[0]);
         return res;
     }
@@ -210,7 +214,9 @@ OutputVector translate_randn(const NodeContext& context) {
             FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
-    auto res = make_random_normal(context, sizes, dtype);
+    auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
+    auto mean = context.mark_node(v0::Constant::create(dtype, Shape{1}, {0}));
+    auto res = make_random_normal(context, sizes, dtype, scale, mean);
     if (!dtype_applied) {
         res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
     }
@@ -226,7 +232,9 @@ OutputVector translate_randn_like(const NodeContext& context) {
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(inp_tensor, element::i32));
     auto dtype = element::f32;
     if (context.get_input_size() == 3) {
-        auto res = make_random_normal(context, sizes, dtype);
+        auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
+        auto mean = context.mark_node(v0::Constant::create(dtype, Shape{1}, {0}));
+        auto res = make_random_normal(context, sizes, dtype, scale, mean);
         context.mutate_input(2, res[0]);
         return res;
     }
@@ -246,7 +254,9 @@ OutputVector translate_randn_like(const NodeContext& context) {
             FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
-    auto res = make_random_normal(context, sizes, dtype);
+    auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
+    auto mean = context.mark_node(v0::Constant::create(dtype, Shape{1}, {0}));
+    auto res = make_random_normal(context, sizes, dtype, scale, mean);
     if (!dtype_applied) {
         res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
     }
@@ -282,6 +292,84 @@ OutputVector translate_randint(const NodeContext& context) {
     }
     return {res};
 };
+
+OutputVector translate_normal_(const NodeContext& context) {
+    // aten::normal_(Tensor(a!) self, float mean=0., float std=1., *, Generator? generator=None) -> Tensor(a!)
+    num_inputs_check(context, 3, 4);
+    auto inp_tensor = context.get_input(0);
+    auto mean = context.get_input(1);
+    auto std = context.get_input(2);
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(inp_tensor, element::i32));
+    auto dtype = element::f32;
+    auto res = make_random_normal(context, sizes, dtype, std, mean);
+    res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], inp_tensor));
+    context.mutate_input(0, res[0]);
+    return res;
+}
+
+OutputVector translate_normal(const NodeContext& context) {
+    num_inputs_check(context, 2, 8);
+    auto mean = context.get_input(0);
+    auto std = context.get_input(1);
+    auto dtype = element::f32;
+    if (context.get_input_size() == 3 || context.get_input_size() == 4) {
+        // aten::normal.Tensor_float(Tensor mean, float std=1., *, Generator? generator=None) -> Tensor
+        // aten::normal.Tensor_Tensor(Tensor mean, Tensor std, *, Generator? generator=None) -> Tensor
+        // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!) out) ->
+        // Tensor(a!)
+        // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!)
+        // out) -> Tensor(a!)
+        // aten::normal.Tensor_Tensor_out(Tensor mean, Tensor std, *, Generator? generator=None,
+        // Tensor(a!) out) -> Tensor(a!)
+        auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(mean, element::i32));
+        auto res = make_random_normal(context, sizes, dtype, std, mean);
+        if (!context.input_is_none(3)) {
+            // out
+            auto out = context.get_input(3);
+            res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], out));
+            context.mutate_input(3, res[0]);
+        }
+        return res;
+    } else if (context.get_input_size() == 5) {
+        // aten::normal.float_float_out(float mean, float std, SymInt[] size, *, Generator? generator=None, Tensor(a!)
+        // out) -> Tensor(a!)
+        auto sizes = context.get_input(2);
+        auto res = make_random_normal(context, sizes, dtype, std, mean);
+        if (!context.input_is_none(4)) {
+            // out
+            auto out = context.get_input(4);
+            res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], out));
+            context.mutate_input(4, res[0]);
+        }
+        return res;
+    } else if (context.get_input_size() == 8) {
+        // aten::normal.float_float(float mean, float std, SymInt[] size, *, Generator? generator=None, ScalarType?
+        // dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None) -> Tensor
+        auto sizes = context.get_input(2);
+        Output<Node> convert_like_out;
+        bool dtype_applied = true;
+        if (!context.input_is_none(4)) {
+            if (std::dynamic_pointer_cast<v0::Constant>(
+                    context.get_input_from_visible_context(3).get_node_shared_ptr())) {
+                dtype = convert_dtype(context.const_input<int64_t>(4));
+            } else if (const auto& fw_node = cast_fw_node(context.get_input(3).get_node_shared_ptr(), "prim::dtype")) {
+                convert_like_out = fw_node->input_value(0);
+                dtype_applied = false;
+            } else {
+                FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            }
+        }
+        auto res = make_random_normal(context, sizes, dtype, std, mean);
+        if (!dtype_applied) {
+            res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
+        }
+        return res;
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false,
+                                      "Unsupported number of inputs to aten::normal operation: ",
+                                      context.get_input_size());
+    }
+}
 
 }  // namespace op
 }  // namespace pytorch
