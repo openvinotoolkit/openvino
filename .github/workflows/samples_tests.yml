@@ -1,0 +1,134 @@
+name: Samples
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      image:
+        description: 'Docker image in which the tests would run'
+        type: string
+        required: false
+        default: null
+
+jobs:
+  Samples:
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      BUILD_DIR: ${{ github.workspace }}/build
+    steps:
+      - name: Download OpenVINO package (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO package (mac)
+        if: runner.os == 'macOS'
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package_${{ runner.arch }}
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package (mac)
+        if: runner.os == 'macOS'
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests_${{ runner.arch }}
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      - name: Install OpenVINO dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install coreutils
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python 3.11
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build cpp samples - GCC
+        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      - name: Build cpp samples - Clang
+        if: runner.os == 'Linux'
+        run: |
+          apt-get install -y clang
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+          CC: clang
+          CXX: clang++
+
+      - name: Build c samples
+        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      #
+      # Tests
+      #
+
+      - name: Samples tests
+        # if: fromJSON(needs.smart_ci.outputs.affected_components).samples.test
+        run: |
+          export WORKSPACE=${INSTALL_DIR}
+          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
+          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
+          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
+
+          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
+          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
+
+          source ${INSTALL_DIR}/setupvars.sh
+
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
+            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-samples-${{ runner.arch }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'

@@ -43,13 +43,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arhitecture: 'x86_64'
-            machine: 'macos-13-large'
+          - runner: 'macos-13-large'
             macos_deployment_target: '10.12'
-          - arhitecture: 'arm64'
-            machine: 'macos-13-xlarge'
+          - runner: 'macos-13-xlarge'
             macos_deployment_target: '11.0'
-    runs-on: ${{ matrix.machine }}
+    runs-on: ${{ matrix.runner }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -125,9 +123,9 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ runner.os }}-${{ matrix.arhitecture }}-main
+          key: ${{ runner.os }}-${{ runner.arch }}-main
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.arhitecture }}-main
+            ${{ runner.os }}-${{ runner.arch }}-main
 
       - name: CMake configure
         run: |
@@ -184,7 +182,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_package_${{ matrix.arhitecture }}
+          name: openvino_package_${{ runner.arch }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -192,114 +190,20 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_tests_${{ matrix.arhitecture }}
+          name: openvino_tests_${{ runner.arch }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
   Samples:
     needs: Build
-    timeout-minutes: 5
-    defaults:
-      run:
-        shell: bash
     strategy:
       max-parallel: 2
       fail-fast: false
       matrix:
-        include:
-          - arhitecture: 'x86_64'
-            machine: 'macos-13'
-          - arhitecture: 'arm64'
-            machine: 'macos-13-xlarge'
-    runs-on: ${{ matrix.machine }}
-    env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      BUILD_DIR: ${{ github.workspace }}/build
-
-    steps:
-
-      #
-      # Initialize OpenVINO
-      #
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package_${{ matrix.arhitecture }}
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests_${{ matrix.arhitecture }}
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      - name: Install dependencies
-        run: brew install coreutils
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-
-      - name: Build cpp samples
-        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-
-      - name: Build c samples
-        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-
-      #
-      # Tests
-      #
-
-      - name: Samples tests
-        run: |
-          export WORKSPACE=${INSTALL_DIR}
-          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
-          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
-          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
-
-          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
-
-          source ${INSTALL_DIR}/setupvars.sh
-
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
-            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-samples-${{ matrix.arhitecture }}
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+        runner: ['macos-13', 'macos-13-xlarge']
+    uses: ./.github/workflows/samples_tests.yml
+    with:
+      runner: ${{ matrix.runner }}
 
   CXX_Unit_Tests:
     name: C++ Unit tests
@@ -313,11 +217,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arhitecture: 'x86_64'
-            machine: 'macos-13'
-          - arhitecture: 'arm64'
-            machine: 'macos-13-xlarge'
-    runs-on: ${{ matrix.machine }}
+          - runner: 'macos-13'
+          - runner: 'macos-13-xlarge'
+    runs-on: ${{ matrix.runner }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -330,13 +232,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_${{ matrix.arhitecture }}
+          name: openvino_package_${{ runner.arch }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_${{ matrix.arhitecture }}
+          name: openvino_tests_${{ runner.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -375,7 +277,7 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
           # Skips under Ticket: 122660
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions*' || '' }}
+          skip_filter=${{ runner.arch == 'ARM64' && '--gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions*' || '' }}
           
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
@@ -400,7 +302,7 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: ${{ matrix.arhitecture == 'x86_64' }} # Ticket for ARM64: 122663
+        if: ${{ runner.arch == 'X64' }} # Ticket for ARM64: 122663
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
@@ -418,7 +320,7 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
           # Skips under Ticket: 122666
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*:*NgramCompilation*' || '' }}
+          skip_filter=${{ runner.arch == 'ARM64' && '--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*:*NgramCompilation*' || '' }}
           
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
@@ -434,7 +336,7 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
           # Skips under Ticket: 122668
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*:*TransformationTests/CompressQuantizeWeightsTests.FusionTest*' || '' }}
+          skip_filter=${{ runner.arch == 'ARM64' && '--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*:*TransformationTests/CompressQuantizeWeightsTests.FusionTest*' || '' }}
           
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
@@ -529,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-cpp-${{ matrix.arhitecture }}
+          name: test-results-cpp-${{ runner.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -545,11 +447,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arhitecture: 'x86_64'
-            machine: 'macos-13'
-          - arhitecture: 'arm64'
-            machine: 'macos-13-xlarge'
-    runs-on: ${{ matrix.machine }}
+          - runner: 'macos-13'
+          - runner: 'macos-13-xlarge'
+    runs-on: ${{ matrix.runner }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
@@ -579,13 +479,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_${{ matrix.arhitecture }}
+          name: openvino_package_${{ runner.arch }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_${{ matrix.arhitecture }}
+          name: openvino_tests_${{ runner.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -605,7 +505,7 @@ jobs:
           
           # mxnet is only available on x86_64
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
-          if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
+          if [[ "${{ runner.arch }}" == "X64" ]]; then
             extras_to_install="mxnet,$extras_to_install"
           fi
           
@@ -772,7 +672,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-python-${{ matrix.arhitecture }}
+          name: test-results-python-${{ runner.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -789,11 +689,9 @@ jobs:
       matrix:
         include:
         # ticket: 122001
-        #  - arhitecture: 'x86_64'
-        #    machine: 'macos-13'
-          - arhitecture: 'arm64'
-            machine: 'macos-13-xlarge'
-    runs-on: ${{ matrix.machine }}
+        #  - runner: 'macos-13'
+          - runner: 'macos-13-xlarge'
+    runs-on: ${{ matrix.runner }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -805,13 +703,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_${{ matrix.arhitecture }}
+          name: openvino_package_${{ runner.arch }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_${{ matrix.arhitecture }}
+          name: openvino_tests_${{ runner.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -828,7 +726,7 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
           # Skips under Ticket: 122769
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_*:*Extension.XmlModelWithExtensionFromDSO*:*Extension.OnnxModelWithExtensionFromDSO*:*ONNXQuantizedModels/QuantizedModelsTests.MaxPool*:*ONNXQuantizedModels/QuantizedModelsTests.Convolution*:**' || '' }}
+          skip_filter=${{ runner.arch == 'ARM64' && '--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_*:*Extension.XmlModelWithExtensionFromDSO*:*Extension.OnnxModelWithExtensionFromDSO*:*ONNXQuantizedModels/QuantizedModelsTests.MaxPool*:*ONNXQuantizedModels/QuantizedModelsTests.Convolution*:**' || '' }}
           
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* "$skip_filter" --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
@@ -836,6 +734,6 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-functional-cpu-${{ matrix.arhitecture }}
+          name: test-results-functional-cpu-${{ runner.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
