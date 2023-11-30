@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ov_models/builders.hpp>
-
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ie_common.h"
+#include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -32,7 +31,7 @@ protected:
         auto tensor = ov::test::utils::create_and_fill_tensor(netPrecision, inputShape);
         auto secondaryInput = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
+        auto eltwise = ov::test::utils::makeEltwise(input[0], secondaryInput, eltwiseType);
 
         function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
     }
