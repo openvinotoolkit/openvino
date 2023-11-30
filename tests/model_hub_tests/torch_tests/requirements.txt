@@ -6,6 +6,8 @@ torch<2.1
 torchvision
 av
 transformers
+optimum
+auto-gptq>=0.5.1
 timm
 sacremoses
 sentencepiece

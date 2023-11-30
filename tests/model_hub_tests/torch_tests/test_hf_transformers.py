@@ -12,6 +12,61 @@ from models_hub_common.utils import cleanup_dir
 from torch_utils import TestTorchConvertModel
 from torch_utils import process_pytest_marks
 
+def is_gptq_model(config):
+    config_dict = config.to_dict()
+    quantization_config = config_dict.get("quantization_config", None)
+    return quantization_config and quantization_config["quant_method"] == "gptq"
+
+
+def patch_gptq():
+    orig_cuda_check = torch.cuda.is_available
+    orig_post_init_model = None
+    torch.set_default_dtype(torch.float32)
+    torch.cuda.is_available = lambda: True
+
+    from optimum.gptq import GPTQQuantizer
+
+    orig_post_init_model = GPTQQuantizer.post_init_model
+
+    def post_init_model(self, model):
+        from auto_gptq import exllama_set_max_input_length
+
+        class StoreAttr(object):
+            pass
+
+        model.quantize_config = StoreAttr()
+        model.quantize_config.desc_act = self.desc_act
+        if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
+            model = exllama_set_max_input_length(model, self.max_input_length)
+        return model
+
+    GPTQQuantizer.post_init_model = post_init_model
+    return orig_cuda_check, orig_post_init_model
+
+
+def unpatch_gptq(orig_cuda_check, orig_post_init_model):
+    from optimum.gptq import GPTQQuantizer
+    torch.cuda.is_available = orig_cuda_check
+    GPTQQuantizer.post_init_model = orig_post_init_model
+
+
+def flattenize_tuples(list_input):
+    unpacked_pt_res = []
+    for r in list_input:
+        if isinstance(r, (tuple, list)):
+            unpacked_pt_res.extend(flattenize_tuples(r))
+        else:
+            unpacked_pt_res.append(r)
+    return unpacked_pt_res
+
+
+def flattenize_outputs(outputs):
+    if not isinstance(outputs, dict):
+        outputs = flattenize_tuples(outputs)
+        return [i.numpy(force=True) for i in outputs]
+    else:
+        return dict((k, v.numpy(force=True)) for k, v in outputs.items())
+
 
 def filter_example(model, example):
     try:
@@ -41,6 +96,7 @@ class TestTransformersModel(TestTorchConvertModel):
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
+        self.cuda_available, self.gptq_postinit = None, None
 
     def load_model(self, name, type):
         mi = model_info(name)
@@ -193,10 +249,15 @@ class TestTransformersModel(TestTorchConvertModel):
         else:
             try:
                 if auto_model == "AutoModelForCausalLM":
-                    from transformers import AutoTokenizer, AutoModelForCausalLM
+                    from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
+                    config = AutoConfig.from_pretrained(name)
+                    is_gptq = is_gptq_model(config)
+                    if is_gptq:
+                        self.cuda_available, self.gptq_postinit = patch_gptq()
+                    torch_dtype = None if not is_gptq else torch.float32
                     model = AutoModelForCausalLM.from_pretrained(
-                        name, torchscript=True)
+                        name, torchscript=True, torch_dtype=torch_dtype)
                     text = "Replace me by any text you'd like."
                     encoded_input = tokenizer(text, return_tensors='pt')
                     inputs_dict = dict(encoded_input)
@@ -286,8 +347,13 @@ class TestTransformersModel(TestTorchConvertModel):
             except:
                 pass
         if model is None:
-            from transformers import AutoModel
-            model = AutoModel.from_pretrained(name, torchscript=True)
+            from transformers import AutoModel, AutoConfig
+            config = AutoConfig.from_pretrained(name)
+            is_gptq = is_gptq_model(config)
+            if is_gptq:
+                self.cuda_available, self.gptq_postinit = patch_gptq()
+            torch_dtype = None if not is_gptq else torch.float32
+            model = AutoModel.from_pretrained(name, torchscript=True, torch_dtype=torch_dtype)
         if hasattr(model, "set_default_language"):
             model.set_default_language("en_XX")
         if example is None:
@@ -314,7 +380,8 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip")
+                                           ("openai/clip-vit-large-patch14", "clip"),
+                                           ("OpenVINO/opt-125m-gptq", 'opt')
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
@@ -325,3 +392,9 @@ class TestTransformersModel(TestTorchConvertModel):
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)
+
+    def _run(self, model_name, model_link, ie_device):
+        super()._run(model_name, model_link, ie_device)
+        if self.cuda_available is not None:
+            unpatch_gptq(self.cuda_available, self.gptq_postinit)
+            self.cuda_available, self.gptq_postinit = None, None

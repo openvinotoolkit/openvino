@@ -294,6 +294,7 @@ openai-gpt,openai-gpt
 OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
 openmmlab/upernet-convnext-small,upernet,skip,Load problem
 openMUSE/clip-vit-large-patch14-text-enc,clip_text_model,skip,Load problem
+OpenVINO/opt-125m-gptq,opt
 PatrickHaller/ngme-llama-264M,ngme,skip,Load problem
 patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,encoder_decoder,skip,Load problem
 paulhindemith/test-zeroshot,test-zeroshot,skip,Load problem
