@@ -4,37 +4,49 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <type_traits>
 
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-// Return type is `void`, only enabled if `T` is a built-in FP
-// type, or OpenVINO's `bfloat16` or `float16` type.
+
+/**
+ * @brief Reference implementation for Range operator (floating-point types).
+ *
+ * @param start     Start value.
+ * @param step      Step is difference value for consecutive values.
+ * @param num_elem  Number of elements to generate
+ * @param out       Pointer to output data.
+ */
 template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
-                        std::is_same<T, float16>::value>::type
-range(const T* start, const T* step, const size_t& num_elem, T* out) {
-    for (size_t i = 0; i < num_elem; i++) {
-        out[i] = *start + (static_cast<T>(i) * (*step));
+typename std::enable_if<ov::is_floating_point<T>()>::type range(const T start,
+                                                                const T step,
+                                                                const size_t num_elem,
+                                                                T* out) {
+    for (size_t i = 0; i < num_elem; ++i) {
+        out[i] = start + (static_cast<T>(i) * (step));
     }
 }
 
-// Return type is `void`, only enabled if `T` is `is_integral`.
+/**
+ * @brief Reference implementation for Range operator (integral types).
+ *
+ * @param start     Start value.
+ * @param step      Step is difference value for consecutive values.
+ * @param num_elem  Number of elements to generate
+ * @param out       Pointer to output data.
+ */
 template <typename T>
-typename std::enable_if<std::is_integral<T>::value>::type range(const T* start,
-                                                                const T* step,
-                                                                const size_t& num_elem,
+typename std::enable_if<std::is_integral<T>::value>::type range(const T start,
+                                                                const T step,
+                                                                const size_t num_elem,
                                                                 T* out) {
-    T val = *start;
-
-    for (size_t i = 0; i < num_elem; i++) {
+    auto val = start;
+    for (size_t i = 0; i < num_elem; ++i, val += step) {
         out[i] = val;
-        val += *step;
     }
 }
 }  // namespace reference
