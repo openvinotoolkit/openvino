@@ -1184,29 +1184,34 @@ static std::tuple<ov::OutputVector, bool> get_inputs(
     const std::shared_ptr<ov::Node>& node,
     const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
     bool all_constants = true;
-    bool inputs_converted = false;
+    bool inputs_changed = false;
     size_t num_inputs = node->get_input_size();
 
     ov::OutputVector inputs;
     inputs.reserve(num_inputs);
 
     for (size_t i = 0; i < num_inputs; i++) {
-        all_constants = all_constants && ov::op::util::is_constant(node->get_input_node_ptr(i));
         auto input = node->input_value(i);
         if (node_map.count(input) > 0) {
             input = node_map.at(input);
+            inputs_changed = true;
         }
-        if (!node->has_evaluate() && requires_conversion(input)) {
+        all_constants = all_constants && ov::op::util::is_constant(input.get_node());
+        if (all_constants && !node->has_evaluate() && requires_conversion(input)) {
             auto convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
             ov::OutputVector replacements(1);
             OPENVINO_ASSERT(convert->constant_fold(replacements, {input}));
             input = replacements[0];
-            inputs_converted = true;
+            inputs_changed = true;
         }
         inputs.push_back(input);
     }
 
-    return {inputs, inputs_converted};
+    if (!all_constants) {
+        return {node->input_values(), false};
+    }
+
+    return {inputs, inputs_changed};
 }
 
 std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
@@ -1248,21 +1253,22 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
         }
 
         OutputVector inputs;
-        bool inputs_converted = false;
-        std::tie(inputs, inputs_converted) = get_inputs(node, node_map);
-        if (inputs_converted) {
-            node->clone_with_new_inputs(inputs);
+        bool inputs_changed = false;
+        std::tie(inputs, inputs_changed) = get_inputs(node, node_map);
+        auto orig_node = node;
+        if (inputs_changed) {
+            node = node->clone_with_new_inputs(inputs);
         }
 
         OutputVector outputs(node->get_output_size());
         if (node->constant_fold(outputs, inputs)) {
             stack.pop();
             for (size_t i = 0; i < outputs.size(); i++) {
-                node_map[node->output(i)] = outputs[i].get_node_shared_ptr();
+                node_map[orig_node->output(i)] = outputs[i].get_node_shared_ptr();
             }
         } else {
-            for (size_t i = node->get_input_size(); i > 0; i--) {
-                auto input = node->input_value(i - 1);
+            for (size_t i = orig_node->get_input_size(); i > 0; i--) {
+                auto input = orig_node->input_value(i - 1);
                 if (node_map.count(input) == 0 && !ov::op::util::is_constant(input.get_node())) {
                     stack.push(input.get_node_shared_ptr());
                 }
