@@ -4,11 +4,10 @@
 
 #include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 
-#include <openvino/core/dimension_tracker.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
