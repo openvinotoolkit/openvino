@@ -275,13 +275,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             rtCacheCapacity = std::max(val_i, 0);
         } else if (ov::intel_cpu::denormals_optimization.name() == key) {
             try {
-                if (val.as<bool>()) {
-                    denormalsOptMode = DenormalsOptMode::DO_On;
-                    changedDenormalsOptMode = true;
-                } else {
-                    denormalsOptMode = DenormalsOptMode::DO_Off;
-                    changedDenormalsOptMode = true;
-                }
+                denormalsOptMode = val.as<bool>() ? DenormalsOptMode::DO_On : DenormalsOptMode::DO_Off;
+                changedDenormalsOptMode = true;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+                streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
+#endif
             } catch (ov::Exception&) {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
                 OPENVINO_THROW("Wrong value ",
@@ -290,9 +288,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::denormals_optimization.name(),
                                ". Expected only true/false");
             }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-            streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
-#endif
         } else if (key == ov::intel_cpu::snippets_mode.name()) {
             try {
                 auto const mode = val.as<ov::intel_cpu::SnippetsMode>();
