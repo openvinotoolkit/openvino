@@ -283,11 +283,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_EmptyTensor, ShapeOpsCPUTest, par
 
 
 TEST(smoke_reshape, need_shape_infer) {
-    auto inputs = ngraph::builder::makeDynamicParams(ov::element::i32,
-         std::vector<ov::PartialShape>{{-1, -1}, {2}});
+    ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, -1}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2})};
     auto dataInput = inputs.front();
     auto secondaryInput = inputs.back();
-
     auto shapeOps = std::make_shared<ngraph::opset1::Reshape>(dataInput, secondaryInput, true);
     CPUTestsBase testBase;
     auto function = testBase.makeNgraphFunction(ov::element::i32, inputs, shapeOps, "ReshapNeedShapeInfer");
@@ -304,7 +303,6 @@ TEST(smoke_reshape, need_shape_infer) {
     auto output_shape = output_tensor.get_shape();
     ov::Shape expected_shape =  {320, 160};
     EXPECT_EQ(output_shape, expected_shape);
-
     second_input_data[0] = 640;
     second_input_data[1] = 80;
     infer_request.infer();
@@ -312,7 +310,6 @@ TEST(smoke_reshape, need_shape_infer) {
     output_shape = output_tensor.get_shape();
     expected_shape = {640, 80};
     EXPECT_EQ(output_shape, expected_shape);
-
     input_tensor = ov::Tensor(ov::element::i32, {1280, 40});
     second_input_data[0] = 320;
     second_input_data[1] = 160;
@@ -322,7 +319,6 @@ TEST(smoke_reshape, need_shape_infer) {
     output_shape = output_tensor.get_shape();
     expected_shape = {320, 160};
     EXPECT_EQ(output_shape, expected_shape);
-
     second_input_data[0] = 640;
     second_input_data[1] = 80;
     infer_request.infer();
