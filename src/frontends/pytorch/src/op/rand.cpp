@@ -65,7 +65,6 @@ OutputVector make_random_normal(const NodeContext& context,
     auto sqrt_x_cos = context.mark_node(std::make_shared<v1::Multiply>(sqrt, cos));
     auto product = context.mark_node(std::make_shared<v1::Multiply>(scale_const, sqrt_x_cos));
     auto sum = context.mark_node(std::make_shared<v1::Add>(product, mean_const));
-    
     // if we don't disable downcasting then log(float32_min) gives -inf
     disable_fp16_compression(uniform_1);
     disable_fp16_compression(log);

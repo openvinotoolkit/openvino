@@ -55,7 +55,6 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
     auto const product =
         std::make_shared<default_opset::Multiply>(scale_const, std::make_shared<default_opset::Multiply>(sqrt, cos));
     auto const sum = std::make_shared<default_opset::Add>(product, mean_const);
-    
     // if we don't disable downcasting then log(float32_min) gives -inf
     disable_fp16_compression(uniform_1);
     disable_fp16_compression(log);
