@@ -188,7 +188,8 @@ public:
           m_allocator{allocator} {}
 
     ~AllocatedTensor() {
-        destroy();
+        auto num_elements = get_size();
+        destroy(0, num_elements);
         m_allocator.deallocate(m_ptr, get_byte_size());
     }
 
@@ -196,50 +197,34 @@ public:
         if (m_shape == new_shape)
             return;
 
+        auto old_num_elements = get_size();
         auto old_byte_size = get_byte_size();
-        auto old_shape = m_shape;
         m_shape = std::move(new_shape);
-
-        if (m_element_type == element::string) {
-            auto new_num_elements = shape_size(new_shape);
-            auto num_elements = shape_size(old_shape);
-            auto data = static_cast<std::string*>(m_ptr);
-            if (get_byte_size() > old_byte_size) {
-                // expect memory re-allocation that is why destruct all std::string objects
-                for (size_t ind = 0; ind < num_elements; ++ind) {
-                    using std::string;
-                    data[ind].~string();
-                }
-            } else {
-                // re-use already allocated memory for ov::Tensor of new shape
-                OPENVINO_ASSERT(
-                    new_num_elements <= num_elements,
-                    "New number of elements is expected to be less than the current number in string ov::Tensor");
-                // remaining unneeded objects need to be destructed
-                for (size_t ind = new_num_elements; ind < num_elements; ++ind) {
-                    using std::string;
-                    data[ind].~string();
-                }
-            }
-        }
+        auto new_num_elements = get_size();
 
         if (get_byte_size() > old_byte_size) {
+            // allocate buffer and initialize objects from scratch
+            destroy(0, old_num_elements);
             m_allocator.deallocate(m_ptr, old_byte_size);
             m_ptr = m_allocator.allocate(get_byte_size());
             init(m_ptr, m_element_type, m_shape);
+        } else {
+            // destroy only not needed objects
+            destroy(new_num_elements, old_num_elements);
         }
+
         m_strides.clear();
         update_strides();
     }
 
 private:
-    void destroy() {
+    void destroy(size_t begin_ind, size_t end_ind) {
+        // it removes elements from tail
         if (get_element_type() == element::Type_t::string) {
-            auto num_elements = get_size();
-            auto data = static_cast<std::string*>(m_ptr);
-            for (size_t ind = 0; ind < num_elements; ++ind) {
+            auto strings = static_cast<std::string*>(m_ptr);
+            for (size_t ind = begin_ind; ind < end_ind; ++ind) {
                 using std::string;
-                data[ind].~string();
+                strings[ind].~string();
             }
         }
     }
