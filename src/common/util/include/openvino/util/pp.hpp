@@ -13,7 +13,7 @@
 #define OV_PP_TOSTRING(...)  OV_PP_TOSTRING_(__VA_ARGS__)
 #define OV_PP_TOSTRING_(...) #__VA_ARGS__
 
-#define OV_PP_EXPAND(X) X
+#define OV_PP_EXPAND(...) __VA_ARGS__
 
 #define OV_PP_NARG(...)                         OV_PP_EXPAND(OV_PP_NARG_(__VA_ARGS__, OV_PP_RSEQ_N()))
 #define OV_PP_NARG_(...)                        OV_PP_EXPAND(OV_PP_ARG_N(__VA_ARGS__))
@@ -48,3 +48,6 @@
 
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_PP_IS_ENABLED2(arg1_or_junk) OV_PP_SECOND_ARG(arg1_or_junk 1, 0)
+
+// Ignores inputs
+#define OV_PP_IGNORE(...)
