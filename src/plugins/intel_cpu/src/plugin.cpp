@@ -275,8 +275,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         const auto& perf_hint = config.find(ov::hint::performance_mode.name());
         /* performance hints set for network has higher pririty than engine ones.
          * This applies for all the configuration parameters */
-        const auto perf_hint_name =
-            (perf_hint != config.end()) ? perf_hint->second.as<std::string>() : ov::util::to_string(engConfig.hintPerfMode);
+        const auto& perf_hint_name = (perf_hint != config.end()) ? perf_hint->second.as<std::string>()
+                                                                 : ov::util::to_string(engConfig.hintPerfMode);
         return perf_hint_name;
     };
 
@@ -790,7 +790,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
-        return decltype(ov::supported_properties)::value_type(supportedProperties);
+        return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
@@ -811,7 +811,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         capabilities.push_back(ov::device::capability::INT8);
         capabilities.push_back(ov::device::capability::BIN);
         capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
-        return decltype(ov::device::capabilities)::value_type(capabilities);
+        return decltype(ov::device::capabilities)::value_type(std::move(capabilities));
     } else if (name == ov::range_for_async_infer_requests) {
         const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
         return decltype(ov::range_for_async_infer_requests)::value_type(range);
@@ -820,7 +820,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
-        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
     } else if (name == ov::intel_cpu::denormals_optimization) {
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
