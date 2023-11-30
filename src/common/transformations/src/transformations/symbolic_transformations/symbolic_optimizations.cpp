@@ -22,6 +22,7 @@
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 #include "transformations/symbolic_transformations/label_optimization.hpp"
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
+#include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov::pass;
@@ -201,6 +202,7 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
         REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)   // reduce shape sub-graphs
         REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // figures out that broadcasting didn't happen through Select op
         REGISTER_SYMBOLIC(DeReshapeMatMul)
+        REGISTER_SYMBOLIC(ReshapeOptimizations)
         REGISTER_SYMBOLIC(SimplifyShapeOfSubGraph)
     }
 }
