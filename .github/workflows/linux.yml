@@ -523,7 +523,7 @@ jobs:
   ONNX_Runtime:
     name: ONNX Runtime Integration
     needs: [Build, Smart_CI]
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -1368,7 +1368,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
@@ -1666,7 +1666,7 @@ jobs:
     steps:
       - name: GPU stub
         run: |
-          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI. 
+          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI.
           It will help us to estimate hardware requirements"
         shell: bash
 
