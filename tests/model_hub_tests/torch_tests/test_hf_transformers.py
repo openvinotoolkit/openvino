@@ -184,7 +184,7 @@ class TestTransformersModel(TestTorchConvertModel):
                     encoded_input = processor(
                         images=self.image, return_tensors="pt")
                     example = dict(encoded_input)
-                elif auto_model == "AutoModelForSeq2SeqLM" and 'visual-question-answering' in mi.tags:
+                elif auto_model == "AutoModelForSeq2SeqLM" and 'visual-question-answering' not in mi.tags:
                     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForSeq2SeqLM.from_pretrained(
