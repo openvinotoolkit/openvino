@@ -5,7 +5,7 @@
 import os
 import tempfile
 
-runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '15')
+runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '60')
 runtime_heat_duration = os.environ.get('RUNTIME_HEAT_DURATION', '5')
 
 
