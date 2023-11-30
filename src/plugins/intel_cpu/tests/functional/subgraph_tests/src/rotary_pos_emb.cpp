@@ -22,8 +22,10 @@
 
 using namespace CPUTestUtils;
 using namespace ov::gen_pattern;
-using namespace ov::test;
 using namespace ov;
+
+namespace ov {
+namespace test {
 
 static ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
@@ -129,8 +131,6 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const int batch,
     return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, ov::ParameterVector{input, pos_id_end, pos_ids});
 }
 
-namespace CPULayerTestsDefinitions {
-
 class RoPECPUTest : public SubgraphBaseTest {
 public:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1) {
@@ -181,4 +181,5 @@ TEST_F(RoPECPUTest, smoke_CompareWithRefs) {
     run();
 }
 
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
