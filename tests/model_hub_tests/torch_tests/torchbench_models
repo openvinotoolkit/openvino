@@ -12,18 +12,18 @@ basic_gnn_sage,None,xfail,Unsupported op aten::scatter_add_
 dcgan,None
 demucs,None,xfail,Unsupported op aten::lstm
 #densenet121,None
-#detectron2_fasterrcnn_r_101_c4,None
-#detectron2_fasterrcnn_r_101_dc5,None
-#detectron2_fasterrcnn_r_101_fpn,None
-#detectron2_fasterrcnn_r_50_c4,None
-#detectron2_fasterrcnn_r_50_dc5,None
-#detectron2_fasterrcnn_r_50_fpn,None
-#detectron2_fcos_r_50_fpn,None
-#detectron2_maskrcnn,None
-#detectron2_maskrcnn_r_101_c4,None
-#detectron2_maskrcnn_r_101_fpn,None
-#detectron2_maskrcnn_r_50_c4,None
-#detectron2_maskrcnn_r_50_fpn,None
+#detectron2_fasterrcnn_r_101_c4,None - Already tested by det2 tests
+#detectron2_fasterrcnn_r_101_dc5,None - Already tested by det2 tests
+#detectron2_fasterrcnn_r_101_fpn,None - Already tested by det2 tests
+#detectron2_fasterrcnn_r_50_c4,None - Already tested by det2 tests
+#detectron2_fasterrcnn_r_50_dc5,None - Already tested by det2 tests
+#detectron2_fasterrcnn_r_50_fpn,None - Already tested by det2 tests
+#detectron2_fcos_r_50_fpn,None - Already tested by det2 tests
+#detectron2_maskrcnn,None - Already tested by det2 tests
+#detectron2_maskrcnn_r_101_c4,None - Already tested by det2 tests
+#detectron2_maskrcnn_r_101_fpn,None - Already tested by det2 tests
+#detectron2_maskrcnn_r_50_c4,None - Already tested by det2 tests
+#detectron2_maskrcnn_r_50_fpn,None - Already tested by det2 tests
 dlrm,None,xfail,Conversion is failed for: prim::Constant - None
 #doctr_det_predictor,None - No module named 'tf2onnx'
 #doctr_reco_predictor,None - No module named 'tf2onnx'
