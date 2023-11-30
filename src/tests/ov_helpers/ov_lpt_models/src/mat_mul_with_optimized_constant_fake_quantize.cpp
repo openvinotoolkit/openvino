@@ -4,24 +4,24 @@
 
 #include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
-    const ngraph::element::Type precision,
-    const ngraph::PartialShape& inputShape1,
-    const ngraph::PartialShape& inputShape2,
+std::shared_ptr<ov::Model> MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
+    const ov::element::Type precision,
+    const ov::PartialShape& inputShape1,
+    const ov::PartialShape& inputShape2,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnData& fqOnWeights) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape1);
 
-    const auto lowConstantOnActivations = std::make_shared<ngraph::opset1::Constant>(precision, fqOnData.constantShape, fqOnData.inputLowValues);
-    const auto highConstantOnActivations = std::make_shared<ngraph::opset1::Constant>(precision, fqOnData.constantShape, fqOnData.inputHighValues);
-    const auto fakeQuantizeOnActivations = std::make_shared<ngraph::opset1::FakeQuantize>(
+    const auto lowConstantOnActivations = std::make_shared<ov::opset1::Constant>(precision, fqOnData.constantShape, fqOnData.inputLowValues);
+    const auto highConstantOnActivations = std::make_shared<ov::opset1::Constant>(precision, fqOnData.constantShape, fqOnData.inputHighValues);
+    const auto fakeQuantizeOnActivations = std::make_shared<ov::opset1::FakeQuantize>(
         input,
         lowConstantOnActivations,
         highConstantOnActivations,
@@ -29,13 +29,13 @@ std::shared_ptr<ngraph::Function> MatMulWithOptimizedConstantFakeQuantizeFunctio
         highConstantOnActivations,
         fqOnWeights.quantizationLevel);
 
-    const ngraph::Shape weightsShape = { static_cast<size_t>(inputShape2[0].get_length()), static_cast<size_t>(inputShape1[1].get_length()) };
+    const ov::Shape weightsShape = { static_cast<size_t>(inputShape2[0].get_length()), static_cast<size_t>(inputShape1[1].get_length()) };
     const std::vector<float> weigths(weightsShape[0] * weightsShape[1], 10.f);
 
-    const auto weightsConst = std::make_shared<ngraph::opset1::Constant>(precision, weightsShape, weigths);
-    const auto lowConstantOnWeights = std::make_shared<ngraph::opset1::Constant>(precision, fqOnWeights.constantShape, fqOnWeights.inputLowValues);
-    const auto highConstantOnWeights = std::make_shared<ngraph::opset1::Constant>(precision, fqOnWeights.constantShape, fqOnWeights.inputHighValues);
-    const auto fakeQuantizeOnWeights = std::make_shared<ngraph::opset1::FakeQuantize>(
+    const auto weightsConst = std::make_shared<ov::opset1::Constant>(precision, weightsShape, weigths);
+    const auto lowConstantOnWeights = std::make_shared<ov::opset1::Constant>(precision, fqOnWeights.constantShape, fqOnWeights.inputLowValues);
+    const auto highConstantOnWeights = std::make_shared<ov::opset1::Constant>(precision, fqOnWeights.constantShape, fqOnWeights.inputHighValues);
+    const auto fakeQuantizeOnWeights = std::make_shared<ov::opset1::FakeQuantize>(
         weightsConst,
         lowConstantOnWeights,
         highConstantOnWeights,
@@ -43,14 +43,14 @@ std::shared_ptr<ngraph::Function> MatMulWithOptimizedConstantFakeQuantizeFunctio
         highConstantOnWeights,
         fqOnWeights.quantizationLevel);
 
-    const auto matMul = std::make_shared<ngraph::opset1::MatMul>(
+    const auto matMul = std::make_shared<ov::opset1::MatMul>(
         fakeQuantizeOnActivations,
         fakeQuantizeOnWeights,
         false,
         inputShape1[1] != inputShape2[0]);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(matMul) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MatMulWithOptimizedConstantFakeQuantizeFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(matMul) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "MatMulWithOptimizedConstantFakeQuantizeFunction");
 }
 
 }  // namespace subgraph

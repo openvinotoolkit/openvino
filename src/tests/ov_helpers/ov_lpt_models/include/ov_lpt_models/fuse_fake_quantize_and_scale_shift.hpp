@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "common/fake_quantize_on_data.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -15,9 +15,9 @@ namespace subgraph {
 
 class FuseFakeQuantizeAndScaleShiftFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 };
 

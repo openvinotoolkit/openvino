@@ -5,8 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/constant.hpp"
 
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -17,20 +16,20 @@ namespace subgraph {
 
 class GroupConvolutionFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::Shape& outputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
+        const ov::Shape& outputShape,
         const size_t groupCount,
         const int groupCalculationDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ngraph::opset1::Constant> weightsConst,
+        std::shared_ptr<ov::op::v0::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
-        const ngraph::Shape& outputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
+        const ov::Shape& outputShape,
         const size_t groupCount,
         const int groupCalculationDimention,
         const FakeQuantizeOnData& fakeQuantizeOnData,
@@ -38,19 +37,19 @@ public:
         const bool addReshape = true,
         const bool addPrecisionPreserved = false);
 
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
-        const ngraph::PartialShape& outputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
+        const ov::PartialShape& outputShape,
         const size_t groupCount,
         const int calculatedDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ngraph::opset1::Constant> weightsConst,
+        std::shared_ptr<ov::op::v0::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-        const ngraph::element::Type precisionAfterDequantization,
+        const ov::element::Type precisionAfterDequantization,
         const bool addReshape);
 };
 

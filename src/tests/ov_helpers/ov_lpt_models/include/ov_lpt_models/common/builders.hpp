@@ -5,9 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/op/constant.hpp>
+
+#include "openvino/op/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
@@ -26,7 +25,7 @@ namespace builder {
 namespace subgraph {
 
 template <typename Operation, typename OperationDesc>
-std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, const OperationDesc& description) {
+std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, const OperationDesc& description) {
     std::vector<size_t> shape;
     if (description.constantShapeIsDefined) {
         shape = description.constantShape;
@@ -76,28 +75,28 @@ std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& r
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
-    const ngraph::element::Type precision,
+    const ov::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
 std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const Output<ngraph::Node>& output,
-    const ngraph::element::Type precision,
+    const Output<ov::Node>& output,
+    const ov::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
-    const ngraph::element::Type constantPrecision,
+    const ov::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const bool subgraphOnConstantPath = false);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const std::shared_ptr<ngraph::Node>& input,
-    const ngraph::element::Type constantPrecision,
+    const std::shared_ptr<ov::Node>& input,
+    const ov::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData);
 
-void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<ov::Any> attributes);
+void addAttributes(std::vector<std::shared_ptr<ov::Node>> nodes, std::vector<ov::Any> attributes);
 
 std::shared_ptr<Node> makeConvolution(
     const std::shared_ptr<Node>& parent,

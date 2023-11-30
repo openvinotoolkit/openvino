@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include "fake_quantize_on_data.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -16,14 +16,14 @@ public:
     class Convert {
     public:
         Convert();
-        Convert(const ngraph::element::Type outPrecision, const bool toRemove = true);
+        Convert(const ov::element::Type outPrecision, const bool toRemove = true);
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Convert& value) const noexcept;
         bool operator==(const Convert& value) const noexcept {
             return equal(value);
         }
 
-        ngraph::element::Type outPrecision = element::undefined;
+        ov::element::Type outPrecision = element::undefined;
         bool addDequantizationAttribute = true;
     private:
         bool isEmpty;
@@ -34,14 +34,14 @@ public:
         Subtract();
         Subtract(const float value, const bool toRemove = true);
         Subtract(const std::vector<float>& values);
-        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        Subtract(const std::vector<float>& values, const ov::element::Type outPrecision);
         Subtract(
             const std::vector<float>& values,
-            const ngraph::element::Type outPrecision,
-            const ngraph::Shape& constantShape,
+            const ov::element::Type outPrecision,
+            const ov::Shape& constantShape,
             const bool toRemove = false,
             const size_t constantIndex = 1ul,
-            const ngraph::element::Type constantPrecision = ngraph::element::undefined,
+            const ov::element::Type constantPrecision = ov::element::undefined,
             const bool addConvert = false,
             const ov::Node::RTMap& attributes = {},
             const ov::Node::RTMap& convertAttributes = {});
@@ -53,14 +53,14 @@ public:
         void erase() {
             isEmpty = true;
         }
-        Subtract& setConstantPrecision(const ngraph::element::Type& precision);
+        Subtract& setConstantPrecision(const ov::element::Type& precision);
 
         std::vector<float> values;
-        ngraph::element::Type outPrecision = ngraph::element::undefined;
-        ngraph::Shape constantShape;
+        ov::element::Type outPrecision = ov::element::undefined;
+        ov::Shape constantShape;
         bool constantShapeIsDefined = false;
         size_t constantIndex = 1ul;
-        ngraph::element::Type constantPrecision = ngraph::element::undefined;
+        ov::element::Type constantPrecision = ov::element::undefined;
         bool addConvert = false;
         ov::Node::RTMap attributes;
         ov::Node::RTMap convertAttributes;
@@ -74,27 +74,27 @@ public:
         Multiply();
         Multiply(const float value);
         Multiply(const std::vector<float>& values);
-        Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        Multiply(const std::vector<float>& values, const ov::element::Type outPrecision);
         Multiply(
             const std::vector<float>& values,
-            const ngraph::element::Type outPrecision,
-            const ngraph::Shape& constantShape,
+            const ov::element::Type outPrecision,
+            const ov::Shape& constantShape,
             const bool toRemove = false,
             const size_t constantIndex = 1ul,
-            const ngraph::element::Type constantPrecision = ngraph::element::undefined);
+            const ov::element::Type constantPrecision = ov::element::undefined);
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Multiply& value) const noexcept;
         bool operator==(const Multiply& value) const noexcept {
             return equal(value);
         }
-        Multiply& setConstantPrecision(const ngraph::element::Type& precision);
+        Multiply& setConstantPrecision(const ov::element::Type& precision);
 
         std::vector<float> values;
-        ngraph::element::Type outPrecision = ngraph::element::undefined;
-        ngraph::Shape constantShape;
+        ov::element::Type outPrecision = ov::element::undefined;
+        ov::Shape constantShape;
         bool constantShapeIsDefined = false;
         size_t constantIndex = 1ul;
-        ngraph::element::Type constantPrecision = ngraph::element::undefined;
+        ov::element::Type constantPrecision = ov::element::undefined;
 
     private:
         bool isEmpty;
@@ -109,7 +109,7 @@ public:
     bool operator==(const DequantizationOperations& value) const noexcept {
         return equal(value);
     }
-    void setPrecision(const ngraph::element::Type& type) noexcept;
+    void setPrecision(const ov::element::Type& type) noexcept;
 
     Convert convert;
     Subtract subtract;

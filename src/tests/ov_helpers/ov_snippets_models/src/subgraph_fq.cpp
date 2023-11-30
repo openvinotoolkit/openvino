@@ -14,7 +14,7 @@ namespace snippets {
 std::shared_ptr<ov::Model> ThreeFQFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto fq0_data = ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
-                                                                              std::vector<ngraph::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
                                                                               std::vector<float>{-397898.40625, -435929.78125, -476583.9375},
                                                                               std::vector<float>{394789.84375, 432524.09375, 472860.625},
                                                                               std::vector<float>{0},
@@ -22,7 +22,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initOriginal() const {
                                                                               ov::element::u8);
     auto fq0 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(data0, ov::element::f32, fq0_data);
     auto fq1_data = ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
-                                                                              std::vector<ngraph::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
                                                                               std::vector<float>{5.390228, 9.7712707, 9.333160},
                                                                               std::vector<float>{250.524688, 254.905731, 254.467620},
                                                                               std::vector<float>{-128},
@@ -30,7 +30,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initOriginal() const {
                                                                               ov::element::i8);
     auto fq1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(fq0, ov::element::f32, fq1_data);
     auto fq2_data = ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
-                                                                              std::vector<ngraph::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
                                                                               std::vector<float>{-98.16883, -142.82466, -155.0642700},
                                                                               std::vector<float>{97.334106, 141.599884, 153.8145446},
                                                                               std::vector<float>{0},
@@ -44,7 +44,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
 
     auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
     auto fq0_data = ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
-                                                                              std::vector<ngraph::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
                                                                               std::vector<float>{-397898.40625, -435929.78125, -476583.9375},
                                                                               std::vector<float>{394789.84375, 432524.09375, 472860.625},
                                                                               std::vector<float>{0},
@@ -52,7 +52,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
                                                                               ov::element::u8);
     auto fq0 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(indata0, ov::element::f32, fq0_data);
     auto fq1_data = ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
-                                                                              std::vector<ngraph::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
                                                                               std::vector<float>{5.390228, 9.7712707, 9.333160},
                                                                               std::vector<float>{250.524688, 254.905731, 254.467620},
                                                                               std::vector<float>{-128},
@@ -64,7 +64,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
 
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_shape());
     auto fq2_data = ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
-                                                                              std::vector<ngraph::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
                                                                               std::vector<float>{-98.16883, -142.82466, -155.0642700},
                                                                               std::vector<float>{97.334106, 141.599884, 153.8145446},
                                                                               std::vector<float>{0},

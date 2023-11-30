@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 #include "ov_lpt_models/round.hpp"
 #include "ov_lpt_models/common/builders.hpp"
@@ -14,41 +14,41 @@ using namespace ov::pass::low_precision;
 namespace ngraph {
 namespace builder {
 namespace subgraph {
-    std::shared_ptr<ngraph::Function> RoundWithToleranceFunction::getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    std::shared_ptr<ov::Model> RoundWithToleranceFunction::getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations dequantization) {
-        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         input->set_friendly_name("input");
 
         const auto deq = makeDequantization(input, dequantization);
         deq->set_friendly_name("output");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(deq);
+        const auto result = std::make_shared<ov::opset1::Result>(deq);
         result->set_friendly_name("result");
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ result },
-            ngraph::ParameterVector{ input },
+        return std::make_shared<ov::Model>(
+            ov::ResultVector{ result },
+            ov::ParameterVector{ input },
             "RoundWithToleranceFunction");
     }
 
-    std::shared_ptr<ngraph::Function> RoundWithToleranceFunction::getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    std::shared_ptr<ov::Model> RoundWithToleranceFunction::getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations dequantization) {
-        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         input->set_friendly_name("input");
 
         const auto deq = makeDequantization(input, dequantization);
         deq->set_friendly_name("output");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(deq);
+        const auto result = std::make_shared<ov::opset1::Result>(deq);
         result->set_friendly_name("result");
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ result },
-            ngraph::ParameterVector{ input },
+        return std::make_shared<ov::Model>(
+            ov::ResultVector{ result },
+            ov::ParameterVector{ input },
             "RoundWithToleranceFunction");
     }
 

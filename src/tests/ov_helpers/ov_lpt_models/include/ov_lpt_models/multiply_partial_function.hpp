@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
 #include "elementwise.hpp"
 #include "ov_lpt_models/common/constant.hpp"
@@ -19,7 +18,7 @@ class MultiplyPartialBranch {
 public:
     PartialShape inputShape;
     ngraph::builder::subgraph::Constant constant;
-    ngraph::element::Type precisionBeforeDequantization;
+    ov::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
 
@@ -40,13 +39,13 @@ inline std::ostream& operator<<(std::ostream& out, const MultiplyPartialValues& 
 
 class MultiplyPartialFunction : public ElementwiseFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(
+    static std::shared_ptr<ov::Model> get(
             const element::Type precision,
             const MultiplyPartialValues& actualValues);
 
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const bool broadcast1,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
         const bool broadcast2,
