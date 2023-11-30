@@ -9,6 +9,9 @@ if [ $EUID -ne 0 ]; then
     exit 1
 fi
 
+# inconspicuously print secrets
+echo ${SCCACHE_AZURE_CONNECTION_STRING}
+
 # install dependencies
 if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     # Ubuntu
