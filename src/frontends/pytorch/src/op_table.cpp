@@ -215,7 +215,7 @@ OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
 OP_CONVERTER(translate_xor);
-// Torch FX Translations # If dim is not given, it defaults to the first dimension found with the size 3
+// Torch FX Translations
 OP_CONVERTER(translate_arange_fx);
 OP_CONVERTER(translate_batch_norm_legit_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_training_fx);

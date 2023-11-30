@@ -10,13 +10,13 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestLinalgCross(PytorchLayerTest):
-    def _prepare_input(self, x_shape, y_shape, out):
+    def _prepare_input(self, x_shape, y_shape, out, dtype):
         import numpy as np
-        x = np.random.randn(*x_shape).astype(np.float32)
-        y = np.random.randn(*y_shape).astype(np.float32)
+        x = np.random.randn(*x_shape).astype(dtype)
+        y = np.random.randn(*y_shape).astype(dtype)
         if not out:
             return (x, y)
-        return (x, y, np.zeros(np.maximum(np.array(x_shape), np.array(y_shape)).tolist(), dtype=np.float32))
+        return (x, y, np.zeros(np.maximum(np.array(x_shape), np.array(y_shape)).tolist(), dtype=dtype))
 
     def create_model(self, dim, out):
         import torch
@@ -55,19 +55,22 @@ class TestLinalgCross(PytorchLayerTest):
         ((3, 5), (3, 5), 0),
         ((2, 3, 4), (2, 3, 4), 1)
         ])
+    @pytest.mark.parametrize('dtype', ['float32', 'float64'])
     @pytest.mark.parametrize("out", [True, False])
-    def test_linalg_cross(self, x_shape, y_shape, dim, out, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim, out), ie_device, precision, ir_version, kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out})
+    def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
+        self._test(
+            *self.create_model(dim, out), ie_device, precision, ir_version, use_convert_model=True, 
+            kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out, 'dtype': dtype})
 
 
 class TestCross(PytorchLayerTest):
-    def _prepare_input(self, x_shape, y_shape, out):
+    def _prepare_input(self, x_shape, y_shape, out, dtype):
         import numpy as np
-        x = np.random.randn(*x_shape).astype(np.float32)
-        y = np.random.randn(*y_shape).astype(np.float32)
+        x = np.random.randn(*x_shape).astype(dtype)
+        y = np.random.randn(*y_shape).astype(dtype)
         if not out:
             return (x, y)
-        return (x, y, np.zeros(np.maximum(np.array(x_shape), np.array(y_shape)).tolist(), dtype=np.float32))
+        return (x, y, np.zeros(np.maximum(np.array(x_shape), np.array(y_shape)).tolist(), dtype=dtype))
 
     def create_model(self, dim, out, shape):
         import torch
@@ -112,5 +115,8 @@ class TestCross(PytorchLayerTest):
         ((2, 3, 4), (2, 3, 4), None),
         ])
     @pytest.mark.parametrize("out", [True, False])
-    def test_linalg_cross(self, x_shape, y_shape, dim, out, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim, out, x_shape), ie_device, precision, ir_version, kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out})
+    @pytest.mark.parametrize('dtype', ['float32', 'float64'])
+    def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(dim, out, x_shape), ie_device, precision, ir_version, 
+                   use_convert_model=True, 
+                   kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out, "dtype": dtype})
