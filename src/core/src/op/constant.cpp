@@ -18,6 +18,7 @@
 #include "openvino/core/type/nf4.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 
 namespace ov {
 namespace op {
@@ -137,14 +138,12 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 void Constant::allocate_buffer(bool memset_allocation) {
     // memset_allocation flag is to switch on initialization of objects in memory for element::string type
     // and set memory to zero for numeric element types
-    m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
-    if (memset_allocation) {
-        if (m_element_type == ov::element::string) {
-            // initialize std::string objects in memory
-            auto size = shape_size(m_shape);
-            auto string_ptr = static_cast<std::string*>(get_data_ptr_nc());
-            std::uninitialized_fill_n(string_ptr, size, std::string());
-        } else {
+    if (m_element_type == ov::element::string) {
+        auto num_elements = shape_size(m_shape);
+        m_data = std::make_shared<StringAlignedBuffer>(num_elements, mem_size(), host_alignment(), memset_allocation);
+    } else {
+        m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
+        if (memset_allocation) {
             std::memset(m_data->get_ptr(), 0, m_data->size());
         }
     }
