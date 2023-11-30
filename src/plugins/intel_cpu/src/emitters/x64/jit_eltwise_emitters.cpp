@@ -2300,5 +2300,210 @@ void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
         h->vblendmps(vmm_dst | k_mask, vmm_src1, vmm_src0);
     }
 }
+
+/// BITWISE_AND ///
+jit_bitwise_and_emitter::jit_bitwise_and_emitter(x64::jit_generator* host,
+                                                 x64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node,
+                                                 ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_bitwise_and_emitter::jit_bitwise_and_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_and_emitter::get_inputs_num() const { return 2; }
+
+std::set<std::vector<element::Type>> jit_bitwise_and_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {
+        {element::i8, element::i8},
+        {element::u8, element::u8},
+        {element::i32, element::i32}
+    };
+}
+
+void jit_bitwise_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_bitwise_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
+    Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    if (isa == x64::sse41) {
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src0);
+        }
+        h->andps(vmm_dst, vmm_src1);
+    } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
+        h->vandps(vmm_dst, vmm_src0, vmm_src1);
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+/// BITWISE_NOT ///
+jit_bitwise_not_emitter::jit_bitwise_not_emitter(x64::jit_generator* host,
+                                                 x64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node,
+                                                 ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+jit_bitwise_not_emitter::jit_bitwise_not_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_bitwise_not_emitter::get_inputs_num() const { return 1; }
+
+std::set<std::vector<element::Type>> jit_bitwise_not_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {
+        {element::i8},
+        {element::u8},
+        {element::i32}
+    };
+}
+
+size_t jit_bitwise_not_emitter::aux_vecs_count() const { return 1; }
+
+void jit_bitwise_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_bitwise_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    if (isa == x64::sse41) {
+        if (vmm_dst.getIdx() != vmm_src.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src);
+        }
+        h->andnps(vmm_dst, table_val("all_bits"));
+    } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
+        h->vandnps(vmm_dst, vmm_src, table_val("all_bits"));
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+void jit_bitwise_not_emitter::register_table_entries() {
+    push_arg_entry_of("all_bits", 0xFFFFFFFF, true);
+}
+
+/// BITWISE_OR ///
+jit_bitwise_or_emitter::jit_bitwise_or_emitter(x64::jit_generator* host,
+                                               x64::cpu_isa_t host_isa,
+                                               const std::shared_ptr<ov::Node>& node,
+                                               ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_bitwise_or_emitter::jit_bitwise_or_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_or_emitter::get_inputs_num() const { return 2; }
+
+std::set<std::vector<element::Type>> jit_bitwise_or_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {
+        {element::i8, element::i8},
+        {element::u8, element::u8},
+        {element::i32, element::i32}
+    };
+}
+
+void jit_bitwise_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_bitwise_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
+    Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    if (isa == x64::sse41) {
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src0);
+        }
+        h->orps(vmm_dst, vmm_src1);
+    } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
+        h->vorps(vmm_dst, vmm_src0, vmm_src1);
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+/// BITWISE_XOR ///
+jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(x64::jit_generator* host,
+                                                 x64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node,
+                                                 ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_xor_emitter::get_inputs_num() const { return 2; }
+
+std::set<std::vector<element::Type>> jit_bitwise_xor_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {
+        {element::i8, element::i8},
+        {element::u8, element::u8},
+        {element::i32, element::i32}
+    };
+}
+
+void jit_bitwise_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_ASSERT(!"unsupported isa");
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
+    Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

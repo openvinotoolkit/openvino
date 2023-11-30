@@ -1164,12 +1164,6 @@ std::vector<ov::PartialShape> ov::get_node_input_partial_shapes(const ov::Node& 
     return out;
 }
 
-bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>& ranks) {
-    return std::any_of(ranks.cbegin(), ranks.cend(), [&rank](const Rank& r) {
-        return rank.compatible(r);
-    });
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
@@ -1187,6 +1181,15 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
     const auto num_inputs = node->get_input_size();
     if (num_inputs == 0)
         return nullptr;
+
+    if (subgraph_sink.get_tensor().has_and_set_bound()) {
+        const auto& lower = subgraph_sink.get_tensor().get_lower_value();
+        return std::make_shared<ov::op::v0::Constant>(lower);
+    }
+
+    if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
+        return nullptr;
+    }
 
     OutputVector inputs;
     inputs.reserve(num_inputs);
@@ -1432,6 +1435,12 @@ std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors
         shapes.emplace_back(t.get_shape());
     }
     return shapes;
+}
+
+bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others) {
+    return std::any_of(others.begin(), others.end(), [&r](const Rank& other) {
+        return r.compatible(other);
+    });
 }
 }  // namespace util
 }  // namespace ov

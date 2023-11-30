@@ -35,7 +35,7 @@ public:
 
 protected:
     bool is_supported_index_input_element_type() const;
-    int64_t get_normalized_axis(const HostTensorVector& inputs) const;
+    int64_t get_normalized_axis(const TensorVector& inputs) const;
 };
 }  // namespace util
 }  // namespace op
