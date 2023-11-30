@@ -4,18 +4,18 @@
 
 #include "precision_propagation.hpp"
 #include <assert.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
-    const ngraph::element::Type& precision1,
-    const ngraph::PartialShape& inputShape1,
-    const ngraph::element::Type& precision2,
-    const ngraph::PartialShape& inputShape2,
-    const ngraph::element::Type& constant_precision,
+std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::get(
+    const ov::element::Type& precision1,
+    const ov::PartialShape& inputShape1,
+    const ov::element::Type& precision2,
+    const ov::PartialShape& inputShape2,
+    const ov::element::Type& constant_precision,
     const std::pair<element::Type, element::Type>& convertion_before_op1,
     const element::Type& convertion_before_op2_1,
     const std::pair<element::Type, element::Type>& convertion_before_op2_2,
@@ -28,11 +28,11 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
     };
 
     const auto make_branch = [&create_convert](
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const size_t index,
-        const element::Type convertion_type) -> std::pair<std::shared_ptr<ngraph::opset1::Parameter>, std::shared_ptr<ov::Node>> {
-            const auto parameter = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+        const element::Type convertion_type) -> std::pair<std::shared_ptr<ov::opset1::Parameter>, std::shared_ptr<ov::Node>> {
+            const auto parameter = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
             parameter->set_friendly_name("parameter" + std::to_string(index));
 
             std::shared_ptr<Node> parent = create_convert(parameter, convertion_type);
@@ -56,10 +56,10 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
         parent = std::make_shared<ov::snippets::op::ConvertSaturation>(parent, maximum_in2_type);
     }
 
-    parent = std::make_shared<ngraph::opset1::Maximum>(
+    parent = std::make_shared<ov::opset1::Maximum>(
         create_convert(parent, convertion_before_op2_2.first),
         create_convert(
-            std::make_shared<ngraph::opset1::Constant>(constant_precision, Shape{}, std::vector<float>{0.f}),
+            std::make_shared<ov::opset1::Constant>(constant_precision, Shape{}, std::vector<float>{0.f}),
             convertion_before_op2_2.second));
     parent->set_friendly_name("maximum");
 
@@ -67,14 +67,14 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
 
     parent = create_convert(parent, convertion_before_result);
 
-    const auto result = std::make_shared<ngraph::opset1::Result>(parent);
+    const auto result = std::make_shared<ov::opset1::Result>(parent);
     auto& result_out_tensor = result->get_output_tensor(0);
     result_out_tensor.set_names({ "result_tensor" });
     result->set_friendly_name("result");
 
-    const ngraph::ResultVector results{ result };
-    const ngraph::ParameterVector parameters{ branch1.first, branch2.first };
-    const auto model = std::make_shared<ngraph::Function>(results, parameters, "SnippetsPrecisionPropagation");
+    const ov::ResultVector results{ result };
+    const ov::ParameterVector parameters{ branch1.first, branch2.first };
+    const auto model = std::make_shared<ov::Model>(results, parameters, "SnippetsPrecisionPropagation");
     return model;
 }
 

@@ -20,6 +20,7 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
     bool needPrepareParams() const override {return false;};
