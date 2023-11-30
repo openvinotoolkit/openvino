@@ -1,0 +1,97 @@
+name: CPU Functional Tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      image:
+        description: 'Docker image in which the tests would run'
+        type: string
+        required: true
+      save-execution-cache:
+        description: 'Whether or not the cache with test execution times should be saved to the GH cache'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  CPU_Functional_Tests:
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+    env:
+      OPENVINO_REPO: '/__w/openvino/openvino/openvino'
+      INSTALL_DIR: '/__w/openvino/openvino/install'
+      INSTALL_TEST_DIR: '/__w/openvino/openvino/install/tests'
+      PARALLEL_TEST_SCRIPT: '/__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py'
+      PARALLEL_TEST_CACHE: '/__w/openvino/openvino/install/tests/test_cache.lst'
+    steps:
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: tar -xvzf ${INSTALL_TEST_DIR}/openvino_tests.tar.gz -C ${INSTALL_TEST_DIR}
+
+      - name: Fetch setup_python action and install dependencies script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            scripts/install_dependencies/install_openvino_dependencies.sh
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Install OpenVINO dependencies
+        run: bash ${OPENVINO_REPO}/scripts/install_dependencies/install_openvino_dependencies.sh -c=core -y
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
+      - name: Restore tests execution time
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
+
+      - name: Intel CPU plugin func tests (parallel)
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 20
+
+      - name: Save tests execution time
+        uses: actions/cache/save@v3
+        if: ${{ github.ref_name == 'master' && inputs.save-execution-cache }}
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+            ${{ env.PARALLEL_TEST_CACHE }}
+          if-no-files-found: 'error'

@@ -60,6 +60,7 @@ jobs:
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
@@ -163,7 +164,9 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
@@ -189,11 +192,8 @@ jobs:
             tar -czvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
           popd
 
-          pushd ${OPENVINO_REPO}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
-              bin/intel64/Release/ov_cpu_func_tests \
-              src/tests/test_utils/functional_test_utils/layer_tests_summary/* \
-              scripts/install_dependencies/*
+          pushd ${INSTALL_TEST_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
 
       - name: Upload selective build statistics package
@@ -309,75 +309,9 @@ jobs:
         run: ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
-    name: CPU functional tests
-    needs: [Build, Smart_CI]
-    timeout-minutes: 25
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-8-cores-16gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-    env:
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
-      PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
-    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-
-    steps:
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO tests package
-        run: tar -xvzf ${INSTALL_TEST_DIR}/openvino_tests.tar.gz -C ${INSTALL_TEST_DIR}
-
-      - name: Install OpenVINO dependencies
-        run: bash ${INSTALL_TEST_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-
-      - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt
-
-      - name: Restore tests execution time
-        uses: actions/cache/restore@v3
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-tests-functional-cpu-stamp
-
-      - name: Intel CPU plugin func tests (parallel)
-        run: python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 20
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
-          if-no-files-found: 'error'
+    name: CPU Functional Tests
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+    uses: ./.github/workflows/linux_cpu_functional_tests.yml
+    with:
+      runner: 'aks-linux-8-cores-16gb'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
