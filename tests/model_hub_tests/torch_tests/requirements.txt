@@ -1,8 +1,9 @@
 -c ../../constraints.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
 numpy
 pytest
 pytest-html
-torch<2.1
+torch
 torchvision
 av
 transformers
