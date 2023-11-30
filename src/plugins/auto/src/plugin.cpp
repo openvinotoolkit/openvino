@@ -544,7 +544,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     // clone the model, in case of reshape conflict
     auto_s_context->m_model = cloned_model;
     auto_s_context->m_model_path = model_path;
-    auto_s_context->m_device_priorities = std::move(support_devices);
+    auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
     auto_s_context->m_str_devices = std::move(str_devices);
     auto_s_context->m_plugin = shared_from_this();
