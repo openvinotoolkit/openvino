@@ -127,6 +127,7 @@ from openvino.runtime.opset2.ops import roi_pooling
 from openvino.runtime.opset7.ops import roll
 from openvino.runtime.opset5.ops import round
 from openvino.runtime.opset3.ops import scatter_elements_update
+from openvino.runtime.opset4.ops import scatter_nd_update
 from openvino.runtime.opset3.ops import scatter_update
 from openvino.runtime.opset1.ops import select
 from openvino.runtime.opset1.ops import selu

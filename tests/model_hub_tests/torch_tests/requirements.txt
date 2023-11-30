@@ -1,5 +1,13 @@
 -c ../../constraints.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+av
+basicsr
+datasets
+facexlib
 numpy
+pandas
+protobuf
+pyctcdecode
 pytest
 pytest-html
 torch<2.1
@@ -10,11 +18,10 @@ transformers
 timm
 sacremoses
 sentencepiece
-datasets
-pyctcdecode
-protobuf
 soundfile
-pandas
 super-image
-basicsr
-facexlib
+timm
+torch
+torchvision
+transformers
+wheel
