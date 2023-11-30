@@ -28,7 +28,7 @@ def create_model():
 def test_constant_folding():
     node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ops.ceiling(node_constant)
-    model = Model(node_ceil, [], "TestFunction")
+    model = Model(node_ceil, [], "TestModel")
 
     assert count_ops_of_type(model, node_ceil) == 1
     assert count_ops_of_type(model, node_constant) == 1

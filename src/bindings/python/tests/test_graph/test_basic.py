@@ -27,7 +27,7 @@ from openvino._pyopenvino import DescriptorTensor
 from openvino.runtime.utils.types import get_element_type
 
 
-def test_graph_function_api():
+def test_graph_api():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=Type.f32, name="B")
@@ -39,33 +39,33 @@ def test_graph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = Layout("NC")
     assert parameter_a.layout == Layout("NC")
-    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
+    model = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
 
-    function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
+    model.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
-    ordered_ops = function.get_ordered_ops()
+    ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
-    assert len(function.get_ops()) == 6
-    assert function.get_output_size() == 1
-    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in function.inputs]
-    assert ["Result"] == [output.get_node().get_type_name() for output in function.outputs]
-    assert function.input(0).get_node().friendly_name == "A"
-    assert function.output(0).get_node().get_type_name() == "Result"
-    assert function.input(tensor_name="A").get_node().friendly_name == "A"
-    assert function.output().get_node().get_type_name() == "Result"
-    assert function.get_output_op(0).get_type_name() == "Result"
-    assert function.get_output_element_type(0) == parameter_a.get_element_type()
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert (function.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
-    assert len(function.get_parameters()) == 3
-    results = function.get_results()
+    assert len(model.get_ops()) == 6
+    assert model.get_output_size() == 1
+    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in model.inputs]
+    assert ["Result"] == [output.get_node().get_type_name() for output in model.outputs]
+    assert model.input(0).get_node().friendly_name == "A"
+    assert model.output(0).get_node().get_type_name() == "Result"
+    assert model.input(tensor_name="A").get_node().friendly_name == "A"
+    assert model.output().get_node().get_type_name() == "Result"
+    assert model.get_output_op(0).get_type_name() == "Result"
+    assert model.get_output_element_type(0) == parameter_a.get_element_type()
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert (model.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
+    assert len(model.get_parameters()) == 3
+    results = model.get_results()
     assert len(results) == 1
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
     results[0].layout = Layout("NC")
     assert results[0].layout.to_string() == Layout("NC")
-    assert function.get_friendly_name() == "TestModel"
+    assert model.get_friendly_name() == "TestModel"
 
 
 @pytest.mark.parametrize(

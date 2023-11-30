@@ -17,17 +17,17 @@ def test_graph_preprocess_mean():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
-    ppp = PrePostProcessor(function)
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     prep = inp.preprocess()
     prep.mean(1.0)
-    function = ppp.build()
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ordered_ops()]
+    model = ppp.build()
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
     assert len(model_operators) == 4
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert model.get_output_element_type(0) == Type.f32
     assert "Constant" in model_operators
     assert "Subtract" in model_operators
 
@@ -36,19 +36,19 @@ def test_graph_preprocess_mean_vector():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout = Layout("NC")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input().tensor().set_layout(layout)
     ppp.input().preprocess().mean([1., 2.])
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ordered_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
     assert len(model_operators) == 4
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert model.get_output_element_type(0) == Type.f32
     assert "Constant" in model_operators
     assert "Subtract" in model_operators
 
@@ -57,20 +57,20 @@ def test_graph_preprocess_scale_vector():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout = Layout("NC")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout)
     inp.preprocess().scale([0.5, 2.0])
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ordered_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
     assert len(model_operators) == 4
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert model.get_output_element_type(0) == Type.f32
     assert "Constant" in model_operators
     assert "Divide" in model_operators
 
@@ -79,22 +79,22 @@ def test_graph_preprocess_mean_scale_convert():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
-    function = Model([param1, param2], [param1, param2], "TestFunction")
+    model = Model([param1, param2], [param1, param2], "TestModel")
 
     @custom_preprocess_function
     def custom_preprocess(output: Output):
         return ops.abs(output)
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp2 = ppp.input(1)
     inp2.tensor().set_element_type(Type.i32)
     inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
     inp2.preprocess().convert_element_type()
     inp1 = ppp.input(0)
     inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Convert",
@@ -105,11 +105,11 @@ def test_graph_preprocess_mean_scale_convert():
         "Abs",
     ]
     assert len(model_operators) == 15
-    assert function.get_output_size() == 2
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert list(function.get_output_shape(1)) == [2, 2]
-    assert function.get_output_element_type(0) == Type.i32
-    assert function.get_output_element_type(1) == Type.i32
+    assert model.get_output_size() == 2
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert list(model.get_output_shape(1)) == [2, 2]
+    assert model.get_output_element_type(0) == Type.i32
+    assert model.get_output_element_type(1) == Type.i32
     for op in expected_ops:
         assert op in model_operators
 
@@ -118,13 +118,13 @@ def test_graph_preprocess_input_output_by_name():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
-    function = Model([param1, param2], [param1, param2], "TestFunction")
+    model = Model([param1, param2], [param1, param2], "TestModel")
 
     @custom_preprocess_function
     def custom_preprocess(output: Output):
         return ops.abs(output)
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp2 = ppp.input("B")
     inp2.tensor().set_element_type(Type.i32)
     inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
@@ -134,9 +134,9 @@ def test_graph_preprocess_input_output_by_name():
     out1.postprocess().custom(custom_preprocess)
     out2 = ppp.output("B")
     out2.postprocess().custom(custom_preprocess)
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Convert",
@@ -147,11 +147,11 @@ def test_graph_preprocess_input_output_by_name():
         "Abs",
     ]
     assert len(model_operators) == 16
-    assert function.get_output_size() == 2
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert list(function.get_output_shape(1)) == [2, 2]
-    assert function.get_output_element_type(0) == Type.i32
-    assert function.get_output_element_type(1) == Type.i32
+    assert model.get_output_size() == 2
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert list(model.get_output_shape(1)) == [2, 2]
+    assert model.get_output_element_type(0) == Type.i32
+    assert model.get_output_element_type(1) == Type.i32
     for op in expected_ops:
         assert op in model_operators
 
@@ -160,7 +160,7 @@ def test_graph_preprocess_output_postprocess():
     shape = [2, 3]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout1 = Layout("NC")
     layout2 = Layout("CN")
     layout3 = [1, 0]
@@ -168,7 +168,7 @@ def test_graph_preprocess_output_postprocess():
     @custom_preprocess_function
     def custom_postprocess(output: Output):
         return ops.abs(output)
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
     inp.preprocess().convert_element_type(Type.f32).mean([1.0, 2.0, 3.0])
@@ -178,9 +178,9 @@ def test_graph_preprocess_output_postprocess():
     out.postprocess().convert_element_type(Type.f32)
     out.postprocess().convert_layout(layout2).convert_layout(layout3)
     out.postprocess().custom(custom_postprocess).convert_element_type(Type.f16).convert_element_type()
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Convert",
@@ -191,9 +191,9 @@ def test_graph_preprocess_output_postprocess():
         "Abs",
     ]
     assert len(model_operators) == 14
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [2, 3]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [2, 3]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -202,12 +202,12 @@ def test_graph_preprocess_spatial_static_shape():
     shape = [3, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout = Layout("CHW")
 
     color_format = ColorFormat.RGB
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format)
     inp.preprocess().convert_element_type(Type.f32).mean([1., 2., 3.])
@@ -215,9 +215,9 @@ def test_graph_preprocess_spatial_static_shape():
     out = ppp.output()
     out.tensor().set_layout(layout).set_element_type(Type.f32)
     out.model().set_layout(layout)
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Convert",
@@ -226,9 +226,9 @@ def test_graph_preprocess_spatial_static_shape():
         "Result",
     ]
     assert len(model_operators) == 7
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [3, 2, 2]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [3, 2, 2]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -237,7 +237,7 @@ def test_graph_preprocess_set_shape():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
     @custom_preprocess_function
     def custom_crop(out_node: Output):
@@ -247,13 +247,13 @@ def test_graph_preprocess_set_shape():
         axis = ops.constant(np.array([0, 1, 2]), dtype=np.int32)
         return ops.slice(out_node, start, stop, step, axis)
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_shape([3, 3, 3])
     inp.preprocess().custom(custom_crop)
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Constant",
@@ -261,9 +261,9 @@ def test_graph_preprocess_set_shape():
         "Slice",
     ]
     assert len(model_operators) == 7
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [1, 1, 1]
-    assert function.get_output_element_type(0) == Type.i32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 1]
+    assert model.get_output_element_type(0) == Type.i32
     for op in expected_ops:
         assert op in model_operators
 
@@ -274,25 +274,25 @@ def test_graph_preprocess_set_from_tensor():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_a.set_layout(Layout("NHWC"))
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
     input_data = Tensor(Type.i32, inp_shape)
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_from(input_data)
     inp.preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
-    function = ppp.build()
-    assert function.input().shape == Shape(inp_shape)
-    assert function.input().element_type == Type.i32
-    assert function.output().shape == Shape(shape)
-    assert function.output().element_type == Type.f32
+    model = ppp.build()
+    assert model.input().shape == Shape(inp_shape)
+    assert model.input().element_type == Type.i32
+    assert model.output().shape == Shape(shape)
+    assert model.output().element_type == Type.f32
 
 
 def test_graph_preprocess_set_from_np_infer():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
     @custom_preprocess_function
     def custom_crop(out_node: Output):
@@ -306,15 +306,15 @@ def test_graph_preprocess_set_from_np_infer():
                            [[9, 10, 11], [12, 13, 14], [15, 16, 17]],
                            [[18, 19, 20], [21, 22, 23], [24, 25, 26]]]).astype(np.int32)
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_from(input_data)
     inp.preprocess().convert_element_type().custom(custom_crop)
-    function = ppp.build()
-    assert function.input().shape == Shape([3, 3, 3])
-    assert function.input().element_type == Type.i32
+    model = ppp.build()
+    assert model.input().shape == Shape([3, 3, 3])
+    assert model.input().element_type == Type.i32
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Convert",
@@ -323,9 +323,9 @@ def test_graph_preprocess_set_from_np_infer():
         "Slice",
     ]
     assert len(model_operators) == 8
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [1, 1, 1]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 1]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -335,13 +335,13 @@ def test_graph_preprocess_set_memory_type():
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     op = ops.relu(parameter_a)
     model = op
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input().tensor().set_memory_type("some_memory_type")
-    function = ppp.build()
+    model = ppp.build()
 
-    assert any(key for key in function.input().rt_info if "memory_type" in key)
+    assert any(key for key in model.input().rt_info if "memory_type" in key)
 
 
 @pytest.mark.parametrize(
@@ -380,11 +380,11 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
     shape = [1, 3, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout1 = Layout("NCWH")
     layout2 = Layout("NCHW")
 
-    custom_processor = PrePostProcessor(function)
+    custom_processor = PrePostProcessor(model)
     inp = custom_processor.input()
     inp.tensor().set_layout(layout1).set_color_format(color_format1, [])
     inp.preprocess().mean(1.).resize(algorithm, 3, 3)
@@ -392,11 +392,11 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
 
     if is_failing:
         with pytest.raises(RuntimeError) as e:
-            function = custom_processor.build()
+            model = custom_processor.build()
         assert "is not convertible to" in str(e.value)
     else:
-        function = custom_processor.build()
-        model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+        model = custom_processor.build()
+        model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
         expected_ops = [
             "Parameter",
             "Constant",
@@ -405,9 +405,9 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             "Interpolate",
         ]
         assert len(model_operators) == 15
-        assert function.get_output_size() == 1
-        assert list(function.get_output_shape(0)) == [1, 3, 3, 3]
-        assert function.get_output_element_type(0) == Type.f32
+        assert model.get_output_size() == 1
+        assert list(model.get_output_shape(0)) == [1, 3, 3, 3]
+        assert model.get_output_element_type(0) == Type.f32
         for op in expected_ops:
             assert op in model_operators
 
@@ -420,37 +420,37 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
 def test_graph_preprocess_convert_color(color_format1, color_format2, tensor_in_shape, model_in_shape):
     parameter_a = ops.parameter(model_in_shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    custom_processor = PrePostProcessor(function)
+    custom_processor = PrePostProcessor(model)
     inp = custom_processor.input()
     inp.tensor().set_color_format(color_format1)
     inp.preprocess().convert_color(color_format2)
-    function = custom_processor.build()
+    model = custom_processor.build()
 
-    assert function.get_output_size() == 1
-    assert list(function.inputs[0].shape) == tensor_in_shape
-    assert list(function.get_output_shape(0)) == model_in_shape
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.inputs[0].shape) == tensor_in_shape
+    assert list(model.get_output_shape(0)) == model_in_shape
+    assert model.get_output_element_type(0) == Type.f32
 
 
 def test_graph_preprocess_postprocess_layout():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout1 = Layout("NCWH")
     layout2 = Layout("NCHW")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
     inp.preprocess().mean(1.).convert_layout(layout2).reverse_channels()
     out = ppp.output()
     out.postprocess().convert_layout([0, 1, 2, 3])
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Constant",
@@ -460,9 +460,9 @@ def test_graph_preprocess_postprocess_layout():
         "Transpose",
     ]
     assert len(model_operators) == 14
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 3, 3]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -471,16 +471,16 @@ def test_graph_preprocess_reverse_channels():
     shape = [1, 2, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     layout1 = Layout("NCWH")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
     inp.preprocess().mean(1.).reverse_channels()
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Constant",
@@ -489,9 +489,9 @@ def test_graph_preprocess_reverse_channels():
         "Range",
     ]
     assert len(model_operators) == 10
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [1, 2, 2, 2]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -501,14 +501,14 @@ def test_graph_preprocess_crop():
     tensor_shape = [1, 2, 3, 3]
     parameter_a = ops.parameter(orig_shape, dtype=np.float32, name="A")
     model = ops.relu(parameter_a)
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input().tensor().set_shape(tensor_shape)
     ppp.input().preprocess().crop([0, 0, 1, 1], [1, 2, -1, -1])
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Constant",
@@ -517,9 +517,9 @@ def test_graph_preprocess_crop():
         "Slice",
     ]
     assert len(model_operators) == 8
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [1, 2, 1, 1]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 2, 1, 1]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -528,17 +528,17 @@ def test_graph_preprocess_resize_algorithm():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
     resize_alg = ResizeAlgorithm.RESIZE_CUBIC
     layout1 = Layout("NCWH")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
     inp.preprocess().mean(1.).resize(resize_alg, 3, 3)
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Constant",
@@ -547,9 +547,9 @@ def test_graph_preprocess_resize_algorithm():
         "Interpolate",
     ]
     assert len(model_operators) == 7
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
-    assert function.get_output_element_type(0) == Type.f32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 3, 3]
+    assert model.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
 
@@ -615,19 +615,19 @@ def test_graph_preprocess_model():
     </edges>
 </net>""")
     core = Core()
-    function = core.read_model(model=model)
+    model = core.read_model(model=model)
 
     @custom_preprocess_function
     def custom_preprocess(output: Output):
         return ops.abs(output)
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input(1).preprocess().convert_element_type(Type.f32).scale(0.5)
     ppp.input(0).preprocess().convert_element_type(Type.f32).mean(5.)
     ppp.output(0).postprocess().custom(custom_preprocess)
-    function = ppp.build()
+    model = ppp.build()
 
-    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
     expected_ops = [
         "Parameter",
         "Constant",
@@ -639,9 +639,9 @@ def test_graph_preprocess_model():
         "Divide",
     ]
     assert len(model_operators) == 13
-    assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [2, 2, 2]
-    assert function.get_output_element_type(0) == Type.i32
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [2, 2, 2]
+    assert model.get_output_element_type(0) == Type.i32
     for op in expected_ops:
         assert op in model_operators
 
@@ -650,9 +650,9 @@ def test_graph_preprocess_dump():
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input().tensor().set_layout(Layout("NHWC")).set_element_type(Type.u8)
     ppp.input().tensor().set_spatial_dynamic_shape()
     ppp.input().preprocess().convert_element_type(Type.f32).reverse_channels()
@@ -677,9 +677,9 @@ def test_ngraph_set_layout_by_string(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input().model().set_layout(layout)
     p_str = str(ppp)
     assert f"{layout_str}" in p_str
@@ -692,9 +692,9 @@ def test_ngraph_set_layout_by_layout_class(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
     ppp.input().model().set_layout(layout)
     p_str = str(ppp)
     assert f"{layout_str}" in p_str
@@ -707,9 +707,9 @@ def test_ngraph_set_layout_by_str_thow_exception(layout):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
 
     with pytest.raises(RuntimeError) as e:
         ppp.input().model().set_layout(layout)
@@ -720,9 +720,9 @@ def test_ngraph_set_layout_by_layout_class_thow_exception():
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
-    function = Model(model, [parameter_a], "TestFunction")
+    model = Model(model, [parameter_a], "TestModel")
 
-    ppp = PrePostProcessor(function)
+    ppp = PrePostProcessor(model)
 
     with pytest.raises(RuntimeError) as e:
         layout = Layout("1-2-3D")
