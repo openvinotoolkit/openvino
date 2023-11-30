@@ -88,7 +88,7 @@ class TestTransformersModel(TestTorchConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
-        elif 'visual-question-answering' in mi.tags and 'pix2struct' in mi.tags:
+        elif 'pix2struct' in mi.tags:
             from transformers import AutoProcessor, Pix2StructForConditionalGeneration
             model = Pix2StructForConditionalGeneration.from_pretrained(name)
             processor = AutoProcessor.from_pretrained(name)
