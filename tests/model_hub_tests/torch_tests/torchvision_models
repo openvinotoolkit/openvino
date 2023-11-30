@@ -88,10 +88,10 @@ vgg16,none
 vgg16_bn,none
 vgg19,none
 vgg19_bn,none
-vit_b_16,none,xfail,Tracing fails
-vit_b_32,none,xfail,Tracing fails
-vit_h_14,none,xfail,Tracing fails
-vit_l_16,none,xfail,Tracing fails
-vit_l_32,none,xfail,Tracing fails
+vit_b_16,none
+vit_b_32,none
+vit_h_14,none
+vit_l_16,none
+vit_l_32,none
 wide_resnet101_2,none
 wide_resnet50_2,none

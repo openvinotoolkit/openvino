@@ -78,6 +78,9 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             self.inputs = prepare_frames_for_raft(model_name,
                                                   [frames[75], frames[125]],
                                                   [frames[76], frames[126]])
+        elif "vit_h_14" in model_name:
+            self.example = (torch.randn(1, 3, 518, 518),)
+            self.inputs = (torch.randn(1, 3, 518, 518),)
         else:
             self.example = (torch.randn(1, 3, 224, 224),)
             self.inputs = (torch.randn(1, 3, 224, 224),)
