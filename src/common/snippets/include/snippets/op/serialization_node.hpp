@@ -19,8 +19,11 @@ namespace op {
  */
 class SerializationNode : public ov::op::Op {
 public:
+    enum SerializationMode { DATA_FLOW, CONTROL_FLOW };
     SerializationNode() = default;
-    SerializationNode(const ov::OutputVector& args, const std::shared_ptr<lowered::Expression>& expr);
+    SerializationNode(const ov::OutputVector& args,
+                      const std::shared_ptr<lowered::Expression>& expr,
+                      SerializationMode mode = SerializationMode::CONTROL_FLOW);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
@@ -37,6 +40,7 @@ public:
 
 private:
     std::shared_ptr<lowered::Expression> m_expr;
+    SerializationMode m_mode;
 };
 
 } // namespace op

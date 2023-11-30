@@ -23,13 +23,14 @@ bool SerializeDataFlow::run(LinearIR& linear_ir) {
     ov::ResultVector results;
     ov::ParameterVector parameters;
     std::map<ExpressionPtr, std::shared_ptr<Node>> ops_map;
+    const auto serialization_mode = op::SerializationNode::SerializationMode::DATA_FLOW;
     for (const auto& expr : linear_ir) {
         const auto node = expr->get_node();
         ov::OutputVector inputs(expr->get_input_count());
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
             const auto& input_expr = expr->get_input_port_connector(i)->get_source().get_expr();
             OPENVINO_ASSERT(ops_map.count(input_expr), "input node wasn't found during serialization");
-            inputs[i] = ops_map[input_expr]->output(0);
+            inputs[i] = ops_map[input_expr]->output(expr->get_input_port_connector(i)->get_source().get_index());
         }
         if (auto ioexpr = std::dynamic_pointer_cast<IOExpression>(expr)) {
             if (ioexpr->get_type() == IOExpression::io_type::INPUT) {
@@ -42,7 +43,7 @@ bool SerializeDataFlow::run(LinearIR& linear_ir) {
                 results.push_back(result);
             }
         } else {
-            const auto serialization_node = std::make_shared<op::SerializationNode>(inputs, expr);
+            const auto serialization_node = std::make_shared<op::SerializationNode>(inputs, expr, serialization_mode);
             ops_map[expr] = serialization_node;
         }
     }

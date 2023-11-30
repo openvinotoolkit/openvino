@@ -9,8 +9,12 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-SerializationNode::SerializationNode(const ov::OutputVector& args, const std::shared_ptr<lowered::Expression>& expr)
-    : Op(args), m_expr(expr) {
+SerializationNode::SerializationNode(const ov::OutputVector& args,
+                                     const std::shared_ptr<lowered::Expression>& expr,
+                                     SerializationMode mode)
+    : Op(args),
+      m_expr(expr),
+      m_mode(mode) {
     OPENVINO_ASSERT(m_expr && m_expr->get_node(), "SerializationNode requires a valid expression with non-null node pointer");
     const auto& node = expr->get_node();
     set_friendly_name(node->get_friendly_name());
@@ -20,12 +24,19 @@ SerializationNode::SerializationNode(const ov::OutputVector& args, const std::sh
 }
 
 void SerializationNode::validate_and_infer_types() {
-    set_output_type(0, element::f32, ov::PartialShape{});
+    // If SerializationNode is used for control flow serialization, it always has one output
+    // (since it represents a linear execution order)
+    if (m_mode == SerializationMode::CONTROL_FLOW) {
+        set_output_type(0, element::f32, {});
+    } else if (m_mode == SerializationMode::DATA_FLOW) {
+        for (size_t i = 0; i < m_expr->get_output_count(); ++i)
+            set_output_type(i, element::f32, {});
+    }
 }
 
 std::shared_ptr<Node> SerializationNode::clone_with_new_inputs(const OutputVector &new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<SerializationNode>(new_args, m_expr);
+    return std::make_shared<SerializationNode>(new_args, m_expr, m_mode);
 }
 
 bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
