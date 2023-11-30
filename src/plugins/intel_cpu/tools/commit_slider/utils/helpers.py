@@ -3,6 +3,7 @@ import shutil
 import os
 import sys
 import subprocess
+import string
 from enum import Enum
 import re
 import json
@@ -181,16 +182,17 @@ def runCommandList(commit, cfgData, enforceClean=False):
                 preProcess(cfgData, commit)
                 continue
         makeCmd = cfgData["makeCmd"]
-        # {commit}, {makeCmd}, {appPath} placeholders
+        # {commit}, {makeCmd}, {cashedPath} placeholders
         strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
-        pathExists, appPath = getCashedAppPath(commit, cfgData)
+        pathExists, cashedPath = getCashedPath(commit, cfgData)
         if pathExists:
-            strCommand = cmd["cmd"].format(appPath=appPath)
+            strCommand = cmd["cmd"].format(cashedPath=cashedPath)
         formattedCmd = strCommand.split()
         # define command launch destination
         cwd = defRepo
         if "path" in cmd:
             cwd = cmd["path"].format(buildPath=buildPath, gitPath=gitPath)
+        # run and check
         commitLogger.info("Run command: {command}".format(
             command=formattedCmd)
         )
@@ -216,28 +218,18 @@ def runCommandList(commit, cfgData, enforceClean=False):
 
 def fetchAppOutput(cfg, commit):
     commitLogger = getCommitLogger(cfg, commit)
-    appPath = None
-    if cfg["cachedAppConfig"]["enable"] == True:
-        pathExists, appPath = getCashedAppPath(commit, cfg)
+    appPath = cfg["appPath"]
+    # format appPath if it was cashed
+    if cfg["cachedPathConfig"]["enable"] == True:
+        pathExists, suggestedAppPath = getCashedPath(commit, cfg)
         if pathExists:
-            commitLogger.info(
-                "App path, corresponding commit {c} is cashed, value:{p}".format(
-                c=commit, p=appPath))
-        else:
-            if cfg["cachedAppConfig"]["scheme"] == "mandatory":
-                commitLogger.info(
-                    "No app path for commit {}".format(commit))
-                raise BuildError(
-                    errType=BuildError.BuildErrType.WRONG_STATE,
-                    message="app path doesn't exist",
-                    commit=commit
-                    )
-            else:
-                raise BuildError(
-                    errType=BuildError.BuildErrType.UNSUPPORTED,
-                    message="optional scheme of cashedAppPath is to-be implemented",
-                    commit=commit
-                    )
+            for item in string.Formatter().parse(appPath):
+                if item[1] is not None and item[1] == 'cashedPath':
+                    commitLogger.info(
+                        "App path, corresponding commit {c} is cashed, "
+                        "value:{p}".format(c=commit,
+                                           p=suggestedAppPath))
+            appPath.format(cashedPath=suggestedAppPath)
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -245,8 +237,6 @@ def fetchAppOutput(cfg, commit):
             envVal = env["val"]
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
-    if appPath is None:
-        appPath = cfg["appPath"]
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
@@ -268,15 +258,16 @@ def fetchAppOutput(cfg, commit):
 
 def handleCommit(commit, cfgData):
     commitLogger = getCommitLogger(cfgData, commit)
-    if cfgData["cachedAppConfig"]["enable"] == True:
-        pathExists, cashedPath = getCashedAppPath(commit, cfgData)
+    cashedPath = None
+    if cfgData["cachedPathConfig"]["enable"] == True:
+        pathExists, cashedPath = getCashedPath(commit, cfgData)
         if pathExists:
             commitLogger.info(
-                "App path, corresponding commit {c} is cashed, value:{p}".format(
+                "Path, corresponding commit {c} is cashed, value:{p}".format(
                 c=commit, p=cashedPath))
             return
         else:
-            if cfgData["cachedAppConfig"]["scheme"] == "mandatory":
+            if cfgData["cachedPathConfig"]["scheme"] == "mandatory":
                 commitLogger.info("Ignore commit {}".format(commit))
                 raise BuildError(
                     errType=BuildError.BuildErrType.TO_IGNORE,
@@ -337,10 +328,10 @@ def handleCommit(commit, cfgData):
                         )
 
 
-def getCashedAppPath(commit, cfgData):
+def getCashedPath(commit, cfgData):
     shortHash = getMeaningfullCommitTail(commit)
-    if commit in cfgData["cachedAppConfig"]["cashMap"]:
-        return True, cfgData["cachedAppConfig"]["cashMap"][commit]
+    if commit in cfgData["cachedPathConfig"]["cashMap"]:
+        return True, cfgData["cachedPathConfig"]["cashMap"][commit]
     else:
         return False, None
 
