@@ -114,8 +114,8 @@ def test_deprecation():
             intel_auto.SchedulePolicy,
             (
                 (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
-                (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEFAULT", 1),
                 (intel_auto.SchedulePolicy.DEVICE_PRIORITY, "SchedulePolicy.DEVICE_PRIORITY", 1),
+                (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEVICE_PRIORITY", 1),
             ),
         ),
     ],
