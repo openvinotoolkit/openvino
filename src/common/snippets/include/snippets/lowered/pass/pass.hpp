@@ -39,6 +39,11 @@ public:
         return get_type_info().name;
     }
 
+    /**
+     * @brief Apply the pass to the Linear IR
+     * @param linear_ir the target Linear IR
+     * @return status of the pass
+     */
     virtual bool run(lowered::LinearIR& linear_ir) = 0;
 };
 
