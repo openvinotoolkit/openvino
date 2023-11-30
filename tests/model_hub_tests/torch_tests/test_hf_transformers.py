@@ -252,6 +252,26 @@ class TestTransformersModel(TestTorchConvertModel):
                     input_values = processor(torch.randn(1000).numpy(),
                                              return_tensors="pt")
                     example = dict(input_values)
+                elif auto_model == "AutoModelForTableQuestionAnswering":
+                    import pandas as pd
+                    from transformers import AutoTokenizer, AutoModelForTableQuestionAnswering
+                    tokenizer = AutoTokenizer.from_pretrained(name)
+                    model = AutoModelForTableQuestionAnswering.from_pretrained(
+                        name, torchscript=True)
+                    data = {"Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
+                            "Number of movies": ["87", "53", "69"]}
+                    queries = ["What is the name of the first actor?",
+                               "How many movies has George Clooney played in?",
+                               "What is the total number of movies?", ]
+                    answer_coordinates = [[(0, 0)], [(2, 1)], [
+                        (0, 1), (1, 1), (2, 1)]]
+                    answer_text = [["Brad Pitt"], ["69"], ["209"]]
+                    table = pd.DataFrame.from_dict(data)
+                    encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
+                                              answer_text=answer_text, padding="max_length", return_tensors="pt", )
+                    example = dict(input_ids=encoded_input["input_ids"],
+                                   token_type_ids=encoded_input["token_type_ids"],
+                                   attention_mask=encoded_input["attention_mask"])
                 else:
                     from transformers import AutoTokenizer, AutoProcessor
                     text = "Replace me by any text you'd like."
