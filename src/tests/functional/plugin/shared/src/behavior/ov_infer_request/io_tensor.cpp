@@ -52,7 +52,7 @@ TEST_P(OVInferRequestIOTensorTest, failToSetUninitializedInputTensor) {
     ASSERT_THROW(req.set_tensor(input, tensor), ov::Exception);
 }
 
-TEST_P(OVInferRequestIOTensorTest, failToSetUninitializedOutputBlob) {
+TEST_P(OVInferRequestIOTensorTest, failToSetUninitializedOutputTensor) {
     ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     ASSERT_THROW(req.set_tensor(output, tensor), ov::Exception);
