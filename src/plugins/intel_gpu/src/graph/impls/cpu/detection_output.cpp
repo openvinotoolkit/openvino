@@ -62,10 +62,12 @@ public:
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << make_data(&nms_type, sizeof(NMSType));
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> make_data(&nms_type, sizeof(NMSType));
     }
 
