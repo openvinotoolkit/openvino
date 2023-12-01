@@ -24,33 +24,23 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
-      - name: Download OpenVINO package (Linux)
-        if: runner.os == 'Linux'
+      - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO tests package (Linux)
-        if: runner.os == 'Linux'
+      - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Download OpenVINO package (mac)
-        if: runner.os == 'macOS'
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package_${{ runner.arch }}
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package (mac)
-        if: runner.os == 'macOS'
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests_${{ runner.arch }}
-          path: ${{ env.INSTALL_TEST_DIR }}
+      - name: Check variables
+        run: |
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "INSTALL_DIR from env.: ${{ env.INSTALL_DIR }}"
+          echo "github.workspace: ${{ github.workspace }}"
 
       - name: Extract OpenVINO packages
         run: |
