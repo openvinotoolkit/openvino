@@ -18,6 +18,9 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
+    defaults:
+      run:
+        shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -41,13 +44,14 @@ jobs:
           echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
           echo "INSTALL_DIR from env.: ${{ env.INSTALL_DIR }}"
           echo "github.workspace: ${{ github.workspace }}"
+          ls -laR $GITHUB_WORKSPACE
 
       - name: Extract OpenVINO packages
         run: |
-          pushd $GITHUB_WORKSPACE/install
+          pushd "$GITHUB_WORKSPACE/install"
             tar -xzf openvino_package.tar.gz -C $GITHUB_WORKSPACE/install
           popd
-          pushd $GITHUB_WORKSPACE/install/tests
+          pushd "$GITHUB_WORKSPACE/install/tests"
             tar -xzf openvino_tests.tar.gz -C $GITHUB_WORKSPACE/install
           popd
 
