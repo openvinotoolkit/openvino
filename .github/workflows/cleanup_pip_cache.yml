@@ -6,7 +6,7 @@ on:
 
 jobs:
   Cleanup_PIP_Caches:
-    runs-on: aks-linux-2-cores
+    runs-on: aks-linux-2-cores-8gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
