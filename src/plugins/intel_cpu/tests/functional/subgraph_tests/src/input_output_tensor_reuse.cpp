@@ -50,7 +50,7 @@ public:
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < last_soft_max->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(last_soft_max->output(i)));
+            results.push_back(std::make_shared<ov::opset1::Result>(last_soft_max->output(i)));
 
         results.front()->set_friendly_name("Output_1");
 

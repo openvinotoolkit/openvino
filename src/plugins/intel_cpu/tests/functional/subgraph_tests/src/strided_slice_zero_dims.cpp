@@ -44,8 +44,8 @@ public:
         auto stride  = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
         auto indices = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
         auto axes = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
-        auto shapeOf = std::make_shared<opset9::ShapeOf>(inputParams[1]);
-        auto gather = std::make_shared<opset9::Gather>(shapeOf, indices, axes);
+        auto shapeOf = std::make_shared<ov::opset9::ShapeOf>(inputParams[1]);
+        auto gather = std::make_shared<ov::opset9::Gather>(shapeOf, indices, axes);
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(inputParams.front(),
                                                                         gather,
                                                                         end,

@@ -74,13 +74,13 @@ protected:
         init_input_shapes(shapes);
 
         ngraph::ParameterVector params = {
-            std::make_shared<ngraph::opset1::Parameter>(dPrecision, inputDynamicShapes[0]),
-            std::make_shared<ngraph::opset1::Parameter>(iPrecision, inputDynamicShapes[1]),
+            std::make_shared<ov::opset1::Parameter>(dPrecision, inputDynamicShapes[0]),
+            std::make_shared<ov::opset1::Parameter>(iPrecision, inputDynamicShapes[1]),
         };
 
-        auto gather = std::make_shared<ngraph::op::v6::GatherElements>(params[0], params[1], axis);
+        auto gather = std::make_shared<ov::op::v6::GatherElements>(params[0], params[1], axis);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gather)};
+        ngraph::ResultVector results{std::make_shared<ov::opset4::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "GatherElements");
     }
 };
