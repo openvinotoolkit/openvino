@@ -424,18 +424,51 @@ event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     event::ptr ev = nullptr;
-    if (_node->get_users().size() == 1 && _node->get_users().front()->is_type<concatenation>()) {
-        auto concat_inst = _network.get_primitive(get_users().front()->id());
-        if (concat_inst->can_be_optimized()) {
-            if (!concat_inst->allocation_done_by_other) {
-                concat_inst->realloc_if_needed();
-                concat_inst->allocation_done_by_other = true;
+    if (_node->get_users().size() == 1) {
+        auto user_node = _node->get_users().front();
+        if (user_node->is_type<concatenation>()) {
+            auto concat_inst = _network.get_primitive(user_node->id());
+            if (concat_inst->can_be_optimized()) {
+                if (!concat_inst->allocation_done_by_other) {
+                    concat_inst->realloc_if_needed();
+                    concat_inst->allocation_done_by_other = true;
+                }
+                this->_outputs[0] = concat_inst->_outputs[0];
+                GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                return ev;
             }
-            this->_outputs[0] = concat_inst->_outputs[0];
-            GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
-            return ev;
+        } else if (user_node->is_type<reshape>() && user_node->can_be_optimized()) {
+            // if current node has the optimzied reshape which has concat as user, set the output memory to concat's output memory
+            // _____________    _____________
+            // |  Reshape  |    |           |
+            // | optimized |    |   node    |
+            // |    out    |    |           |
+            // |___________|    |___________|
+            //          \          /
+            //           \        /
+            //            \      /
+            //         ____\____/____
+            //         |   Concat   |
+            //         |  optimized |
+            //         |     out    |
+            //         |____________|
+            if (user_node->get_users().size() == 1 && user_node->get_users().front()->is_type<concatenation>()) {
+                auto concat_inst = _network.get_primitive(user_node->get_users().front()->id());
+                if (concat_inst->can_be_optimized()) {
+                    if (!concat_inst->allocation_done_by_other) {
+                        concat_inst->realloc_if_needed();
+                        concat_inst->allocation_done_by_other = true;
+                    }
+                    auto reshape_inst = _network.get_primitive(user_node->id());
+                    _outputs[0] = reshape_inst->_outputs[0] = concat_inst->_outputs[0];
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << reshape_inst->id() << ": use concat user's memory " << reshape_inst->_outputs[0] << std::endl;
+                    return ev;
+                }
+            }
         }
     }
+
     // Update param if fake_alignment is available
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
     auto actual_layout = updated_params.get_output_layout();
@@ -762,8 +795,39 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (get_users().size() != 1) return;
 
     auto concat_inst = _network.get_primitive(get_users().front()->id());
-    if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized())
-        return;
+    if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized()) {
+        auto reshape_inst = concat_inst;
+        // if current node has optimzied reshape which has optimized concat as user of reshape,
+        // Set the user of optimized reshpae to concat_inst
+        // _____________
+        // |  current  |
+        // | prim_inst |
+        // |           |
+        // |___________|
+        //       |
+        // ______|_______    _____________
+        // |  Reshape  |    |           |
+        // | optimized |    |   node    |
+        // |    out    |    |           |
+        // |___________|    |___________|
+        //          \          /
+        //           \        /
+        //            \      /
+        //         ____\____/____
+        //         |   Concat   |
+        //         |  optimized |
+        //         |     out    |
+        //         |____________|
+        if (reshape_inst->get_node().is_type<reshape>()
+            && reshape_inst->get_node().can_be_optimized()
+            && reshape_inst->get_users().front()->is_type<concatenation>()
+            && reshape_inst->get_users().front()->can_be_optimized()) {
+            concat_inst = _network.get_primitive(reshape_inst->get_users().front()->id());
+            GPU_DEBUG_TRACE_DETAIL << "concat_inst is set to " << reshape_inst->get_users().front()->id() << std::endl;
+        } else {
+            return;
+        }
+    }
     // Currently does not support cascaded concats
     std::vector<std::shared_ptr<primitive_inst>> concat_preds;
     for (auto pred : concat_inst->_deps) {
@@ -774,6 +838,13 @@ void primitive_inst::do_runtime_in_place_concat() {
     // Do shape_infer for all concat's preds and concat
     for (auto pred : concat_preds) {
         if (!pred->update_shape_done_by_other) {
+            // if pred is optimized reshape, udpate shape for reshape's input node.
+            if (pred->get_node().is_type<reshape>() && pred->get_node().can_be_optimized()) {
+                auto reshape_dep = pred->_deps.front().first;
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << reshape_dep->id() << std::endl;
+                reshape_dep->update_shape();
+                reshape_dep->update_shape_done_by_other = true;
+            }
             GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << pred->id() << std::endl;
             pred->update_shape();
             pred->update_shape_done_by_other = true;
@@ -802,8 +873,18 @@ void primitive_inst::do_runtime_in_place_concat() {
     size_t i = 0;
     for (auto& dep : concat_inst->_deps) {
         if (_impl_params->output_layouts[0] != preds_layouts[i]) {
+            // if dep is optimized reshape, the output layout of input node of reshape should also be updated.
+            if (dep.first->get_node().is_type<reshape>() && dep.first->get_node().can_be_optimized()) {
+                auto dep_of_reshape_inst = dep.first->_deps.front().first;
+                dep_of_reshape_inst->set_shape_change();
+                dep_of_reshape_inst->_impl_params->output_layouts[0] = preds_layouts[i];
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << dep_of_reshape_inst->id() << " : "
+                                    << dep_of_reshape_inst->_impl_params->output_layouts[0].to_string() << std::endl;
+            }
             dep.first->set_shape_change();
             dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << dep.first->id() << " : "
+                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         }
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;

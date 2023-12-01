@@ -824,8 +824,12 @@ void network::build_exec_order() {
             return (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized());
         };
         auto is_allowed_pred_for_runtime_optimized_concat = [&](const program_node* node) {
+            // check is allowed pred for the optimized reshape which has concat node as user
+            auto user_node = node->get_users().front();
             return (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
-                    node->get_users().size() == 1 && is_runtime_optimized_concat(node->get_users().front()));
+                    node->get_users().size() == 1 && (is_runtime_optimized_concat(user_node)
+                    || (user_node->is_type<reshape>() && user_node->can_be_optimized()
+                        && is_runtime_optimized_concat(user_node->get_users().front()))));
         };
         for (auto& node : _program->get_processing_order()) {
             if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
@@ -836,6 +840,10 @@ void network::build_exec_order() {
                     // i.e., We need to make sure that all the preds of them are already updated too.
                     for (auto dep : node->get_dependencies()) {
                         if (!dep.first->is_type<data>()) {
+                            if (dep.first->is_type<reshape>() && dep.first->can_be_optimized()) {
+                                auto reshape_node = dep.first;
+                                add_to_exec_order(reshape_node->get_dependency(0).id());
+                            }
                             add_to_exec_order(dep.first->id());
                         }
                     }

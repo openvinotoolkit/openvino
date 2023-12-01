@@ -56,12 +56,14 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 // reverted condition - if any of this node's inputs is used by more than one primitive
 // and is not optimized concatenation then do not fuse buffers
 // TODO: we need add padding support for all optimized kernels to remove this condition
-auto available_pred = [](const program_node& input) {
+auto available_pred = [](const program_node& input, bool is_allow_new_shape_infer) {
     if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
         !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
-        !input.is_type<strided_slice>())
+        !input.is_type<strided_slice>() &&
+        // only allowed reshape for dynamic shape
+        (!is_allow_new_shape_infer || !input.is_type<reshape>()))
         return false;
     return true;
 };
@@ -109,22 +111,37 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     lower_padd_in_axis = std::max(lower_padd_in_axis,
                                   pred_params[0].get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
 
+    bool is_allow_new_shape_infer = concat_node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     size_t idx = 0;
     for (auto pred : pred_nodes) {
-        if (!available_pred(*pred.first))
-            return false;
-        if (pred.first->is_output())
+        if (!available_pred(*pred.first, is_allow_new_shape_infer))
             return false;
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
-        // we also need to restrict input types to those which support padding on all axis
-        if (!pred.first->is_dynamic() || is_runtime) {
-            if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis))
+        if (pred.first->is_output())
+            return false;
+        if (is_allow_new_shape_infer) {
+            // In the case of dynamic model, check padding supported only for the dynamic shape and dynamic runtime.
+            if (pred.first->is_dynamic() || is_runtime) {
+                // Restrict input types to those which support padding on all axis
+                if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis)) {
+                    return false;
+                }
+            }
+
+            // In dynamic shape, do not allow input_layout as the input of optimized reshape for concat buffer fusing.
+            if (pred.first->is_type<reshape>() && pred.first->can_be_optimized() && pred.first->get_dependency(0).is_type<input_layout>())
+                return false;
+        } else {
+            // Restrict input types to those which support padding on all axis
+            // In the static model, need always to check padding supported
+            if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis)) {
+                return false;
+            }
+
+            if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
                 return false;
         }
-        // TODO: handle optimized reshape
-        if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
-            return false;
         // TODO: Investigate if this condition is needed
         if (pred.first->get_users().size() > 2)
             return false;
@@ -137,8 +154,24 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             else if (pred.first->as<concatenation>().get_primitive()->axis != concat_axis)
                 return false;
         }
-        // Check that input isn't optimized out non-concatenation.
-        if (!pred.first->is_type<concatenation>() && pred.first->can_be_optimized())
+
+        // Check that input isn't optimized out non-concatenation except reshape.
+        // Optimized reshape is only allowed concat buffer fusing.
+        // _____________    _____________
+        // |  Reshape  |    |           |
+        // | optimized |    |   node    |
+        // |    out    |    |           |
+        // |___________|    |___________|
+        //          \          /
+        //           \        /
+        //            \      /
+        //         ____\____/____
+        //         |   Concat   |
+        //         |  optimized |
+        //         |     out    |
+        //         |____________|
+        if (!pred.first->is_type<concatenation>() && !pred.first->is_type<reshape>()
+                && pred.first->can_be_optimized())
             return false;
 
         size_t concat_users = 0;
@@ -249,6 +282,24 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     update_in_place_concat_paddings(concat_layout, preds_layouts, node.get_primitive()->axis, false);
     size_t i = 0;
     for (auto& dep : node.get_dependencies()) {
+        if (dep.first->is_type<reshape>()) {
+            auto reshape_node = dep.first;
+            bool is_dynamic = reshape_node->is_dynamic();
+            bool is_planar = format::is_default_format(reshape_node->get_output_layout().format);
+            bool no_pad = !reshape_node->get_output_layout().data_padding && !reshape_node->get_input_layouts().empty()
+                                && !reshape_node->get_input_layout(0).data_padding;
+            // if reshape is the input of concat and it is optimized out,
+            // update padding of dependency node of reshape
+            if (is_dynamic && is_planar && no_pad && !reshape_node->is_output() && !reshape_node->has_fused_primitives()) {
+                // reshape node is set to optimized out.
+                reshape_node->can_be_optimized(true);
+                // update padding info to dynamic padding for the parent of reshape node if the reshape will be optimzied out.
+                auto reshape_dep_out_layout = reshape_node->get_dependency(0).get_output_layout();
+                reshape_dep_out_layout.data_padding = preds_layouts[i].data_padding;
+                reshape_node->get_dependency(0).set_output_layout(reshape_dep_out_layout);
+                reshape_node->get_dependency(0).can_share_buffer(false);
+            }
+        }
         dep.first->set_output_layout(preds_layouts[i]);
         dep.first->can_share_buffer(false);
         ++i;
