@@ -49,6 +49,8 @@ protected:
     std::vector<ov::NodeVector>
     get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
                           const ov::NodeVector& ordered_ops);
+    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>>
+    get_matched_nodes(const ov::NodeVector& ordered_ops);
 };
 
 }  // namespace subgraph_dumper

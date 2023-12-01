@@ -24,6 +24,9 @@ void ModelComparator::set_match_attributes(bool match_attributes) {
     m_manager.set_match_attributes(match_attributes);
 }
 
+void ModelComparator::set_match_in_types(bool match_in_types) {
+    m_manager.set_match_in_types(true);
+}
 
 inline ModelComparator::IsSubgraphTuple
 prepare_is_subgraph_result(bool is_subgraph,

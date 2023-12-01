@@ -59,6 +59,7 @@ public:
     float get_match_coefficient() { return match_coefficient; }
     void set_shape_strict_match(bool is_shape_strict_match);
     void set_match_attributes(bool match_attributes);
+    void set_match_in_types(bool match_in_types);
 
 protected:
     ov::tools::subgraph_dumper::MatchersManager m_manager = ov::tools::subgraph_dumper::MatchersManager();
