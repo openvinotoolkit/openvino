@@ -13,7 +13,7 @@ from torch_utils import TestTorchConvertModel
 from torch_utils import process_pytest_marks
 
 def is_gptq_model(config):
-    config_dict = config.to_dict()
+    config_dict = config.to_dict() if not isinstance(config, dict) else config
     quantization_config = config_dict.get("quantization_config", None)
     return quantization_config and quantization_config["quant_method"] == "gptq"
 
