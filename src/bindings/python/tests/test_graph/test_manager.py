@@ -20,9 +20,9 @@ def create_model():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
-    model = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
-    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-    return func
+    floor_op = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
+    model = Model(floor_op, [parameter_a, parameter_b, parameter_c], "Model")
+    return model
 
 
 def test_constant_folding():
