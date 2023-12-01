@@ -202,7 +202,7 @@ protected:
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
 
         if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", 2});
+            configuration.insert({"SNIPPETS_MODE", "DISABLE"});
         }
     }
 };

@@ -236,7 +236,7 @@ protected:
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
         if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", 1});
+            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
         }
     }
 };
@@ -618,7 +618,7 @@ protected:
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
         if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", 1});
+            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
         }
     }
 };
