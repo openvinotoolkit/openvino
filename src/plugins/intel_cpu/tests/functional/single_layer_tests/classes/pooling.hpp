@@ -10,10 +10,10 @@
 #include "shared_test_classes/single_layer/pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::test;
 using namespace CPUTestUtils;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using poolLayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::poolSpecificParams,
                                              InputShape,
@@ -47,7 +47,7 @@ protected:
 
 namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
-const ngraph::op::RoundingType expectedAvgRoundingType();
+const ov::op::RoundingType expectedAvgRoundingType();
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax3D();
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg3D();
@@ -65,5 +65,6 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D();
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D_Large();
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg5D();
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax5D();
-} // namespace Pooling
-} // namespace CPULayerTestsDefinitions
+}  // namespace Pooling
+}  // namespace test
+}  // namespace ov
