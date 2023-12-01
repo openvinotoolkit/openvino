@@ -170,7 +170,6 @@ public:
         for (auto&& state : inferRequest.query_state()) {
             state.reset();
         }
-        inferRequest = ov::InferRequest();
     }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;

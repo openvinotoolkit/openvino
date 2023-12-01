@@ -37,10 +37,10 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
         auto attn = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
         attn->set_friendly_name("attn");
 
-        ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
+        ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
         config.fuse_concat = true;
         config.is_causal = true;
-        auto sdpa = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(ov::OutputVector{qkv, qkv, qkv, attn, pastkv, pastkv}, config);
+        auto sdpa = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(ov::OutputVector{qkv, qkv, qkv, attn, pastkv, pastkv}, config);
         auto out_qkv = std::make_shared<ov::op::v0::Result>(sdpa->output(0));
         out_qkv->set_friendly_name("qkv");
         auto out_pastk = std::make_shared<ov::op::v0::Result>(sdpa->output(1));

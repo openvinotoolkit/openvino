@@ -640,7 +640,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
     if (node) {
         m_config.config.is_causal = node->get_causal();
     } else {
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionStub>(op);
+        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
         m_config.config = node->get_config();
     }
 }
@@ -751,8 +751,8 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionStub>(op)) {
-            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionStub operation are supported";
+            !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
+            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionWithKVCache operation are supported";
             return false;
         }
         // expect shape of q: [B, H, L, S]
@@ -762,7 +762,7 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             return false;
         }
         int orgSDPAInput = static_cast<int>(op->get_input_size());
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionStub>(op);
+        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
         if (node) {
             if (node->get_config().fuse_concat) {
                 orgSDPAInput -= 2;
