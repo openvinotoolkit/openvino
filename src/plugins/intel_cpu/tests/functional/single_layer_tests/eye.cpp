@@ -97,11 +97,11 @@ protected:
         if (inputParams.size() == 4) {
             auto batchShapePar = inputParams[3];
             batchShapePar->set_friendly_name("batchShape");
-            auto eyelikeBatchShape = std::make_shared<ngraph::op::v9::Eye>(rowsPar, colsPar, diagPar, batchShapePar, ngraph::element::i32);
+            auto eyelikeBatchShape = std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, batchShapePar, ngraph::element::i32);
             eyelikeBatchShape->get_rt_info() = getCPUInfo();
             return makeNgraphFunction(ngraph::element::i32, inputParams, eyelikeBatchShape, "Eye");
         } else {
-            auto eyelikePure = std::make_shared<ngraph::op::v9::Eye>(rowsPar, colsPar, diagPar, ngraph::element::i32);
+            auto eyelikePure = std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, ngraph::element::i32);
             eyelikePure->get_rt_info() = getCPUInfo();
             return makeNgraphFunction(ngraph::element::i32, inputParams, eyelikePure, "Eye");
         }

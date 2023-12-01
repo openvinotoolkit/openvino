@@ -151,35 +151,35 @@ protected:
 
         std::shared_ptr<ov::Node> beginInput, endInput, strideInput;
         if (restInputType[0] == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
             params.push_back(beginNode);
             beginInput = beginNode;
         } else {
-            beginInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{begin.size()}, begin);
+            beginInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{begin.size()}, begin);
         }
 
         if (restInputType[1] == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto endNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
             params.push_back(endNode);
             endInput = endNode;
         } else {
-            endInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{end.size()}, end);
+            endInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{end.size()}, end);
         }
 
         if (restInputType[2] == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto strideNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{stride.size()});
+            auto strideNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{stride.size()});
             params.push_back(strideNode);
             strideInput = strideNode;
         } else {
-            strideInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{stride.size()}, stride);
+            strideInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{stride.size()}, stride);
         }
 
-        auto ss = std::make_shared<ngraph::op::v1::StridedSlice>(params[0], beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
+        auto ss = std::make_shared<ov::op::v1::StridedSlice>(params[0], beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
                                                                  ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < ss->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(ss->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(ss->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");

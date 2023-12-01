@@ -64,7 +64,7 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
-        auto extImgPatches = std::make_shared<ngraph::opset3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
+        auto extImgPatches = std::make_shared<ov::op::v3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
         function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }
 };

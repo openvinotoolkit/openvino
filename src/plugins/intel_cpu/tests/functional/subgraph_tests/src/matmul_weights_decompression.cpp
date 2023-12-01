@@ -145,7 +145,7 @@ protected:
 
         auto weights = ngraph::builder::makeConstant<int8_t>(weights_precision, transformed_weights_shape, {}, true, 7);
         weights->set_friendly_name("Compressed_weights");
-        auto weights_convert = std::make_shared<ngraph::opset1::Convert>(weights, decompression_precision);
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
         std::shared_ptr<ov::Node> mul_parent = weights_convert;
         auto output_channels = *weights_shape.rbegin();
@@ -166,7 +166,7 @@ protected:
             scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
         if (add_subtract) {
             auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, scaleshift_const_shape, {}, true, 7);
-            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ngraph::opset1::Convert>(shift_const, decompression_precision);
+            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
                 auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);

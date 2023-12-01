@@ -84,8 +84,8 @@ protected:
             seqLengthsInput = ngraph::builder::makeConstant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
         }
 
-        const auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn.front(), seqLengthsInput, batchAxisIndex, seqAxisIndex);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reverse)};
+        const auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn.front(), seqLengthsInput, batchAxisIndex, seqAxisIndex);
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reverse)};
         function = std::make_shared<ngraph::Function>(results, paramsIn, "ReverseSequence");
     }
 

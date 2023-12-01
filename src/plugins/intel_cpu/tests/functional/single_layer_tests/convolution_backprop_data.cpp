@@ -150,11 +150,11 @@ public:
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
                 OPENVINO_ASSERT(inputDynamicShapes.size() == 2);
-                auto outShapeParam = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
+                auto outShapeParam = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
                 outShapeNode = outShapeParam;
             } else {
-                outShapeNode = ngraph::opset8::Constant::create(ngraph::element::i32, {outShapeData[inferRequestNum].size()}, outShapeData[inferRequestNum]);
+                outShapeNode = ov::op::v0::Constant::create(ngraph::element::i32, {outShapeData[inferRequestNum].size()}, outShapeData[inferRequestNum]);
             }
         }
 

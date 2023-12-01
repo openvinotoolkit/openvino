@@ -114,8 +114,8 @@ protected:
         indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
-        auto axisNode = ngraph::opset3::Constant::create(idxPrecision, {}, { axis });
-        auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axisNode);
+        auto axisNode = ov::op::v0::Constant::create(idxPrecision, {}, { axis });
+        auto scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axisNode);
 
         ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
         function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterElementsUpdateLayerCPUTest");

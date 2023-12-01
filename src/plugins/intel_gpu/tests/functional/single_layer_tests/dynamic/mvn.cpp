@@ -85,7 +85,7 @@ protected:
 
        ngraph::ResultVector results;
        for (size_t i = 0; i < mvn->get_output_size(); ++i) {
-           results.push_back(std::make_shared<ngraph::opset1::Result>(mvn->output(i)));
+           results.push_back(std::make_shared<ov::op::v0::Result>(mvn->output(i)));
        }
        function = std::make_shared<ngraph::Function>(results, params, "MVN");
    }

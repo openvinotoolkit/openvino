@@ -44,7 +44,7 @@ using NmsLayerTestParams = std::tuple<InputShapeParams,                         
                                       InputPrecisions,                                    // Input precisions
                                       int32_t,                                            // Max output boxes per class
                                       ThresholdValues,                                    // IOU, Score, Soft NMS sigma
-                                      ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
+                                      ov::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
                                       bool,                                               // Sort result descending
                                       ngraph::element::Type,                              // Output type
                                       TargetDevice,                                       // Device name
@@ -58,7 +58,7 @@ public:
         int32_t maxOutBoxesPerClass;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
-        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
+        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
         element::Type outType;
         TargetDevice targetDevice;
@@ -88,7 +88,8 @@ public:
         result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
         result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
         result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
-        result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
+        auto boxEncodingStr = (boxEncoding == ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER) ? "CENTER" : "CORNER";
+        result << "boxEncoding=" << boxEncodingStr << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
         result << "config=(";
         for (const auto& configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
@@ -122,7 +123,7 @@ protected:
         InputPrecisions inPrecisions;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
-        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
+        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
         element::Type outType;
         std::map<std::string, std::string> additionalConfig;
@@ -162,11 +163,11 @@ protected:
         auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
         auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
         auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
-        auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
+        auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
         ngraph::ResultVector results;
         for (size_t i = 0; i < nms->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset4::Result>(nms->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(nms->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, params, "Nms");
     }
@@ -419,8 +420,8 @@ const std::vector<InputShapeParams> inShapeParams = {
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
 const std::vector<float> threshold = {0.3f, 0.7f};
 const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
-const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
-                                                                           op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
+const std::vector<ov::op::v9::NonMaxSuppression::BoxEncodingType> encodType = {ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
+                                                                           ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
 const std::vector<element::Type> outType = {element::i32};
 

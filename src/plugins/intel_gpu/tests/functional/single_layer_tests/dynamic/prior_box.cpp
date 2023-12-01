@@ -123,7 +123,7 @@ protected:
 
         switch (priorboxType) {
             case priorbox_type::Clustered: {
-                ngraph::op::v0::PriorBoxClustered::Attributes attributes_clustered;
+                ov::op::v0::PriorBoxClustered::Attributes attributes_clustered;
 
                 attributes_clustered.widths = {86, 13, 57, 39, 68, 34, 142, 50, 23};
                 attributes_clustered.heights = {44, 10, 30, 19, 94, 32, 61, 53, 17};
@@ -134,14 +134,14 @@ protected:
                 attributes_clustered.offset = 0.5;
                 attributes_clustered.clip = false;
 
-                auto priorBoxOp = std::make_shared<ngraph::op::v0::PriorBoxClustered>(stridedSliceOp1, stridedSliceOp2, attributes_clustered);
+                auto priorBoxOp = std::make_shared<ov::op::v0::PriorBoxClustered>(stridedSliceOp1, stridedSliceOp2, attributes_clustered);
 
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBoxOp)};
+                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBoxOp)};
                 function = std::make_shared <ngraph::Function>(results, functionParams, "PriorBoxV0Function");
                 break;
             }
             case priorbox_type::V0: {
-                ngraph::op::v0::PriorBox::Attributes attributes_v0;
+                ov::op::v0::PriorBox::Attributes attributes_v0;
 
                 attributes_v0.min_size = {64};
                 attributes_v0.max_size = max_size;
@@ -153,15 +153,15 @@ protected:
                 attributes_v0.flip = true;
                 attributes_v0.scale_all_sizes = true;
 
-                auto priorBoxOp = std::make_shared<ngraph::op::v0::PriorBox>(stridedSliceOp1, stridedSliceOp2, attributes_v0);
+                auto priorBoxOp = std::make_shared<ov::op::v0::PriorBox>(stridedSliceOp1, stridedSliceOp2, attributes_v0);
 
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBoxOp)};
+                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBoxOp)};
                 function = std::make_shared <ngraph::Function>(results, functionParams, "PriorBoxV0Function");
                 break;
             }
             case priorbox_type::V8:
             default: {
-                ngraph::op::v8::PriorBox::Attributes attributes_v8;
+                ov::op::v8::PriorBox::Attributes attributes_v8;
 
                 attributes_v8.min_size = {64};
                 attributes_v8.max_size = max_size;
@@ -174,9 +174,9 @@ protected:
                 attributes_v8.scale_all_sizes = true;
                 attributes_v8.min_max_aspect_ratios_order = true;
 
-                auto priorBoxOp = std::make_shared<ngraph::op::v8::PriorBox>(stridedSliceOp1, stridedSliceOp2, attributes_v8);
+                auto priorBoxOp = std::make_shared<ov::op::v8::PriorBox>(stridedSliceOp1, stridedSliceOp2, attributes_v8);
 
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBoxOp)};
+                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBoxOp)};
                 function = std::make_shared <ngraph::Function>(results, functionParams, "PriorBoxV8Function");
             }
         }

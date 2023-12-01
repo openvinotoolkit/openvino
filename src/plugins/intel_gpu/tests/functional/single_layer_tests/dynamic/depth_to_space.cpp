@@ -9,7 +9,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
-using namespace ngraph::opset3;
 using namespace InferenceEngine;
 using namespace ov::test;
 
@@ -18,7 +17,7 @@ namespace GPULayerTestsDefinitions {
 typedef std::tuple<
     InputShape,                         // Input shape
     ElementType,                        // Input element type
-    DepthToSpace::DepthToSpaceMode,     // Mode
+    ov::op::v0::DepthToSpace::DepthToSpaceMode,     // Mode
     std::size_t                         // Block size
 > DepthToSpaceLayerGPUTestParams;
 
@@ -28,7 +27,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceLayerGPUTestParams> obj) {
         InputShape shapes;
         ElementType inType;
-        DepthToSpace::DepthToSpaceMode mode;
+        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         std::tie(shapes, inType, mode, blockSize) = obj.param;
 
@@ -40,10 +39,10 @@ public:
         }
         results << "Prc=" << inType << "_";
         switch (mode) {
-            case DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
                 results << "BLOCKS_FIRST_";
                 break;
-            case DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
                 results << "DEPTH_FIRST_";
                 break;
             default:
@@ -57,7 +56,7 @@ public:
 protected:
     void SetUp() override {
         InputShape shapes;
-        DepthToSpace::DepthToSpaceMode mode;
+        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         std::tie(shapes, inType, mode, blockSize) = this->GetParam();
 
@@ -72,7 +71,7 @@ protected:
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < d2s->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(d2s->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(d2s->output(i)));
         function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
     }
 };
@@ -91,9 +90,9 @@ const std::vector<ElementType> inputElementType = {
         ElementType::i8
 };
 
-const std::vector<DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
+const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
 // ======================== Static Shapes Tests ========================

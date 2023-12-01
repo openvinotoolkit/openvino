@@ -218,7 +218,7 @@ void ActivationParamLayerTest::SetUp() {
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params);
 }
 

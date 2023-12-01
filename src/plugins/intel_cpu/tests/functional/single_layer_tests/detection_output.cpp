@@ -210,7 +210,7 @@ public:
         else
             OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
         function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
     }
 

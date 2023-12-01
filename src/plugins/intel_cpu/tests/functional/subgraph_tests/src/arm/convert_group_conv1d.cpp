@@ -84,7 +84,7 @@ protected:
         }
 
         ResultVector results;
-        results.push_back(std::make_shared<opset5::Result>(conv));
+        results.push_back(std::make_shared<ov::op::v5::Result>(conv));
 
         function = std::make_shared<ngraph::Function>(results, inputParams, "convolution");
     }

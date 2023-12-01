@@ -71,8 +71,8 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             paramsIn.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
 
-        const auto grn = std::make_shared<ngraph::opset1::GRN>(paramsIn[0], bias);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(grn)};
+        const auto grn = std::make_shared<ov::op::v0::GRN>(paramsIn[0], bias);
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(grn)};
         function = std::make_shared<ngraph::Function>(results, paramsIn, "Grn");
     }
 };

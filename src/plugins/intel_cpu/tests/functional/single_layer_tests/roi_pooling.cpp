@@ -212,7 +212,7 @@ protected:
         } else {
             roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
         }
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "ROIPooling");
         functionRefs = ngraph::clone_function(*function);

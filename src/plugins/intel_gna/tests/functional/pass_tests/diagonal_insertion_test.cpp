@@ -24,7 +24,6 @@ using namespace ngraph;
 using namespace ngraph::builder;
 using namespace ngraph::element;
 using namespace ngraph::op;
-using namespace ngraph::opset9;
 using namespace std;
 
 using DiagonalInsertionTestParams = tuple<map<std::string, std::string>,  // Configuration

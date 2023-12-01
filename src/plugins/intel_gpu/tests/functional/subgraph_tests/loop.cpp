@@ -121,9 +121,9 @@ protected:
         auto cond_input_create = [&params] (ngraph::element::Type prc, const ov::PartialShape &shape, int value = 0, bool is_static = false)
                 -> std::shared_ptr<ngraph::Node> {
             if (is_static)
-                return std::make_shared<ngraph::opset5::Constant>(prc, shape.to_shape(), value);
+                return std::make_shared<ov::op::v0::Constant>(prc, shape.to_shape(), value);
 
-            auto input = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
+            auto input = std::make_shared<ov::op::v0::Parameter>(prc, shape);
             params.push_back(input);
             return input;
         };
@@ -137,27 +137,27 @@ protected:
         auto skip  = cond_input_create(ngraph::element::boolean, scalarShape, true, static_continue_cond);
         skip->set_friendly_name("skip");
 
-        auto b_indx = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{});
+        auto b_indx = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{});
         b_indx->set_friendly_name("body_index");
-        auto b_data_add = std::make_shared<ngraph::opset5::Parameter>(prc, inputShape);
+        auto b_data_add = std::make_shared<ov::op::v0::Parameter>(prc, inputShape);
         b_data_add->set_friendly_name("b_data_add");
-        auto b_data_mul = std::make_shared<ngraph::opset5::Parameter>(prc, inputShape);
+        auto b_data_mul = std::make_shared<ov::op::v0::Parameter>(prc, inputShape);
         b_data_mul->set_friendly_name("b_data_mul");
-        auto b_indx_cast = std::make_shared<ngraph::opset5::Convert>(b_indx, prc);
+        auto b_indx_cast = std::make_shared<ov::op::v0::Convert>(b_indx, prc);
         b_indx_cast->set_friendly_name("body_index_cast");
-        auto b_add  = std::make_shared<ngraph::opset5::Add>(b_data_add, b_indx_cast);
+        auto b_add  = std::make_shared<ov::op::v1::Add>(b_data_add, b_indx_cast);
         b_add->set_friendly_name("body_add");
-        auto b_mul  = std::make_shared<ngraph::opset5::Multiply>(b_data_mul, b_indx_cast);
+        auto b_mul  = std::make_shared<ov::op::v1::Multiply>(b_data_mul, b_indx_cast);
         b_mul->set_friendly_name("body_mul");
 
         std::shared_ptr<ngraph::Node> b_cond;
         if (dynamic_exit == -1) {
-            b_cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            b_cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
             b_cond->set_friendly_name("body_condition");
         } else {
-            auto b_exit_value = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, scalarShape, dynamic_exit);
+            auto b_exit_value = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, dynamic_exit);
             b_exit_value->set_friendly_name("body_exit_value");
-            b_cond = std::make_shared<ngraph::opset5::Less>(b_indx, b_exit_value);
+            b_cond = std::make_shared<ov::op::v1::Less>(b_indx, b_exit_value);
             b_cond->set_friendly_name("body_condition_with_exit_value");
         }
 
@@ -166,7 +166,7 @@ protected:
                 ngraph::ParameterVector {b_indx, b_data_add, b_data_mul});  // TODO: check with reverse
         body->set_friendly_name("body_network");
 
-        auto loop = std::make_shared<ngraph::opset5::Loop>(count, skip);
+        auto loop = std::make_shared<ov::op::v5::Loop>(count, skip);
         loop->set_friendly_name("loop");
         loop->set_function(body);
         loop->set_special_body_ports({0, 0});
@@ -182,7 +182,7 @@ protected:
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < loop->get_output_size(); i++) {
-            auto res = std::make_shared<ngraph::opset4::Result>(loop->output(i));
+            auto res = std::make_shared<ov::op::v0::Result>(loop->output(i));
             res->set_friendly_name("loop_output_" + std::to_string(i));
             results.push_back(res);
         }

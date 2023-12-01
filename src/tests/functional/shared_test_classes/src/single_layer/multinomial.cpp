@@ -57,7 +57,7 @@ void MultinomialTest::SetUp() {
     auto numSamplesConstant = std::make_shared<ov::op::v0::Constant>(
         ngraph::element::Type_t::i64, ov::Shape{1}, numSamples);
     const auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     const auto multinomial = std::make_shared<ov::op::v13::Multinomial>(
         paramOuts.at(0),

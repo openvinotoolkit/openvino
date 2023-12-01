@@ -110,7 +110,7 @@ protected:
                                                                                            indexType,
                                                                                            indexType);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen)};
         function = std::make_shared<ngraph::Function>(results, params, "CTCGreedyDecoderSeqLenCPU");
     };
 

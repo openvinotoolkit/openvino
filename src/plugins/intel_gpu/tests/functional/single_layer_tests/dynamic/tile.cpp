@@ -103,7 +103,7 @@ protected:
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < tileNode->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset4::Result>(tileNode->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(tileNode->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, functionParams, "Tile");

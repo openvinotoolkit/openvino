@@ -53,7 +53,7 @@ protected:
         init_input_shapes({shapes});
 
         const size_t sequence_axis = 1;
-        auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
@@ -63,12 +63,12 @@ protected:
         for (size_t i = 0; i < shapes.size(); i++) {
             ngraph::PartialShape shape = shapes[i].first;
             shape[sequence_axis] = 1;
-            auto paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, shape);
+            auto paramNode = std::make_shared<ov::op::v0::Parameter>(inType, shape);
             body_params.push_back(paramNode);
         }
         auto tanh = ngraph::builder::makeActivation(body_params[0], inType, ngraph::helpers::Tanh);
         auto relu = ngraph::builder::makeActivation(body_params[1], inType, ngraph::helpers::Relu);
-        auto add = std::make_shared<ngraph::opset1::Add>(tanh, relu);
+        auto add = std::make_shared<ov::op::v1::Add>(tanh, relu);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{add}, body_params, "body");
         tensor_iterator->set_function(body);

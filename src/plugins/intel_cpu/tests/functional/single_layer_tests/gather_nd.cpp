@@ -59,9 +59,9 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataElementType, shape));
         }
-        auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
-        auto gather_nd = std::make_shared<ngraph::opset5::GatherND>(params[0], indexes_node, batchDims);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
+        auto indexes_node = ov::op::v0::Constant::create(idxElementType, indexes.first, indexes.second);
+        auto gather_nd = std::make_shared<ov::op::v5::GatherND>(params[0], indexes_node, batchDims);
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_nd)};
         function = std::make_shared<ngraph::Function>(results, params, "gatherND");
     }
 };
@@ -88,9 +88,9 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataElementType, shape));
         }
-        auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
-        auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(params[0], indexes_node, batchDims);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
+        auto indexes_node = ov::op::v0::Constant::create(idxElementType, indexes.first, indexes.second);
+        auto gather_nd = std::make_shared<ov::op::v8::GatherND>(params[0], indexes_node, batchDims);
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_nd)};
         function = std::make_shared<ngraph::Function>(results, params, "gatherND");
     }
 };

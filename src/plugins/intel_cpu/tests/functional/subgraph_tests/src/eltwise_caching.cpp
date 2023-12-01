@@ -159,7 +159,7 @@ protected:
         std::vector<std::shared_ptr<ngraph::Node>> ngraphInputs;
 
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
-            ngraphParam.push_back(std::make_shared<ngraph::opset1::Parameter>(inputPrecisions[i], inputDynamicShapes[i]));
+            ngraphParam.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecisions[i], inputDynamicShapes[i]));
             ngraphInputs.push_back(ngraphParam.back());
         }
 
@@ -176,7 +176,7 @@ protected:
         if (needReshape) {
             auto reshapeConstNode = ngraph::builder::makeConstant(::ngraph::element::Type(::ngraph::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
-            lastNode1 = std::make_shared<ngraph::opset4::Reshape>(lastNode1, reshapeConstNode, false);
+            lastNode1 = std::make_shared<ov::op::v1::Reshape>(lastNode1, reshapeConstNode, false);
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
         function = std::make_shared<ngraph::Function>(concat, ngraphParam, "eltwise_cache");

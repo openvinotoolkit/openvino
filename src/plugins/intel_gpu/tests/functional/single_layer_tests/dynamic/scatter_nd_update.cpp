@@ -137,18 +137,18 @@ protected:
         std::shared_ptr<ov::Node> scatter;
         switch (scType) {
             case Scatterupdate_type::ND: {
-                scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
+                scatter = std::make_shared<ov::op::v3::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
                 break;
             }
             case Scatterupdate_type::Elements: {
                 auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
-                scatter = std::make_shared<ngraph::opset4::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+                scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
                 break;
             }
             case Scatterupdate_type::Basic:
             default: {
                 auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
-                scatter = std::make_shared<ngraph::opset4::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+                scatter = std::make_shared<ov::op::v3::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
             }
         }
 
@@ -158,7 +158,7 @@ protected:
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "ScatterUpdateLayerGPUTest");
         };

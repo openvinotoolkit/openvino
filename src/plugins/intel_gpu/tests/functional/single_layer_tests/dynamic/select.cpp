@@ -60,9 +60,9 @@ protected:
         init_input_shapes(inshapes);
 
         ParameterVector params = {
-            std::make_shared<opset1::Parameter>(ElementType::boolean, inputDynamicShapes[0]),
-            std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[1]),
-            std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[2]),
+            std::make_shared<ov::op::v0::Parameter>(ElementType::boolean, inputDynamicShapes[0]),
+            std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes[1]),
+            std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes[2]),
         };
 
         auto select = std::make_shared<ov::op::v1::Select>(params[0], params[1], params[2], broadcast);
@@ -71,7 +71,7 @@ protected:
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "SelectLayerGPUTest");
         };

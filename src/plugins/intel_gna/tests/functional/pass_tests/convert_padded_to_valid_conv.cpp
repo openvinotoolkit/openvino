@@ -18,7 +18,6 @@
 #include "transformations/init_node_info.hpp"
 
 using namespace ngraph;
-using namespace ngraph::opset7;
 
 namespace LayerTestsDefinitions {
 

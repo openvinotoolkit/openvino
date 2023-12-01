@@ -144,7 +144,7 @@ protected:
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "BroadcastLayerGPUTest");
         };

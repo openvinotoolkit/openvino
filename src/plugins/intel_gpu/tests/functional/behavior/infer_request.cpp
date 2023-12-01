@@ -144,14 +144,14 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     params.front()->output(0).get_tensor().set_names({"scalar1"});
 
     std::vector<size_t> const_shape = {1};
-    auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, const_shape);
+    auto const1 = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, const_shape);
     const1->set_friendly_name("Const_1");
     const1->output(0).get_tensor().set_names({"const1"});
     const1->fill_data(ov::element::i64, 0);
 
-    auto unsqueeze1 = std::make_shared<ngraph::opset1::Unsqueeze>(params.front(), const1);
+    auto unsqueeze1 = std::make_shared<ov::op::v0::Unsqueeze>(params.front(), const1);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(unsqueeze1)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze1)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
 
     auto ie = ov::Core();

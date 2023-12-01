@@ -175,20 +175,20 @@ protected:
         std::shared_ptr<ngraph::Node> shapeOps;
         switch (nodeType) {
             case shapeNodeType::Reshape: {
-                shapeOps = std::make_shared<ngraph::opset1::Reshape>(dataInput, secondaryInput, specialZero);
+                shapeOps = std::make_shared<ov::op::v1::Reshape>(dataInput, secondaryInput, specialZero);
                 break;
             }
             case shapeNodeType::Squeeze: {
-                shapeOps = std::make_shared<ngraph::opset1::Squeeze>(dataInput, secondaryInput);
+                shapeOps = std::make_shared<ov::op::v0::Squeeze>(dataInput, secondaryInput);
                 break;
             }
             case shapeNodeType::Unsqueeze: {
-                shapeOps = std::make_shared<ngraph::opset1::Unsqueeze>(dataInput, secondaryInput);
+                shapeOps = std::make_shared<ov::op::v0::Unsqueeze>(dataInput, secondaryInput);
                 break;
             }
             case shapeNodeType::ReshapeWithNonZero: {
-                auto nonZero = std::make_shared<ngraph::opset3::NonZero>(dataInput);
-                shapeOps = std::make_shared<ngraph::opset1::Reshape>(nonZero, secondaryInput, specialZero);
+                auto nonZero = std::make_shared<ov::op::v3::NonZero>(dataInput);
+                shapeOps = std::make_shared<ov::op::v1::Reshape>(nonZero, secondaryInput, specialZero);
                 break;
             }
         }

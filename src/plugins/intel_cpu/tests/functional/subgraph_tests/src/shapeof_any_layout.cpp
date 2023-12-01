@@ -100,7 +100,7 @@ protected:
         auto eltwise = ngraph::builder::makeActivation(params[0], inType, ov::test::utils::ActivationTypes::Relu);
         eltwise->get_rt_info() = makeCPUInfo(eltwiseInFmts, eltwiseOutFmts, {});
 
-        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(eltwise, ngraph::element::i32);
+        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(eltwise, ngraph::element::i32);
 
         function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
     }

@@ -78,11 +78,11 @@ protected:
             std::swap(weightShape[0], weightShape[1]);
             auto weightsNode = ngraph::builder::makeConstant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
             auto fq2 = ngraph::builder::makeFakeQuantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
-            auto fc = std::make_shared<ngraph::opset1::MatMul>(fq1, fq2, false, false);
+            auto fc = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, false);
             fc->get_rt_info() = getCPUInfo();
             fc->set_friendly_name(nameMatmul);
             auto biasWeightsNode = ngraph::builder::makeConstant(ngPrec, {}, std::vector<float>{0.0f}, true);
-            matMul = std::make_shared<ngraph::opset1::Add>(fc, biasWeightsNode);
+            matMul = std::make_shared<ov::op::v1::Add>(fc, biasWeightsNode);
         } else {
             auto fq2 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
             matMul = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, true);

@@ -66,8 +66,8 @@ public:
     InnerBodyGenerator() { }
 
     virtual std::shared_ptr<ngraph::Function> get_function() { return _func; }
-    virtual std::shared_ptr<ngraph::opset9::Parameter> get_input() { return _param; }
-    virtual std::shared_ptr<ngraph::opset1::Result> get_result() { return _result; }
+    virtual std::shared_ptr<ov::op::v0::Parameter> get_input() { return _param; }
+    virtual std::shared_ptr<ov::op::v0::Result> get_result() { return _result; }
 
     // virtual void create_body(ngraph::Shape input_shape, ngraph::element::Type prc) {
     virtual void create_body(ov::PartialShape& input_shape, ngraph::element::Type prc) {
@@ -80,20 +80,20 @@ protected:
     virtual std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) = 0;
 
     std::shared_ptr<ngraph::Function> _func;
-    std::shared_ptr<ngraph::opset9::Parameter> _param;
-    std::shared_ptr<ngraph::opset1::Result> _result;
+    std::shared_ptr<ov::op::v0::Parameter> _param;
+    std::shared_ptr<ov::op::v0::Result> _result;
 };
 
 class InnerBodyType01 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constantA   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 2), {2.0f});
+        auto constantA   = ov::op::v0::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 2), {2.0f});
         constantA->set_friendly_name("body1_constantA");
-        auto constantB   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 2), {12.0f});
+        auto constantB   = ov::op::v0::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 2), {12.0f});
         constantB->set_friendly_name("body1_constantB");
-        auto add        = std::make_shared<ngraph::opset9::Add>(constantA, constantB);
+        auto add        = std::make_shared<ov::op::v1::Add>(constantA, constantB);
         add->set_friendly_name("body1_add");
-        auto result     = std::make_shared<ngraph::opset1::Result>(add);
+        auto result     = std::make_shared<ov::op::v0::Result>(add);
         auto o_layout = result->get_layout();
         result->set_friendly_name("body1_result");
         auto body       = std::make_shared<ngraph::Function>(
@@ -107,13 +107,13 @@ protected:
 class InnerBodyType02 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 10.0f);
+        auto constant   = std::make_shared<ov::op::v0::Constant>(prc, ngraph::Shape{}, 10.0f);
         constant->set_friendly_name("body2_const");
-        auto data       = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
+        auto data       = std::make_shared<ov::op::v0::Parameter>(prc, input_shape);
         data->set_friendly_name("body2_data");
-        auto sum        = std::make_shared<ngraph::opset9::Multiply>(data, constant);
+        auto sum        = std::make_shared<ov::op::v1::Multiply>(data, constant);
         sum->set_friendly_name("body2_mul");
-        auto result     = std::make_shared<ngraph::opset1::Result>(sum);
+        auto result     = std::make_shared<ov::op::v0::Result>(sum);
         result->set_friendly_name("body2_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
@@ -126,13 +126,13 @@ protected:
 class InnerBodyType03 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 2.0f);
+        auto constant   = std::make_shared<ov::op::v0::Constant>(prc, ngraph::Shape{}, 2.0f);
         constant->set_friendly_name("body3_constant");
-        auto data       = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
+        auto data       = std::make_shared<ov::op::v0::Parameter>(prc, input_shape);
         data->set_friendly_name("body3_data");
-        auto add        = std::make_shared<ngraph::opset9::Add>(data, constant);
+        auto add        = std::make_shared<ov::op::v1::Add>(data, constant);
         add->set_friendly_name("body3_add");
-        auto result     = std::make_shared<ngraph::opset1::Result>(add);
+        auto result     = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("body3_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
@@ -145,15 +145,15 @@ protected:
 class InnerBodyType04 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto scale      = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 2.0f);
+        auto scale      = std::make_shared<ov::op::v0::Constant>(prc, ngraph::Shape{}, 2.0f);
         scale->set_friendly_name("body4_scale");
-        auto data       = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
+        auto data       = std::make_shared<ov::op::v0::Parameter>(prc, input_shape);
         data->set_friendly_name("body4_data");
-        auto mul        = std::make_shared<ngraph::opset9::Multiply>(data, scale);
+        auto mul        = std::make_shared<ov::op::v1::Multiply>(data, scale);
         mul->set_friendly_name("body4_mul");
         auto pooling    = generate_pooling(mul, input_shape);
         pooling->set_friendly_name("body4_pool");
-        auto result     = std::make_shared<ngraph::opset1::Result>(pooling);
+        auto result     = std::make_shared<ov::op::v0::Result>(pooling);
         result->set_friendly_name("body4_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
@@ -169,8 +169,8 @@ protected:
             std::vector<size_t>             stride;         // Stride
             std::vector<size_t>             pad_begin;      // Pad begin
             std::vector<size_t>             pad_end;        // Pad end
-            ngraph::op::RoundingType        rounding_type;  // Rounding type
-            ngraph::op::PadType             pad_type;       // Pad type
+            ov::op::RoundingType        rounding_type;  // Rounding type
+            ov::op::PadType             pad_type;       // Pad type
             bool                            exclued_pad;    // Exclude pad
     };
 
@@ -181,24 +181,24 @@ protected:
             {
                 params = poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX,
                                                     {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
-                                                    ngraph::op::RoundingType::CEIL,
-                                                    ngraph::op::PadType::SAME_LOWER, true };
+                                                    ov::op::RoundingType::CEIL,
+                                                    ov::op::PadType::SAME_LOWER, true };
                 break;
             }
             case 4:
             {
                 params = poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX,
                                                     {2, 2}, {2, 2}, {0, 0}, {0, 0},
-                                                    ngraph::op::RoundingType::CEIL,
-                                                    ngraph::op::PadType::SAME_LOWER, true };
+                                                    ov::op::RoundingType::CEIL,
+                                                    ov::op::PadType::SAME_LOWER, true };
                 break;
             }
             case 3:
             {
                 params = poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX,
                                                     {2}, {2}, {0}, {0},
-                                                    ngraph::op::RoundingType::CEIL,
-                                                    ngraph::op::PadType::SAME_LOWER, true };
+                                                    ov::op::RoundingType::CEIL,
+                                                    ov::op::PadType::SAME_LOWER, true };
                 break;
             }
             default:
@@ -230,11 +230,11 @@ protected:
 class InnerBodyType05 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 2.0f);
+        auto constant   = std::make_shared<ov::op::v0::Constant>(prc, ngraph::Shape{}, 2.0f);
         constant->set_friendly_name("body5_constant");
-        auto data       = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
+        auto data       = std::make_shared<ov::op::v0::Parameter>(prc, input_shape);
         data->set_friendly_name("body5_data");
-        auto add        = std::make_shared<ngraph::opset9::Add>(data, constant);
+        auto add        = std::make_shared<ov::op::v1::Add>(data, constant);
         add->set_friendly_name("body5_add");
         std::vector<int> axes;
         for (int i = 0, r = 0; i < input_shape.rank().get_length(); i++) {
@@ -244,14 +244,14 @@ protected:
         shapeAxes.push_back(axes.size());
 
         auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
         const auto reduce = ngraph::builder::makeReduce(add, reductionAxesNode, false, ngraph::helpers::ReductionType::Min);
         reduce->set_friendly_name("body5_reduce");
-        auto constant_ref   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 10.0f);
+        auto constant_ref   = std::make_shared<ov::op::v0::Constant>(prc, ngraph::Shape{}, 10.0f);
         constant_ref->set_friendly_name("body5_ref_constant");
 
-        auto pred = std::make_shared<ngraph::opset3::GreaterEqual>(reduce, constant_ref);
+        auto pred = std::make_shared<ov::op::v1::GreaterEqual>(reduce, constant_ref);
         pred->set_friendly_name("nested_pred");
 
         auto nested_body_then_generator = std::make_shared<InnerBodyType03>();
@@ -263,14 +263,14 @@ protected:
         nested_body_then_generator->get_function()->set_friendly_name("nested_then_inner_body");
         nested_body_else_generator->get_function()->set_friendly_name("nested_else_inner_body");
 
-        auto cond_nested = std::make_shared<ngraph::opset8::If>(pred);
+        auto cond_nested = std::make_shared<ov::op::v8::If>(pred);
         cond_nested->set_friendly_name("if_operator_nested");
         cond_nested->set_else_body(nested_body_else_generator->get_function());
         cond_nested->set_then_body(nested_body_then_generator->get_function());
         cond_nested->set_input(add, nested_body_then_generator->get_input(), nested_body_else_generator->get_input());
         cond_nested->set_output(nested_body_then_generator->get_result(), nested_body_else_generator->get_result());
 
-        auto result     = std::make_shared<ngraph::opset1::Result>(cond_nested);
+        auto result     = std::make_shared<ov::op::v0::Result>(cond_nested);
         result->set_friendly_name("body5_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
@@ -283,9 +283,9 @@ protected:
 class InnerBodyType06 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 1), {2.0f});
+        auto constant   = ov::op::v0::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 1), {2.0f});
         constant->set_friendly_name("body6_constant");
-        auto result     = std::make_shared<ngraph::opset1::Result>(constant);
+        auto result     = std::make_shared<ov::op::v0::Result>(constant);
         auto o_layout = result->get_layout();
         result->set_friendly_name("body6_result");
         auto body       = std::make_shared<ngraph::Function>(
@@ -299,9 +299,9 @@ protected:
 class InnerBodyType07 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = ngraph::opset9::Constant::create(prc, input_shape.to_shape(), {2.0f});
+        auto constant   = ov::op::v0::Constant::create(prc, input_shape.to_shape(), {2.0f});
         constant->set_friendly_name("body7_constant");
-        auto result     = std::make_shared<ngraph::opset1::Result>(constant);
+        auto result     = std::make_shared<ov::op::v0::Result>(constant);
         auto o_layout = result->get_layout();
         result->set_friendly_name("body7_result");
         auto body       = std::make_shared<ngraph::Function>(
@@ -315,11 +315,11 @@ protected:
 class InnerBodyType08 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 10.0f);
+        auto constant   = std::make_shared<ov::op::v0::Constant>(prc, ngraph::Shape{}, 10.0f);
         constant->set_friendly_name("body8_const");
-        auto data       = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
+        auto data       = std::make_shared<ov::op::v0::Parameter>(prc, input_shape);
         data->set_friendly_name("body8_data");
-        auto result     = std::make_shared<ngraph::opset1::Result>(data);
+        auto result     = std::make_shared<ov::op::v0::Result>(data);
         result->set_friendly_name("body8_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
@@ -398,7 +398,7 @@ public:
                             predicate->set_friendly_name("if_predicate");
                             auto data = create_condition_input(params, prc, input_shape);
                             data->set_friendly_name("input_data");
-                            auto cond = std::make_shared<ngraph::opset8::If>(predicate);
+                            auto cond = std::make_shared<ov::op::v8::If>(predicate);
                             cond->set_friendly_name("if_operator");
                             cond->set_else_body(body_else_generator->get_function());
                             cond->set_then_body(body_then_generator->get_function());
@@ -406,17 +406,17 @@ public:
                             cond->set_output(body_then_generator->get_result(), body_else_generator->get_result());
                             if (then_body_type == InnerBodyGenerator::InnerBodyType::Type06 || else_body_type == InnerBodyGenerator::InnerBodyType::Type06) {
                                 auto constant = create_condition_input(params, prc, ngraph::Shape{1}, 0, true);
-                                auto addition = std::make_shared<ngraph::opset9::Add>(cond, constant);
-                                auto shapeof1 = std::make_shared<ngraph::opset9::ShapeOf>(addition);
-                                auto convert = std::make_shared<ngraph::opset9::Convert>(shapeof1, prc);
-                                auto mul = std::make_shared<ngraph::opset9::Multiply>(convert, constant);
+                                auto addition = std::make_shared<ov::op::v1::Add>(cond, constant);
+                                auto shapeof1 = std::make_shared<ov::op::v3::ShapeOf>(addition);
+                                auto convert = std::make_shared<ov::op::v0::Convert>(shapeof1, prc);
+                                auto mul = std::make_shared<ov::op::v1::Multiply>(convert, constant);
                                 auto shapePatternsNode = create_condition_input(params, ov::element::Type_t::i64, ngraph::Shape{1}, 0, true);
-                                auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(mul, shapePatternsNode, true);
-                                auto result = std::make_shared<ngraph::opset1::Result>(reshapeOp);
+                                auto reshapeOp = std::make_shared<ov::op::v1::Reshape>(mul, shapePatternsNode, true);
+                                auto result = std::make_shared<ov::op::v0::Result>(reshapeOp);
                                 result->set_friendly_name("outer_result");
                                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector {result}, params);
                             } else {
-                                auto result = std::make_shared<ngraph::opset1::Result>(cond);
+                                auto result = std::make_shared<ov::op::v0::Result>(cond);
                                 result->set_friendly_name("outer_result");
                                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector {result}, params);
                             }
@@ -428,9 +428,9 @@ private:
         const ngraph::element::Type prc, const ov::PartialShape& shape,
         int value = 0, bool is_static = false) {
         if (is_static)
-            return std::make_shared<ngraph::opset9::Constant>(prc, shape.to_shape(), value);
+            return std::make_shared<ov::op::v0::Constant>(prc, shape.to_shape(), value);
 
-        auto input = std::make_shared<ngraph::opset9::Parameter>(prc, shape);
+        auto input = std::make_shared<ov::op::v0::Parameter>(prc, shape);
         params.push_back(input);
         return input;
     }
@@ -452,7 +452,7 @@ private:
                 param_cond->set_friendly_name("param_cond");
                 auto const_cond = create_condition_input(params, prc, ngraph::Shape{}, 1, true);
                 const_cond->set_friendly_name("const_cond");
-                pred = std::make_shared<ngraph::opset3::GreaterEqual>(param_cond, const_cond);
+                pred = std::make_shared<ov::op::v1::GreaterEqual>(param_cond, const_cond);
                 pred->set_friendly_name("pred");
                 break;
             }

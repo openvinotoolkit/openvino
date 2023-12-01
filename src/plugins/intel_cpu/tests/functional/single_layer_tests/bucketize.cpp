@@ -9,7 +9,6 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::opset3;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -95,8 +94,8 @@ protected:
         data->set_friendly_name("a_data");
         auto buckets = std::make_shared<ngraph::op::Parameter>(inBucketsPrc, inputDynamicShapes[1]);
         buckets->set_friendly_name("b_buckets");
-        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, netPrc, with_right_bound);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize),
+        auto bucketize = std::make_shared<ov::op::v3::Bucketize>(data, buckets, netPrc, with_right_bound);
+        function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(bucketize),
                                                       ngraph::ParameterVector{data, buckets},
                                                       "Bucketize");
     }

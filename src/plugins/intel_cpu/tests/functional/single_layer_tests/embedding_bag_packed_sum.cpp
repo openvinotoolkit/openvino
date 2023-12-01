@@ -72,16 +72,16 @@ protected:
 
         init_input_shapes({ inputShapes });
 
-        auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(inType, inputShapes.first);
+        auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(inType, inputShapes.first);
         ngraph::ParameterVector params = {emb_table_node};
 
-        auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingBagPackedSum>(ngraph::builder::makeEmbeddingBagPackedSum(
+        auto embBag = std::dynamic_pointer_cast<ov::op::v3::EmbeddingBagPackedSum>(ngraph::builder::makeEmbeddingBagPackedSum(
             inType,
             indPrecision,
             emb_table_node,
             indices,
             withWeights));
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(embBag)};
         function = std::make_shared<ngraph::Function>(results, params, "embeddingBagPackedSum");
     }
 };

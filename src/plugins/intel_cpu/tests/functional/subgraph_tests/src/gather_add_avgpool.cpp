@@ -32,12 +32,12 @@ protected:
         inPrc = InferenceEngine::Precision::U8;
         outPrc = InferenceEngine::Precision::FP32;
         auto type = element::f32;
-        auto param = std::make_shared<opset8::Parameter>(type, Shape{1, 3, 64, 64});
-        auto gather = std::make_shared<opset8::Gather>(param,
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, Shape{1, 3, 64, 64});
+        auto gather = std::make_shared<ov::op::v8::Gather>(param,
                                                        op::Constant::create(element::i32, Shape{3}, {2, 1, 0}),
                                                        op::Constant::create(element::i32, Shape{1}, {1}));
-        auto add = std::make_shared<opset8::Add>(gather, op::Constant::create(type, Shape{1, 3, 1, 1}, {3}));
-        auto avgpool = std::make_shared<opset8::AvgPool>(add, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}, Shape{2, 2}, false);
+        auto add = std::make_shared<ov::op::v1::Add>(gather, op::Constant::create(type, Shape{1, 3, 1, 1}, {3}));
+        auto avgpool = std::make_shared<ov::op::v1::AvgPool>(add, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}, Shape{2, 2}, false);
         function = std::make_shared<Function>(avgpool, ParameterVector{param});
     }
 

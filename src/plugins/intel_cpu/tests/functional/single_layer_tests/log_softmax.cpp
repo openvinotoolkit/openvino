@@ -65,8 +65,8 @@ protected:
         init_input_shapes(inputShapes);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
-        const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(params[0], axis);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(logSoftmax)};
+        const auto logSoftmax = std::make_shared<ov::op::v5::LogSoftmax>(params[0], axis);
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(logSoftmax)};
         function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
     }
 };

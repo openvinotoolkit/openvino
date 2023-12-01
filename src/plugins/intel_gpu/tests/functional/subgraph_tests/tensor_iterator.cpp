@@ -33,7 +33,7 @@ namespace GPULayerTestsDefinitions {
 */
 static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC, ov::PartialShape initShape,
                                                         size_t N, size_t I, size_t H, size_t sequence_axis,
-                                                        ngraph::op::RecurrentSequenceDirection seq_direction) {
+                                                        ov::op::RecurrentSequenceDirection seq_direction) {
     auto SENT = std::make_shared<ov::op::v0::Parameter>(ngPRC, initShape);
     SENT->set_friendly_name("SENT");
 
@@ -100,9 +100,9 @@ static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC, 
     tensor_iterator->set_merged_input(C_t, C_init, C_o);
 
     // Set PortMap
-    if (seq_direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+    if (seq_direction == ov::op::RecurrentSequenceDirection::FORWARD) {
         tensor_iterator->set_sliced_input(X, SENT, 0, 1, 1, -1, sequence_axis);
-    } else if (seq_direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+    } else if (seq_direction == ov::op::RecurrentSequenceDirection::REVERSE) {
         tensor_iterator->set_sliced_input(X, SENT, -1, -1, 1, 0, sequence_axis);
     } else {
         OPENVINO_THROW("Bidirectional case is not supported.");
@@ -130,7 +130,7 @@ static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC, 
 */
 static std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t ngPRC, ov::PartialShape initShape,
                                                         size_t N, size_t I, size_t H, size_t sequence_axis,
-                                                        ngraph::op::RecurrentSequenceDirection seq_direction) {
+                                                        ov::op::RecurrentSequenceDirection seq_direction) {
     auto X = std::make_shared<ov::op::v0::Parameter>(ngPRC, initShape);
     auto Y = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
     auto Z = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
@@ -176,7 +176,7 @@ using DynamicTensorIteratorParams = typename std::tuple<
         LSTMType,                               // LSTM type (LSTMCell, LSTMSequence)
         InputShape,                             // input shapes (N[batch], L[seq_length], I[input_size])
         int32_t,                                // hidden size
-        ngraph::op::RecurrentSequenceDirection, // sequence direction
+        ov::op::RecurrentSequenceDirection, // sequence direction
         std::string,                            // device name
         InferenceEngine::Precision,             // precision
         ov::AnyMap                              // configuration
@@ -193,7 +193,7 @@ public:
         LSTMType type;
         InputShape data_shapes;
         int32_t hidden_size;
-        ngraph::op::RecurrentSequenceDirection seq_direction;
+        ov::op::RecurrentSequenceDirection seq_direction;
         std::string target_device;
         InferenceEngine::Precision data_precision;
         ov::Any configuration;
@@ -218,7 +218,7 @@ public:
 
 private:
     InputShape data_shapes;
-    ngraph::op::RecurrentSequenceDirection seq_direction;
+    ov::op::RecurrentSequenceDirection seq_direction;
     InferenceEngine::Precision data_prc;
     size_t hidden_size;
     size_t batch_size;
@@ -308,9 +308,9 @@ std::vector<InferenceEngine::Precision> net_precision = {
     InferenceEngine::Precision::FP32,
 };
 
-std::vector<ngraph::op::RecurrentSequenceDirection> reccurent_sequence_direction = {
-    ngraph::op::RecurrentSequenceDirection::FORWARD,
-    ngraph::op::RecurrentSequenceDirection::REVERSE,
+std::vector<ov::op::RecurrentSequenceDirection> reccurent_sequence_direction = {
+    ov::op::RecurrentSequenceDirection::FORWARD,
+    ov::op::RecurrentSequenceDirection::REVERSE,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMCell, DynamicTensorIteratorTest,

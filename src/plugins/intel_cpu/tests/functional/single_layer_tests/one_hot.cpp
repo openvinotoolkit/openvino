@@ -130,16 +130,16 @@ protected:
         params.front()->set_friendly_name("ParamsIndices");
         std::shared_ptr<ov::Node> depth;
         if (depthConst) {
-            depth = ngraph::op::Constant::create(ngraph::element::i32, ngraph::Shape{ }, {Depth});
+            depth = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{ }, {Depth});
         } else {
             auto depthParam = std::make_shared<ngraph::op::Parameter>(ngraph::element::i32, ngraph::Shape{ });
             depthParam->set_friendly_name("ParamDepth");
             params.push_back(depthParam);
             depth = depthParam;
         }
-        auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
-        auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
-        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(params[0], depth, on_value_const, off_value_const, Axis);
+        auto on_value_const = std::make_shared<ov::op::v0::Constant>(outType, ngraph::Shape{ }, OnValue);
+        auto off_value_const = std::make_shared<ov::op::v0::Constant>(outType, ngraph::Shape{ }, OffValue);
+        auto oneHot = std::make_shared<ov::op::v1::OneHot>(params[0], depth, on_value_const, off_value_const, Axis);
         return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
     }
     void generateDepth() {

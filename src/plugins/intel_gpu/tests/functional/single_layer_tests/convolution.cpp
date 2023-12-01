@@ -40,7 +40,7 @@ public:
         std::string targetDevice;
         std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = obj.param;
 
-        ngraph::op::PadType padType;
+        ov::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
@@ -78,7 +78,7 @@ protected:
 
         init_input_shapes({inputShape});
 
-        ngraph::op::PadType padType;
+        ov::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
@@ -93,7 +93,7 @@ protected:
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < convolutionNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ngraph::opset1::Result>(convolutionNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(convolutionNode->output(i)));
 
         function = std::make_shared<ngraph::Function>(results, inputParams, "Convolution");
     }
@@ -115,7 +115,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic, Convolut
                         ::testing::Values(std::vector<ptrdiff_t>{0}),
                         ::testing::Values(SizeVector{1}),
                         ::testing::Values(13),
-                        ::testing::Values(ngraph::op::PadType::SAME_UPPER)),
+                        ::testing::Values(ov::op::PadType::SAME_UPPER)),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),

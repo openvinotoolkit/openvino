@@ -191,7 +191,7 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
                                                          indexElementType,
                                                          axis);
     pooling->get_rt_info() = getCPUInfo();
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling->output(0))};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling->output(0))};
     function = std::make_shared<ngraph::Function>(results, params, "MaxPooling");
 }
 

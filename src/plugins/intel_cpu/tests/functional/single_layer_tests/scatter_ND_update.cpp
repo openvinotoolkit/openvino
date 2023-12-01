@@ -110,7 +110,7 @@ protected:
         indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
-        auto scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
+        auto scatter = std::make_shared<ov::op::v3::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
 
         ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
         function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterNDUpdateLayerCPUTest");

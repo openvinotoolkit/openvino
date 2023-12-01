@@ -72,7 +72,7 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(params.front(), ngraph::element::i32);
+        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(params.front(), ngraph::element::i32);
 
         function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
     }

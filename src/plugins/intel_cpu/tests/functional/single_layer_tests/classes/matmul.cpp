@@ -139,7 +139,7 @@ void MatMulLayerCPUTest::SetUp() {
         auto tensor = ov::test::utils::create_and_fill_tensor(netType, inShapeB.to_shape());
         matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
     }
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
+    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
     function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
     checkFusingPosition = false;

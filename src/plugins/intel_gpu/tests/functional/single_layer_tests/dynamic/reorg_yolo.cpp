@@ -49,9 +49,9 @@ protected:
 
         init_input_shapes({inputShape});
 
-        auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputDynamicShapes[0]);
-        auto reorg_yolo = std::make_shared<ngraph::op::v0::ReorgYolo>(param, stride);
-        function = std::make_shared<ov::Model>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
+        auto param = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, inputDynamicShapes[0]);
+        auto reorg_yolo = std::make_shared<ov::op::v0::ReorgYolo>(param, stride);
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(reorg_yolo),
                                                ngraph::ParameterVector{param},
                                                "ReorgYolo");
     }

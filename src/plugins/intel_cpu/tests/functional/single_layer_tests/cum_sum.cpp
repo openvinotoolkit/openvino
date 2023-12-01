@@ -61,7 +61,7 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
+        auto axisNode = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = std::make_shared<ov::op::v0::CumSum>(params[0], axisNode, exclusive, reverse);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ cumSum }, params, "CumSumLayerCPUTest");

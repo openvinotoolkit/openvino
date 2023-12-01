@@ -31,7 +31,7 @@ using TensorIteratorWithConfigParams = typename std::tuple<
         size_t,                                 // sequence axis
         float,                                  // clip
         ngraph::helpers::TensorIteratorBody,    // body type
-        ngraph::op::RecurrentSequenceDirection, // direction
+        ov::op::RecurrentSequenceDirection, // direction
         InferenceEngine::Precision,             // Network precision
         Config>;                                // Target device name & Configuration
 
@@ -46,7 +46,7 @@ public:
         size_t sequence_axis;
         ngraph::helpers::TensorIteratorBody ti_body;
         float clip;
-        ngraph::op::RecurrentSequenceDirection direction;
+        ov::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
         std::pair<std::string, std::map<std::string, std::string>> config;
         std::tie(seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
@@ -105,7 +105,7 @@ protected:
         size_t sequence_axis;
         ngraph::helpers::TensorIteratorBody ti_body;
         float clip;
-        ngraph::op::RecurrentSequenceDirection direction;
+        ov::op::RecurrentSequenceDirection direction;
         std::pair<std::string, std::map<std::string, std::string>> config;
         InferenceEngine::Precision netPrecision;
         std::tie(seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
@@ -114,13 +114,13 @@ protected:
         configuration = config.second;
         std::vector<std::vector<size_t>> inputShapes;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
 
         // Each case consist of 3 steps:
         // 1. Create TensorIterator body.
         // 2. Set PortMap
         // 3. Create outer function
-        auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1},
+        auto axis = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1},
                                                                std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
         switch (ti_body) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
@@ -141,22 +141,22 @@ protected:
                 ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1])),
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
-                auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
+                auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
                 std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
                 ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
                 auto lstm_cell = ngraph::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
-                auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(unsqueeze),
-                                             std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
-                                             std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
+                auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm_cell->output(0), axis);
+                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze),
+                                             std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
+                                             std::make_shared<ov::op::v0::Result>(lstm_cell->output(1))};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "lstm_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
-                if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+                if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[0], 0, 1, 1, -1, sequence_axis);
-                } else if (direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+                } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, sequence_axis);
                 } else {
@@ -190,21 +190,21 @@ protected:
                 ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
-                auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
+                auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
                 auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
                                                          {}, {}, clip, false);
-                auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(gru_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0)),
-                                             std::make_shared<ngraph::opset1::Result>(unsqueeze)};
+                auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gru_cell->output(0), axis);
+                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0)),
+                                             std::make_shared<ov::op::v0::Result>(unsqueeze)};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "gru_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
-                if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+                if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, sequence_axis);
-                } else if (direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+                } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
@@ -236,20 +236,20 @@ protected:
                 ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
-                auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
+                auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
                 auto rnn_cell = ngraph::builder::makeRNN(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
-                auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(rnn_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell),
-                                             std::make_shared<ngraph::opset1::Result>(unsqueeze)};
+                auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(rnn_cell->output(0), axis);
+                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell),
+                                             std::make_shared<ov::op::v0::Result>(unsqueeze)};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "rnn_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
-                if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+                if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, sequence_axis);
-                } else if (direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+                } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
@@ -288,9 +288,9 @@ namespace {
                 ngraph::helpers::TensorIteratorBody::RNN,
                 ngraph::helpers::TensorIteratorBody::GRU,
             }), // body type
-            ::testing::ValuesIn(std::vector<ngraph::op::RecurrentSequenceDirection>{
-                ngraph::op::RecurrentSequenceDirection::FORWARD,
-                ngraph::op::RecurrentSequenceDirection::REVERSE,
+            ::testing::ValuesIn(std::vector<ov::op::RecurrentSequenceDirection>{
+                ov::op::RecurrentSequenceDirection::FORWARD,
+                ov::op::RecurrentSequenceDirection::REVERSE,
             }),
             ::testing::ValuesIn(std::vector<InferenceEngine::Precision> {
                 InferenceEngine::Precision::FP32,

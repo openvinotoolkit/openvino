@@ -37,17 +37,17 @@ protected:
         ResultVector res;
         ParameterVector params;
 
-        auto param = std::make_shared<opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("input_0");
         param->get_output_tensor(0).set_names({"tensor_input_0"});
         param->set_layout(layout);
 
-        auto constant = opset8::Constant::create(type, {1}, {1});
+        auto constant = ov::op::v0::Constant::create(type, {1}, {1});
 
-        auto add = std::make_shared<opset8::Add>(param, constant);
+        auto add = std::make_shared<ov::op::v1::Add>(param, constant);
         add->set_friendly_name("Add");
 
-        auto result = std::make_shared<opset8::Result>(add);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result_0");
         result->get_output_tensor(0).set_names({"tensor_output_0"});
 

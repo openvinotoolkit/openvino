@@ -144,7 +144,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
 
-        ngraph::op::ProposalAttrs attrs;
+        ov::op::v0::Proposal::Attributes attrs;
         attrs.base_size = base_size;
         attrs.pre_nms_topn = pre_nms_topn;
         attrs.post_nms_topn = post_nms_topn;
@@ -161,11 +161,11 @@ protected:
         attrs.framework = framework;
         attrs.infer_probs = true;
 
-        auto proposal = std::make_shared<opset4::Proposal>(params[0], params[1], params[2], attrs);
+        auto proposal = std::make_shared<ov::op::v4::Proposal>(params[0], params[1], params[2], attrs);
 
         ngraph::ResultVector results{
-                std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
-                std::make_shared<ngraph::opset1::Result>(proposal->output(1))
+                std::make_shared<ov::op::v0::Result>(proposal->output(0)),
+                std::make_shared<ov::op::v0::Result>(proposal->output(1))
         };
 
         function = std::make_shared<ngraph::Function>(results, params, "Proposal");

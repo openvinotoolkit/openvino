@@ -101,11 +101,11 @@ protected:
             auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], partialShapes[i]);
             params.push_back(param_node);
         }
-        auto bankNode = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ }, {blank});
+        auto bankNode = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ }, {blank});
 
-        auto ctcLoss = std::make_shared<ngraph::opset4::CTCLoss>(params[0], params[1], params[2],
+        auto ctcLoss = std::make_shared<ov::op::v4::CTCLoss>(params[0], params[1], params[2],
             params[3], bankNode, preprocessCollapseRepeated, ctcMergeRepeated, unique);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcLoss)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcLoss)};
         function = std::make_shared<ngraph::Function>(results, params, "CTCLossLayerCPUTest");
     };
 

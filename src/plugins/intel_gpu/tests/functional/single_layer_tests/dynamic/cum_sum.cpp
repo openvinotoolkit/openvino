@@ -63,14 +63,14 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
-        auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
-        auto cumSum = std::make_shared<opset3::CumSum>(params[0], axisNode, exclusive, reverse);
+        auto axisNode = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
+        auto cumSum = std::make_shared<ov::op::v0::CumSum>(params[0], axisNode, exclusive, reverse);
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "CumSumLayerGPUTest");
         };

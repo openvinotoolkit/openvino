@@ -17,14 +17,14 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/pass/serialize.hpp>
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset6.hpp"
-#include "ngraph/opsets/opset7.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "ngraph/opsets/opset9.hpp"
+// #include "ngraph/opsets/opset1.hpp"
+// #include "ngraph/opsets/opset3.hpp"
+// #include "ngraph/opsets/opset4.hpp"
+// #include "ngraph/opsets/opset5.hpp"
+// #include "ngraph/opsets/opset6.hpp"
+// #include "ngraph/opsets/opset7.hpp"
+// #include "ngraph/opsets/opset8.hpp"
+// #include "ngraph/opsets/opset9.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"

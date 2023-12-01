@@ -96,36 +96,36 @@ protected:
         std::shared_ptr<ov::Node> pads_begin, pads_end, arg_pad_value;
         // padsBegin
         if (inputLayerTypes[0] == helpers::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ov::Shape{padsBegin.size()}));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, ov::Shape{padsBegin.size()}));
             functionParams.back()->set_friendly_name("padsBegin");
             pads_begin = functionParams.back();
         } else {
-            pads_begin = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{padsBegin.size()}, padsBegin.data());
+            pads_begin = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{padsBegin.size()}, padsBegin.data());
         }
 
         // padsEnd
         if (inputLayerTypes[1] == helpers::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ov::Shape{padsEnd.size()}));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, ov::Shape{padsEnd.size()}));
             functionParams.back()->set_friendly_name("padsEnd");
             pads_end = functionParams.back();
         } else {
-            pads_end = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{padsEnd.size()}, padsEnd.data());
+            pads_end = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{padsEnd.size()}, padsEnd.data());
         }
 
         // argPadValue
         if (inputLayerTypes[2] == helpers::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(inType, ov::PartialShape({})));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape({})));
             functionParams.back()->set_friendly_name("padValue");
             arg_pad_value = functionParams.back();
         } else {
-            arg_pad_value = std::make_shared<ngraph::opset3::Constant>(inType, ngraph::Shape{}, &argPadValue);
+            arg_pad_value = std::make_shared<ov::op::v0::Constant>(inType, ngraph::Shape{}, &argPadValue);
         }
 
-        auto pad = std::make_shared<ngraph::opset3::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
+        auto pad = std::make_shared<ov::op::v1::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < pad->get_output_size(); ++i) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(pad->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(pad->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, functionParams, "PadLayerGPUTest");

@@ -103,7 +103,7 @@ protected:
         gather_ndNode = std::make_shared<ov::op::v8::GatherND>(params[0],
                                                           isIndicesConstant ? indicesNode : params[1],
                                                           batchDims);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gather_ndNode)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_ndNode)};
         function = std::make_shared<ngraph::Function>(results, params, "GatherND");
     }
 };

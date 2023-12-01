@@ -119,7 +119,7 @@ protected:
         auto ih = builder::makeConstant(ngInPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
         auto ol = builder::makeConstant(ngInPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
         auto oh = builder::makeConstant(ngInPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
-        auto fq = std::make_shared<opset5::FakeQuantize>(params[0], il, ih, ol, oh, levels);
+        auto fq = std::make_shared<ov::op::v0::FakeQuantize>(params[0], il, ih, ol, oh, levels);
 
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";
 

@@ -211,7 +211,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
-            inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
+            inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
         expectedWeiConstElemType = weiConstElemType;
@@ -494,7 +494,7 @@ protected:
         }
         std::shared_ptr<Node> inputWeights = builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
-            inputWeights = std::make_shared<opset1::Convert>(inputWeights, convertOutType);
+            inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);
         }
         // In this test, convert must be folded on the ngraph side, so the constant with fp32 precision is expected

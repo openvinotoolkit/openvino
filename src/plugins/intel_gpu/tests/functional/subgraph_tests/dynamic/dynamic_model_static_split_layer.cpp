@@ -82,19 +82,19 @@ protected:
         for (auto&& shape : {inShapSplit, inShapeElt})
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
 
-        auto axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         axis->set_friendly_name("axis");
 
-        auto split_sizes = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
+        auto split_sizes = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
         split_sizes->set_friendly_name("split_sizes");
 
-        auto variadicSplitOp = std::make_shared<ngraph::opset1::VariadicSplit>(params[0], axis, split_sizes);
+        auto variadicSplitOp = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis, split_sizes);
         variadicSplitOp->set_friendly_name("variadicSplit");
 
         auto addOp = ngraph::builder::makeEltwise(params[1], variadicSplitOp->output(1), ngraph::helpers::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(addOp)};
+        ngraph::ResultVector results = {std::make_shared<ov::op::v0::Result>(addOp)};
         function = std::make_shared<ngraph::Function>(results, params, "eltwise_add_out");
     }
 };

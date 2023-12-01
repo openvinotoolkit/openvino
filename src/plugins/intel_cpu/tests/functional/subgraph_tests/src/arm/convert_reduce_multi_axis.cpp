@@ -70,7 +70,7 @@ protected:
         std::vector<size_t> shapeAxes;
         shapeAxes.push_back(axes.size());
         auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
         const auto reduce = ngraph::builder::makeReduce(params[0], reductionAxesNode, keepDims, reductionType);
         function = makeNgraphFunction(ElementType::f32, params, reduce, "Reduce");

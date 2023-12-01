@@ -90,7 +90,7 @@ protected:
 
         std::vector<int> reduce_axes = {5};
         auto reduceAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
         auto reduceOp = ngraph::builder::makeReduce(params[1], reduceAxesNode, false, ngraph::helpers::ReductionType::Max);
         reduceOp->set_friendly_name("reduce");
 
@@ -99,11 +99,11 @@ protected:
 
         std::vector<int> transpose_order = {0, 1, 2, 4, 3};
         auto transposeOrderNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({5}), transpose_order));
-        auto transposeOp = std::make_shared<ngraph::opset3::Transpose>(concatOp, transposeOrderNode);
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({5}), transpose_order));
+        auto transposeOp = std::make_shared<ov::op::v1::Transpose>(concatOp, transposeOrderNode);
         transposeOp->set_friendly_name("transpose");
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(transposeOp)};
+        ngraph::ResultVector results = {std::make_shared<ov::op::v0::Result>(transposeOp)};
         function = std::make_shared<ngraph::Function>(results, params, "transpose_out");
     }
 };

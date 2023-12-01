@@ -65,7 +65,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputGPUTestParams> obj) {
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
-        ngraph::op::DetectionOutputAttrs attrs;
+        ov::op::v0::DetectionOutput::Attributes attrs;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
         std::string targetDevice;
@@ -209,7 +209,7 @@ protected:
             else
                 throw std::runtime_error("DetectionOutput layer supports only 3 or 5 inputs");
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+            ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         } else {
             std::shared_ptr<ov::op::v0::DetectionOutput> detOut;
@@ -220,7 +220,7 @@ protected:
             else
                 OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+            ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         }
     }
@@ -253,7 +253,7 @@ private:
             }
         }
     }
-    ngraph::op::DetectionOutputAttrs attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
     std::vector<ov::test::InputShape> inShapes;
 };
 

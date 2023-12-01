@@ -9,7 +9,6 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::opset3;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -49,8 +48,8 @@ protected:
         init_input_shapes({inputShape});
 
         auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputDynamicShapes[0]);
-        auto reorg_yolo = std::make_shared<ngraph::op::v0::ReorgYolo>(param, stride);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
+        auto reorg_yolo = std::make_shared<ov::op::v0::ReorgYolo>(param, stride);
+        function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(reorg_yolo),
                                                       ngraph::ParameterVector{param},
                                                       "ReorgYolo");
     }

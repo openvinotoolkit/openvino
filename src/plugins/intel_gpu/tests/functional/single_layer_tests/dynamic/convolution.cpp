@@ -42,7 +42,7 @@ public:
         bool activationFusing;
         std::tie(convParams, netType, inType, outType, inputShape, targetDevice, activationFusing) = obj.param;
 
-        ngraph::op::PadType padType;
+        ov::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
@@ -82,7 +82,7 @@ protected:
 
         init_input_shapes({inputShape});
 
-        ngraph::op::PadType padType;
+        ov::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
@@ -99,13 +99,13 @@ protected:
 
                 ngraph::ResultVector results;
                 for (size_t i = 0; i < activationNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ngraph::opset1::Result>(activationNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(activationNode->output(i)));
 
                 function = std::make_shared<ngraph::Function>(results, inputParams, "Convolution");
         } else {
                 ngraph::ResultVector results;
                 for (size_t i = 0; i < convolutionNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ngraph::opset1::Result>(convolutionNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(convolutionNode->output(i)));
 
                 function = std::make_shared<ngraph::Function>(results, inputParams, "Convolution");
         }
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
                         ::testing::Values(std::vector<ptrdiff_t>{1}),
                         ::testing::Values(SizeVector{1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_ExplicitPad1D, Convolutio
                         ::testing::ValuesIn(padEnds1D),
                         ::testing::ValuesIn(dilations1D),
                         ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT)),
+                        ::testing::Values(ov::op::PadType::EXPLICIT)),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymPad, Convolut
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
                         ::testing::Values(SizeVector{1, 1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -234,7 +234,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymAutoPad, Conv
                         ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
                         ::testing::Values(SizeVector{1, 1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER})),
+                        ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_AsymPad, Convol
                         ::testing::Values(std::vector<ptrdiff_t>{2, 1}),
                         ::testing::Values(SizeVector{1, 1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -272,7 +272,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_static_output, 
                         ::testing::Values(std::vector<ptrdiff_t>{1, 1}),
                         ::testing::Values(SizeVector{1, 1}),
                         ::testing::Values(256),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT)),
+                        ::testing::Values(ov::op::PadType::EXPLICIT)),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(ElementType::undefined),
@@ -299,7 +299,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymPad, Convolut
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
                         ::testing::Values(SizeVector{1, 1, 1}),
                         ::testing::Values(3),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -318,7 +318,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymAutoPad, Conv
                         ::testing::Values(std::vector<ptrdiff_t>{0, 0, 0}),
                         ::testing::Values(SizeVector{1, 1, 1}),
                         ::testing::Values(3),
-                        ::testing::ValuesIn({ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER})),
+                        ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
@@ -337,7 +337,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DAsymPad, Convolu
                         ::testing::Values(std::vector<ptrdiff_t>{2, 1, 1}),
                         ::testing::Values(SizeVector{1, 1, 1}),
                         ::testing::Values(3),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),

@@ -106,7 +106,7 @@ public:
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
         sdp->set_friendly_name("mha");
-        auto add = std::make_shared<op::v1::Add>(sdp, op::v0::Constant::create(inType, {1}, {1.0f}));
+        auto add = std::make_shared<ov::op::v1::Add>(sdp, op::v0::Constant::create(inType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");

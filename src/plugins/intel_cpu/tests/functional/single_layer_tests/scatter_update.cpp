@@ -74,9 +74,9 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
-        auto indicesNode = ngraph::opset1::Constant::create(idxPrecision, indicesDescr.first, indicesDescr.second);
-        auto axis_node = ngraph::opset1::Constant::create(idxPrecision, {}, { axis });
-        auto scatter = std::make_shared<ngraph::opset3::ScatterUpdate>(params[0], indicesNode, params[1], axis_node);
+        auto indicesNode = ov::op::v0::Constant::create(idxPrecision, indicesDescr.first, indicesDescr.second);
+        auto axis_node = ov::op::v0::Constant::create(idxPrecision, {}, { axis });
+        auto scatter = std::make_shared<ov::op::v3::ScatterUpdate>(params[0], indicesNode, params[1], axis_node);
 
         function = makeNgraphFunction(inputPrecision, params, scatter, "ScatterUpdateLayerCPUTest");
     }

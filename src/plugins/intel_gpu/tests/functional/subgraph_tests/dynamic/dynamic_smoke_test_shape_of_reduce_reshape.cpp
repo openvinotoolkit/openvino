@@ -90,25 +90,25 @@ protected:
         auto addOp = ngraph::builder::makeEltwise(params[1], params[1], ngraph::helpers::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
-        auto shapeOfOp1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0], ElementType::i64);
+        auto shapeOfOp1 = std::make_shared<ov::op::v3::ShapeOf>(params[0], ElementType::i64);
         shapeOfOp1->set_friendly_name("shapeof1");
         std::vector<int> reduce_axes = {0};
         auto reduceAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
         auto reduceOp = ngraph::builder::makeReduce(shapeOfOp1, reduceAxesNode, true, ngraph::helpers::ReductionType::Prod);
         reduceOp->set_friendly_name("reduce");
         std::vector<int64_t> shapePatternFill = {-1};
-        auto reshapePatternComp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
+        auto reshapePatternComp = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
                                                                            ngraph::Shape{1}, shapePatternFill);
         auto concatOp = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp, reshapePatternComp}, 0);
         concatOp->set_friendly_name("concat");
 
-        auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(addOp, concatOp, false);
+        auto reshapeOp = std::make_shared<ov::op::v1::Reshape>(addOp, concatOp, false);
 
-        auto shapeOf2 = std::make_shared<ngraph::opset3::ShapeOf>(reshapeOp, ElementType::i64);
+        auto shapeOf2 = std::make_shared<ov::op::v3::ShapeOf>(reshapeOp, ElementType::i64);
         shapeOf2->set_friendly_name("shapeof2");
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(shapeOf2)};
+        ngraph::ResultVector results = {std::make_shared<ov::op::v0::Result>(shapeOf2)};
         function = std::make_shared<ngraph::Function>(results, params, "shapeof_out");
     }
 };

@@ -22,9 +22,9 @@ protected:
         auto param = std::make_shared<ngraph::op::Parameter>(ov::element::f32, shape);
 
         float shift = 1.0f;
-        auto shift_node = std::make_shared<ngraph::op::Constant>(ov::element::f32, ov::Shape{1}, &shift);
+        auto shift_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, &shift);
 
-        auto add = std::make_shared<ngraph::op::v1::Add>(param, shift_node);
+        auto add = std::make_shared<ov::op::v1::Add>(param, shift_node);
 
         auto result = std::make_shared<ngraph::op::Result>(add);
 

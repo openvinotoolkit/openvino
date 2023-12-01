@@ -194,7 +194,7 @@ protected:
         }
         ngraph::ResultVector results;
         for (size_t i = 0; i < roi_pooling->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(roi_pooling->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(roi_pooling->output(i)));
         function = std::make_shared<ngraph::Function>(results, params, "ROIPooling");
         functionRefs = ngraph::clone_function(*function);
     }

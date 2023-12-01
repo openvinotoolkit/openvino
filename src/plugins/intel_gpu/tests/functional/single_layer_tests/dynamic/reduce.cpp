@@ -85,7 +85,7 @@ protected:
         shapeAxes.push_back(axes.size());
 
         auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
         const auto reduce = ngraph::builder::makeReduce(params[0], reductionAxesNode, keepDims, reductionType);
 
@@ -93,7 +93,7 @@ protected:
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "ReduceLayerGPUTest");
         };

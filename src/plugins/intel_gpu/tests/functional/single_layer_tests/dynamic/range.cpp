@@ -149,9 +149,9 @@ protected:
                 params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
             }
         }
-        const auto range = std::make_shared<ngraph::opset8::Range>(params[0], params[1], params[2], netType);
+        const auto range = std::make_shared<ov::op::v4::Range>(params[0], params[1], params[2], netType);
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(range)};
+        ngraph::ResultVector results = {std::make_shared<ov::op::v0::Result>(range)};
         function = std::make_shared<ngraph::Function>(results, params, "shapeof_out");
     }
 

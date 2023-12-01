@@ -56,7 +56,7 @@ void SoftMaxLayerCPUTest::SetUp() {
     for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(params.at(0), config.axis);
+    const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), config.axis);
 
     function = makeNgraphFunction(inType, params, softMax, "SoftMax");
 }

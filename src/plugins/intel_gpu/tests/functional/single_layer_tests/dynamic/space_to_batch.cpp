@@ -123,9 +123,9 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> blockInput, beginInput, endInput;
         if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto blockNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{block.size()});
-            auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
-            auto endNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
+            auto blockNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{block.size()});
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
 
             params.push_back(blockNode);
             params.push_back(beginNode);
@@ -135,15 +135,15 @@ protected:
             beginInput = beginNode;
             endInput = endNode;
         } else {
-            blockInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{block.size()}, block);
-            beginInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{begin.size()}, begin);
-            endInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{end.size()}, end);
+            blockInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{block.size()}, block);
+            beginInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{begin.size()}, begin);
+            endInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{end.size()}, end);
         }
-        auto ss = std::make_shared<ngraph::op::v1::SpaceToBatch>(params[0], blockInput, beginInput, endInput);
+        auto ss = std::make_shared<ov::op::v1::SpaceToBatch>(params[0], blockInput, beginInput, endInput);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < ss->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(ss->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(ss->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatchFuncTest");

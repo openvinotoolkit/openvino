@@ -10,7 +10,6 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::opset3;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -18,7 +17,7 @@ namespace CPULayerTestsDefinitions {
 using DepthToSpaceLayerCPUTestParamSet = std::tuple<
         InputShape,                                     // Input shape
         ElementType,                                    // Input element type
-        DepthToSpace::DepthToSpaceMode,                 // Mode
+        ov::op::v0::DepthToSpace::DepthToSpaceMode,                 // Mode
         std::size_t,                                    // Block size
         CPUSpecificParams
 >;
@@ -29,7 +28,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceLayerCPUTestParamSet> obj) {
         InputShape shapes;
         ElementType inType;
-        DepthToSpace::DepthToSpaceMode mode;
+        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         CPUSpecificParams cpuParams;
         std::tie(shapes, inType, mode, blockSize, cpuParams) = obj.param;
@@ -42,10 +41,10 @@ public:
         }
         results << "Prc=" << inType << "_";
         switch (mode) {
-            case DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
                 results << "BLOCKS_FIRST_";
                 break;
-            case DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
                 results << "DEPTH_FIRST_";
                 break;
             default:
@@ -59,7 +58,7 @@ public:
 protected:
     void SetUp() override {
         InputShape shapes;
-        DepthToSpace::DepthToSpaceMode mode;
+        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         CPUSpecificParams cpuParams;
         std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
@@ -128,9 +127,9 @@ const std::vector<ElementType> inputElementType = {
         ElementType::i8
 };
 
-const std::vector<DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
+const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
 /* *========================* Static Shapes Tests *========================* */
@@ -257,7 +256,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamicBlocksFirstBlocked4D, Depth
                          testing::Combine(
                                  testing::Values(inputShapes4D[1]),
                                  testing::ValuesIn(inputElementType),
-                                 testing::Values(DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST),
+                                 testing::Values(ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST),
                                  testing::Values(1, 2, 3),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked4D))),
                         DepthToSpaceLayerCPUTest::getTestCaseName);
@@ -266,7 +265,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamicDepthFirstBlocked4D, DepthT
                          testing::Combine(
                                  testing::Values(inputShapes4D[1]),
                                  testing::ValuesIn(inputElementType),
-                                 testing::Values(DepthToSpace::DepthToSpaceMode::DEPTH_FIRST),
+                                 testing::Values(ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST),
                                  testing::Values(1, 2),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked4D))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);

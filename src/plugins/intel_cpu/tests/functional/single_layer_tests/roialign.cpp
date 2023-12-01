@@ -152,10 +152,10 @@ protected:
             float_params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
         auto int_param = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i32, inputDynamicShapes[2]);
-        auto pooling_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::PoolingMode>::as_enum(mode);
-        auto aligned_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::AlignedMode>::as_enum(alignedMode);
+        auto pooling_mode = ngraph::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
+        auto aligned_mode = ngraph::EnumNames<ov::op::v9::ROIAlign::AlignedMode>::as_enum(alignedMode);
 
-        auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_param, pooledH, pooledW,
+        auto roialign = std::make_shared<ov::op::v9::ROIAlign>(float_params[0], float_params[1], int_param, pooledH, pooledW,
                                                                    samplingRatio, spatialScale, pooling_mode, aligned_mode);
 
         selectedType = makeSelectedTypeStr(selectedType, inputPrecision);

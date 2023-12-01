@@ -88,7 +88,7 @@ protected:
         }
         auto ctcGreedyDecoder = std::make_shared<ov::op::v0::CTCGreedyDecoder>(params[0], params[1], mergeRepeated);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcGreedyDecoder)};
         function = std::make_shared<ngraph::Function>(results, params, "CTCGreedyDecoderCPU");
     };
 

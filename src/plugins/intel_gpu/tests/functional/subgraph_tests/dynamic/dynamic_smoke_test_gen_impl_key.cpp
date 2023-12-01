@@ -90,50 +90,50 @@ protected:
         auto addOp1 = ngraph::builder::makeEltwise(params[1], params[1], ngraph::helpers::EltwiseTypes::ADD);
         addOp1->set_friendly_name("add1");
 
-        auto shapeOfOp1 = std::make_shared<ngraph::opset3::ShapeOf>(addOp1, ElementType::i64);
+        auto shapeOfOp1 = std::make_shared<ov::op::v3::ShapeOf>(addOp1, ElementType::i64);
         shapeOfOp1->set_friendly_name("shapeof1");
 
         std::vector<int> reduce_axes = {0};
         auto reduceAxesNode1 = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
         auto reduceOp1 = ngraph::builder::makeReduce(shapeOfOp1, reduceAxesNode1, true, ngraph::helpers::ReductionType::Prod);
         reduceOp1->set_friendly_name("reduce1");
 
         std::vector<int64_t> shapePatternFill = {-1};
-        auto reshapePatternComp1 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
+        auto reshapePatternComp1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
                                                                            ngraph::Shape{1}, shapePatternFill);
         auto concatOp1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp1, reshapePatternComp1}, 0);
         concatOp1->set_friendly_name("concat1");
 
-        auto reshapeOp1 = std::make_shared<ngraph::opset1::Reshape>(addOp1, concatOp1, false);
+        auto reshapeOp1 = std::make_shared<ov::op::v1::Reshape>(addOp1, concatOp1, false);
         reshapeOp1->set_friendly_name("reshapeOp1");
 
         auto addOp2 = ngraph::builder::makeEltwise(params[1], params[1], ngraph::helpers::EltwiseTypes::ADD);
         addOp2->set_friendly_name("add2");
 
-        auto shapeOfOp2 = std::make_shared<ngraph::opset3::ShapeOf>(addOp2, ElementType::i64);
+        auto shapeOfOp2 = std::make_shared<ov::op::v3::ShapeOf>(addOp2, ElementType::i64);
         shapeOfOp2->set_friendly_name("shapeof2");
 
         auto reduceAxesNode2 = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
         auto reduceOp2 = ngraph::builder::makeReduce(shapeOfOp2, reduceAxesNode2, true, ngraph::helpers::ReductionType::Prod);
         reduceOp2->set_friendly_name("reduce2");
 
-        auto reshapePatternComp2 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
+        auto reshapePatternComp2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
                                                                            ngraph::Shape{1}, shapePatternFill);
         auto concatOp2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp2, reshapePatternComp2}, 0);
         concatOp2->set_friendly_name("concat2");
 
-        auto reshapeOp2 = std::make_shared<ngraph::opset1::Reshape>(addOp2, concatOp2, false);
+        auto reshapeOp2 = std::make_shared<ov::op::v1::Reshape>(addOp2, concatOp2, false);
         reshapeOp2->set_friendly_name("reshapeOp2");
 
         auto addOp3 = ngraph::builder::makeEltwise(reshapeOp1, reshapeOp2, ngraph::helpers::EltwiseTypes::ADD);
         addOp3->set_friendly_name("add3");
 
-        auto shapeOf3 = std::make_shared<ngraph::opset3::ShapeOf>(addOp3, ElementType::i64);
+        auto shapeOf3 = std::make_shared<ov::op::v3::ShapeOf>(addOp3, ElementType::i64);
         shapeOf3->set_friendly_name("shapeof3");
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(shapeOf3)};
+        ngraph::ResultVector results = {std::make_shared<ov::op::v0::Result>(shapeOf3)};
         function = std::make_shared<ngraph::Function>(results, params, "shapeof_out");
     }
 };

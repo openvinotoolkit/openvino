@@ -21,8 +21,8 @@ namespace GPULayerTestsDefinitions {
 typedef std::tuple<
         int64_t,                            // keepK
         int64_t,                            // axis
-        ngraph::opset4::TopK::Mode,         // mode
-        ngraph::opset4::TopK::SortType,     // sort
+        ov::op::v3::TopK::Mode,         // mode
+        ov::op::v3::TopK::SortType,     // sort
         ElementType,                        // Net precision
         ElementType,                        // Input precision
         ElementType,                        // Output precision
@@ -38,8 +38,8 @@ public:
         TopKLayerTestParamsSet basicParamsSet = obj.param;
 
         int64_t keepK, axis;
-        ngraph::opset4::TopK::Mode mode;
-        ngraph::opset4::TopK::SortType sort;
+        ov::op::v3::TopK::Mode mode;
+        ov::op::v3::TopK::SortType sort;
         ElementType netPrecision, inPrc, outPrc;
         InputShape inputShape;
         TargetDevice targetDevice;
@@ -70,8 +70,8 @@ protected:
         TopKLayerTestParamsSet basicParamsSet = this->GetParam();
 
         int64_t keepK;
-        ngraph::opset4::TopK::Mode mode;
-        ngraph::opset4::TopK::SortType sort;
+        ov::op::v3::TopK::Mode mode;
+        ov::op::v3::TopK::SortType sort;
         ElementType inPrc, outPrc;
         InputShape inputShape;
         std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, inputType) = basicParamsSet;
@@ -87,20 +87,20 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
-        std::shared_ptr<ngraph::opset4::TopK> topk;
+        std::shared_ptr<ov::op::v3::TopK> topk;
         if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
-            auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
-            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+            auto k = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
+            topk = std::dynamic_pointer_cast<ov::op::v3::TopK>(std::make_shared<ov::op::v3::TopK>(params[0], k, axis, mode, sort));
         } else {
-            auto k = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i64, inputDynamicShapes[1]);
+            auto k = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, inputDynamicShapes[1]);
             params.push_back(k);
-            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
-                    std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+            topk = std::dynamic_pointer_cast<ov::op::v3::TopK>(
+                    std::make_shared<ov::op::v3::TopK>(params[0], k, axis, mode, sort));
         }
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < topk->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, params, "TopK");
@@ -166,14 +166,14 @@ const std::vector<ElementType> netPrecisions = {
 const std::vector<int64_t> axes = {0, 3};
 const std::vector<int64_t> k = {3, 5, 7};
 
-const std::vector<ngraph::opset4::TopK::Mode> modes = {
-    ngraph::opset4::TopK::Mode::MIN,
-    ngraph::opset4::TopK::Mode::MAX
+const std::vector<ov::op::v3::TopK::Mode> modes = {
+    ov::op::v3::TopK::Mode::MIN,
+    ov::op::v3::TopK::Mode::MAX
 };
 
-const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
-    ngraph::opset4::TopK::SortType::SORT_VALUES,
-    ngraph::opset4::TopK::SortType::SORT_INDICES,
+const std::vector<ov::op::v3::TopK::SortType> sortTypes = {
+    ov::op::v3::TopK::SortType::SORT_VALUES,
+    ov::op::v3::TopK::SortType::SORT_INDICES,
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic = {

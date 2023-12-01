@@ -15,7 +15,7 @@ using NormalizeL2LayerGPUTestParams = std::tuple<
        InputShape,              // Input shapes
        ElementType,             // Input precision
        std::vector<int64_t>,    // Reduction axes
-       ngraph::op::EpsMode,     // EpsMode
+       ov::op::EpsMode,     // EpsMode
        float>;                  // Epsilon
 
 class NormalizeL2LayerGPUTest : public testing::WithParamInterface<NormalizeL2LayerGPUTestParams>,
@@ -25,7 +25,7 @@ public:
        InputShape inputShapes;
        ElementType netPrecision;
        std::vector<int64_t> axes;
-       ngraph::op::EpsMode epsMode;
+       ov::op::EpsMode epsMode;
        float eps;
        std::tie(inputShapes, netPrecision, axes, epsMode, eps) = obj.param;
 
@@ -49,7 +49,7 @@ protected:
        InputShape inputShapes;
        ElementType netPrecision;
        std::vector<int64_t> axes;
-       ngraph::op::EpsMode epsMode;
+       ov::op::EpsMode epsMode;
        float eps;
        std::tie(inputShapes, netPrecision, axes, epsMode, eps) = this->GetParam();
 
@@ -62,7 +62,7 @@ protected:
        auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
        auto normalize = std::make_shared<ov::op::v0::NormalizeL2>(params[0], normAxes, eps, epsMode);
 
-       ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(normalize)};
+       ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(normalize)};
        function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
    }
 };
@@ -163,8 +163,8 @@ const std::vector<InputShape> inputShapes_5D = {
        }
 };
 
-const std::vector<ngraph::op::EpsMode> epsMode = {
-       ngraph::op::EpsMode::ADD, ngraph::op::EpsMode::MAX
+const std::vector<ov::op::EpsMode> epsMode = {
+       ov::op::EpsMode::ADD, ov::op::EpsMode::MAX
 };
 
 const std::vector<float> epsilon = {

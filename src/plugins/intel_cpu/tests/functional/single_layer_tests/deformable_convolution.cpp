@@ -172,12 +172,12 @@ protected:
             auto modulation_scalars = inputParams[3];
             modulation_scalars->set_friendly_name("c_modulation_scalars");
 
-            deformable_conv = std::make_shared<ngraph::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, padBegin,
+            deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, padBegin,
                                                                                       padEnd, dilation, padType, groups, deformableGroups,
                                                                                       withBilinearInterpolationPad);
             parameters.push_back(modulation_scalars);
         } else {
-            deformable_conv = std::make_shared<ngraph::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, stride, padBegin, padEnd, dilation,
+            deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, stride, padBegin, padEnd, dilation,
                                                                                       padType, groups, deformableGroups, withBilinearInterpolationPad);
         }
 

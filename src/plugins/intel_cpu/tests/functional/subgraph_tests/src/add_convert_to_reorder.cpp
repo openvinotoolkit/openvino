@@ -28,10 +28,10 @@ public:
                                     << "Indices vector size and provided indices shape doesn't fit each other";
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
-        auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-        auto gather = std::make_shared<ngraph::opset3::Gather>(params[0], indicesNode, axisNode);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
+        auto indicesNode = ov::op::v0::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
+        auto axisNode = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
+        auto gather = std::make_shared<ov::op::v1::Gather>(params[0], indicesNode, axisNode);
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "gather");
     }
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {

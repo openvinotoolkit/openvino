@@ -97,19 +97,19 @@ protected:
 
         std::vector<int> shape_pattern = {0, 1, -1, 0};
         auto shapePatternsNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({4}), shape_pattern));
-        auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(params[0], shapePatternsNode, true);
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({4}), shape_pattern));
+        auto reshapeOp = std::make_shared<ov::op::v1::Reshape>(params[0], shapePatternsNode, true);
         reshapeOp->set_friendly_name("reshape");
 
-        auto shapeOfOp = std::make_shared<ngraph::opset3::ShapeOf>(reshapeOp, ElementType::i32);
+        auto shapeOfOp = std::make_shared<ov::op::v3::ShapeOf>(reshapeOp, ElementType::i32);
         shapeOfOp->set_friendly_name("shapeof");
 
         std::vector<int> indices = {0};
         auto indicesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i32, ngraph::Shape({1}), indices));
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i32, ngraph::Shape({1}), indices));
         std::vector<int> axis = {-1};
         auto axisNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i32, ngraph::Shape({1}), axis));
+                                 std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i32, ngraph::Shape({1}), axis));
         auto gatherOp = std::make_shared<ov::op::v7::Gather>(shapeOfOp, indicesNode, axisNode, 0);
         gatherOp->set_friendly_name("gather");
 
@@ -123,7 +123,7 @@ protected:
                                                             constantValue);
         activationOp->set_friendly_name("sqrt");
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(activationOp)};
+        ngraph::ResultVector results = {std::make_shared<ov::op::v0::Result>(activationOp)};
         function = std::make_shared<ngraph::Function>(results, params, "result");
     }
 };

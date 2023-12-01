@@ -113,14 +113,14 @@ protected:
         auto inputShapeIt = inputDynamicShapes.begin();
 
         ParameterVector inputs;
-        auto param = std::make_shared<opset9::Parameter>(precision, *inputShapeIt++);
+        auto param = std::make_shared<ov::op::v0::Parameter>(precision, *inputShapeIt++);
         inputs.push_back(param);
         std::shared_ptr<Node> axesNode;
         if (constAxes) {
             axesNode = opset9::Constant::create(element::i64, Shape{axes[0].size()}, axes[0]);
         } else {
             ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
-            auto param = std::make_shared<opset9::Parameter>(element::i64, *inputShapeIt++);
+            auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt++);
             axesNode = param;
             inputs.push_back(param);
         }
@@ -132,20 +132,20 @@ protected:
                 signalSizesNode = opset9::Constant::create(element::i64, Shape{signalSizes[0].size()}, signalSizes[0]);
             } else {
                 ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
-                auto param = std::make_shared<opset9::Parameter>(element::i64, *inputShapeIt);
+                auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt);
                 signalSizesNode = param;
                 inputs.push_back(param);
             }
             if (inverse) {
-                rdft = std::make_shared<opset9::IRDFT>(param, axesNode, signalSizesNode);
+                rdft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode, signalSizesNode);
             } else {
-                rdft = std::make_shared<opset9::RDFT>(param, axesNode, signalSizesNode);
+                rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode, signalSizesNode);
             }
         } else {
             if (inverse) {
-                rdft = std::make_shared<opset9::IRDFT>(param, axesNode);
+                rdft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode);
             } else {
-                rdft = std::make_shared<opset9::RDFT>(param, axesNode);
+                rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode);
             }
         }
         function = std::make_shared<Model>(rdft, inputs);

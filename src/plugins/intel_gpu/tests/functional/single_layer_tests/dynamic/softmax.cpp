@@ -56,12 +56,12 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        const auto softMax = std::make_shared<ngraph::opset1::Softmax>(params.at(0), axis);
+        const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), axis);
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "ShapeOfLayerGPUTest");
         };

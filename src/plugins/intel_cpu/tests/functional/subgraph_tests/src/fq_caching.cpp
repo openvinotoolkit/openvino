@@ -156,7 +156,7 @@ protected:
         auto ngInPrec = element::Type_t::f32;
 
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
-            ngraphParam.push_back(std::make_shared<opset1::Parameter>(ngInPrec, inputDynamicShapes[i]));
+            ngraphParam.push_back(std::make_shared<ov::op::v0::Parameter>(ngInPrec, inputDynamicShapes[i]));
             ngraphInputs.push_back(ngraphParam.back());
         }
 
@@ -181,7 +181,7 @@ protected:
             auto oh = builder::makeConstant(ngInPrec, ranges[3], extendData(rangesBounds[3],
                 std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
 
-            auto fqNode = std::make_shared<opset5::FakeQuantize>(ngraphParam[i], il, ih, ol, oh, levels);
+            auto fqNode = std::make_shared<ov::op::v0::FakeQuantize>(ngraphParam[i], il, ih, ol, oh, levels);
             fqNode->get_rt_info() = getCPUInfo();
             return fqNode;
         };
@@ -192,7 +192,7 @@ protected:
         if (!reshapeShape.empty()) {
             auto reshapeConstNode = builder::makeConstant(::element::Type(::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
-            lastNode1 = std::make_shared<opset5::Reshape>(lastNode1, reshapeConstNode, false);
+            lastNode1 = std::make_shared<ov::op::v1::Reshape>(lastNode1, reshapeConstNode, false);
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
 

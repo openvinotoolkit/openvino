@@ -125,7 +125,7 @@ protected:
                                                                             : isIndicesConstant ? params[1]
                                                                             : params[2],
                                                           batchDims);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gatherNode)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gatherNode)};
         function = std::make_shared<ngraph::Function>(results, params, "Gather");
     }
 };

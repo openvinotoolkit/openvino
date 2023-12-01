@@ -156,7 +156,7 @@ protected:
 
         if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(ngraph::PartialShape{1});
-            params.push_back(std::make_shared<ngraph::opset1::Parameter>(ElementType::i32, inputDynamicShapes.back()));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ElementType::i32, inputDynamicShapes.back()));
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {

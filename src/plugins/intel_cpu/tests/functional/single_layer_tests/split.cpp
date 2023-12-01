@@ -85,8 +85,8 @@ protected:
             // on the CNNNetwork level. It might not be needed when the CPU plugin moves completely to nGraph.
             // This is still a single layer test since the Relu nodes are added only as a WA.
 
-            auto fakeEltwise = std::make_shared<ngraph::opset5::Relu>(split->output(outIndices[i]));
-            results.push_back(std::make_shared<ngraph::opset5::Result>(fakeEltwise));
+            auto fakeEltwise = std::make_shared<ov::op::v0::Relu>(split->output(outIndices[i]));
+            results.push_back(std::make_shared<ov::op::v0::Result>(fakeEltwise));
         }
         split->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(results, params, "split");

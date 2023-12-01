@@ -87,7 +87,7 @@ protected:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
         }
 
-        auto nonZero = std::make_shared<ngraph::opset3::NonZero>(inputParams[0]);
+        auto nonZero = std::make_shared<ov::op::v3::NonZero>(inputParams[0]);
         // I8 was used as a special placeholder during calculating of primitive type if input was U8,
         // real runtime precision is still U8
         selectedType = makeSelectedTypeStr("ref", netType == ElementType::u8 ? ElementType::i8 : netType);

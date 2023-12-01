@@ -51,15 +51,15 @@ public:
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(inputShape)),
                                          std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(inputShape))};
 
-        auto cumsum_tensor = ngraph::opset8::Constant::create(prc, inputShape, {10.0f});
-        auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, {}, {0});
+        auto cumsum_tensor = ov::op::v0::Constant::create(prc, inputShape, {10.0f});
+        auto axis_node = ov::op::v0::Constant::create(ngraph::element::i32, {}, {0});
         const auto cumsum = std::make_shared<ov::op::v0::CumSum>(cumsum_tensor, axis_node);
 
         auto eltwiseMul = ngraph::builder::makeEltwise(inputParams[0], cumsum, ngraph::helpers::EltwiseTypes::MULTIPLY);
         auto eltwiseAdd1 = ngraph::builder::makeEltwise(inputParams[1], cumsum, ngraph::helpers::EltwiseTypes::ADD);
         auto eltwiseAdd2 = ngraph::builder::makeEltwise(eltwiseAdd1, eltwiseMul, ngraph::helpers::EltwiseTypes::ADD);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(eltwiseAdd2)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseAdd2)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "NonInputInPlaceT");
     }
 };

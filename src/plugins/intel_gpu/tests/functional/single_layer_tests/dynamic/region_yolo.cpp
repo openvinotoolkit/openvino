@@ -80,13 +80,13 @@ protected:
             paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
         }
 
-        const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
+        const auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,
                                                                               attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < region_yolo->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(region_yolo->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(region_yolo->output(i)));
         function = std::make_shared<ngraph::Function>(results, paramRegionYolo, "RegionYolo");
     }
 };

@@ -134,7 +134,7 @@ protected:
         auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
         auto matrixBFP32 = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
+        auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MatMul>>(
             ov::op::v0::MatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 

@@ -58,11 +58,11 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             paramsIn.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
-        auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
-        auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
+        auto shiftNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
+        auto axesNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 
-        const auto roll = std::make_shared<ngraph::op::v7::Roll>(paramsIn[0], shiftNode, axesNode);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll)};
+        const auto roll = std::make_shared<ov::op::v7::Roll>(paramsIn[0], shiftNode, axesNode);
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roll)};
         function = std::make_shared<ngraph::Function>(results, paramsIn, "roll");
     }
 };

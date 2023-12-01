@@ -71,7 +71,7 @@ protected:
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < outIndices.size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));
+            results.push_back(std::make_shared<ov::op::v0::Result>(split->output(outIndices[i])));
         }
         function = std::make_shared<ngraph::Function>(results, dyn_params, "split");
     }
@@ -205,21 +205,21 @@ protected:
 
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
-        auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
+        auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
 
         std::shared_ptr<ov::Node> splitLengthOp;
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto splitLengthNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{splitLength.size()});
+            auto splitLengthNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i64, ov::Shape{splitLength.size()});
             dyn_params.push_back(splitLengthNode);
             splitLengthOp = splitLengthNode;
         } else {
-            splitLengthOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{splitLength.size()}, splitLength);
+            splitLengthOp = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{splitLength.size()}, splitLength);
         }
 
-        auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(dyn_params[0], splitAxisOp, splitLengthOp);
+        auto varSplit = std::make_shared<ov::op::v1::VariadicSplit>(dyn_params[0], splitAxisOp, splitLengthOp);
         ngraph::ResultVector results;
         for (size_t i = 0; i < splitLength.size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(varSplit->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(varSplit->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, dyn_params, "varSplit");
     }

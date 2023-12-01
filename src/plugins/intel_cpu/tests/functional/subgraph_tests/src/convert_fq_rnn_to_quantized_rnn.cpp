@@ -152,7 +152,7 @@ protected:
         const auto batchSize  = targetStaticShapes.front()[0][0];
         const auto maxSeqLen  = targetStaticShapes.front()[0][1];
         std::vector<int> lengths(batchSize, static_cast<int>(maxSeqLen));
-        auto seq_lengths = ngraph::opset1::Constant::create(element::i64, Shape{batchSize}, lengths);
+        auto seq_lengths = ov::op::v0::Constant::create(element::i64, Shape{batchSize}, lengths);
 
         if (rnnType == "LSTMSequence") {
             hasCell = true;

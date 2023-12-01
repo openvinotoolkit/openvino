@@ -57,13 +57,13 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
 
-        auto shapeOfOp = std::make_shared<opset3::ShapeOf>(functionParams[0], element::i32);
+        auto shapeOfOp = std::make_shared<ov::op::v3::ShapeOf>(functionParams[0], element::i32);
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
             return std::make_shared<Function>(results, params, "ShapeOfLayerGPUTest");
         };
@@ -260,17 +260,17 @@ protected:
 
         const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrc);
 
-        auto input = std::make_shared<ngraph::opset9::Parameter>(prc, inputShapes.first);
+        auto input = std::make_shared<ov::op::v0::Parameter>(prc, inputShapes.first);
         input->get_output_tensor(0).get_rt_info()["ie_legacy_preproc"] = pre_process_info;
         input->set_friendly_name("input_data");
 
-        auto shape_of_01 = std::make_shared<ngraph::opset9::ShapeOf>(input);
+        auto shape_of_01 = std::make_shared<ov::op::v3::ShapeOf>(input);
         shape_of_01->set_friendly_name("shape_of_01");
 
-        auto shape_of_02 = std::make_shared<ngraph::opset9::ShapeOf>(shape_of_01);
+        auto shape_of_02 = std::make_shared<ov::op::v3::ShapeOf>(shape_of_01);
         shape_of_02->set_friendly_name("shape_of_02");
 
-        auto result = std::make_shared<ngraph::opset1::Result>(shape_of_02);
+        auto result = std::make_shared<ov::op::v0::Result>(shape_of_02);
         result->set_friendly_name("outer_result");
 
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{result}, ngraph::ParameterVector{input});
