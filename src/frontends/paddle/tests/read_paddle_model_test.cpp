@@ -75,7 +75,7 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
 }
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
-    auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu.pdmodel";
+    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu.pdmodel");
 
     ov::Core core;
     auto function = core.read_model(FrontEndTestUtils::make_model_path(model));
