@@ -89,6 +89,23 @@ private:
     static void destroy(void *ptr);
 };
 
+class MemoryMngrRealloc : public IMemoryMngr {
+public:
+    MemoryMngrRealloc() : m_data(nullptr, release) {}
+    void* getRawPtr() const noexcept override;
+    void setExtBuff(void* ptr, size_t size) override;
+    bool resize(size_t size) override;
+    bool hasExtBuffer() const noexcept override;
+
+private:
+    bool m_useExternalStorage = false;
+    size_t m_memUpperBound = 0ul;
+    std::unique_ptr<void, void (*)(void *)> m_data;
+
+    static void release(void *ptr);
+    static void destroy(void *ptr);
+};
+
 class IMemoryMngrObserver : public IMemoryMngr {
 public:
     virtual void registerMemory(Memory* memPtr) = 0;
