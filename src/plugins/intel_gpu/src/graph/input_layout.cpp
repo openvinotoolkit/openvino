@@ -43,7 +43,8 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
     auto& engine = get_network().get_engine();
     auto& stream = get_network().get_stream();
 
-    if (mem->is_allocated_by(engine)) {
+    // Allow to set dummy simple_attached_memory empty tensor as network input
+    if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
         ev = stream.create_user_event(true);

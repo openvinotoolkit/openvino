@@ -109,18 +109,25 @@ struct condition_impl : typed_primitive_impl<condition> {
                 if (iter != branch.input_map.end()) {
                     const primitive_id& input_internal_id = iter->second;
                     auto mem_ptr = instance.input_memory_ptr(mem_idx);
+                    auto dep = instance.dependencies()[mem_idx];
+                    auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
                     if (mem_ptr) {
-                        auto dep = instance.dependencies()[mem_idx];
-                        auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
                         GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string() << " to "
                                       << layout.to_short_string() << std::endl;
                         // Preallocation logic may allocate more memory than actually produced on current iteration, so
                         // we need to adjust input buffers layout
                         mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+                    } else if (layout.count() == 0) {
+                        // Use dummy memory for empty tensor
+                        mem_ptr = std::make_shared<simple_attached_memory>(layout, nullptr);
                     }
+                    OPENVINO_ASSERT(mem_ptr != nullptr, "[GPU] Can't assign nullptr memory buffer for condition primitive with id=", instance.id(), " ("
+                                                        "mem_idx=", mem_idx, ", "
+                                                        "external_id=", input_external_id, ", "
+                                                        "internal_id=", input_internal_id, ")");
                     executed_net->set_input_data(input_internal_id, mem_ptr);
-                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string()
-                                  << std::endl;
+                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
+                                  << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
                 }
             }
         }
