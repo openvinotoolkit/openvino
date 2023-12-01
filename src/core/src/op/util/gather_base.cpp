@@ -64,8 +64,8 @@ bool cf_gather_with_subgraph(OutputVector& output_values,
     }
 
     const int64_t rank = concat->get_shape()[0];
-    const int64_t raw_index = indices->cast_vector<int64_t>()[0];
-    const int64_t positive_index = raw_index < 0 ? rank + raw_index : raw_index;
+    const auto raw_index = indices->cast_vector<int64_t>()[0];
+    const auto positive_index = ov::util::normalize(raw_index, rank);
     OPENVINO_ASSERT(positive_index >= 0 && positive_index < rank);
 
     // gather takes exactly one element out of the Concat output
@@ -157,11 +157,7 @@ void GatherBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_GatherBase_validate_and_infer_types);
 
     const auto& data_type = get_input_element_type(0);
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& indices_pshape = get_input_partial_shape(1);
-    const auto& axis_pshape = get_input_partial_shape(2);
-    const std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape};
-    const auto output_shapes = shape_infer(this, input_shapes);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
     set_output_type(0, data_type, output_shapes[0]);
 }
