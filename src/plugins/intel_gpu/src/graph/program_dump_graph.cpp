@@ -202,7 +202,8 @@ void dump_graph_init(std::ofstream& graph,
         }
         auto output_fmts = ptr->get_preferred_output_fmts();
         if (!output_fmts.empty()) {
-            out += "\npreferred_out_fmt";
+            out += ((out.empty()) ? "" : "\n");
+            out += "preferred_out_fmt";
             for (auto& fmt : output_fmts) {
                 out += ":" + fmt_to_str(fmt);
             }
