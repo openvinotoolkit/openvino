@@ -9,8 +9,8 @@
 namespace ov {
 namespace op {
 namespace rnn {
-template <class TShape>
-void validate_inputs_rank(const op::util::RNNCellBase* op,
+template <class TShape, typename TBase>
+void validate_inputs_rank(const TBase* op,
                           const std::vector<TShape>& input_shapes,
                           const std::vector<Rank>& expected_ranks) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= expected_ranks.size(), "Can't validate inputs rank.");
@@ -131,8 +131,8 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
 // Output shapes layout:
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1... num_state_nodes]: [batch_size, num_directions, hidden_size] // Rank always 3
-template <class TShape, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
+template <class TShape, class TRShape = result_shape_t<TShape>, typename TBase>
+std::vector<TRShape> seq_base_shape_infer(const TBase* op,
                                           const std::vector<TShape>& input_shapes,
                                           size_t num_gates,
                                           size_t num_state_nodes,

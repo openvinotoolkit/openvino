@@ -26,9 +26,9 @@ namespace v13 {
 ///
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API MultiLSTMSequence : public util::RNNCellBase {
+class OPENVINO_API MultiLSTMSequence : public util::RNNMultiCellBase {
 public:
-    OPENVINO_OP("MultiLSTMSequence", "opset13", util::RNNCellBase);
+    OPENVINO_OP("MultiLSTMSequence", "opset13", util::RNNMultiCellBase);
     MultiLSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;
@@ -44,17 +44,20 @@ public:
                           const Output<Node>& B,
                           const std::int64_t hidden_size,
                           const direction lstm_direction,
+                          LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
                           const std::vector<float>& activations_alpha = {},
                           const std::vector<float>& activations_beta = {},
                           const std::vector<std::string>& activations = {"sigmoid", "tanh", "tanh"},
-                          const float clip = 0.f)
-        : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
+                          const float clip_threshold = 0.f,
+                          const bool input_forget = false)
+        : RNNMultiCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
                       hidden_size,
-                      clip,
+                      clip_threshold,
                       activations,
                       activations_alpha,
                       activations_beta),
-          m_direction(lstm_direction) {
+          m_direction(lstm_direction),
+          m_weights_format(weights_format) {
         constructor_validate_and_infer_types();
     }
 
@@ -72,6 +75,7 @@ public:
 
 private:
     direction m_direction{direction::FORWARD};
+    LSTMWeightsFormat m_weights_format;
 };
 }  // namespace v5
 }  // namespace op

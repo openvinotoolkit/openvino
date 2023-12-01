@@ -88,7 +88,17 @@ ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta) {}
 
-ov::op::util::RNNCellBase::RNNMultiCellBase(const OutputVector& args,
+bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(util_RNNCellBase_visit_attributes);
+    visitor.on_attribute("hidden_size", m_hidden_size);
+    visitor.on_attribute("activations", m_activations);
+    visitor.on_attribute("activations_alpha", m_activations_alpha);
+    visitor.on_attribute("activations_beta", m_activations_beta);
+    visitor.on_attribute("clip", m_clip);
+    return true;
+}
+
+ov::op::util::RNNMultiCellBase::RNNMultiCellBase(const OutputVector& args,
                                             size_t hidden_size,
                                             float clip,
                                             const std::vector<std::string>& activations,
@@ -101,8 +111,8 @@ ov::op::util::RNNCellBase::RNNMultiCellBase(const OutputVector& args,
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta) {}
 
-bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(util_RNNCellBase_visit_attributes);
+bool ov::op::util::RNNMultiCellBase::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(util_RNNMultiCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);

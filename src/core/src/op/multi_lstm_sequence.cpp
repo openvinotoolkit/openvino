@@ -10,71 +10,11 @@
 #include "openvino/op/util/recurrent_sequence.hpp"
 
 namespace ov {
-op::v13::MultiLSTMSequence::MultiLSTMSequence(const Output<Node>& X,
-                                   const Output<Node>& initial_hidden_state,
-                                   const Output<Node>& initial_cell_state,
-                                   const Output<Node>& W,
-                                   const Output<Node>& R,
-                                   const Output<Node>& B,
-                                   const Output<Node>& P,
-                                   const std::int64_t hidden_size,
-                                   const LSTMSequence::direction lstm_direction,
-                                   LSTMWeightsFormat weights_format,
-                                   const std::vector<float> activations_alpha,
-                                   const std::vector<float> activations_beta,
-                                   const std::vector<std::string> activations,
-                                   const float clip_threshold,
-                                   const bool input_forget)
-    : RNNMultiCellBase({X, initial_hidden_state, initial_cell_state, W, R, B, P},
-                  hidden_size,
-                  clip_threshold,
-                  activations,
-                  activations_alpha,
-                  activations_beta),
-      m_direction(lstm_direction),
-      m_input_forget(input_forget),
-      m_weights_format(weights_format) {
-    constructor_validate_and_infer_types();
-}
-
-op::v13::MultiLSTMSequence::MultiLSTMSequence(const Output<Node>& X,
-                                   const Output<Node>& initial_hidden_state,
-                                   const Output<Node>& initial_cell_state,
-                                   const Output<Node>& W,
-                                   const Output<Node>& R,
-                                   const Output<Node>& B,
-                                   const std::int64_t hidden_size,
-                                   const LSTMSequence::direction lstm_direction,
-                                   LSTMWeightsFormat weights_format,
-                                   const std::vector<float>& activations_alpha,
-                                   const std::vector<float>& activations_beta,
-                                   const std::vector<std::string>& activations,
-                                   const float clip_threshold,
-                                   const bool input_forget)
-    : op::v13::MultiLSTMSequence(
-          X,
-          initial_hidden_state,
-          initial_cell_state,
-          W,
-          R,
-          B,
-          Constant::create(element::f32,
-                           Shape{(lstm_direction == LSTMSequence::direction::BIDIRECTIONAL ? 2UL : 1UL),
-                                 3UL * static_cast<size_t>(hidden_size)},
-                           std::vector<float>{0.f}),
-          hidden_size,
-          lstm_direction,
-          weights_format,
-          activations_alpha,
-          activations_beta,
-          activations,
-          clip_threshold,
-          input_forget) {}
 
 bool op::v13::MultiLSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v13_MultiLSTMSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
-    return op::util::RNNCellBase::visit_attributes(visitor);
+    return op::util::RNNMultiCellBase::visit_attributes(visitor);
 }
 
 std::shared_ptr<Node> op::v13::MultiLSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -89,6 +29,7 @@ std::shared_ptr<Node> op::v13::MultiLSTMSequence::clone_with_new_inputs(const Ou
                                                       new_args.at(5),  // B
                                                       m_hidden_size,
                                                       m_direction,
+                                                      m_weights_format,
                                                       m_activations_alpha,
                                                       m_activations_beta,
                                                       m_activations,
@@ -124,7 +65,7 @@ void op::v13::MultiLSTMSequence::validate_and_infer_types() {
     auto output_shapes = shape_infer(this, input_shapes);
     
     // Hardcode 3 sequences in a MultiSequence for PoC
-    output_shapes.insert(output_shapes.begin(), 3)
+    output_shapes.insert(output_shapes.begin(), PartialShape("3"));
 
     // Set output size, type and shape
     set_output_type(0, result_et, output_shapes[0]);

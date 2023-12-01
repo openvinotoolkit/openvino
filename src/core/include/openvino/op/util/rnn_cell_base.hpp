@@ -172,6 +172,124 @@ protected:
     std::vector<float> m_activations_alpha;
     std::vector<float> m_activations_beta;
 };
+
+/// \brief      Base class for all recurrent network cells.
+///
+/// \note       It holds all common attributes.
+///
+class OPENVINO_API RNNMultiCellBase : public Op {
+public:
+    OPENVINO_OP("RNNMultiCellBase", "util");
+
+    ///
+    /// \brief      Constructs a RNNMultiCellBase class.
+    ///
+    /// \param[in]  hidden_size        The number of hidden units for recurrent cell.
+    /// \param[in]  clip               The value defining clipping range [-clip, clip]
+    ///                                on input of activation functions.
+    /// \param[in]  activations        The vector of activation functions used inside
+    ///                                recurrent cell.
+    /// \param[in]  activations_alpha  The vector of alpha parameters for activation
+    ///                                functions in order respective to activation list.
+    /// \param[in]  activations_beta   The vector of beta parameters for activation
+    ///                                functions in order respective to activation list.
+    ///
+    RNNMultiCellBase(const OutputVector& args,
+                std::size_t hidden_size,
+                float clip,
+                const std::vector<std::string>& activations,
+                const std::vector<float>& activations_alpha,
+                const std::vector<float>& activations_beta);
+
+    RNNMultiCellBase();
+    ~RNNMultiCellBase() override = default;
+
+    ///
+    /// \brief      Validates static rank and dimension for provided input parameters.
+    ///             Additionally input_size dimension is checked for X and W inputs.
+    ///
+    ///
+    /// \param[in]  input           Vector with RNN-Cell op inputs in following order:
+    ///                             X, initial_hidden_state, W, R and B.
+    ///
+    void validate_input_rank_dimension(const std::vector<PartialShape>& input);
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    std::size_t get_hidden_size() const {
+        return m_hidden_size;
+    }
+    void set_hidden_size(size_t hidden_size) {
+        m_hidden_size = hidden_size;
+    }
+    float get_clip() const {
+        return m_clip;
+    }
+    const std::vector<std::string>& get_activations() const {
+        return m_activations;
+    }
+    const std::vector<float>& get_activations_alpha() const {
+        return m_activations_alpha;
+    }
+    const std::vector<float>& get_activations_beta() const {
+        return m_activations_beta;
+    }
+
+protected:
+    ///
+    /// \brief      Constructs activation function object.
+    ///
+    /// \param[in]  idx   The index of the activation function name.
+    ///
+    /// \return     The object representing activation function.
+    ///
+    ActivationFunction get_activation_function(std::size_t idx) const;
+    ///
+    /// \brief      Creates node with element-wise add operation with numpy
+    ///             broadcasting.
+    ///
+    /// \param[in]  lhs   The left hand side argument node.
+    /// \param[in]  rhs   The right hand side argument node.
+    ///
+    /// \return     Node with element-wise add operation.
+    ///
+    static std::shared_ptr<Node> add(const Output<Node>& lhs, const Output<Node>& rhs);
+    ///
+    /// \brief      Creates node with element-wise subtract operation with numpy
+    ///             broadcasting.
+    ///
+    /// \param[in]  lhs   The left hand side argument node.
+    /// \param[in]  rhs   The right hand side argument node.
+    ///
+    /// \return     Node with element-wise subtract operation.
+    ///
+    static std::shared_ptr<Node> sub(const Output<Node>& lhs, const Output<Node>& rhs);
+    ///
+    /// \brief      Creates node with element-wise multiply operation with numpy
+    ///             broadcasting.
+    ///
+    /// \param[in]  lhs   The left hand side argument node.
+    /// \param[in]  rhs   The right hand side argument node.
+    ///
+    /// \return     Node with element-wise multiply operation.
+    ///
+    static std::shared_ptr<Node> mul(const Output<Node>& lhs, const Output<Node>& rhs);
+    ///
+    /// \brief      Creates node with element-wise clip operation with numpy
+    ///             broadcasting.
+    ///
+    /// \param[in]  data   The input tensor for clipping.
+    ///
+    /// \return     Node with element-wise clip operation.
+    ///
+    std::shared_ptr<Node> clip(const Output<Node>& data) const;
+
+protected:
+    std::size_t m_hidden_size;
+    float m_clip;
+    std::vector<std::string> m_activations;
+    std::vector<float> m_activations_alpha;
+    std::vector<float> m_activations_beta;
+};
 }  // namespace util
 }  // namespace op
 }  // namespace ov
