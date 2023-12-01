@@ -35,8 +35,6 @@
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-#include "snippets/lowered/pass/serialize_data_flow.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
