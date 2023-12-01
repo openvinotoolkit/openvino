@@ -23,7 +23,7 @@ ov::pass::ConcatFusion::ConcatFusion() {
         auto is_aplicable = false;
         for (auto input : concat->input_values()) {
             const auto inp_concat = std::dynamic_pointer_cast<v0::Concat>(input.get_node_shared_ptr());
-            if (inp_concat && inp_concat->get_axis() == axis) {
+            if (inp_concat && inp_concat->get_axis() == axis && inp_concat->output(0).get_target_inputs().size() == 1) {
                 is_aplicable = true;
             }
         }
@@ -40,7 +40,7 @@ ov::pass::ConcatFusion::ConcatFusion() {
         OutputVector new_inputs;
         for (auto input : concat->input_values()) {
             const auto inp_concat = std::dynamic_pointer_cast<v0::Concat>(input.get_node_shared_ptr());
-            if (inp_concat && inp_concat->get_axis() == axis) {
+            if (inp_concat && inp_concat->get_axis() == axis && inp_concat->output(0).get_target_inputs().size() == 1) {
                 const auto inp_concat_inps = inp_concat->input_values();
                 new_inputs.insert(new_inputs.end(), inp_concat_inps.begin(), inp_concat_inps.end());
             } else {
