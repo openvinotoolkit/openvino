@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/transpose.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -17,7 +18,7 @@ OutputVector translate_transpose_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Transpose", "TRANSPOSE"});
     auto x = node.get_input(0);
     auto perm = node.get_input(1);
-    auto transpose = make_shared<Transpose>(x, perm);
+    auto transpose = make_shared<v1::Transpose>(x, perm);
     set_node_name(node.get_name(), transpose);
     return {transpose};
 }
