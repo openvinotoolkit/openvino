@@ -191,14 +191,13 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     OPENVINO_ASSERT(inputs[2].get_element_type().is_integral_number(), "axis must be of integral data type.");
 
     const auto& data = inputs[0];
-    const auto& indices = inputs[1];
-    const auto& data_rank = data.get_shape().size();
-
-    const auto axis = ov::util::normalize(get_tensor_data_as<int64_t>(inputs[2])[0], data_rank);
-    const auto batch_dims = ov::util::normalize(m_batch_dims, data_rank);
-
     const auto& data_shape = data.get_shape();
+    const auto& indices = inputs[1];
     const auto& indices_shape = indices.get_shape();
+
+    const auto axis = ov::util::normalize(get_tensor_data_as<int64_t>(inputs[2])[0], data_shape.size());
+    const auto batch_dims = ov::util::normalize(m_batch_dims, indices_shape.size());
+
     const auto out_shape = gather::out_shape_infer(data_shape, indices_shape, axis, batch_dims);
     auto& output = outputs[0];
     output.set_shape(out_shape);
