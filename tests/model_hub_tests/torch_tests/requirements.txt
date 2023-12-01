@@ -16,6 +16,7 @@ soundfile
 super-image
 timm
 torch
+torchaudio
 torchvision
 transformers
 wheel
