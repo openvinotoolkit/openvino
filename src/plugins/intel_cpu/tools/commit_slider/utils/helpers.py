@@ -183,10 +183,14 @@ def runCommandList(commit, cfgData, enforceClean=False):
                 continue
         makeCmd = cfgData["makeCmd"]
         # {commit}, {makeCmd}, {cashedPath} placeholders
-        strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
         pathExists, cashedPath = getCashedPath(commit, cfgData)
         if pathExists:
-            strCommand = cmd["cmd"].format(cashedPath=cashedPath)
+            strCommand = cmd["cmd"].format(
+                cashedPath=cashedPath,
+                commit=commit, makeCmd=makeCmd)
+        else:
+            strCommand = cmd["cmd"].format(
+                commit=commit, makeCmd=makeCmd)
         formattedCmd = strCommand.split()
         # define command launch destination
         cwd = defRepo
@@ -265,7 +269,8 @@ def handleCommit(commit, cfgData):
             commitLogger.info(
                 "Path, corresponding commit {c} is cashed, value:{p}".format(
                 c=commit, p=cashedPath))
-            return
+            if cfgData["cachedPathConfig"]["passCmdList"]:
+                return
         else:
             if cfgData["cachedPathConfig"]["scheme"] == "mandatory":
                 commitLogger.info("Ignore commit {}".format(commit))
