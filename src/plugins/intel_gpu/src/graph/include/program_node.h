@@ -386,6 +386,9 @@ public:
     const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
     std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const {
         if (onednn_attrs == nullptr)

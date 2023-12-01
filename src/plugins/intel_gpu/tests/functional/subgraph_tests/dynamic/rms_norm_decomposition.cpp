@@ -3,6 +3,8 @@
 //
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "random_generator.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -129,6 +131,29 @@ protected:
 TEST_P(RMSNormDecomposition, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
+}
+
+TEST_P(RMSNormDecomposition, CompareWithRefs_cached) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::stringstream ss;
+    ss << "gpu_model_cache_" << std::hash<std::string>{}(
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    std::string cacheDirName = ss.str();
+    {
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+        core->set_property(ov::cache_dir(cacheDirName));
+        compile_model();
+    }
+    {
+        run();
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+    }
 }
 
 namespace {

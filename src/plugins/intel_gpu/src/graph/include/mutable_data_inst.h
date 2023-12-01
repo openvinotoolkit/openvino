@@ -20,6 +20,7 @@ struct typed_program_node<mutable_data> : public typed_program_node_base<mutable
     memory& get_attached_memory() const { return *mem; }
     memory::ptr get_attached_memory_ptr() const { return mem; }
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
+    void replace_memory(memory::ptr new_mem, bool invalidate_users_if_changed = false);
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
@@ -44,8 +45,6 @@ public:
     typed_primitive_inst(network& network, mutable_data_node const& node);
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
 
 private:
     std::list<primitive_id> _user_ids;

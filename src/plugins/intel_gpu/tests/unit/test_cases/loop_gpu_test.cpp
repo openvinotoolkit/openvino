@@ -553,3 +553,11 @@ TEST(loop_gpu, support_dynamic_tensoriterator) {
 TEST(loop_gpu, support_loop_w_dynamic_body_input) {
     test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 });
 }
+
+TEST(loop_gpu, support_dynamic_tensoriterator_cached) {
+    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 }, true);
+}
+
+TEST(loop_gpu, support_loop_w_dynamic_body_input_cached) {
+    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 }, true);
+}

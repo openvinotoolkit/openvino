@@ -84,8 +84,19 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
             ib >> perfEntry.parentPrimitive;
         }
     }
+    {
+        bool bool_prop_value;
+        ib >> bool_prop_value;
+        m_config.set_property(ov::intel_gpu::partial_build_program(bool_prop_value));
+        ib >> bool_prop_value;
+        m_config.set_property(ov::intel_gpu::optimize_data(bool_prop_value));
+        ib >> bool_prop_value;
+        m_config.set_property(ov::intel_gpu::allow_new_shape_infer(bool_prop_value));
+    }
 
-    m_network = std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0, 0);
+    auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
+    imported_prog->load(ib);
+    build(imported_prog);
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -448,8 +459,14 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
             ob << perf_item.second.second.parentPrimitive;
         }
     }
+    {
+        ob << m_config.get_property(ov::intel_gpu::partial_build_program);
+        ob << m_config.get_property(ov::intel_gpu::optimize_data);
+        ob << m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
+    }
 
-    m_network->save(ob);
+    ob.set_stream(m_network->get_stream_ptr().get());
+    m_network->get_program()->save(ob);
 }
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model() {

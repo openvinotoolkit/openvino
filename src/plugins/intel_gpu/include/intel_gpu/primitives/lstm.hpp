@@ -282,6 +282,7 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_gemm>::save(ob);
         ob << weights;
         ob << recurrent;
         ob << bias;
@@ -290,6 +291,7 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_gemm>::load(ib);
         ib >> weights;
         ib >> recurrent;
         ib >> bias;
@@ -401,6 +403,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_elt>::save(ob);
         ob << cell;
         ob << clip;
         ob << input_forget;
@@ -411,6 +414,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_elt>::load(ib);
         ib >> cell;
         ib >> clip;
         ib >> input_forget;

@@ -56,6 +56,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << begin_data;
         ob << end_data;
         ob << strides_data;
@@ -68,6 +69,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> begin_data;
         ib >> end_data;
         ib >> strides_data;

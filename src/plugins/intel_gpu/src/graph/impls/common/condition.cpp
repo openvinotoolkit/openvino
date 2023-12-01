@@ -13,11 +13,16 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
+    using parent = typed_primitive_impl<condition>;
+    using parent::parent;
+
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::condition_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
     }
+
+    condition_impl() : parent() {}
 
     explicit condition_impl(const condition_node& outer) {
         set_node_params(outer);
@@ -131,6 +136,16 @@ struct condition_impl : typed_primitive_impl<condition> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _node_id;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _node_id;
+    }
+
 private:
     primitive_id _node_id;
 };
@@ -150,5 +165,5 @@ attach_condition_common::attach_condition_common() {
 }  // namespace common
 }  // namespace cldnn
 
-// TODO: Change code like cldnn::loop
-ASSIGN_TYPE_NAME(cldnn::common::condition_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::condition_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::condition)
