@@ -566,7 +566,6 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [Build, Smart_CI]
-    timeout-minutes: 20
     uses: ./.github/workflows/cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
