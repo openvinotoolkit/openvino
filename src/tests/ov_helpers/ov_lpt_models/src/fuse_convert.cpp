@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/fuse_convert.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
@@ -12,18 +12,18 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type inputPrecision,
+std::shared_ptr<ov::Model> FuseConvertFunction::get(
+    const ov::PartialShape& inputShape,
+    const ov::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<op::Parameter> input;
     if (constInput) {
-        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
+        parent = std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
-        input = std::make_shared<ngraph::opset1::Parameter>(
+        input = std::make_shared<ov::opset1::Parameter>(
             inputPrecision,
             inputShape);
         parent = input;
@@ -38,24 +38,24 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
     parent->set_friendly_name("output");
 
     auto parameters = constInput ?
-        ngraph::ParameterVector{}:
-        ngraph::ParameterVector{ input };
+        ov::ParameterVector{}:
+        ov::ParameterVector{ input };
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(parent)};
-    return std::make_shared<ngraph::Function>(results, parameters, "FuseConvertFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(parent)};
+    return std::make_shared<ov::Model>(results, parameters, "FuseConvertFunction");
 }
 
-std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type inputPrecision,
+std::shared_ptr<ov::Model> FuseConvertFunction::getWithFQ(
+    const ov::PartialShape& inputShape,
+    const ov::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<op::Parameter> input1;
     if (constInput) {
-        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
+        parent = std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
-        input1 = std::make_shared<ngraph::opset1::Parameter>(
+        input1 = std::make_shared<ov::opset1::Parameter>(
                 inputPrecision,
                 inputShape);
         parent = input1;
@@ -64,7 +64,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
     deqStructure.multiply.outPrecision = inputPrecision;
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, deqStructure);
 
-    std::shared_ptr<op::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(
+    std::shared_ptr<op::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(
             inputPrecision,
             inputShape);
 
@@ -73,22 +73,22 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
         { 0.f }, { 255.f }, { 0.f }, { 255.f });
 
     // just some non-transparent layer
-    const auto power = std::make_shared<opset1::Power>(
+    const auto power = std::make_shared<ov::opset1::Power>(
         fakeQuantizeOnActivations,
-        std::make_shared<opset1::Constant>(inputPrecision, Shape{}, std::vector<float>{2.f}));
+        std::make_shared<ov::opset1::Constant>(inputPrecision, Shape{}, std::vector<float>{2.f}));
 
-    const auto add = std::make_shared<opset1::Add>(
+    const auto add = std::make_shared<ov::opset1::Add>(
         dequantizationOp,
         power);
 
     add->set_friendly_name("output");
 
     auto parameters = constInput ?
-                      ngraph::ParameterVector{ input2 }:
-                      ngraph::ParameterVector{ input1, input2 };
+                      ov::ParameterVector{ input2 }:
+                      ov::ParameterVector{ input1, input2 };
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
-    return std::make_shared<ngraph::Function>(results, parameters, "FuseConvertFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
+    return std::make_shared<ov::Model>(results, parameters, "FuseConvertFunction");
 }
 
 
