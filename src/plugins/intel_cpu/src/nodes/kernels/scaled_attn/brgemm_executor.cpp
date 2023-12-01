@@ -47,7 +47,7 @@ brgemmExecutor::brgemmExecutor(size_t M,
         K_tail = rnd_up(K_tail, 2);
     }
     size_t vlen = cpu_isa_traits<avx512_core>::vlen;
-    // copied K must be round up by vlen / brgPrc.size(), otherwise transpose_copy kernel may access wrong memory
+    // copied K must be round up by vlen / brgPrc.size(), otherwise copy B kernel may access wrong memory
     packedBSize = rnd_up(K, vlen / brgPrc.size()) * rnd_up(N, N_blk) * brgPrc.size();
     packedASize = M_blk * rnd_up(K, K_blk) * brgPrc.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();

@@ -659,8 +659,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
-    if (!getenv("DISABLE_SDPA"))
-        CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
     postLPTPassManager.run_passes(model);
 }
 

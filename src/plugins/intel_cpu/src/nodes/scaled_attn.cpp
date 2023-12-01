@@ -1068,10 +1068,10 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             }
         }
         // using mha should be better for static shapes
-        // if (!op->is_dynamic()) {
-        //     errorMessage = "Only run in dynamic mode";
-        //     return false;
-        // }
+        if (!op->is_dynamic()) {
+            errorMessage = "Only run in dynamic mode";
+            return false;
+        }
     } catch (...) {
         return false;
     }

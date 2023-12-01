@@ -9,7 +9,7 @@
 #include <ie_system_conf.h>
 
 // This test is used to test whether mlas gemm lib compiles successfully
-TEST(BrgemmExecutor, simple_test) {
+TEST(BrgemmExecutor, gemm_test) {
     if (!ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     size_t M = 33;
