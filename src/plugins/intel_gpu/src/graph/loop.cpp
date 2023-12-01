@@ -537,7 +537,7 @@ void loop_inst::preprocess_backedge_memory() {
                             << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
         // Set backedge mode to SINGLE when backedge_from_prim has multiple users.
         } else if ((output_mapping.empty() && backedge_to_prim == backedge_from_prim->dependencies().front().first)
-                || (backedge_to_prim->get_num_users() > 1) ) {
+                || (backedge_to_prim->get_users().size() > 1) ) {
             // SINGLE mode, from and to primitives in backedge are connected directly
             backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());

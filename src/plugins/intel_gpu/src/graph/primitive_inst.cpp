@@ -1037,8 +1037,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
-    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output())
-    , _num_users(node.get_users().size()) {
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     if (allocate_memory && node.is_dynamic() && (!network.get_engine().check_allocatable(output_layout, allocation_type::usm_host))) {
