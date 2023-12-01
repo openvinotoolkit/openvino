@@ -4,15 +4,14 @@
 
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
 
-#include <openvino/core/dimension_tracker.hpp>
-#include <openvino/op/broadcast.hpp>
-#include <openvino/op/maximum.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
