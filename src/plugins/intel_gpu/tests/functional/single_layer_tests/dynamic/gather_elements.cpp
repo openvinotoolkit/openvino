@@ -80,7 +80,7 @@ protected:
 
         auto gather = std::make_shared<ov::op::v6::GatherElements>(params[0], params[1], axis);
 
-        ngraph::ResultVector results{std::make_shared<ov::opset4::Result>(gather)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "GatherElements");
     }
 };

@@ -95,8 +95,8 @@ protected:
         auto customOp = std::make_shared<CustomOp>(paramsOuts);
         auto shapeOf = std::make_shared<ov::opset10::ShapeOf>(customOp->output(1));
 
-        ngraph::ResultVector results{std::make_shared<ov::opset3::Result>(customOp->output(0)),
-                                    std::make_shared<ov::opset3::Result>(shapeOf)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(customOp->output(0)),
+                                    std::make_shared<ov::op::v0::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "customOpTest");
     }
 
