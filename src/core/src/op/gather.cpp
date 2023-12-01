@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
-// #include "openvino/core/validation_util.hpp"
 #include "openvino/op/gather.hpp"
+
+#include "itt.hpp"
 #include "validation_util.hpp"
 
 namespace ov {
