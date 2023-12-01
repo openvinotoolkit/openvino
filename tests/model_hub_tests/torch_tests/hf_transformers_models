@@ -30,7 +30,7 @@ beomi/exKcBERT-kowiki,exbert,skip,Load problem
 bert-base-uncased,bert
 bigscience/bloom-560m,bloom
 Bono93/basic-cnn-example,simplecnn,skip,Load problem
-caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr,xfail,Unsupported op prim::Constant
+caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr
 camembert-base,camembert
 CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,xfail,Tracing problem
 CEBaB/bert-base-uncased.CEBaB.causalm.ambiance.2-class.exclusive.seed_42,bert_causalm,skip,Load problem
@@ -74,8 +74,8 @@ facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
-facebook/mms-tts-eng,vits,skip,Load problem
-facebook/musicgen-small,musicgen,skip,Load problem
+facebook/mms-tts-eng,vits,xfail,Accuracy failed: results cannot be broadcasted
+facebook/musicgen-small,musicgen
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
@@ -104,7 +104,7 @@ google/mobilebert-uncased,mobilebert
 google/mobilenet_v1_0.75_192,mobilenet_v1
 google/mt5-base,mt5
 google/owlvit-base-patch32,owlvit
-google/pix2struct-docvqa-base,pix2struct,skip,Load problem
+google/pix2struct-docvqa-base,pix2struct
 google/realm-orqa-nq-openqa,realm,skip,Load problem
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas

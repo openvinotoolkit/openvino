@@ -160,7 +160,7 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const 
     ParameterVector subgraph_params{ snippet_input };
     auto snippet_function = std::make_shared<Model>(NodeVector{ add }, subgraph_params);
 
-    ngraph::NodeVector snippet_inputs{ non_snippet_op };
+    ov::NodeVector snippet_inputs{ non_snippet_op };
     auto snippet = std::make_shared<ov::snippets::op::Subgraph>(snippet_inputs, snippet_function);
     auto result = std::make_shared<op::v0::Result>(snippet);
 
@@ -320,7 +320,7 @@ std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
     auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[0]);
-    const auto axis = ngraph::op::Constant::create(element::i64, Shape{}, {0});
+    const auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     // first parent and second parent have common inputs from output of split
     auto split = std::make_shared<ov::op::v1::Split>(input, axis, 2);
     auto mul_lhs = split->output(0);
@@ -346,7 +346,7 @@ std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
     auto add_a3 = std::make_shared<op::v1::Add>(mul_a5, mul_a3);
     auto add_a2 = std::make_shared<op::v1::Add>(mul_a5, mul_a2);
 
-    auto concat = std::make_shared<op::v0::Concat>(ngraph::OutputVector{add_a3, add_a2}, 0);
+    auto concat = std::make_shared<op::v0::Concat>(ov::OutputVector{add_a3, add_a2}, 0);
 
     return std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
 }
