@@ -13,11 +13,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -84,26 +84,26 @@ protected:
         auto lowNodeIn1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue});
         auto highNodeIn1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue});
         auto fqIn1 = std::make_shared<ov::opset8::FakeQuantize>(relu,
-                                                                    lowNodeIn1,
-                                                                    highNodeIn1,
-                                                                    lowNodeIn1,
-                                                                    highNodeIn1,
-                                                                    levels16);
+                                                                lowNodeIn1,
+                                                                highNodeIn1,
+                                                                lowNodeIn1,
+                                                                highNodeIn1,
+                                                                levels16);
 
         auto lowNodeIn2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue});
         auto highNodeIn2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue});
         auto fqIn2 = std::make_shared<ov::opset8::FakeQuantize>(input2,
-                                                                    lowNodeIn2,
-                                                                    highNodeIn2,
-                                                                    lowNodeIn2,
-                                                                    highNodeIn2,
-                                                                    levels16);
+                                                                lowNodeIn2,
+                                                                highNodeIn2,
+                                                                lowNodeIn2,
+                                                                highNodeIn2,
+                                                                levels16);
 
         std::shared_ptr<ngraph::Node> matmul_input2 = fqIn2;
         if (!isSecondInputConst) {
             auto pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                      ngraph::Shape{2},
-                                                                      ngraph::Shape{shape1[1], shape1[1]});
+                                                                  ngraph::Shape{2},
+                                                                  ngraph::Shape{shape1[1], shape1[1]});
             matmul_input2 = std::make_shared<ov::opset8::Reshape>(fqIn2, pattern, false);
         }
 
@@ -115,11 +115,11 @@ protected:
         auto highNodeOut =
             ngraph::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue * maxInputValue * inputShape[1] / 10});
         auto fqOut = std::make_shared<ov::opset8::FakeQuantize>(matmul,
-                                                                    lowNodeOut,
-                                                                    highNodeOut,
-                                                                    lowNodeOut,
-                                                                    highNodeOut,
-                                                                    levels32);
+                                                                lowNodeOut,
+                                                                highNodeOut,
+                                                                lowNodeOut,
+                                                                highNodeOut,
+                                                                levels32);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fqOut)};
         function = std::make_shared<ngraph::Function>(results, params, "MatMulOverloadCorrection");

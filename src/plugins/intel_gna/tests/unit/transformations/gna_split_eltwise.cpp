@@ -14,8 +14,8 @@
 #include "common/gna_target.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/split_eltwise.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "transformations/split_eltwise.hpp"
 
 using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::target;
@@ -64,19 +64,19 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
         auto split0 = std::make_shared<ov::opset9::VariadicSplit>(
             last_node0,
             ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape({1}),
-                                             std::vector<int64_t>{split_sizes_per_axis.first}),
+                                         ngraph::Shape({1}),
+                                         std::vector<int64_t>{split_sizes_per_axis.first}),
             ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape({split_sizes_per_axis.second.size()}),
-                                             split_sizes_per_axis.second));
+                                         ngraph::Shape({split_sizes_per_axis.second.size()}),
+                                         split_sizes_per_axis.second));
         auto split1 = std::make_shared<ov::opset9::VariadicSplit>(
             last_node1,
             ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape({1}),
-                                             std::vector<int64_t>{split_sizes_per_axis.first}),
+                                         ngraph::Shape({1}),
+                                         std::vector<int64_t>{split_sizes_per_axis.first}),
             ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape({split_sizes_per_axis.second.size()}),
-                                             split_sizes_per_axis.second));
+                                         ngraph::Shape({split_sizes_per_axis.second.size()}),
+                                         split_sizes_per_axis.second));
         ov::NodeVector concat_inputs;
         for (size_t i = 0; i < split_sizes_per_axis.second.size(); i++) {
             auto eltwise_node_part = std::make_shared<ngraph::op::Eltwise>(split0->output(i), split1->output(i), type);

@@ -10,10 +10,10 @@
 
 #include "backend/gna_limitations.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/decompose_mvn.hpp"
-#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "transformations/decompose_mvn.hpp"
+#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 
 using namespace ov::intel_gna::limitations;
 
@@ -49,8 +49,8 @@ static std::shared_ptr<ngraph::Node> NormalizeVariance(
 
     std::vector<float> avg_weights(8 * mvn_data.W / mvn_data.num_parts, 1.0f / mvn_data.W);
     auto avg_weights_const = ov::op::v0::Constant::create(ngraph::element::f32,
-                                                              ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1},
-                                                              avg_weights);
+                                                          ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1},
+                                                          avg_weights);
     std::vector<float> eps_tensor(combined_C_H * mvn_data.W, mvn_data.eps);
     auto eps_tensor_const =
         ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, combined_C_H * mvn_data.W}, eps_tensor);
@@ -74,12 +74,12 @@ static std::shared_ptr<ngraph::Node> NormalizeVariance(
         squared_diff_reshape,
         ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2}));
     auto transposed_avg_conv_3 = std::make_shared<ov::opset8::Convolution>(transposed_input_3,
-                                                                               avg_weights_const,
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::op::PadType::VALID);
+                                                                           avg_weights_const,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::op::PadType::VALID);
     transposed_avg_conv_3->set_friendly_name("MvnAvg3");
     auto avg_conv_3 = std::make_shared<ov::opset8::Transpose>(
         transposed_avg_conv_3,
@@ -87,19 +87,19 @@ static std::shared_ptr<ngraph::Node> NormalizeVariance(
     auto reshape_avg_conv_3 = std::make_shared<ov::opset8::Reshape>(
         avg_conv_3,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{4},
-                                         ngraph::Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}),
+                                     ngraph::Shape{4},
+                                     ngraph::Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}),
         false);
     auto transposed_input_4 = std::make_shared<ov::opset8::Transpose>(
         reshape_avg_conv_3,
         ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2}));
     auto transposed_avg_conv_4 = std::make_shared<ov::opset8::Convolution>(transposed_input_4,
-                                                                               avg_broadcast_const,
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::op::PadType::VALID);
+                                                                           avg_broadcast_const,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::op::PadType::VALID);
     transposed_avg_conv_4->set_friendly_name("MvnAvg4");
     auto avg_conv_4 = std::make_shared<ov::opset8::Transpose>(
         transposed_avg_conv_4,
@@ -107,8 +107,8 @@ static std::shared_ptr<ngraph::Node> NormalizeVariance(
     auto reshape_avg_conv_4 = std::make_shared<ov::opset8::Reshape>(
         avg_conv_4,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{2},
-                                         ngraph::Shape{1ull, combined_C_H * mvn_data.W}),
+                                     ngraph::Shape{2},
+                                     ngraph::Shape{1ull, combined_C_H * mvn_data.W}),
         false);
     std::shared_ptr<ngraph::Node> inv_stdev;
 
@@ -134,31 +134,30 @@ static std::shared_ptr<ngraph::Node> NormalizeVariance(
 }
 
 static std::shared_ptr<ov::op::v0::Result> Decompose(const std::shared_ptr<ngraph::Node> input_node,
-                                                         const MVNParams& mvn_data) {
+                                                     const MVNParams& mvn_data) {
     // Prepare data
     auto combined_C_H = mvn_data.C * mvn_data.H;
 
     std::vector<float> neg_avg_weights(8 * mvn_data.W / mvn_data.num_parts, -1.0f / mvn_data.W);
-    auto neg_avg_weights_const =
-        ov::op::v0::Constant::create(ngraph::element::f32,
-                                         ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1},
-                                         neg_avg_weights);
+    auto neg_avg_weights_const = ov::op::v0::Constant::create(ngraph::element::f32,
+                                                              ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1},
+                                                              neg_avg_weights);
 
     std::vector<float> avg_broadcast(8 * mvn_data.W * mvn_data.num_parts, 0.0f);
     for (size_t i = 0; i < mvn_data.W * mvn_data.num_parts; i++) {
         avg_broadcast[i * 8] = 1.0f;
     }
     auto avg_broadcast_const = ov::op::v0::Constant::create(ngraph::element::f32,
-                                                                ngraph::Shape{mvn_data.W, 8 * mvn_data.num_parts, 1, 1},
-                                                                avg_broadcast);
+                                                            ngraph::Shape{mvn_data.W, 8 * mvn_data.num_parts, 1, 1},
+                                                            avg_broadcast);
 
     // Create average calculation part of the graph
     // We assume C = 1 case (combined channels)
     auto reshape = std::make_shared<ov::opset8::Reshape>(
         input_node,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{4},
-                                         ngraph::Shape{mvn_data.N, 1ull, combined_C_H, mvn_data.W}),
+                                     ngraph::Shape{4},
+                                     ngraph::Shape{mvn_data.N, 1ull, combined_C_H, mvn_data.W}),
         false);
     auto input_4d = std::make_shared<ov::opset8::Reshape>(
         reshape,
@@ -170,19 +169,19 @@ static std::shared_ptr<ov::op::v0::Result> Decompose(const std::shared_ptr<ngrap
     auto input_2d = std::make_shared<ov::opset8::Reshape>(
         reshape,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{2},
-                                         ngraph::Shape{1ull, combined_C_H * mvn_data.W}),
+                                     ngraph::Shape{2},
+                                     ngraph::Shape{1ull, combined_C_H * mvn_data.W}),
         false);
     auto transposed_input_1 = std::make_shared<ov::opset8::Transpose>(
         input_4d,
         ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2}));
     auto transposed_avg_conv_1 = std::make_shared<ov::opset8::Convolution>(transposed_input_1,
-                                                                               neg_avg_weights_const,
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::op::PadType::VALID);
+                                                                           neg_avg_weights_const,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::op::PadType::VALID);
     transposed_avg_conv_1->set_friendly_name("MvnAvg1");
     auto avg_conv_1 = std::make_shared<ov::opset8::Transpose>(
         transposed_avg_conv_1,
@@ -190,19 +189,19 @@ static std::shared_ptr<ov::op::v0::Result> Decompose(const std::shared_ptr<ngrap
     auto reshape_avg_conv_1 = std::make_shared<ov::opset8::Reshape>(
         avg_conv_1,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{4},
-                                         ngraph::Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}),
+                                     ngraph::Shape{4},
+                                     ngraph::Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}),
         false);
     auto transposed_input_2 = std::make_shared<ov::opset8::Transpose>(
         reshape_avg_conv_1,
         ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2}));
     auto transposed_avg_conv_2 = std::make_shared<ov::opset8::Convolution>(transposed_input_2,
-                                                                               avg_broadcast_const,
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::op::PadType::VALID);
+                                                                           avg_broadcast_const,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::op::PadType::VALID);
     transposed_avg_conv_2->set_friendly_name("MvnAvg2");
     auto avg_conv_2 = std::make_shared<ov::opset8::Transpose>(
         transposed_avg_conv_2,
@@ -210,8 +209,8 @@ static std::shared_ptr<ov::op::v0::Result> Decompose(const std::shared_ptr<ngrap
     auto avg_conv_2_2d = std::make_shared<ov::opset8::Reshape>(
         avg_conv_2,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{2},
-                                         ngraph::Shape{1ull, combined_C_H * mvn_data.W}),
+                                     ngraph::Shape{2},
+                                     ngraph::Shape{1ull, combined_C_H * mvn_data.W}),
         false);
     auto subtract_mean = std::make_shared<ov::opset8::Add>(input_2d, avg_conv_2_2d);
     subtract_mean->set_friendly_name("MvnSubMean");
@@ -227,16 +226,14 @@ static std::shared_ptr<ov::op::v0::Result> Decompose(const std::shared_ptr<ngrap
     if (input_node->get_output_shape(0).size() == 3) {
         mvn_output = std::make_shared<ov::opset8::Reshape>(
             pre_output,
-            ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape{3},
-                                             {mvn_data.C, mvn_data.H, mvn_data.W}),
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {mvn_data.C, mvn_data.H, mvn_data.W}),
             false);
     } else {
         mvn_output = std::make_shared<ov::opset8::Reshape>(
             pre_output,
             ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape{4},
-                                             {mvn_data.N, mvn_data.C, mvn_data.H, mvn_data.W}),
+                                         ngraph::Shape{4},
+                                         {mvn_data.N, mvn_data.C, mvn_data.H, mvn_data.W}),
             false);
     }
 

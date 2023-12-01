@@ -70,16 +70,16 @@ protected:
         auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
         auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(params[0],
-                                                                  params[1],
-                                                                  weightsNode,
-                                                                  reccurrenceWeightsNode,
-                                                                  biasNode,
-                                                                  hidden_size,
-                                                                  activations,
-                                                                  activations_alpha,
-                                                                  activations_beta,
-                                                                  clip,
-                                                                  linear_before_reset);
+                                                              params[1],
+                                                              weightsNode,
+                                                              reccurrenceWeightsNode,
+                                                              biasNode,
+                                                              hidden_size,
+                                                              activations,
+                                                              activations_alpha,
+                                                              activations_beta,
+                                                              clip,
+                                                              linear_before_reset);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0))};
         function = std::make_shared<ngraph::Function>(results, params, "gru_cell");

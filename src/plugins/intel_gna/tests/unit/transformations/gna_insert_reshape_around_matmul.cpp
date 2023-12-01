@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <numeric>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -99,13 +99,13 @@ struct InsertReshapeAroundMatmulTest {
         auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, input_shape);
         auto before = std::make_shared<ov::opset8::Relu>(input);
         auto reshape_before_constant = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                        ngraph::Shape{reshape_before_shape.size()},
-                                                                        reshape_before_shape);
+                                                                    ngraph::Shape{reshape_before_shape.size()},
+                                                                    reshape_before_shape);
         auto reshape_before = std::make_shared<ov::opset8::Reshape>(before, reshape_before_constant, false);
         auto matmul = CreateMatmul(reshape_before, matmul_constant_shape, permutation_shape);
         auto reshape_after_constant = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                       ngraph::Shape{reshape_after_shape.size()},
-                                                                       reshape_after_shape);
+                                                                   ngraph::Shape{reshape_after_shape.size()},
+                                                                   reshape_after_shape);
         auto reshape_after = std::make_shared<ov::opset8::Reshape>(matmul, reshape_after_constant, false);
         auto after = std::make_shared<ov::opset8::Relu>(reshape_after);
         return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ov::op::v0::Result>(after)},

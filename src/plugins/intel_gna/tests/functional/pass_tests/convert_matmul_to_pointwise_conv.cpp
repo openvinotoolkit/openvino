@@ -13,11 +13,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/opsets/opset7.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -87,8 +87,8 @@ protected:
         auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
 
         auto pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                  ngraph::Shape{inputShape.size()},
-                                                                  inputShape);
+                                                              ngraph::Shape{inputShape.size()},
+                                                              inputShape);
         auto reshape = std::make_shared<ov::opset7::Reshape>(matmul, pattern, false);
         auto relu = std::make_shared<ov::opset7::Relu>(reshape);
 
@@ -147,11 +147,11 @@ protected:
         auto inputHighNode =
             ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1}, std::vector<float>{inputDataMax});
         auto inputFQ = std::make_shared<ov::opset7::FakeQuantize>(params[0],
-                                                                      inputLowNode,
-                                                                      inputHighNode,
-                                                                      inputLowNode,
-                                                                      inputHighNode,
-                                                                      UINT16_MAX);
+                                                                  inputLowNode,
+                                                                  inputHighNode,
+                                                                  inputLowNode,
+                                                                  inputHighNode,
+                                                                  UINT16_MAX);
 
         size_t elemNum = inputShape[inputShape.size() - 1];
 
@@ -164,11 +164,11 @@ protected:
         auto weightsHighNode =
             ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1}, std::vector<float>{weightsMax});
         auto weightsFQNode = std::make_shared<ov::opset7::FakeQuantize>(weightsNode,
-                                                                            weightsLowNode,
-                                                                            weightsHighNode,
-                                                                            weightsLowNode,
-                                                                            weightsHighNode,
-                                                                            UINT16_MAX);
+                                                                        weightsLowNode,
+                                                                        weightsHighNode,
+                                                                        weightsLowNode,
+                                                                        weightsHighNode,
+                                                                        UINT16_MAX);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(inputFQ, weightsFQNode, false, true);
 
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 1, 1}, std::vector<float>{1.0f});
@@ -181,15 +181,15 @@ protected:
                                                             std::vector<size_t>{1},
                                                             std::vector<float>{inputDataMax * weightsMax * elemNum});
         auto outputFQ = std::make_shared<ov::opset7::FakeQuantize>(add,
-                                                                       outputLowNode,
-                                                                       outputHighNode,
-                                                                       outputLowNode,
-                                                                       outputHighNode,
-                                                                       UINT16_MAX);
+                                                                   outputLowNode,
+                                                                   outputHighNode,
+                                                                   outputLowNode,
+                                                                   outputHighNode,
+                                                                   UINT16_MAX);
 
         auto pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                  ngraph::Shape{inputShape.size()},
-                                                                  inputShape);
+                                                              ngraph::Shape{inputShape.size()},
+                                                              inputShape);
         auto reshape = std::make_shared<ov::opset7::Reshape>(outputFQ, pattern, false);
 
         auto relu = std::make_shared<ov::opset7::Relu>(reshape);

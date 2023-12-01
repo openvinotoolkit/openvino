@@ -11,11 +11,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/opsets/opset7.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -77,29 +77,29 @@ protected:
         auto weightsLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.first * 2});
         auto weightsHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.second * 2});
         auto weightsFQ = std::make_shared<ov::opset7::FakeQuantize>(weights,
-                                                                        weightsLowNode,
-                                                                        weightsHighNode,
-                                                                        weightsLowNode,
-                                                                        weightsHighNode,
-                                                                        levels);
+                                                                    weightsLowNode,
+                                                                    weightsHighNode,
+                                                                    weightsLowNode,
+                                                                    weightsHighNode,
+                                                                    levels);
 
         auto conv1 = std::make_shared<ov::opset7::Convolution>(params[0],
-                                                                   weightsFQ,
-                                                                   std::vector<size_t>{1, 1},
-                                                                   std::vector<ptrdiff_t>{0, 0},
-                                                                   std::vector<ptrdiff_t>{0, 0},
-                                                                   std::vector<size_t>{1, 1},
-                                                                   ngraph::op::PadType::VALID);
+                                                               weightsFQ,
+                                                               std::vector<size_t>{1, 1},
+                                                               std::vector<ptrdiff_t>{0, 0},
+                                                               std::vector<ptrdiff_t>{0, 0},
+                                                               std::vector<size_t>{1, 1},
+                                                               ngraph::op::PadType::VALID);
         auto add1 = std::make_shared<ov::opset7::Add>(
             conv1,
             ngraph::builder::makeConstant<float>(ngPrc, {}, std::vector<float>{0.0f}));
         auto conv2 = std::make_shared<ov::opset7::Convolution>(params[1],
-                                                                   weightsFQ,
-                                                                   std::vector<size_t>{1, 1},
-                                                                   std::vector<ptrdiff_t>{0, 0},
-                                                                   std::vector<ptrdiff_t>{0, 0},
-                                                                   std::vector<size_t>{1, 1},
-                                                                   ngraph::op::PadType::VALID);
+                                                               weightsFQ,
+                                                               std::vector<size_t>{1, 1},
+                                                               std::vector<ptrdiff_t>{0, 0},
+                                                               std::vector<ptrdiff_t>{0, 0},
+                                                               std::vector<size_t>{1, 1},
+                                                               ngraph::op::PadType::VALID);
         auto add2 = std::make_shared<ov::opset7::Add>(
             conv2,
             ngraph::builder::makeConstant<float>(ngPrc, {}, std::vector<float>{0.0f}));
@@ -108,18 +108,10 @@ protected:
             ngraph::builder::makeConstant<float>(ngPrc, {1}, {-weightsMinMax.second * kernelSize * 10.0f});
         auto outHighNode =
             ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.second * kernelSize * 10.0f});
-        auto fq1 = std::make_shared<ov::opset7::FakeQuantize>(add1,
-                                                                  outLowNode,
-                                                                  outHighNode,
-                                                                  outLowNode,
-                                                                  outHighNode,
-                                                                  levels);
-        auto fq2 = std::make_shared<ov::opset7::FakeQuantize>(add2,
-                                                                  outLowNode,
-                                                                  outHighNode,
-                                                                  outLowNode,
-                                                                  outHighNode,
-                                                                  levels);
+        auto fq1 =
+            std::make_shared<ov::opset7::FakeQuantize>(add1, outLowNode, outHighNode, outLowNode, outHighNode, levels);
+        auto fq2 =
+            std::make_shared<ov::opset7::FakeQuantize>(add2, outLowNode, outHighNode, outLowNode, outHighNode, levels);
 
         auto add3 = std::make_shared<ov::opset7::Add>(fq1, fq2);
 

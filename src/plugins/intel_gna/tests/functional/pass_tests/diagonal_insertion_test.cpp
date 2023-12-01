@@ -68,10 +68,10 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
     }
 
     shared_ptr<ov::op::v0::FakeQuantize> CreateFQNode(const Type& type,
-                                          const shared_ptr<ov::Node>& node,
-                                          float fq_min,
-                                          float fq_max,
-                                          std::size_t levels) {
+                                                      const shared_ptr<ov::Node>& node,
+                                                      float fq_min,
+                                                      float fq_max,
+                                                      std::size_t levels) {
         //
         auto fq_inp_min = makeConstant<float>(type, {1}, {fq_min});
         auto fq_inp_max = makeConstant<float>(type, {1}, {fq_max});
@@ -81,10 +81,11 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
     }
 
     std::shared_ptr<ov::op::v1::Reshape> CreateReshapeNode(element::Type in_type,
-                                               shared_ptr<Node> input_node,
-                                               std::vector<size_t> target_shape_vect) {
+                                                           shared_ptr<Node> input_node,
+                                                           std::vector<size_t> target_shape_vect) {
         //
-        const auto target_shape_const = ov::op::v0::Constant::create(in_type, Shape{target_shape_vect.size()}, target_shape_vect);
+        const auto target_shape_const =
+            ov::op::v0::Constant::create(in_type, Shape{target_shape_vect.size()}, target_shape_vect);
         return std::make_shared<ov::op::v1::Reshape>(input_node, target_shape_const, false);
     }
 

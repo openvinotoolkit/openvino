@@ -78,12 +78,10 @@ protected:
         std::shared_ptr<ngraph::Node> weights_node;
         if (firstInConst) {
             std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
-            weights_node =
-                std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0]}, weights);
+            weights_node = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0]}, weights);
         } else {
             std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
-            weights_node =
-                std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
+            weights_node = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
         }
 
         auto matmul = firstInConst ? std::make_shared<ov::op::v0::MatMul>(weights_node, reshape, false, false)
@@ -175,8 +173,7 @@ protected:
 
         std::shared_ptr<ngraph::Node> weights_node;
         std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0] * 2, -0.2f, 0.2f);
-        weights_node =
-            std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
+        weights_node = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
 
         auto matmul = firstInConst ? std::make_shared<ov::op::v0::MatMul>(weights_node, concat, false, false)
                                    : std::make_shared<ov::op::v0::MatMul>(concat, weights_node, false, false);

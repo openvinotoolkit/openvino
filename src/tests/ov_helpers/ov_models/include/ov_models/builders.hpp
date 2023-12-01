@@ -5,9 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <vector>
-
 #include <ov_models/utils/ov_helpers.hpp>
+#include <vector>
 
 #include "common_test_utils/test_enums.hpp"
 #include "openvino/core/node.hpp"

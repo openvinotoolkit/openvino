@@ -11,11 +11,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -76,11 +76,11 @@ protected:
         auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
         auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
         auto fqIn = std::make_shared<ov::opset8::FakeQuantize>(params[0],
-                                                                   lowNodeIn,
-                                                                   highNodeIn,
-                                                                   lowNodeIn,
-                                                                   highNodeIn,
-                                                                   levels16);
+                                                               lowNodeIn,
+                                                               highNodeIn,
+                                                               lowNodeIn,
+                                                               highNodeIn,
+                                                               levels16);
 
         auto constant =
             ngraph::builder::makeConstant<float>(ngPrc,
@@ -89,23 +89,15 @@ protected:
         auto mul = std::make_shared<ov::opset8::Multiply>(params[1], constant);
         auto lowNodeMul = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-1.0f});
         auto highNodeMul = ngraph::builder::makeConstant<float>(ngPrc, {1}, {1.0f});
-        auto fqMul = std::make_shared<ov::opset8::FakeQuantize>(mul,
-                                                                    lowNodeMul,
-                                                                    highNodeMul,
-                                                                    lowNodeMul,
-                                                                    highNodeMul,
-                                                                    levels16);
+        auto fqMul =
+            std::make_shared<ov::opset8::FakeQuantize>(mul, lowNodeMul, highNodeMul, lowNodeMul, highNodeMul, levels16);
 
         auto add = std::make_shared<ov::opset8::Add>(fqIn, fqMul);
 
         auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-11.0f});
         auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {11.0f});
-        auto fqOut = std::make_shared<ov::opset8::FakeQuantize>(add,
-                                                                    lowNodeOut,
-                                                                    highNodeOut,
-                                                                    lowNodeOut,
-                                                                    highNodeOut,
-                                                                    levels16);
+        auto fqOut =
+            std::make_shared<ov::opset8::FakeQuantize>(add, lowNodeOut, highNodeOut, lowNodeOut, highNodeOut, levels16);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fqOut)};
         function = std::make_shared<ngraph::Function>(results, params, "AddOverloadCorrection");

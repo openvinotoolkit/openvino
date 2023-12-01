@@ -33,9 +33,8 @@ protected:
             threshold = 1.0;
         }
 
-        const auto inputReshapePattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
-                                                                                    ngraph::Shape{inputShape.size()},
-                                                                                    inputShape);
+        const auto inputReshapePattern =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape);
         const auto inputReshape = std::make_shared<ov::opset1::Reshape>(params[0], inputReshapePattern, false);
         const auto activation =
             ngraph::builder::makeActivation(inputReshape, ngPrc, activationType, shapes.second, constantsValue);

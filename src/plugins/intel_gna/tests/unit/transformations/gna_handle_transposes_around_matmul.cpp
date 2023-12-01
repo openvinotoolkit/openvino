@@ -11,8 +11,8 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/handle_transposes_around_matmul.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "transformations/handle_transposes_around_matmul.hpp"
 
 namespace handle_transpose_before_matmul {
 
@@ -59,8 +59,8 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(const ngraph::Shape& inpu
     if (create_reshape_instead_of_transpose) {
         auto new_reshape = std::make_shared<ov::opset7::Reshape>(input_params, const_shape, false);
         auto new_shape_after_transpose = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                          ngraph::Shape{reshape_shape.size()},
-                                                                          {reshape_shape[1], reshape_shape[0]});
+                                                                      ngraph::Shape{reshape_shape.size()},
+                                                                      {reshape_shape[1], reshape_shape[0]});
         reshape = std::make_shared<ov::opset7::Reshape>(new_reshape, new_shape_after_transpose, false);
     } else {
         reshape = std::make_shared<ov::opset7::Reshape>(input_params, const_shape, false);
@@ -101,14 +101,12 @@ std::shared_ptr<ngraph::Function> CreateConcatTransposeMatmulFunction(const ngra
     std::shared_ptr<ov::opset7::MatMul> matmul;
 
     if (create_reshape_after_transpose) {
-        auto reshape_after_transpose1_const = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                               ngraph::Shape{reshape1_shape.size()},
-                                                                               reshape1_shape);
+        auto reshape_after_transpose1_const =
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{reshape1_shape.size()}, reshape1_shape);
         auto reshape_after_transpose1 =
             std::make_shared<ov::opset7::Reshape>(transpose1, reshape_after_transpose1_const, false);
-        auto reshape_after_transpose2_const = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                               ngraph::Shape{reshape2_shape.size()},
-                                                                               reshape2_shape);
+        auto reshape_after_transpose2_const =
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{reshape2_shape.size()}, reshape2_shape);
         auto reshape_after_transpose2 =
             std::make_shared<ov::opset7::Reshape>(transpose2, reshape_after_transpose2_const, false);
         matmul = std::make_shared<ov::opset7::MatMul>(reshape_after_transpose1, reshape_after_transpose2);
@@ -144,12 +142,12 @@ std::shared_ptr<ngraph::Function> CreateConcatMatmulFunction(const ngraph::Shape
 
     if (create_reshape_instead_of_transpose) {
         auto new_shape_after_transpose1 = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                           ngraph::Shape{reshape1_shape.size()},
-                                                                           {reshape1_shape[1], reshape1_shape[0]});
+                                                                       ngraph::Shape{reshape1_shape.size()},
+                                                                       {reshape1_shape[1], reshape1_shape[0]});
         auto reshape1 = std::make_shared<ov::opset7::Reshape>(concat1, new_shape_after_transpose1, false);
         auto new_shape_after_transpose2 = ov::op::v0::Constant::create(ngraph::element::i64,
-                                                                           ngraph::Shape{reshape2_shape.size()},
-                                                                           {reshape2_shape[1], reshape2_shape[0]});
+                                                                       ngraph::Shape{reshape2_shape.size()},
+                                                                       {reshape2_shape[1], reshape2_shape[0]});
         auto reshape2 = std::make_shared<ov::opset7::Reshape>(concat2, new_shape_after_transpose2, false);
         matmul = std::make_shared<ov::opset7::MatMul>(reshape1, reshape2);
     } else {
@@ -183,13 +181,13 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(const ngraph::Sh
     const auto matmul_output_shape = node->get_output_shape(0);
 
     if (enable_fq1) {
-        node = std::make_shared<ov::opset7::FakeQuantize>(
-            node,
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
-            255);
+        node =
+            std::make_shared<ov::opset7::FakeQuantize>(node,
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                                                       255);
     }
 
     if (enable_add) {
@@ -214,10 +212,9 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(const ngraph::Sh
     if (create_reshape_before_transpose) {
         auto matmul_output_shape = node->get_output_shape(0);
         std::swap(matmul_output_shape[0], matmul_output_shape[1]);
-        auto reshape_before_transpose_const =
-            ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape{matmul_output_shape.size()},
-                                             matmul_output_shape);
+        auto reshape_before_transpose_const = ov::op::v0::Constant::create(ngraph::element::i64,
+                                                                           ngraph::Shape{matmul_output_shape.size()},
+                                                                           matmul_output_shape);
         node = std::make_shared<ov::opset7::Reshape>(node, reshape_before_transpose_const, false);
     }
 
@@ -252,13 +249,13 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(const ngraph::Shape& inpu
     const auto matmul_output_shape = node->get_output_shape(0);
 
     if (enable_fq1) {
-        node = std::make_shared<ov::opset7::FakeQuantize>(
-            node,
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
-            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
-            255);
+        node =
+            std::make_shared<ov::opset7::FakeQuantize>(node,
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                                                       ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                                                       255);
     }
 
     if (enable_add) {
@@ -286,8 +283,8 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(const ngraph::Shape& inpu
     if (create_reshape_instead_of_transpose) {
         auto reshape_instead_of_transpose_const =
             ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape{matmul_output_shape.size()},
-                                             {matmul_output_shape[1], matmul_output_shape[0]});
+                                         ngraph::Shape{matmul_output_shape.size()},
+                                         {matmul_output_shape[1], matmul_output_shape[0]});
         auto reshape_instead_of_transpose =
             std::make_shared<ov::opset7::Reshape>(node, reshape_instead_of_transpose_const, false);
         reshape = reshape_instead_of_transpose;

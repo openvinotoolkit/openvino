@@ -10,8 +10,8 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/swap_input_matmul_gna.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "transformations/swap_input_matmul_gna.hpp"
 
 namespace testing {
 
@@ -40,12 +40,8 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
         auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        const_input = std::make_shared<ov::opset8::FakeQuantize>(const_input,
-                                                                     input_low,
-                                                                     input_high,
-                                                                     output_low,
-                                                                     output_high,
-                                                                     11);
+        const_input =
+            std::make_shared<ov::opset8::FakeQuantize>(const_input, input_low, input_high, output_low, output_high, 11);
     }
     auto matmul = swappedInputs ? std::make_shared<ov::op::v0::MatMul>(input, const_input, false, needTranspose)
                                 : std::make_shared<ov::op::v0::MatMul>(const_input, input, needTranspose, false);
@@ -71,12 +67,8 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
         auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        final_node = std::make_shared<ov::opset8::FakeQuantize>(final_node,
-                                                                    input_low,
-                                                                    input_high,
-                                                                    output_low,
-                                                                    output_high,
-                                                                    11);
+        final_node =
+            std::make_shared<ov::opset8::FakeQuantize>(final_node, input_low, input_high, output_low, output_high, 11);
     }
 
     if (withAct) {

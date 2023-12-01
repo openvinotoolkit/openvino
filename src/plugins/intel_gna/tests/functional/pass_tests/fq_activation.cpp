@@ -78,20 +78,20 @@ protected:
 
         ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto inputFQNode = std::make_shared<ov::opset1::FakeQuantize>(inputVector[0],
-                                                                          inputLowNode,
-                                                                          inputHighNode,
-                                                                          inputLowNode,
-                                                                          inputHighNode,
-                                                                          levels.first);
+                                                                      inputLowNode,
+                                                                      inputHighNode,
+                                                                      inputLowNode,
+                                                                      inputHighNode,
+                                                                      levels.first);
 
         auto relu =
             ngraph::builder::makeActivation(inputFQNode, ngraph::element::f32, ngraph::helpers::ActivationTypes::Relu);
         auto reluFQNode = std::make_shared<ov::opset1::FakeQuantize>(relu,
-                                                                         inputLowNode,
-                                                                         inputHighNode,
-                                                                         inputLowNode,
-                                                                         inputHighNode,
-                                                                         levels.second);
+                                                                     inputLowNode,
+                                                                     inputHighNode,
+                                                                     inputLowNode,
+                                                                     inputHighNode,
+                                                                     levels.second);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reluFQNode)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQActivation");

@@ -11,11 +11,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -80,8 +80,8 @@ protected:
 
         auto concat = std::make_shared<ov::opset8::Concat>(ngraph::OutputVector{relu1, relu2}, 0);
         auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, in_total_dims_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, in_total_dims_size});
         auto reshape2 = std::make_shared<ov::opset8::Reshape>(concat, pattern2, false);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};

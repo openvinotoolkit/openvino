@@ -12,8 +12,8 @@
 #include <tuple>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "transformations/convert_dwsc_to_scaleshifts.hpp"
 
 namespace testing {
 
@@ -63,23 +63,23 @@ std::shared_ptr<ngraph::Node> createBiasFQ(const std::shared_ptr<ngraph::Node>& 
 }
 
 std::shared_ptr<ov::op::v0::Result> createFunction(const bool& fq,
-                                                       const modelType& model,
-                                                       const ngraph::Output<ngraph::Node>& input_node,
-                                                       const ngraph::Shape& filters_shape,
-                                                       const ngraph::Strides& conv_stride,
-                                                       const ngraph::CoordinateDiff& pads_begin,
-                                                       const ngraph::CoordinateDiff& pads_end,
-                                                       const ngraph::Strides& conv_dilation,
-                                                       const ngraph::Shape& bias_shape,
-                                                       const ngraph::op::PadType& pad_type,
-                                                       std::shared_ptr<ov::opset7::GroupConvolution>& dwsc,
-                                                       std::shared_ptr<ov::op::v0::Constant>& bias_const,
-                                                       std::shared_ptr<ov::opset7::FakeQuantize>& fq_bias) {
+                                                   const modelType& model,
+                                                   const ngraph::Output<ngraph::Node>& input_node,
+                                                   const ngraph::Shape& filters_shape,
+                                                   const ngraph::Strides& conv_stride,
+                                                   const ngraph::CoordinateDiff& pads_begin,
+                                                   const ngraph::CoordinateDiff& pads_end,
+                                                   const ngraph::Strides& conv_dilation,
+                                                   const ngraph::Shape& bias_shape,
+                                                   const ngraph::op::PadType& pad_type,
+                                                   std::shared_ptr<ov::opset7::GroupConvolution>& dwsc,
+                                                   std::shared_ptr<ov::op::v0::Constant>& bias_const,
+                                                   std::shared_ptr<ov::opset7::FakeQuantize>& fq_bias) {
     std::shared_ptr<ngraph::Node> fq_filters;
 
     auto transpose_in_order = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
-                                                                         ngraph::Shape{4},
-                                                                         std::vector<int64_t>{0, 3, 1, 2});
+                                                                     ngraph::Shape{4},
+                                                                     std::vector<int64_t>{0, 3, 1, 2});
     auto transpose_in = std::make_shared<ov::opset7::Transpose>(input_node, transpose_in_order);
 
     if (fq) {
@@ -101,15 +101,15 @@ std::shared_ptr<ov::op::v0::Result> createFunction(const bool& fq,
     }
 
     dwsc = std::make_shared<ov::opset7::GroupConvolution>(transpose_in,
-                                                              fq_filters,
-                                                              conv_stride,
-                                                              pads_begin,
-                                                              pads_end,
-                                                              conv_dilation,
-                                                              pad_type);
+                                                          fq_filters,
+                                                          conv_stride,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          conv_dilation,
+                                                          pad_type);
     auto transpose_out_order = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
-                                                                          ngraph::Shape{4},
-                                                                          std::vector<int64_t>{0, 2, 3, 1});
+                                                                      ngraph::Shape{4},
+                                                                      std::vector<int64_t>{0, 2, 3, 1});
     auto last_op = std::make_shared<ov::opset7::Transpose>(dwsc, transpose_out_order);
 
     if (model == modelType::TranspDWSCBiasTransp || fq) {
@@ -291,16 +291,14 @@ void ConvertDWSCToScaleShiftsTestFixture::SetUp() {
 
 std::shared_ptr<ov::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
     return std::make_shared<ov::opset7::StridedSlice>(
-        input,  // data
+        input,                                                                                      // data
+        ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}),  // begin sice index
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{2},
-                                         {(size_t)0, offset}),  // begin sice index
-        ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{2},
-                                         {(size_t)0, offset + size}),  // end slice index
+                                     ngraph::Shape{2},
+                                     {(size_t)0, offset + size}),  // end slice index
         ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}),  // strides
-        std::vector<int64_t>{1, 0},                                                                        // begin mask
-        std::vector<int64_t>{1, 0});                                                                       // end mask
+        std::vector<int64_t>{1, 0},                                                                    // begin mask
+        std::vector<int64_t>{1, 0});                                                                   // end mask
 }
 
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ov::opset7::FakeQuantize> fq_layer,
@@ -350,9 +348,8 @@ std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ov::opset7::GroupCon
 
     // Constant with zero padding
     if (pads_begin) {
-        const_zero_padding = std::make_shared<ov::op::v0::Constant>(dwsc->get_element_type(),
-                                                                        ngraph::Shape{1, input_channel_count},
-                                                                        0);
+        const_zero_padding =
+            std::make_shared<ov::op::v0::Constant>(dwsc->get_element_type(), ngraph::Shape{1, input_channel_count}, 0);
     }
 
     // Reshape bias const
@@ -383,11 +380,9 @@ std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ov::opset7::GroupCon
 
                 if (first) {
                     first = false;
-                    previous_layer_output =
-                        std::make_shared<ov::opset7::Multiply>(conv_input_slice, conv_filter_slice);
+                    previous_layer_output = std::make_shared<ov::opset7::Multiply>(conv_input_slice, conv_filter_slice);
                     if (bias_const) {
-                        previous_layer_output =
-                            std::make_shared<ov::opset7::Add>(previous_layer_output, reshaped_bias);
+                        previous_layer_output = std::make_shared<ov::opset7::Add>(previous_layer_output, reshaped_bias);
                         previous_layer_output = InsertFQLayer(fq_bias, previous_layer_output);
                     }
                     last_layer_output = previous_layer_output;
@@ -437,8 +432,8 @@ std::shared_ptr<ngraph::Function> ConvertDWSCToScaleShiftsTestFixture::get_refer
     auto flat_input_plane = std::make_shared<ov::opset7::Reshape>(
         input_params,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{2},
-                                         ngraph::Shape{1, ngraph::shape_size(input_shape)}),
+                                     ngraph::Shape{2},
+                                     ngraph::Shape{1, ngraph::shape_size(input_shape)}),
         false);
 
     // Prepare flat filter data
@@ -461,8 +456,8 @@ std::shared_ptr<ngraph::Function> ConvertDWSCToScaleShiftsTestFixture::get_refer
     auto result = std::make_shared<ov::opset7::Reshape>(
         output_plane,
         ov::op::v0::Constant::create(ngraph::element::i64,
-                                         ngraph::Shape{4},
-                                         ngraph::Shape{1, output_channel_count, 1, output_width}),
+                                     ngraph::Shape{4},
+                                     ngraph::Shape{1, output_channel_count, 1, output_width}),
         false);
 
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ov::op::v0::Result>(result)},

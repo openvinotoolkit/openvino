@@ -95,11 +95,11 @@ protected:
         ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto inputFQ = std::make_shared<ov::opset1::FakeQuantize>(inputVector[0],
-                                                                      inputLowNode1,
-                                                                      inputHighNode1,
-                                                                      inputLowNode1,
-                                                                      inputHighNode1,
-                                                                      levels);
+                                                                  inputLowNode1,
+                                                                  inputHighNode1,
+                                                                  inputLowNode1,
+                                                                  inputHighNode1,
+                                                                  levels);
 
         auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {8, inputShape[1], 1, 8}, {1.0f});
         auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32,
@@ -109,29 +109,29 @@ protected:
                                                           std::vector<size_t>{1},
                                                           std::vector<float>{inputDataMax1 * 35});
         auto convWeightsFQNode = std::make_shared<ov::opset1::FakeQuantize>(filterWeightsNode,
-                                                                                convLowNode,
-                                                                                convHighNode,
-                                                                                convLowNode,
-                                                                                convHighNode,
-                                                                                levels);
+                                                                            convLowNode,
+                                                                            convHighNode,
+                                                                            convLowNode,
+                                                                            convHighNode,
+                                                                            levels);
         auto convWeightsFQ = std::dynamic_pointer_cast<ov::opset1::FakeQuantize>(convWeightsFQNode);
 
         auto conv = std::make_shared<ov::opset1::Convolution>(inputFQ,
-                                                                  convWeightsFQ,
-                                                                  std::vector<size_t>{1, 1},
-                                                                  std::vector<ptrdiff_t>{0, 0},
-                                                                  std::vector<ptrdiff_t>{0, 0},
-                                                                  std::vector<size_t>{1, 1},
-                                                                  ngraph::op::PadType::VALID);
+                                                              convWeightsFQ,
+                                                              std::vector<size_t>{1, 1},
+                                                              std::vector<ptrdiff_t>{0, 0},
+                                                              std::vector<ptrdiff_t>{0, 0},
+                                                              std::vector<size_t>{1, 1},
+                                                              ngraph::op::PadType::VALID);
         auto biasesWeightsNode = ngraph::builder::makeConstant(ngPrc, {}, std::vector<float>{0.0f});
         auto add = std::make_shared<ov::opset1::Add>(conv, biasesWeightsNode);
 
         auto convFQNode = std::make_shared<ov::opset1::FakeQuantize>(add,
-                                                                         inputLowNode2,
-                                                                         inputHighNode2,
-                                                                         inputLowNode2,
-                                                                         inputHighNode2,
-                                                                         levels);
+                                                                     inputLowNode2,
+                                                                     inputHighNode2,
+                                                                     inputLowNode2,
+                                                                     inputHighNode2,
+                                                                     levels);
 
         std::shared_ptr<ngraph::Node> node_before_pooling = convFQNode;
         if (reshape) {

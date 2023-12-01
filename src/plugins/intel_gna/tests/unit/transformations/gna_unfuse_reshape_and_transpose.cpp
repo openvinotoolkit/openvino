@@ -11,8 +11,8 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "transformations/unfuse_reshape_and_transpose.hpp"
 
 namespace testing {
 namespace {
@@ -81,8 +81,7 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& con
         return std::make_shared<ov::opset8::FakeQuantize>(node, input_low, input_high, output_low, output_high, 11);
     };
     if (single_reshape_before) {
-        auto reshape_in_const =
-            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, conv_input_shape);
+        auto reshape_in_const = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, conv_input_shape);
         auto reshape_in = std::make_shared<ov::opset8::Reshape>(input, reshape_in_const, false);
         last_node = reshape_in;
     } else {
@@ -105,19 +104,18 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& con
         last_const = conv_weights_fq;
     }
     auto conv = std::make_shared<ov::opset8::Convolution>(last_node,
-                                                              last_const,
-                                                              ngraph::Strides{1, 1},
-                                                              ngraph::CoordinateDiff{0, 0},
-                                                              ngraph::CoordinateDiff{0, 0},
-                                                              ngraph::Strides{1, 1});
+                                                          last_const,
+                                                          ngraph::Strides{1, 1},
+                                                          ngraph::CoordinateDiff{0, 0},
+                                                          ngraph::CoordinateDiff{0, 0},
+                                                          ngraph::Strides{1, 1});
     last_node = conv;
     auto conv_output_shape = conv->get_output_shape(0);
     size_t total_out =
         std::accumulate(std::begin(conv_output_shape), std::end(conv_output_shape), 1, std::multiplies<int>());
     if (with_bias) {
-        auto add_const = ov::op::v0::Constant::create(ngraph::element::f32,
-                                                          ngraph::Shape{1, conv_output_shape.at(1), 1, 1},
-                                                          {1});
+        auto add_const =
+            ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, conv_output_shape.at(1), 1, 1}, {1});
         auto add = std::make_shared<ov::opset8::Add>(conv, add_const);
         last_node = add;
     }
@@ -127,10 +125,10 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& con
     }
     if (with_pool) {
         auto pool = std::make_shared<ov::op::v1::MaxPool>(last_node,
-                                                              ngraph::Strides{1, 1},
-                                                              ngraph::Shape{0, 0},
-                                                              ngraph::Shape{0, 0},
-                                                              ngraph::Shape{1, 1});
+                                                          ngraph::Strides{1, 1},
+                                                          ngraph::Shape{0, 0},
+                                                          ngraph::Shape{0, 0},
+                                                          ngraph::Shape{1, 1});
         last_node = pool;
     }
     if (activation_factory) {
@@ -229,16 +227,15 @@ TEST_P(UnfuseReshapeAndTransposeTestSuiteFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-const std::vector<ActivationFactoryPtr> activationFactories = {
-    nullptr,
-    createActivationFactory<ov::opset8::Relu>(),
-    createActivationFactory<ov::opset8::Sigmoid>(),
-    createActivationFactory<ov::opset8::Tanh>(),
-    createActivationFactory<ov::opset8::Abs>(),
-    createActivationFactory<ov::opset8::Log>(),
-    createActivationFactory<ov::opset8::Exp>(),
-    createActivationFactory<ov::opset8::Sign>(),
-    createActivationFactory<ov::opset8::Clamp>(0.1, 0.2)};
+const std::vector<ActivationFactoryPtr> activationFactories = {nullptr,
+                                                               createActivationFactory<ov::opset8::Relu>(),
+                                                               createActivationFactory<ov::opset8::Sigmoid>(),
+                                                               createActivationFactory<ov::opset8::Tanh>(),
+                                                               createActivationFactory<ov::opset8::Abs>(),
+                                                               createActivationFactory<ov::opset8::Log>(),
+                                                               createActivationFactory<ov::opset8::Exp>(),
+                                                               createActivationFactory<ov::opset8::Sign>(),
+                                                               createActivationFactory<ov::opset8::Clamp>(0.1, 0.2)};
 
 INSTANTIATE_TEST_SUITE_P(
     UnfuseReshapeAndTransposeTestSuite,

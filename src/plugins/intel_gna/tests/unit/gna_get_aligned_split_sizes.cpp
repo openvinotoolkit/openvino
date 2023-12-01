@@ -60,9 +60,7 @@ void RunVariadicSplitSupportedTest(DeviceVersion device_version, std::vector<Var
         auto split = std::make_shared<ov::op::v1::VariadicSplit>(
             std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, input_shape),
             ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({1}), {axis}),
-            ov::op::v0::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape({split_lengths.size()}),
-                                             split_lengths));
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({split_lengths.size()}), split_lengths));
         ASSERT_TRUE(Limitations::is_split_supported(split, false) == result);
     }
 }

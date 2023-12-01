@@ -11,8 +11,8 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/pwl_approximation.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "transformations/pwl_approximation.hpp"
 
 using namespace ov::intel_gna::common;
 
@@ -76,11 +76,10 @@ struct Function<ov::opset9::Power> {
 };
 
 template <typename T>
-using Enable =
-    std::enable_if<std::is_same<T, ov::opset9::Sigmoid>::value || std::is_same<T, ov::opset9::Tanh>::value ||
-                       std::is_same<T, ov::opset9::SoftSign>::value ||
-                       std::is_same<T, ov::opset9::Log>::value || std::is_same<T, ov::opset9::Exp>::value,
-                   int>;
+using Enable = std::enable_if<std::is_same<T, ov::opset9::Sigmoid>::value || std::is_same<T, ov::opset9::Tanh>::value ||
+                                  std::is_same<T, ov::opset9::SoftSign>::value ||
+                                  std::is_same<T, ov::opset9::Log>::value || std::is_same<T, ov::opset9::Exp>::value,
+                              int>;
 template <typename T>
 using EnableWithExtraArg = std::enable_if<std::is_same<T, ov::opset9::Power>::value, int>;
 
@@ -270,10 +269,10 @@ TEST(GnaPwlTest, Log) {
 TEST(GnaPwlTest, Power) {
     for (float exp = 1; exp <= 2.2; exp += 0.1) {
         GnaPWlTestsFixture<ov::opset9::Power> test_instance({1, 32},
-                                                                AreFpEq(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
-                                                                16,
-                                                                exp,
-                                                                1.0);
+                                                            AreFpEq(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
+                                                            16,
+                                                            exp,
+                                                            1.0);
         test_instance.run();
     }
 }

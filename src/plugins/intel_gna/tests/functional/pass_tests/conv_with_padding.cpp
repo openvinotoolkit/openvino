@@ -73,11 +73,11 @@ protected:
         auto input = std::make_shared<ov::op::v0::Parameter>(ng_precision, ngraph::Shape{input_shape});
         auto filter = ngraph::builder::makeConstant<float>(ng_precision, filter_shape, {1.f});
         auto conv = std::make_shared<ov::op::v1::Convolution>(input,
-                                                                  filter,
-                                                                  ov::Strides{1, 1},
-                                                                  padding_size,
-                                                                  padding_size,
-                                                                  ov::Strides{});
+                                                              filter,
+                                                              ov::Strides{1, 1},
+                                                              padding_size,
+                                                              padding_size,
+                                                              ov::Strides{});
 
         auto res = std::make_shared<ov::op::v0::Result>(conv);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{input});

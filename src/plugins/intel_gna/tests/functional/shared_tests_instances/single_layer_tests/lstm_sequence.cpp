@@ -78,18 +78,18 @@ protected:
         std::shared_ptr<ngraph::Node> seq_length =
             ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
         auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0],
-                                                                            params[1],
-                                                                            params[2],
-                                                                            seq_length,
-                                                                            weightsNode,
-                                                                            reccurrenceWeightsNode,
-                                                                            biasNode,
-                                                                            hidden_size,
-                                                                            direction,
-                                                                            activations_alpha,
-                                                                            activations_beta,
-                                                                            activations,
-                                                                            clip);
+                                                                        params[1],
+                                                                        params[2],
+                                                                        seq_length,
+                                                                        weightsNode,
+                                                                        reccurrenceWeightsNode,
+                                                                        biasNode,
+                                                                        hidden_size,
+                                                                        direction,
+                                                                        activations_alpha,
+                                                                        activations_beta,
+                                                                        activations,
+                                                                        clip);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
                                      std::make_shared<ov::op::v0::Result>(lstm_sequence->output(1)),

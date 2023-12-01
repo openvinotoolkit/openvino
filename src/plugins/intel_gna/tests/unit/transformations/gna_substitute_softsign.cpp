@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -31,8 +31,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPower) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        auto input_params =
-            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
+        auto input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
 
         auto abs = std::make_shared<ov::op::v0::Abs>(input_params);
 
@@ -65,8 +64,7 @@ TEST(TransformationTests, SubstituteSoftSignDivide) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        auto input_params =
-            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
+        auto input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
 
         auto abs = std::make_shared<ov::opset8::Abs>(input_params);
 
@@ -96,8 +94,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPowerInvalidAddConst) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        auto input_params =
-            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
+        auto input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
 
         auto abs = std::make_shared<ov::op::v0::Abs>(input_params);
 
@@ -130,8 +127,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPowerInvalidPowerConst) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        auto input_params =
-            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
+        auto input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 64});
 
         auto abs = std::make_shared<ov::op::v0::Abs>(input_params);
 

@@ -11,7 +11,6 @@
 #include "base/import_export_base.hpp"
 #include "ov_models/builders.hpp"
 
-
 namespace LayerTestsDefinitions {
 
 class ImportMultiInput : public FuncTestUtils::ImportNetworkTestBase {

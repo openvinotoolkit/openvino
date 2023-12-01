@@ -328,8 +328,8 @@ struct ConvConcatConcatNHWCAxis {
         auto reshape = std::make_shared<ov::opset10::Reshape>(
             concat2,
             ov::op::v0::Constant::create(ov::element::i64,
-                                          ov::Shape{2},
-                                          ov::Shape{1, shape_size(concat2->get_shape())}),
+                                         ov::Shape{2},
+                                         ov::Shape{1, shape_size(concat2->get_shape())}),
             false);
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape)};

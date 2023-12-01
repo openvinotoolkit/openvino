@@ -9,8 +9,8 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/reorder_activation_and_pooling.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "transformations/reorder_activation_and_pooling.hpp"
 
 namespace testing {
 
@@ -97,17 +97,16 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_init
     bool isAddNodeNeeded) {
     auto input_params_convolution =
         std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-    auto input_params_add =
-        std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
+    auto input_params_add = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
 
     auto weights = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
     auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ov::opset7::Convolution>(input_params_convolution,
-                                                                               weights,
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::Strides{1, 1});
+                                                                           weights,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1});
 
     std::shared_ptr<ngraph::op::Op> last_operation = convolution_operation;
     if (isAddNodeNeeded) {
@@ -117,10 +116,10 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_init
     auto activation = activation_factory->createNode(last_operation);
 
     auto max_pool_operation = std::make_shared<ov::opset7::MaxPool>(activation,
-                                                                        ngraph::Strides{1, 1},
-                                                                        ngraph::Shape{1, 1},
-                                                                        ngraph::Shape{1, 1},
-                                                                        ngraph::Shape{1, 1});
+                                                                    ngraph::Strides{1, 1},
+                                                                    ngraph::Shape{1, 1},
+                                                                    ngraph::Shape{1, 1},
+                                                                    ngraph::Shape{1, 1});
 
     auto result = std::make_shared<ov::op::v0::Result>(max_pool_operation);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -133,17 +132,16 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
     auto input_params_convolution =
         std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
 
-    auto input_params_add =
-        std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
+    auto input_params_add = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
 
     auto weights = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
     auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ov::opset7::Convolution>(input_params_convolution,
-                                                                               weights,
-                                                                               ngraph::Strides{1, 1},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::CoordinateDiff{0, 0},
-                                                                               ngraph::Strides{1, 1});
+                                                                           weights,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1});
 
     std::shared_ptr<ngraph::op::Op> last_operation = convolution_operation;
     if (isAddNodeNeeded) {
@@ -152,10 +150,10 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
     }
 
     auto max_pool_operation = std::make_shared<ov::opset7::MaxPool>(last_operation,
-                                                                        ngraph::Strides{1, 1},
-                                                                        ngraph::Shape{1, 1},
-                                                                        ngraph::Shape{1, 1},
-                                                                        ngraph::Shape{1, 1});
+                                                                    ngraph::Strides{1, 1},
+                                                                    ngraph::Shape{1, 1},
+                                                                    ngraph::Shape{1, 1},
+                                                                    ngraph::Shape{1, 1});
 
     auto activation = activation_factory->createNode(max_pool_operation);
 
@@ -179,15 +177,14 @@ TEST_P(ConvolutionActivationPoolTestFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-const std::vector<ActivationFactoryPtr> activationFactories = {
-    createActivationFactory<ov::opset7::Relu>(),
-    createActivationFactory<ov::opset7::Sigmoid>(),
-    createActivationFactory<ov::opset7::Tanh>(),
-    createActivationFactory<ov::opset7::Abs>(),
-    createActivationFactory<ov::opset7::Log>(),
-    createActivationFactory<ov::opset7::Exp>(),
-    createActivationFactory<ov::opset7::Sign>(),
-    createActivationFactory<ov::opset7::Clamp>(0.1, 0.2)};
+const std::vector<ActivationFactoryPtr> activationFactories = {createActivationFactory<ov::opset7::Relu>(),
+                                                               createActivationFactory<ov::opset7::Sigmoid>(),
+                                                               createActivationFactory<ov::opset7::Tanh>(),
+                                                               createActivationFactory<ov::opset7::Abs>(),
+                                                               createActivationFactory<ov::opset7::Log>(),
+                                                               createActivationFactory<ov::opset7::Exp>(),
+                                                               createActivationFactory<ov::opset7::Sign>(),
+                                                               createActivationFactory<ov::opset7::Clamp>(0.1, 0.2)};
 
 INSTANTIATE_TEST_SUITE_P(ConvolutionActivationPoolTestSuite,
                          ConvolutionActivationPoolTestFixture,
@@ -208,28 +205,28 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
         auto weights = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
         auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ov::opset7::Convolution>(input_params_convolution,
-                                                                                   weights,
-                                                                                   ngraph::Strides{1, 1},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::Strides{1, 1});
+                                                                               weights,
+                                                                               ngraph::Strides{1, 1},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::Strides{1, 1});
 
         auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
         auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
         auto fake_quantize_op = std::make_shared<ov::opset7::FakeQuantize>(convolution_operation,
-                                                                               input_low,
-                                                                               input_high,
-                                                                               output_low,
-                                                                               output_high,
-                                                                               11);
+                                                                           input_low,
+                                                                           input_high,
+                                                                           output_low,
+                                                                           output_high,
+                                                                           11);
 
         auto max_pool_operation = std::make_shared<ov::opset7::MaxPool>(fake_quantize_op,
-                                                                            ngraph::Strides{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1});
+                                                                        ngraph::Strides{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1});
 
         auto result = std::make_shared<ov::op::v0::Result>(max_pool_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -250,28 +247,28 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
         auto weights = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
         auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ov::opset7::Convolution>(input_params_convolution,
-                                                                                   weights,
-                                                                                   ngraph::Strides{1, 1},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::Strides{1, 1});
+                                                                               weights,
+                                                                               ngraph::Strides{1, 1},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::Strides{1, 1});
 
         auto max_pool_operation = std::make_shared<ov::opset7::MaxPool>(convolution_operation,
-                                                                            ngraph::Strides{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1});
+                                                                        ngraph::Strides{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1});
 
         auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
         auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
         auto fake_quantize_op = std::make_shared<ov::opset7::FakeQuantize>(max_pool_operation,
-                                                                               input_low,
-                                                                               input_high,
-                                                                               output_low,
-                                                                               output_high,
-                                                                               11);
+                                                                           input_low,
+                                                                           input_high,
+                                                                           output_low,
+                                                                           output_high,
+                                                                           11);
 
         auto result = std::make_shared<ov::op::v0::Result>(fake_quantize_op);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -299,11 +296,11 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
         auto weights = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
         auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ov::opset7::Convolution>(input_params_convolution,
-                                                                                   weights,
-                                                                                   ngraph::Strides{1, 1},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::Strides{1, 1});
+                                                                               weights,
+                                                                               ngraph::Strides{1, 1},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::Strides{1, 1});
 
         auto add_operation = std::make_shared<ov::opset7::Add>(convolution_operation, input_params_add);
 
@@ -312,17 +309,17 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
         auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
         auto fake_quantize_op = std::make_shared<ov::opset7::FakeQuantize>(add_operation,
-                                                                               input_low,
-                                                                               input_high,
-                                                                               output_low,
-                                                                               output_high,
-                                                                               11);
+                                                                           input_low,
+                                                                           input_high,
+                                                                           output_low,
+                                                                           output_high,
+                                                                           11);
 
         auto max_pool_operation = std::make_shared<ov::opset7::MaxPool>(fake_quantize_op,
-                                                                            ngraph::Strides{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1});
+                                                                        ngraph::Strides{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1});
 
         auto result = std::make_shared<ov::op::v0::Result>(max_pool_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -346,30 +343,30 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
         auto weights = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
         auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ov::opset7::Convolution>(input_params_convolution,
-                                                                                   weights,
-                                                                                   ngraph::Strides{1, 1},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::Strides{1, 1});
+                                                                               weights,
+                                                                               ngraph::Strides{1, 1},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::CoordinateDiff{0, 0},
+                                                                               ngraph::Strides{1, 1});
 
         auto add_operation = std::make_shared<ov::opset7::Add>(convolution_operation, input_params_add);
 
         auto max_pool_operation = std::make_shared<ov::opset7::MaxPool>(add_operation,
-                                                                            ngraph::Strides{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1},
-                                                                            ngraph::Shape{1, 1});
+                                                                        ngraph::Strides{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1});
 
         auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
         auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
         auto fake_quantize_op = std::make_shared<ov::opset7::FakeQuantize>(max_pool_operation,
-                                                                               input_low,
-                                                                               input_high,
-                                                                               output_low,
-                                                                               output_high,
-                                                                               11);
+                                                                           input_low,
+                                                                           input_high,
+                                                                           output_low,
+                                                                           output_high,
+                                                                           11);
 
         auto result = std::make_shared<ov::op::v0::Result>(fake_quantize_op);
         reference_func =

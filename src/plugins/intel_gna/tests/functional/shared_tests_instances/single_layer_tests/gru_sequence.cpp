@@ -79,18 +79,18 @@ protected:
             ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
 
         auto gru_sequence = std::make_shared<ov::op::v5::GRUSequence>(params[0],
-                                                                          params[1],
-                                                                          seq_length,
-                                                                          weightsNode,
-                                                                          reccurrenceWeightsNode,
-                                                                          biasNode,
-                                                                          hidden_size,
-                                                                          direction,
-                                                                          activations,
-                                                                          activations_alpha,
-                                                                          activations_beta,
-                                                                          clip,
-                                                                          linear_before_reset);
+                                                                      params[1],
+                                                                      seq_length,
+                                                                      weightsNode,
+                                                                      reccurrenceWeightsNode,
+                                                                      biasNode,
+                                                                      hidden_size,
+                                                                      direction,
+                                                                      activations,
+                                                                      activations_alpha,
+                                                                      activations_beta,
+                                                                      clip,
+                                                                      linear_before_reset);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence->output(0)),
                                      std::make_shared<ov::op::v0::Result>(gru_sequence->output(1))};

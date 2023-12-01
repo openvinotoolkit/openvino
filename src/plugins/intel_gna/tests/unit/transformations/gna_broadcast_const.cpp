@@ -12,8 +12,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
-#include "transformations/broadcast_const.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "transformations/broadcast_const.hpp"
 
 namespace testing {
 
@@ -32,12 +32,7 @@ std::shared_ptr<ov::opset8::FakeQuantize> createFakeQuantizeNode(std::shared_ptr
     auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, {}, {0.5});
     auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, {}, {-0.5});
     auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, {}, {0.5});
-    return std::make_shared<ov::opset8::FakeQuantize>(parent_node,
-                                                          input_low,
-                                                          input_high,
-                                                          output_low,
-                                                          output_high,
-                                                          0);
+    return std::make_shared<ov::opset8::FakeQuantize>(parent_node, input_low, input_high, output_low, output_high, 0);
 }
 
 using Node = std::shared_ptr<ov::op::Op>;
@@ -137,20 +132,18 @@ std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape
     const auto input_params_1 = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, data_shape);
     ngraph::ParameterVector params{input_params_1};
 
-    const auto constant_1 = ov::op::v0::Constant::create(ngraph::element::Type_t::f32,
-                                                             ngraph::Shape{const_shape_dims},
-                                                             const_shape_values);
+    const auto constant_1 =
+        ov::op::v0::Constant::create(ngraph::element::Type_t::f32, ngraph::Shape{const_shape_dims}, const_shape_values);
 
     Node const_last_node = constant_1;
 
     if (add_scaleshift) {
-        const auto input_params_2 =
-            std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, data_shape);
+        const auto input_params_2 = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, data_shape);
         params.push_back(input_params_2);
 
         const auto constant_2 = ov::op::v0::Constant::create(ngraph::element::Type_t::f32,
-                                                                 ngraph::Shape{const_shape_dims},
-                                                                 const_shape_values);
+                                                             ngraph::Shape{const_shape_dims},
+                                                             const_shape_values);
 
         const_last_node = std::make_shared<ngraph::op::ScaleShiftIE>(input_params_2,
                                                                      constant_1,

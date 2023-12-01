@@ -175,9 +175,8 @@ protected:
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
-        auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{shape_size},
-                                                                   inputShape);
+        auto pattern1 =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape_size}, inputShape);
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         auto permute1 = CreateTranspose(reshape1, shape_size, true);
@@ -189,8 +188,8 @@ protected:
                                              size_t(1),
                                              std::multiplies<size_t>());
         auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, conv_out_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, conv_out_size});
         auto reshape2 = std::make_shared<ov::opset1::Reshape>(permute2, pattern2, false);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};
@@ -313,9 +312,8 @@ protected:
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
-        auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{shape_size},
-                                                                   inputShape);
+        auto pattern1 =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape_size}, inputShape);
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         auto permute1 = CreateTranspose(reshape1, shape_size, true);
@@ -327,8 +325,8 @@ protected:
                                              size_t(1),
                                              std::multiplies<size_t>());
         auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, conv_out_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, conv_out_size});
         auto reshape2 = std::make_shared<ov::opset1::Reshape>(permute2, pattern2, false);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};
@@ -400,9 +398,8 @@ protected:
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
-        auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{shape_size},
-                                                                   inputShape);
+        auto pattern1 =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape_size}, inputShape);
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         auto permute1 = CreateTranspose(reshape1, shape_size, true);
@@ -415,8 +412,8 @@ protected:
                                              size_t(1),
                                              std::multiplies<size_t>());
         auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, conv_out_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, conv_out_size});
         auto reshape2 = std::make_shared<ov::opset1::Reshape>(permute2, pattern2, false);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};
@@ -487,17 +484,15 @@ protected:
             std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
-        auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{shape_size},
-                                                                   inputShape);
+        auto pattern1 =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape_size}, inputShape);
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(split->output(0), pattern1, false);
 
         auto permute1 = CreateTranspose(reshape1, shape_size, true);
         auto conv1 = CreateConvolution(permute1, ngPrc, inputShape);
 
-        auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{shape_size},
-                                                                   inputShape);
+        auto pattern2 =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape_size}, inputShape);
         auto reshape2 = std::make_shared<ov::opset1::Reshape>(split->output(1), pattern2, false);
 
         auto permute2 = CreateTranspose(reshape2, shape_size, true);
@@ -511,8 +506,8 @@ protected:
                                              size_t(1),
                                              std::multiplies<size_t>());
         auto pattern3 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, conv_out_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, conv_out_size});
         auto reshape3 = std::make_shared<ov::opset1::Reshape>(permute3, pattern3, false);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape3)};
@@ -588,8 +583,8 @@ protected:
         size_t mul_dim = inputShape.size() == 4 && inputShape[1] > 1 ? 1 : (inputShape.size() - 2);
         multipleInputShape[mul_dim] *= splits_num;
         auto pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                  ngraph::Shape{multipleInputShape.size()},
-                                                                  multipleInputShape);
+                                                              ngraph::Shape{multipleInputShape.size()},
+                                                              multipleInputShape);
         auto reshape = std::make_shared<ov::opset1::Reshape>(params[0], pattern, false);
         auto permute = CreateTranspose(reshape, shape_size, true);
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -607,8 +602,8 @@ protected:
                                               size_t(1),
                                               std::multiplies<size_t>());
         auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, conv1_out_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, conv1_out_size});
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(permute1, pattern1, false);
 
         auto conv2 = CreateConvolution(split->output(1), ngPrc, inputShape);
@@ -618,8 +613,8 @@ protected:
                                               size_t(1),
                                               std::multiplies<size_t>());
         auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, conv2_out_size});
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, conv2_out_size});
         auto reshape2 = std::make_shared<ov::opset1::Reshape>(permute2, pattern2, false);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reshape1, reshape2}, 1);

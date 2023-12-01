@@ -9,9 +9,9 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "transformations/remove_converts.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 namespace testing {
 
