@@ -295,6 +295,7 @@ class Decompose2DConvTestInvalidFixture : public ov::test::TestsCommon,
                                           public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
+    void TearDown() override;
 
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
@@ -339,12 +340,17 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
                                               conv_params);
 }
 
+void Decompose2DConvTestInvalidFixture::TearDown() {
+    Limitations::deinit();
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 class Decompose2DConvTestFixture : public ov::test::TestsCommon,
                                    public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
+    void TearDown() override;
 
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
                                                     const modelType& model,
@@ -383,6 +389,10 @@ void Decompose2DConvTestFixture::SetUp() {
                                     graph_data,
                                     conv_params);
     reference_function = get_reference(fq, model, input_shape, graph_data, conv_params);
+}
+
+void Decompose2DConvTestFixture::TearDown() {
+    Limitations::deinit();
 }
 
 std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::Add> conv_bias,

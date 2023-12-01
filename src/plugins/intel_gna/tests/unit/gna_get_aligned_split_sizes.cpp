@@ -65,6 +65,7 @@ void RunVariadicSplitSupportedTest(DeviceVersion device_version, std::vector<Var
                                              split_lengths));
         ASSERT_TRUE(Limitations::is_split_supported(split, false) == result);
     }
+    Limitations::deinit();
 }
 
 TEST(CheckSplitSupported, CheckVariadicSplitSupported_GNA3_5) {
@@ -108,6 +109,7 @@ void RunSplitSupportedTest(DeviceVersion device_version, std::vector<SplitParame
             num_splits);
         ASSERT_TRUE(Limitations::is_split_supported(split, false) == result);
     }
+    Limitations::deinit();
 }
 
 TEST(CheckSplitSupported, CheckSplitSupported_GNA3_5) {
