@@ -250,7 +250,7 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[openvino.runtime.Node]
+            :type results: List[openvino.runtime.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
             :type sinks: List[openvino.runtime.Node]
             :param variables: List of variables.
@@ -791,7 +791,7 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def("remove_variable",
-              &ov::Model::remove_parameter,
+              &ov::Model::remove_variable,
               py::arg("variable"),
               R"(
                     Delete variable from the list of variables.
