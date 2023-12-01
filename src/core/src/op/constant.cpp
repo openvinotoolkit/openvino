@@ -123,7 +123,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::vec
                           ").");
     const auto is_checked_and_identical = has_single_value && (this_shape_size != 1);
 
-    if (type == element::string){
+    if (type == element::string) {
         fill_or_write(is_checked_and_identical, type, values);
     } else if (type.is_real()) {
         fill_or_write(is_checked_and_identical, type, from_string_vector<double>(values));
