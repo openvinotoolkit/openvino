@@ -1155,15 +1155,6 @@ bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
-std::vector<ov::PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node) {
-    std::vector<PartialShape> out;
-    out.reserve(node.get_input_size());
-    for (size_t i = 0; i < node.get_input_size(); ++i) {
-        out.push_back(node.get_input_partial_shape(i));
-    }
-    return out;
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
@@ -1433,6 +1424,15 @@ std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors
     shapes.reserve(tensors.size());
     for (const auto& t : tensors) {
         shapes.emplace_back(t.get_shape());
+    }
+    return shapes;
+}
+
+std::vector<PartialShape> get_node_input_partial_shapes(const Node& node) {
+    std::vector<PartialShape> shapes;
+    shapes.reserve(node.get_input_size());
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        shapes.push_back(node.get_input_partial_shape(i));
     }
     return shapes;
 }

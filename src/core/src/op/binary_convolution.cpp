@@ -52,9 +52,7 @@ void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
 
     // TODO: Add NodeValidationCheck to filters et once u1 is supported in OpenVINO Python API
     // (#52715)
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
     if (num_spatial != util::num_spatial_undefined) {

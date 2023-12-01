@@ -85,9 +85,7 @@ void FakeConvert::validate_and_infer_types() {
     default:
         OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", out_type);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_type, output_shapes[0]);
 }

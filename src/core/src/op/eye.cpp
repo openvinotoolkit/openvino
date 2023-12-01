@@ -58,9 +58,7 @@ void Eye::validate_and_infer_types() {
                               input_et);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
     set_output_type(0, get_out_type(), output_shape);
 }
 

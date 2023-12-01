@@ -52,9 +52,7 @@ void op::v3::ROIAlign::validate_and_infer_types() {
     const auto out_et = roi_align::validate::data_and_roi_et(this);
     roi_align::validate::batch_indicies_et(this);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto output_shape = shape_infer(this, input_shapes).front();
     set_output_type(0, out_et, output_shape);
@@ -125,9 +123,7 @@ void op::v9::ROIAlign::validate_and_infer_types() {
     const auto out_et = roi_align::validate::data_and_roi_et(this);
     roi_align::validate::batch_indicies_et(this);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto output_shape = shape_infer(this, input_shapes).front();
     set_output_type(0, out_et, output_shape);

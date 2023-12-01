@@ -21,10 +21,8 @@ ov::op::util::ConvertColorI420Base::ConvertColorI420Base(const Output<Node>& arg
 void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
     OV_OP_SCOPE(v8_Convert_I420_Base_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& y_type = get_input_element_type(0);
     auto out_type = y_type;
