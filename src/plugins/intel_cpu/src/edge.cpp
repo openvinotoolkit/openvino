@@ -554,7 +554,8 @@ NodePtr Edge::modifiedInPlace() const {
         auto& outConfs = childSPD->getConfig().outConfs;
         for (size_t i = 0; i < outConfs.size(); ++i) {
             const auto& conf = outConfs[i];
-            if (childPort < 0 || conf.inPlace() != childPort) {
+            if (childPort < 0 || conf.inPlace() != childPort ||
+                Type::MemoryInput == childNode->getType()) { //exception type, it doesn't modify memory
                 continue;
             }
             if (childNode->isExecutable()) {
