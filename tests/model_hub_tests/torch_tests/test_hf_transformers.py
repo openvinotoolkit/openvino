@@ -88,6 +88,26 @@ class TestTransformersModel(TestTorchConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif 'pix2struct' in mi.tags:
+            from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+            model = Pix2StructForConditionalGeneration.from_pretrained(name)
+            processor = AutoProcessor.from_pretrained(name)
+
+            import requests
+            from PIL import Image
+            image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
+            image = Image.open(requests.get(image_url, stream=True).raw)
+            question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
+            inputs = processor(images=image, text=question, return_tensors="pt")
+            example = dict(inputs)
+
+            class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, flattened_patches, attention_mask):
+                    return self.model.generate(flattened_patches=flattened_patches, attention_mask=attention_mask)
+            model = DecoratorModelForSeq2SeqLM(model)
         elif "mms-lid" in name:
             # mms-lid model config does not have auto_model attribute, only direct loading available
             from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
@@ -149,6 +169,27 @@ class TestTransformersModel(TestTorchConvertModel):
                 0, 255, [16, 3, 224, 224]).to(torch.float32))
             inputs = processor(video, return_tensors="pt")
             example = dict(inputs)
+        elif 'text-to-speech' in mi.tags:
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained(name)
+            text = "some example text in the English language"
+            inputs = tokenizer(text, return_tensors="pt")
+            example = dict(inputs)
+        elif 'musicgen' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForTextToWaveform
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForTextToWaveform.from_pretrained(name, torchscript=True)
+            
+            inputs = processor(
+                text=["80s pop track with bassy drums and synth"],
+                padding=True,
+                return_tensors="pt",
+            )
+            example = dict(inputs)
+            # works for facebook/musicgen-small
+            pad_token_id = model.generation_config.pad_token_id
+            example["decoder_input_ids"] = torch.ones(
+                (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
         else:
             try:
                 if auto_model == "AutoModelForCausalLM":

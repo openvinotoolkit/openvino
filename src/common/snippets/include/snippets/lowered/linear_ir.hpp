@@ -29,6 +29,9 @@ public:
     // Minimal advised work amount that should be processed during one call of the executable produced by Subgraph::generate
     // Set by a backend, should be large enough to compensate for the kernel call overheads
     size_t m_min_kernel_work_amount = 256;
+    // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
+    // False if all Buffers will have uniqie ID and offsets in the Linear IR
+    bool m_are_buffers_optimized = true;
 };
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
