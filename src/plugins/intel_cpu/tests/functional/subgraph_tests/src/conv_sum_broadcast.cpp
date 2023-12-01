@@ -248,12 +248,10 @@ public:
 
     void SetUp() override {
         abs_threshold = 1.001f;
-        using ov::pass::ConvertPrecision;
         ConvSumInPlaceTest::SetUp();
         functionRefs = function->clone();
-        ngraph::pass::ConvertPrecision<ov::element::Type_t::i8, ov::element::Type_t::f32>().run_on_model(functionRefs);
-        ngraph::pass::ConvertPrecision<ov::element::Type_t::u8, ov::element::Type_t::f32>().run_on_model(functionRefs);
-        functionRefs->validate_nodes_and_infer_types();
+        convert_precisions.insert({ov::element::i8, ov::element::f32});
+        convert_precisions.insert({ov::element::u8, ov::element::f32});
     }
 };
 
