@@ -902,3 +902,79 @@ TEST_F(condition_gpu_tests, empty_body) {
 TEST_F(condition_gpu_tests, empty_body_cached) {
     this->test_empty_body(true);
 }
+
+TEST(condition_gpu, empty_body_with_different_shapes) {
+    ov::PartialShape oned_pshape = ov::PartialShape{ 1 };
+    ov::PartialShape const_pshape = ov::PartialShape{ };
+    cldnn::layout const_layout = { const_pshape, data_types::f32, format::bfyx };
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto input_mem = engine.allocate_memory({ oned_pshape, data_types::f32, format::bfyx });
+    auto predicate_mem = engine.allocate_memory({ oned_pshape, data_types::u8, format::bfyx });
+    auto const_mem = engine.allocate_memory({ oned_pshape, data_types::f32, format::bfyx });
+
+    primitive_id input_id1           = "input1";
+    primitive_id input_id2           = "input2";
+    primitive_id input_id3           = "input3";
+    primitive_id pred_id             = "predicate";
+    primitive_id branch_input_id1    = "branch_input1";
+    primitive_id branch_input_id2    = "branch_input2";
+    primitive_id branch_input_id3    = "branch_input3";
+    primitive_id cond_id             = "condi";
+
+    condition::branch branch_true;
+    {
+        topology branch_true_topology;
+        branch_true_topology.add(
+            input_layout(branch_input_id1, { oned_pshape, data_types::f32, format::bfyx }),
+            input_layout(branch_input_id2, { oned_pshape, data_types::f32, format::bfyx }),
+            eltwise("eltwise", { input_info(branch_input_id1), input_info(branch_input_id2) }, eltwise_mode::sum)
+        );
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
+        branch_true.input_map.insert({input_id1, branch_input_id1});
+        branch_true.input_map.insert({input_id2, branch_input_id2});
+        branch_true.output_map.insert({0, "eltwise"});
+    }
+
+    condition::branch branch_false;
+    {
+        topology branch_false_topology;
+        branch_false_topology.add(
+            input_layout(branch_input_id3, { const_pshape, data_types::f32, format::bfyx }),
+            reorder("result", input_info(branch_input_id3), format::bfyx, data_types::f32)
+        );
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
+        branch_false.input_map.insert({input_id3, branch_input_id3});
+        branch_false.output_map.insert({0, "result"});
+    }
+
+    topology topology;
+    topology.add(input_layout(input_id1, input_mem->get_layout()));
+    topology.add(input_layout(input_id2, input_mem->get_layout()));
+    topology.add(input_layout(input_id3, const_layout));
+    topology.add(input_layout(pred_id, predicate_mem->get_layout()));
+    topology.add(condition(cond_id, {input_info(pred_id), input_info(input_id1), input_info(input_id2), input_info(input_id3)}, branch_true, branch_false)
+    );
+
+    network net(engine, topology, config);
+    ASSERT_FALSE(net.get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+
+    set_values(predicate_mem, { 0 });
+    net.set_input_data(pred_id, predicate_mem);
+    set_values(input_mem, { 1 });
+    net.set_input_data(input_id1, input_mem);
+    net.set_input_data(input_id2, input_mem);
+    set_values(const_mem, { 1 });
+    auto const_zero_mem = engine.reinterpret_buffer(*const_mem, const_layout);
+    net.set_input_data(input_id3, const_zero_mem);
+
+    auto outputs = net.execute();
+    ASSERT_EQ(outputs.size(), 1);
+    auto output = outputs.begin()->second.get_memory();
+    auto output_layout = output->get_layout();
+    auto out_pshape = output_layout.get_partial_shape();
+    ASSERT_EQ(out_pshape, oned_pshape);
+}
