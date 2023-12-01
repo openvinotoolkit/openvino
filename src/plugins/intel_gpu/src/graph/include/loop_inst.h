@@ -318,8 +318,6 @@ public:
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
 
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
     void validate_backedges(loop_node const & node) const;
 
     void update_shape() override { primitive_inst::update_shape(); }

@@ -672,35 +672,6 @@ loop_inst::typed_primitive_inst(network & network, loop_node const & node)
     _num_iterations_id = node.get_num_iterations_id();
 }
 
-void loop_inst::save(BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _input_primitive_maps;
-    ob << _output_primitive_maps;
-    ob << _back_edges;
-    ob << _trip_count_id;
-    ob << _initial_execution_id;
-    ob << _current_iteration_id;
-    ob << _condition_id;
-    ob << _num_iterations_id;
-    body_network->save(ob);
-}
-
-void loop_inst::load(BinaryInputBuffer& ib) {
-    parent::load(ib);
-    preproc_memories_done = false,
-    ib >> _input_primitive_maps;
-    ib >> _output_primitive_maps;
-    ib >> _back_edges;
-    ib >> _trip_count_id;
-    ib >> _initial_execution_id;
-    ib >> _current_iteration_id;
-    ib >> _condition_id;
-    ib >> _num_iterations_id;
-    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream(), 0);
-    // set inner network to the new loaded _impl_params from cache.
-    set_inner_networks({body_network});
-}
-
 void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_iteration) {
     if (is_dynamic) {
         std::vector<cldnn::memory::ptr> external_outputs;
