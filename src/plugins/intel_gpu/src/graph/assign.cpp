@@ -43,4 +43,8 @@ void assign_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> variable_id;
     set_variable_id(variable_id);
 }
+
+void assign_inst::on_execute() {
+    _outputs[0] = input_memory_ptr(0);
+}
 } // namespace cldnn

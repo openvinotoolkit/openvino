@@ -16,7 +16,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
+#include "parallel_custom_arena.hpp"
 
 namespace ov {
 namespace threading {

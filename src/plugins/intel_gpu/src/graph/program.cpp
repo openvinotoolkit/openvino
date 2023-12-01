@@ -114,11 +114,12 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
+    bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
     task_executor_config.update_executor_config(task_executor_config._streams,
                                                 1,
                                                 task_executor_config._threadPreferredCoreType,
-                                                false);
+                                                enable_cpu_pinning);
 
     return task_executor_config;
 }
@@ -658,7 +659,7 @@ void program::mark_if_constant(program_node& node) {
 
 // mark if the node is in data flow assuming that all dependencies are marked properly
 void program::mark_if_data_flow(program_node& node) {
-    if (node.is_type<mutable_data>() || node.is_type<input_layout>()) {
+    if (node.is_type<mutable_data>() || node.is_type<input_layout>() || node.is_type<read_value>()) {
         node.data_flow = true;
     } else {
         node.data_flow = false;
