@@ -1130,7 +1130,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         };
         std::string path = get_dir_path(get_config());
         if (!path.empty()) {
-            std::ofstream ofs(path + "cldnn_program_exec_" + get_fixed_str(get_id()) + "_" + get_fixed_str(get_program()->get_id()) + "_" + get_fixed_str(curr_iter) + ".graph");
+            std::ofstream ofs(path + "cldnn_program_exec_" + get_fixed_str(get_id()) + "_" + get_fixed_str(get_program()->get_id())
+                              + "_" + get_fixed_str(curr_iter, 5) + ".graph");
             dump_graph_init(ofs, *get_program(), [&](const primitive_id& id) -> std::shared_ptr<primitive_inst> {
                 return get_primitive(id);
             });
