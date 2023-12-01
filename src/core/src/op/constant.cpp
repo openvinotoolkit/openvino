@@ -18,6 +18,7 @@
 #include "openvino/core/type/nf4.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 
 namespace ov {
 namespace op {
@@ -76,6 +77,8 @@ Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
             tensor->get_size_in_bytes(),
             tensor);
     } else {
+        OPENVINO_ASSERT(m_element_type != ov::element::string,
+                        "Creation of string constant for ngraph::runtime::Tensor is supported only for HostTensor");
         constructor_validate_and_infer_types();
         allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
@@ -93,7 +96,32 @@ Constant::Constant(const Tensor& tensor)
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
-    : Constant(type, shape, from_string_vector(values)) {
+    : Constant(false, type, shape) {
+    NODE_VALIDATION_CHECK(this,
+                          values.size() == 1 || values.size() == shape_size(m_shape),
+                          "Did not get the expected number of literals for a constant of shape ",
+                          m_shape,
+                          " (got ",
+                          values.size(),
+                          ", expected ",
+                          (shape_size(m_shape) == 1 ? "" : "1 or "),
+                          shape_size(m_shape),
+                          ").");
+
+    if (type == element::string) {
+        if (values.size() == 1) {
+            fill_data(type, values.front());
+        } else {
+            write_values(values);
+        }
+    } else {
+        auto parsed_values = from_string_vector(values);
+        if (parsed_values.size() == 1) {
+            fill_data(type, parsed_values.front());
+        } else {
+            write_values(parsed_values);
+        }
+    }
     const auto is_checked_and_identical = (values.size() == 1) && (shape_size(m_shape) != 1);
     update_identical_flags(is_checked_and_identical, is_checked_and_identical);
 }
@@ -108,14 +136,28 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 }
 
 void Constant::allocate_buffer(bool memset_allocation) {
-    m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
-    if (memset_allocation) {
-        std::memset(m_data->get_ptr(), 0, m_data->size());
+    // memset_allocation flag is to switch on initialization of objects in memory for element::string type
+    // and set memory to zero for numeric element types
+    if (m_element_type == ov::element::string) {
+        auto num_elements = shape_size(m_shape);
+        m_data = std::make_shared<StringAlignedBuffer>(num_elements, mem_size(), host_alignment(), memset_allocation);
+    } else {
+        m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
+        if (memset_allocation) {
+            std::memset(m_data->get_ptr(), 0, m_data->size());
+        }
     }
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(false, type, shape) {
-    std::memcpy(get_data_ptr_nc(), data, mem_size());
+    if (m_element_type == ov::element::string) {
+        auto num_elements = shape_size(m_shape);
+        const std::string* src_strings = static_cast<const std::string*>(data);
+        std::string* dst_strings = static_cast<std::string*>(get_data_ptr_nc());
+        std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
+    } else {
+        std::memcpy(get_data_ptr_nc(), data, mem_size());
+    }
 }
 
 Constant::Constant(const Constant& other)
@@ -161,11 +203,17 @@ struct ValueToString : ov::element::NotSupported<std::string> {
     static result_type visit(const Constant* const c, const size_t index) {
         return std::to_string(c->get_element_value<ET>(index));
     }
+
+    template <ov::element::Type_t ET,
+              typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
+    static result_type visit(const Constant* const c, const size_t index) {
+        return c->get_element_value<ET>(index);
+    }
 };
 
 std::string Constant::convert_value_to_string(size_t index) const {
     using namespace ov::element;
-    return IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4>::apply<
+    return IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
         ValueToString>(get_element_type(), this, index);
 }
 
@@ -211,12 +259,18 @@ struct ValuesToString : ov::element::NotSupported<void> {
             strs.push_back(std::to_string(v));
         }
     }
+
+    template <ov::element::Type_t ET,
+              typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
+    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
+        strs = c->cast_vector<std::string>();
+    }
 };
 
 std::vector<std::string> Constant::get_value_strings() const {
     std::vector<std::string> out;
     using namespace ov::element;
-    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4>::apply<
+    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
         ValuesToString>(get_element_type(), this, out);
     return out;
 }
@@ -293,6 +347,9 @@ bool Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::u64:
         all_identical = test_bitwise_identical(get_data_ptr<uint64_t>(), shape_size(m_shape));
         break;
+    case element::Type_t::string:
+        all_identical = test_bitwise_identical(get_data_ptr<std::string>(), shape_size(m_shape));
+        break;
     default:
         all_identical = false;
         break;
@@ -328,7 +385,15 @@ bool Constant::evaluate(TensorVector& outputs, const TensorVector& inputs) const
         outputs.emplace_back(m_element_type, m_shape);
     else
         outputs[0].set_shape(m_shape);
-    std::memcpy(outputs[0].data(), get_data_ptr(), outputs[0].get_byte_size());
+    if (m_element_type == ov::element::string) {
+        auto num_elements = shape_size(m_shape);
+        const std::string* src_strings = static_cast<const std::string*>(get_data_ptr());
+        std::string* dst_strings = static_cast<std::string*>(outputs[0].data());
+        std::copy_n(src_strings, num_elements, dst_strings);
+    } else {
+        std::memcpy(outputs[0].data(), get_data_ptr(), outputs[0].get_byte_size());
+    }
+
     return true;
 }
 
