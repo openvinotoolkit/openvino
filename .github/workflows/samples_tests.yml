@@ -39,25 +39,25 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Check variables
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
         run: |
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-          echo "INSTALL_DIR from env.: ${{ env.INSTALL_DIR }}"
-          echo "github.workspace: ${{ github.workspace }}"
-          ls -laR $GITHUB_WORKSPACE
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
-          pushd "$GITHUB_WORKSPACE/install"
-            tar -xzf openvino_package.tar.gz -C $GITHUB_WORKSPACE/install
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
           popd
-          pushd "$GITHUB_WORKSPACE/install/tests"
-            tar -xzf openvino_tests.tar.gz -C $GITHUB_WORKSPACE/install
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
-        run: $GITHUB_WORKSPACE/install/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -79,7 +79,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Build cpp samples - GCC
-        run: $GITHUB_WORKSPACE/install/samples/cpp/build_samples.sh -i $GITHUB_WORKSPACE/install -b $GITHUB_WORKSPACE/build/cpp_samples
+        run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
@@ -87,14 +87,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           apt-get install -y clang
-          $GITHUB_WORKSPACE/install/samples/cpp/build_samples.sh -i $GITHUB_WORKSPACE/install -b $GITHUB_WORKSPACE/build/cpp_samples_clang
+          $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples_clang
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
           CC: clang
           CXX: clang++
 
       - name: Build c samples
-        run: $GITHUB_WORKSPACE/install/samples/c/build_samples.sh -i $GITHUB_WORKSPACE/install -b $GITHUB_WORKSPACE/build/c_samples
+        run: $INSTALL_DIR/samples/c/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/c_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
@@ -105,24 +105,24 @@ jobs:
       - name: Samples tests
         # if: fromJSON(needs.smart_ci.outputs.affected_components).samples.test
         run: |
-          export WORKSPACE=$GITHUB_WORKSPACE/install
-          export IE_APP_PATH=$GITHUB_WORKSPACE/install/samples_bin
-          export IE_APP_PYTHON_PATH=$GITHUB_WORKSPACE/install/samples/python
-          export SHARE=$GITHUB_WORKSPACE/install/tests/smoke_tests/samples_smoke_tests_data
+          export WORKSPACE=$INSTALL_DIR
+          export IE_APP_PATH=$INSTALL_DIR/samples_bin
+          export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
+          export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
 
-          python3 -m pip install --ignore-installed PyYAML -r $GITHUB_WORKSPACE/install/tests/smoke_tests/requirements.txt
+          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -sv $GITHUB_WORKSPACE/install/tests/smoke_tests \
-            --env_conf $GITHUB_WORKSPACE/install/tests/smoke_tests/env_config.yml \
-            --junitxml=$GITHUB_WORKSPACE/install/tests/TEST-SamplesSmokeTests.xml
+          python3 -m pytest -sv $INSTALL_TEST_DIR/smoke_tests \
+            --env_conf $INSTALL_TEST_DIR/smoke_tests/env_config.yml \
+            --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-samples-${{ runner.arch }}
+          name: test-results-samples
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'warn'
