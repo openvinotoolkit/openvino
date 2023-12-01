@@ -1,4 +1,11 @@
+<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats/convert_model_tutorials.md
 # Model Conversion Tutorials {#openvino_docs_MO_DG_prepare_model_convert_model_tutorials}
+=======
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_tutorials}
+
+[LEGACY] Model Conversion Tutorials
+====================================================
+>>>>>>> b9fc9dfdff (add legacy note to mo section):docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats/convert_model_tutorials.rst
 
 @sphinxdirective
 
@@ -36,6 +43,12 @@
 .. meta::
    :description: Get to know conversion methods for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models.
 
+
+.. danger::
+
+   The code described in the tutorials has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
 
 This section provides a set of tutorials that demonstrate conversion methods for specific 
 TensorFlow, ONNX, and PyTorch models. Note that these instructions do not cover all use 

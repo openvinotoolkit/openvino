@@ -1,17 +1,30 @@
+<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats.md
 # Supported Model Formats {#Supported_Model_Formats_MO_DG}
 
 @sphinxdirective
+=======
+.. {#Supported_Model_Formats_MO_DG}
+
+[LEGACY] Supported Model Formats
+=====================================
+
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <Supported_Model_Formats>` article. 
+>>>>>>> b9fc9dfdff (add legacy note to mo section):docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats.rst
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
-   openvino_docs_MO_DG_prepare_model_convert_model_tutorials
+   Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>
+   Converting an ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>
+   Converting a PyTorch Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>
+   Converting a TensorFlow Lite Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>
+   Converting a PaddlePaddle Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>
+   Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>
 
 .. meta::
    :description: Learn about supported model formats and the methods used to convert, read, and compile them in OpenVINO™.

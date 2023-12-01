@@ -1,4 +1,4 @@
-# Converting a TensorFlow Lite Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite}
+# [LEGACY] Converting a TensorFlow Lite Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite}
 
 @sphinxdirective
 
@@ -6,6 +6,11 @@
    :description: Learn how to convert a model from a 
                  TensorFlow Lite format to the OpenVINO Intermediate Representation.
 
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Lite Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>` article.
 
 To convert a TensorFlow Lite model, use the ``mo`` script and specify the path to the input ``.tflite`` model file:
 

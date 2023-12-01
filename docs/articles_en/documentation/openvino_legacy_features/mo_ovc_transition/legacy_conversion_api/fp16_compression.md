@@ -1,7 +1,20 @@
+<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/fp16_compression.md
 # Compressing a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
 
 @sphinxdirective
+=======
+.. {#openvino_docs_MO_DG_FP16_Compression}
 
+[LEGACY] Compressing a Model to FP16
+=============================================
+
+.. danger::
+>>>>>>> b9fc9dfdff (add legacy note to mo section):docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/fp16_compression.rst
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>` article. 
+   
 By default, when IR is saved all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.
 It results in creating a "compressed ``FP16`` model", which occupies about half of
 the original space in the file system. The compression may introduce a minor drop in accuracy,

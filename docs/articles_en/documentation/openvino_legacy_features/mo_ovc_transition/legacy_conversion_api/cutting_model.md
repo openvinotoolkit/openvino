@@ -1,7 +1,11 @@
-# Cutting Off Parts of a Model  {#openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model}
+# [LEGACY] Cutting Off Parts of a Model  {#openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model}
 
 @sphinxdirective
 
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+   
 Sometimes, it is necessary to remove parts of a model when converting it to OpenVINO IR. This chapter describes how to do it, using model conversion API parameters. Model cutting applies mostly to TensorFlow models, which is why TensorFlow will be used in this chapter's examples, but it may be also useful for other frameworks.
 
 Purpose of Model Cutting

@@ -6,6 +6,11 @@
    :description: Learn how to convert a pre-trained Mask 
                  R-CNN model from ONNX to the OpenVINO Intermediate Representation.
 
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
 
 The instructions below are applicable **only** to the Mask R-CNN model converted to the ONNX file format from the `maskrcnn-benchmark model <https://github.com/facebookresearch/maskrcnn-benchmark>`__.
 

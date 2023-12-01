@@ -6,7 +6,12 @@
    :description: Learn how to convert a RNN-T model
                  from PyTorch to the OpenVINO Intermediate Representation.
 
+.. danger::
 
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   
 This guide covers conversion of RNN-T model from `MLCommons <https://github.com/mlcommons>`__ repository. Follow
 the instructions below to export a PyTorch model into ONNX, before converting it to IR:
 

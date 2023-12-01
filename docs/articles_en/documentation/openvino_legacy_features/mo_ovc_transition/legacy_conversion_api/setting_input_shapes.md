@@ -1,4 +1,10 @@
-# Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
+# [LEGACY] Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
+
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the  :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` article. 
 
 With model conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
 
