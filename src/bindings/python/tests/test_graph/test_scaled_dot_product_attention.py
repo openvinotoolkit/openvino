@@ -10,7 +10,7 @@ from openvino.runtime import PartialShape, Type
 
 
 @pytest.mark.parametrize(
-    ["query", "key", "value", "attention_mask", "scale", "causal", "dtype", "bool_attention"],
+    ("query", "key", "value", "attention_mask", "scale", "causal", "dtype", "bool_attention"),
     [
         ([1, 7, 10], [1, 10, 10], [1, 10, 5], None, None, None, np.float64, False),
         ([3, 3, 7, 10], [3, 3, 10, 10], [3, 3, 10, 5], [1, 3, 7, 10], True, True, np.float32, False),
@@ -47,7 +47,7 @@ def test_scaled_dot_product_attention(query, key, value, attention_mask, scale, 
 
 
 @pytest.mark.parametrize(
-    ["query", "key", "value", "attention_mask", "scale", "causal", "dtype", "bool_attention"],
+    ("query", "key", "value", "attention_mask", "scale", "causal", "dtype", "bool_attention"),
     [
         ([1, 7, 10], [1, 10, 10], [1, 10, 5], None, None, None, np.float64, False),
         ([3, 3, 7, 10], [3, 3, 10, 10], [3, 3, 10, 5], [1, 3, 7, 10], True, True, np.float32, False),
