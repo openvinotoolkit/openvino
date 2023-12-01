@@ -51,8 +51,8 @@ void attn_acc_value(float* out, float weight, T* v, size_t S) {
     }
 }
 
-template<typename T>
-float dot_product(T* a, T* b, size_t n) {
+template<typename TA, typename TB>
+float dot_product(TA* a, TB* b, size_t n) {
     size_t i = 0;
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)
@@ -119,7 +119,7 @@ void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     }
 }
 
-template <typename T>
+template <typename T, typename T2>
 void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              const ov::intel_cpu::PlainTensor& present_key,
                              const ov::intel_cpu::PlainTensor& present_value,
@@ -161,7 +161,7 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         auto b_kv = beams ? beams.at<int32_t>({b, pk}) : b;
         for (size_t pq = 0; pq < q_len; pq++) {
             buf_attn_w.at<float>({b, h, pq, pk}) = dot_product(&query.at<T>({b, h, pq, 0}),
-                                                               &present_key.at<T>({b_kv, h, pk, 0}, true),
+                                                               &present_key.at<T2>({b_kv, h, pk, 0}, true),
                                                                S);
         }
     });
@@ -202,7 +202,7 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 parallel_it_init(start, pv, kv_len, b, B, h, H);
             for (size_t iwork = start; iwork < end; ++iwork) {
                 auto b_kv = beams ? beams.at<int32_t>({b, pv}) : b;
-                auto* v = &present_value.at<T>({b_kv, h, pv, 0}, true);
+                auto* v = &present_value.at<T2>({b_kv, h, pv, 0}, true);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     attn_acc_value(&buf_attn_score.at<float>({ithr, b, pq, h, 0}),
                                    buf_attn_w.at<float>({b, h, pq, pv}),
@@ -238,31 +238,46 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       bool auto_causal,
                       float d_scale) {
     if (query.get_precision() == ov::element::bf16) {
-        mha_single_token_kernel<ov::bfloat16>(query,
-                                             present_key,
-                                             present_value,
-                                             alibi_mask,
-                                             attention_mask,
-                                             beams,
-                                             output_emb,
-                                             buf_attn_w,
-                                             buf_attn_score,
-                                             has_out_transpose,
-                                             auto_causal,
-                                             d_scale);
+        mha_single_token_kernel<ov::bfloat16, ov::bfloat16>(query,
+                                                            present_key,
+                                                            present_value,
+                                                            alibi_mask,
+                                                            attention_mask,
+                                                            beams,
+                                                            output_emb,
+                                                            buf_attn_w,
+                                                            buf_attn_score,
+                                                            has_out_transpose,
+                                                            auto_causal,
+                                                            d_scale);
     } else if (query.get_precision() == ov::element::f32) {
-        mha_single_token_kernel<float>(query,
-                                      present_key,
-                                      present_value,
-                                      alibi_mask,
-                                      attention_mask,
-                                      beams,
-                                      output_emb,
-                                      buf_attn_w,
-                                      buf_attn_score,
-                                      has_out_transpose,
-                                      auto_causal,
-                                      d_scale);
+        if (present_key.get_precision() == ov::element::f16) {
+            mha_single_token_kernel<float, ov::float16>(query,
+                                                        present_key,
+                                                        present_value,
+                                                        alibi_mask,
+                                                        attention_mask,
+                                                        beams,
+                                                        output_emb,
+                                                        buf_attn_w,
+                                                        buf_attn_score,
+                                                        has_out_transpose,
+                                                        auto_causal,
+                                                        d_scale);
+        } else {
+            mha_single_token_kernel<float, float>(query,
+                                                present_key,
+                                                present_value,
+                                                alibi_mask,
+                                                attention_mask,
+                                                beams,
+                                                output_emb,
+                                                buf_attn_w,
+                                                buf_attn_score,
+                                                has_out_transpose,
+                                                auto_causal,
+                                                d_scale);
+        }
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());
     }

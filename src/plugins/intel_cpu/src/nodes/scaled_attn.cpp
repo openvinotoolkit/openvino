@@ -30,6 +30,8 @@
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 
+#include "common/cpu_convert.h"
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
 using namespace dnnl::impl::cpu::x64;
@@ -518,24 +520,20 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             past_k_output.reset(outputs[1]);
             past_v_output.reset(outputs[2]);
             parallel_for3d(B, Hk, L1, [&](size_t b, size_t h, size_t m) {
-                std::memcpy(&past_k_output.at<T>({b, h, m + L0, 0}),
-                            &k_input.at<T>({b, h, m, 0}),
-                            S * sizeof(T));
-                std::memcpy(&past_v_output.at<T>({b, h, m + L0, 0}),
-                            &v_input.at<T>({b, h, m, 0}),
-                            S * sizeof(T));
+                cpu_convert(&k_input.at<T>({b, h, m, 0}), &past_k_output.at<T2>({b, h, m + L0, 0}), precision_of<T>::value, precision_of<T2>::value, S);
+                cpu_convert(&v_input.at<T>({b, h, m, 0}), &past_v_output.at<T2>({b, h, m + L0, 0}), precision_of<T>::value, precision_of<T2>::value, S);
             });
             if (!config.is_concat_inplaced) {
                 PlainTensor past_k_input, past_v_input;
                 past_k_input.reset(past_k_mem);
                 past_v_input.reset(inputs[past_k_idx + 1]);
                 parallel_for3d(B, Hk, L0, [&](size_t b, size_t h, size_t m) {
-                    std::memcpy(&past_k_output.at<T>({b, h, m, 0}),
-                                &past_k_input.at<T>({b, h, m, 0}),
-                                S * sizeof(T));
-                    std::memcpy(&past_v_output.at<T>({b, h, m, 0}),
-                                &past_v_input.at<T>({b, h, m, 0}),
-                                S * sizeof(T));
+                    std::memcpy(&past_k_output.at<T2>({b, h, m, 0}),
+                                &past_k_input.at<T2>({b, h, m, 0}),
+                                S * sizeof(T2));
+                    std::memcpy(&past_v_output.at<T2>({b, h, m, 0}),
+                                &past_v_input.at<T2>({b, h, m, 0}),
+                                S * sizeof(T2));
                 });
             }
         } else {
