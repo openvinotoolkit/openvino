@@ -76,7 +76,12 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             }
         }
     } else {
-        result.push_back(this->getChild());
+        auto childNode = this->getChild();
+        if (Type::ShapeOf == childNode->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return;
+        }
+        result.push_back(childNode);
     }
 }
 
