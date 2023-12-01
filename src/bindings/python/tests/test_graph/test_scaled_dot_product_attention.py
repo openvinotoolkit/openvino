@@ -67,7 +67,7 @@ def test_scaled_dot_product_attention_const(query, key, value, attention_mask, s
             attention_dtype = np.bool_
         else:
             attention_dtype = dtype
-        kwargs["attention_mask"] = ops.constant(np.random.random(attention_mask).astype(dtype))
+        kwargs["attention_mask"] = ops.constant(np.random.random(attention_mask).astype(attention_dtype))
 
     if scale is not None:
         kwargs["scale"] = ops.constant(np.array(np.random.random()).astype(dtype))
