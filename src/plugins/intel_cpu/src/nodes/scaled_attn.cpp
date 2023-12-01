@@ -512,12 +512,16 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             v_input.assert_dims({B, 0, L1, S}, true);
             auto past_k_idx = inputs.size() - 2;
             auto past_k_mem = inputs[past_k_idx + 0];
-            L0 = past_k_mem->getStaticDims()[2];
+            L0 = config.config.is_lbhs_input ? past_k_mem->getStaticDims()[0] : past_k_mem->getStaticDims()[2];
             // k,v may support multiquery
-            auto Hk = past_k_mem->getStaticDims()[1];
-            // [B, H, L0, S]
+            auto Hk = config.config.is_lbhs_input ? past_k_mem->getStaticDims()[2] : past_k_mem->getStaticDims()[1];
             past_k_output.reset(outputs[1]);
             past_v_output.reset(outputs[2]);
+            if (config.config.is_lbhs_input) {
+                // [L, B, H, S] -> [B, H, L, S]
+                past_k_output = past_k_output.permute({1, 2, 0, 3});
+                past_v_output = past_v_output.permute({1, 2, 0, 3});
+            }
             attn_memcpy(k_input, v_input, past_k_output, past_v_output, Hk, L0);
             if (!config.is_concat_inplaced) {
                 PlainTensor past_k_input, past_v_input;

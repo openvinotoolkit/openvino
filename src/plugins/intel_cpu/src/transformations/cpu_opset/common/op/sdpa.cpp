@@ -52,12 +52,11 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
                                           i);
                 }
             }
-
-            if (this->m_config.is_lbhs_input) {
+        }
+        if (this->m_config.is_lbhs_input) {
                 past_kv_ps[0] += q_ps[0];
-            } else {
+        } else {
                 past_kv_ps[q_ps.size() - 2] += q_ps[q_ps.size() - 2];
-            }
         }
     }
     if (this->m_config.is_lbhs_input) {
