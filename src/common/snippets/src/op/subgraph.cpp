@@ -39,7 +39,6 @@
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
-#include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
@@ -453,19 +452,12 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
-    lowered::pass::PassPipeline buffer_pipeline;
-    buffer_pipeline.register_pass<lowered::pass::IdentifyBuffers>();
-    buffer_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
-    buffer_pipeline.register_pass(buffer_allocation_pass);
-    buffer_pipeline.run(linear_ir);
-
     lowered::pass::PassPipeline final_pipeline;
+    final_pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
+    final_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
-
-    lowering_result.buffer_scratchpad_size = buffer_allocation_pass->get_scratchpad_size();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
