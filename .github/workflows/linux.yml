@@ -316,7 +316,7 @@ jobs:
   Samples:
     needs: Build
     # if: fromJSON(needs.smart_ci.outputs.affected_components).samples
-    uses: ./.github/workflows/samples_tests.yml
+    uses: ./.github/workflows/tests/samples.yml
     with:
       runner: 'ubuntu-20.04'
       image: 'ubuntu:20.04'
