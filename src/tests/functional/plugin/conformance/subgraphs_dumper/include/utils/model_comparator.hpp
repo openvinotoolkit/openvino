@@ -50,10 +50,15 @@ public:
     std::unordered_map<std::string, std::string>
     get_matched_ops(const std::shared_ptr<ov::Model>& subgraph,
                     const std::shared_ptr<ov::Model>& graph) const;
+
+    bool
+    is_intersected(const std::shared_ptr<ov::Model>& model,
+                   const std::shared_ptr<ov::Model>& model_ref) const;
                                 
     void set_match_coefficient(float _match_coefficient);
     float get_match_coefficient() { return match_coefficient; }
     void set_shape_strict_match(bool is_shape_strict_match);
+    void set_match_attributes(bool match_attributes);
 
 protected:
     ov::tools::subgraph_dumper::MatchersManager m_manager = ov::tools::subgraph_dumper::MatchersManager();

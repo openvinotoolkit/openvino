@@ -11,7 +11,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/core/model.hpp"
-
+#include "openvino/openvino.hpp"
+#include "utils/model.hpp"
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
@@ -134,6 +135,27 @@ TEST_F(ModelComparatorTest, is_subgraph) {
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_0, test_model_1)));
     ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_1, test_model_1)));
+}
+
+TEST_F(ModelComparatorTest, is_subgraph_0) {
+    // ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
+    // ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_0_1));
+    // auto is_subgraph = model_comparator->is_subgraph(test_model_0_0, test_model_0_1);
+    // ASSERT_TRUE(std::get<0>(is_subgraph));
+    // ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_1));
+    // ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_0, test_model_1)));
+    // ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
+    // ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_1, test_model_1)));
+    auto core = ov::Core();
+    auto subgraph = core.read_model("/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/3635367053289334155.xml",
+                                     "/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/3635367053289334155.bin");
+    auto graph = core.read_model("/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/2187230577033786516.xml",
+                                  "/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/2187230577033786516.bin");
+    auto in_info_sub = ov::util::get_input_info_by_model(subgraph);
+    auto in_info_g = ov::util::get_input_info_by_model(graph);
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
+    auto a = model_comparator->is_subgraph(subgraph, graph, in_info_sub, in_info_g);
+    ASSERT_TRUE(std::get<0>(a));
 }
 
 }  // namespace

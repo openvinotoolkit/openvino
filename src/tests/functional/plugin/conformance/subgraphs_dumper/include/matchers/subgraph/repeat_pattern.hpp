@@ -46,14 +46,9 @@ protected:
                                 const std::shared_ptr<ov::Model>& pattern,
                                 const ov::NodeVector& pattern_node_vector,
                                 const std::map<std::string, ov::conformance::InputInfo>& in_info);
-    std::vector<std::vector<NodePair>>
-    get_ordered_nodes(const std::vector<size_t>& start_node_vec, const ov::NodeVector& q);
     std::vector<ov::NodeVector>
-    post_process_patterns(const std::vector<std::vector<NodePair>>& patterns);
-    // void
-    // get_node_queque(ov::NodeVector& queue,
-    //                 const std::shared_ptr<ov::Node>& node);
-
+    get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
+                          const ov::NodeVector& ordered_ops);
 };
 
 }  // namespace subgraph_dumper
