@@ -10,6 +10,7 @@
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -55,21 +56,21 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
-        auto fq1 = std::make_shared<ngraph::opset8::FakeQuantize>(
+        auto relu = std::make_shared<ov::opset8::Relu>(params[0]);
+        auto fq1 = std::make_shared<ov::opset8::FakeQuantize>(
             relu,
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {10.}),
             static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
         auto constant = ngraph::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
-        auto fq2 = std::make_shared<ngraph::opset8::FakeQuantize>(
+        auto fq2 = std::make_shared<ov::opset8::FakeQuantize>(
             constant,
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-10}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-10.}),
+            ov::op::v0::Constant::create(ngraph::element::f32, {1}, {10.}),
             static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fq1, fq2}, 1);
         function = std::make_shared<ngraph::Function>(concat, params, "WeighableLayerWithoutFq");

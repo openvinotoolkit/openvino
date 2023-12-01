@@ -15,6 +15,7 @@
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
     {ngraph::helpers::ActivationTypes::Sigmoid, "Sigmoid"},
@@ -91,7 +92,7 @@ protected:
 
         auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * -inputDataMax});
         auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * inputDataMax});
-        auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(params[0],
+        auto fqIn = std::make_shared<ov::opset8::FakeQuantize>(params[0],
                                                                    lowNodeIn,
                                                                    highNodeIn,
                                                                    lowNodeIn,
@@ -102,24 +103,24 @@ protected:
             ngPrc,
             shape,
             ov::test::utils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
-        auto add = std::make_shared<ngraph::opset8::Add>(fqIn, constant);
+        auto add = std::make_shared<ov::opset8::Add>(fqIn, constant);
 
         auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMin});
         auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMax});
-        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(add, lowNode, highNode, lowNode, highNode, levels32);
+        auto fq = std::make_shared<ov::opset8::FakeQuantize>(add, lowNode, highNode, lowNode, highNode, levels32);
 
         auto tanh = ngraph::builder::makeActivation(fq, ngPrc, act);
 
         auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMin)});
         auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMax)});
-        auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(tanh,
+        auto fqOut = std::make_shared<ov::opset8::FakeQuantize>(tanh,
                                                                     lowNodeOut,
                                                                     highNodeOut,
                                                                     lowNodeOut,
                                                                     highNodeOut,
                                                                     levels16);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(fqOut)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fqOut)};
         function = std::make_shared<ngraph::Function>(results, params, "TanhFq");
     }
 

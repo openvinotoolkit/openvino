@@ -97,10 +97,10 @@ private:
     std::shared_ptr<ov::Model> getMulFunction(const ngraph::Shape input_shape) {
         const ngraph::element::Type net_precision = ngraph::element::f32;
 
-        auto input = std::make_shared<ngraph::opset8::Parameter>(net_precision, input_shape);
-        auto multiplier = std::make_shared<ngraph::opset8::Constant>(net_precision, input_shape);
-        auto matmul = std::make_shared<ngraph::opset8::MatMul>(input, multiplier, false, true);
-        auto result = std::make_shared<ngraph::opset8::Result>(matmul);
+        auto input = std::make_shared<ov::op::v0::Parameter>(net_precision, input_shape);
+        auto multiplier = std::make_shared<ov::op::v0::Constant>(net_precision, input_shape);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, multiplier, false, true);
+        auto result = std::make_shared<ov::op::v0::Result>(matmul);
         auto function = std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "MatMul");
         return function;
     }

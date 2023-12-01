@@ -77,7 +77,7 @@ protected:
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
 
         ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto inputFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(inputVector[0],
+        auto inputFQNode = std::make_shared<ov::opset1::FakeQuantize>(inputVector[0],
                                                                           inputLowNode,
                                                                           inputHighNode,
                                                                           inputLowNode,
@@ -86,14 +86,14 @@ protected:
 
         auto relu =
             ngraph::builder::makeActivation(inputFQNode, ngraph::element::f32, ngraph::helpers::ActivationTypes::Relu);
-        auto reluFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(relu,
+        auto reluFQNode = std::make_shared<ov::opset1::FakeQuantize>(relu,
                                                                          inputLowNode,
                                                                          inputHighNode,
                                                                          inputLowNode,
                                                                          inputHighNode,
                                                                          levels.second);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reluFQNode)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reluFQNode)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQActivation");
     }
 };

@@ -16,8 +16,10 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 using namespace ngraph;
+using namespace ngraph::opset7;
 
 namespace LayerTestsDefinitions {
 

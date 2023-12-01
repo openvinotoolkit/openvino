@@ -78,7 +78,7 @@ protected:
         std::shared_ptr<ngraph::Node> seq_length =
             ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
 
-        auto gru_sequence = std::make_shared<ngraph::opset8::GRUSequence>(params[0],
+        auto gru_sequence = std::make_shared<ov::op::v5::GRUSequence>(params[0],
                                                                           params[1],
                                                                           seq_length,
                                                                           weightsNode,
@@ -92,8 +92,8 @@ protected:
                                                                           clip,
                                                                           linear_before_reset);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(gru_sequence->output(0)),
-                                     std::make_shared<ngraph::opset8::Result>(gru_sequence->output(1))};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence->output(0)),
+                                     std::make_shared<ov::op::v0::Result>(gru_sequence->output(1))};
         function = std::make_shared<ngraph::Function>(results, params, "gru_sequence");
 
         bool is_pure_sequence = m_mode == SequenceTestsMode::PURE_SEQ;

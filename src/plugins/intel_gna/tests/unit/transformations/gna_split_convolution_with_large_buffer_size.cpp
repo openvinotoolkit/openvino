@@ -13,6 +13,7 @@
 #include "common/gna_target.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
+#include "openvino/opsets/opset7.hpp"
 
 using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::target;
@@ -23,12 +24,12 @@ namespace {
 struct Graph {
     std::shared_ptr<ngraph::Function> createFunction();
 
-    std::shared_ptr<ngraph::opset7::Parameter> input_params;
+    std::shared_ptr<ov::op::v0::Parameter> input_params;
     ngraph::OutputVector output_nodes;
 };
 
 std::shared_ptr<ngraph::Function> Graph::createFunction() {
-    auto result = std::make_shared<ngraph::opset7::Result>(output_nodes.front());
+    auto result = std::make_shared<ov::op::v0::Result>(output_nodes.front());
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
@@ -102,7 +103,7 @@ using CreateBaseDecoratorPtr = std::unique_ptr<CreateBaseDecorator>;
 
 Graph CreateBaseDecorator::build() {
     Graph graph;
-    graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, input_data_shape_);
+    graph.input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, input_data_shape_);
     return graph;
 }
 
@@ -120,9 +121,9 @@ private:
 };
 
 ngraph::Output<ngraph::Node> CreateConvolution::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
-    auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32, kernel_shape_, {1});
+    auto kernel = ov::op::v0::Constant::create(ngraph::element::f32, kernel_shape_, {1});
 
-    return std::make_shared<ngraph::opset7::Convolution>(parent_node,
+    return std::make_shared<ov::op::v1::Convolution>(parent_node,
                                                          kernel,
                                                          ngraph::Strides{1, 1},
                                                          ngraph::CoordinateDiff{0, 0},
@@ -142,16 +143,16 @@ public:
 protected:
     void updateGraph(Graph& graph) override {
         auto split_node_c1 =
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
         auto split_node_c2 =
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
         auto split_node =
-            std::make_shared<ngraph::opset7::VariadicSplit>(graph.input_params, split_node_c1, split_node_c2);
+            std::make_shared<ov::opset7::VariadicSplit>(graph.input_params, split_node_c1, split_node_c2);
 
-        auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32, kernel_shape_, {1});
+        auto kernel = ov::op::v0::Constant::create(ngraph::element::f32, kernel_shape_, {1});
 
         for (int i = 0; i < split_shape_.size(); ++i) {
-            auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(split_node->output(i),
+            auto convolution_operation = std::make_shared<ov::opset7::Convolution>(split_node->output(i),
                                                                                        kernel,
                                                                                        ngraph::Strides{1, 1},
                                                                                        ngraph::CoordinateDiff{0, 0},
@@ -175,8 +176,8 @@ protected:
 };
 
 ngraph::Output<ngraph::Node> CreateAdd::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
-    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-    return std::make_shared<ngraph::opset7::Add>(parent_node, bias);
+    auto bias = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    return std::make_shared<ov::op::v1::Add>(parent_node, bias);
 }
 
 class CreateFakeQuantize : public CreateAppendableGraphDecorator {
@@ -188,11 +189,11 @@ protected:
 };
 
 ngraph::Output<ngraph::Node> CreateFakeQuantize::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
-    auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-    auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-    auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-    auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-    return std::make_shared<ngraph::opset7::FakeQuantize>(parent_node,
+    auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+    auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+    auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+    return std::make_shared<ov::op::v0::FakeQuantize>(parent_node,
                                                           input_low,
                                                           input_high,
                                                           output_low,
@@ -210,7 +211,7 @@ protected:
 
 void CreateConcat::updateGraph(Graph& graph) {
     ngraph::OutputVector new_graph_output;
-    new_graph_output.emplace_back(std::make_shared<ngraph::opset7::Concat>(graph.output_nodes, 3));
+    new_graph_output.emplace_back(std::make_shared<ov::op::v0::Concat>(graph.output_nodes, 3));
     graph.output_nodes.swap(new_graph_output);
 }
 

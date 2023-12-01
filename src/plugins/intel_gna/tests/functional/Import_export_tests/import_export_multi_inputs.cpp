@@ -11,6 +11,7 @@
 #include "base/import_export_base.hpp"
 #include "ov_models/builders.hpp"
 
+
 namespace LayerTestsDefinitions {
 
 class ImportMultiInput : public FuncTestUtils::ImportNetworkTestBase {
@@ -25,7 +26,7 @@ protected:
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
-        auto result = std::make_shared<ngraph::opset7::Result>(mul1);
+        auto result = std::make_shared<ov::op::v0::Result>(mul1);
 
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
     }
