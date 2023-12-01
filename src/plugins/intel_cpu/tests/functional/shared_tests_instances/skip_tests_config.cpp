@@ -208,10 +208,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 122094
         R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
         // Issue 110112
-        R"(smoke_Deconv_2D_Blocked_FP16/.*brgemm_avx512_amx.*)",
-        R"(nightly_Deconv_2D_Blocked_FP16/.*brgemm_avx512_amx.*)",
-        R"(smoke_Deconv_3D_Blocked_FP16/.*brgemm_avx512_amx.*)",
-        R"(nightly_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgemm_avx512_amx.*)",
+        R"(smoke_Deconv_2D_Blocked_FP16/.*brgconv_avx512_amx.*)",
+        R"(nightly_Deconv_2D_Blocked_FP16/.*brgconv_avx512_amx.*)",
+        R"(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)",
+        R"(smoke_Deconv_3D_Blocked_FP16/.*brgconv_avx512_amx.*)",
+        R"(nightly_Deconv_3D_Blocked_FP16/.*brgconv_avx512_amx.*)",
+        R"(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)",
+        R"(nightly_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)",
         R"(smoke_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)",
         R"(nightly_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)",
         R"(smoke_MM_Brgemm_Amx_Dynamic_FP16/.*brgemm_avx512_amx.*)",
