@@ -38,7 +38,7 @@ void validate_zero_point_type(const Node& onnx_node, const Output<ngraph::Node>&
         onnx_node,
         y_zero_point_et.is_static() && (y_zero_point_et == element::u8 || y_zero_point_et == element::i8 ||
                                         y_zero_point_et == element::u16 || y_zero_point_et == element::i16),
-        "\"y_zero_point\" input data type must be static and of 8-bit "
+        "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u8, i8, u16 or i16"
         "integer type.");
 }
 
