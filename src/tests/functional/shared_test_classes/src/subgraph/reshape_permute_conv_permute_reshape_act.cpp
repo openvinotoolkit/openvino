@@ -13,7 +13,7 @@ std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvRes
     std::array<size_t, 4> input_shape;
     std::array<size_t, 2> kernel_shape;
     size_t output_channels;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
 
 
     std::tie(model_type, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
@@ -25,7 +25,7 @@ std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvRes
     results << "netPRC=" << model_type.get_type_name() << "_";
     results << "targetDevice=" << targetName;
     for (auto const& configItem : configuration) {
-        results << "_configItem=" << configItem.first << "_" << configItem.second;
+        results << "_configItem=" << configItem.first << "_" << configItem.second.as<std::string>();
     }
     return results.str();
 }
@@ -35,7 +35,7 @@ void ConvReshapeAct::SetUp() {
     std::array<size_t, 4> input_shape;
     std::array<size_t, 2> kernel_shape;
     size_t output_channels;
-    std::map<std::string, std::string> additional_config;
+    ov::AnyMap additional_config;
 
     std::tie(model_type, targetDevice, input_shape, kernel_shape, output_channels, additional_config) = this->GetParam();
 

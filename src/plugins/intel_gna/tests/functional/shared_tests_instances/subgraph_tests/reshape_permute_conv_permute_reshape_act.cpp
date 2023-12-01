@@ -33,9 +33,8 @@ std::vector<ov::element::Type> model_types = {
     ov::element::f32,
 };
 
-std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "2340"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+std::vector<ov::AnyMap> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "2340"}},
+                                   {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_basic,
                          ConvReshapeAct,
