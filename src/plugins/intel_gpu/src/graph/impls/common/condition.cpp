@@ -79,7 +79,8 @@ struct condition_impl : typed_primitive_impl<condition> {
                                       << ", external: " << input_external_node->first << ")" << std::endl;
                         for (size_t dep_idx = 0; dep_idx < instance.dependencies().size(); ++dep_idx) {
                             if (instance.dependencies()[dep_idx].first->id() == input_external_node->first) {
-                                output_events.push_back(events[dep_idx]);
+                                if (events.size() > dep_idx)
+                                    output_events.push_back(events[dep_idx]);
                                 output_mem_ptr = instance.input_memory_ptr(dep_idx);
                                 output_layout = instance.dependencies()[dep_idx].first->get_output_layout();
                                 break;
