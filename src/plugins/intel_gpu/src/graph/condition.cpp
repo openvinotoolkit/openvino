@@ -108,9 +108,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
 
     // if rangs of shapes are not equal or rang of one of them is dynamic function
     // return shape with dynamic rank
-    if (then_rank.is_dynamic() || else_rank.is_dynamic()) {
-        return ov::PartialShape::dynamic();
-    }
+    OPENVINO_ASSERT((then_rank.is_static() && else_rank.is_static()), "dynamic rank is not supported");
     if (then_rank.get_length() != else_rank.get_length()) {
         // Union of scalar and 1D case
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
@@ -139,7 +137,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
     return ov::PartialShape(new_dims);
 }
 
-layout condition_inst::resolve_layout(layout& target, layout& other) {
+layout condition_inst::adjust_scalar_to_1d_layout(layout& target, layout& other) {
     auto target_pshape  = target.get_partial_shape();
     auto other_pshape   = other.get_partial_shape();
     auto target_rank    = target_pshape.rank();
@@ -187,11 +185,11 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /*
         std::vector<layout> output_layouts;
         if (pred) {
             for (size_t i = 0; i < num_outputs; i++) {
-                output_layouts.push_back(condition_inst::resolve_layout(layouts_true[i], layouts_false[i]));
+                output_layouts.push_back(condition_inst::adjust_scalar_to_1d_layout(layouts_true[i], layouts_false[i]));
             }
         } else {
             for (size_t i = 0; i < num_outputs; i++) {
-                output_layouts.push_back(condition_inst::resolve_layout(layouts_false[i], layouts_true[i]));
+                output_layouts.push_back(condition_inst::adjust_scalar_to_1d_layout(layouts_false[i], layouts_true[i]));
             }
         }
         return output_layouts;
