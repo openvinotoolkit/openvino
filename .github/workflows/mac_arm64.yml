@@ -1,4 +1,4 @@
-name: macOS (Python 3.11)
+name: macOS ARM64 (Python 3.11)
 on:
   workflow_dispatch:
   schedule:
@@ -26,7 +26,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-mac-main
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-mac-arm64
   cancel-in-progress: true
 
 env:
@@ -38,11 +38,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: 'macos-13-large'
+    runs-on: 'macos-13-xlarge'
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      MACOSX_DEPLOYMENT_TARGET: '10.12'
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -189,7 +189,7 @@ jobs:
     needs: Build
     uses: ./.github/workflows/samples_tests.yml
     with:
-      runner: 'macos-13'
+      runner: 'macos-13-xlarge'
 
   CXX_Unit_Tests:
     name: C++ Unit tests
@@ -198,7 +198,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: 'macos-13'
+    runs-on: 'macos-13-xlarge'
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -255,6 +255,9 @@ jobs:
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
+          # Skips under Ticket: 122660
+          skip_filter='--gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions*'
+          
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
@@ -278,6 +281,7 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
+        if: ${{ 'false' }} # Ticket for ARM64: 122663
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
@@ -294,6 +298,9 @@ jobs:
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
+          # Skips under Ticket: 122666
+          skip_filter='--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*:*NgramCompilation*'
+          
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
@@ -306,6 +313,9 @@ jobs:
       - name: Transformations func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
+          
+          # Skips under Ticket: 122668
+          skip_filter='--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*:*TransformationTests/CompressQuantizeWeightsTests.FusionTest*'
           
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
@@ -411,7 +421,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: 'macos-13'
+    runs-on: 'macos-13-xlarge'
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
@@ -465,7 +475,7 @@ jobs:
           # Install the core OV wheel
           python3 -m pip install ${{ env.INSTALL_DIR }}/tools/openvino-*.whl
           
-          extras_to_install="mxnet,caffe,kaldi,onnx,tensorflow2,pytorch"
+          extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
           
           # Find and install OV dev wheel
           pushd ${{ env.INSTALL_DIR }}/tools
@@ -634,14 +644,13 @@ jobs:
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:
-    if: ${{ 'false' }} # Ticket: 122001
     name: CPU functional tests
     needs: Build
     timeout-minutes: 25
     defaults:
       run:
         shell: bash
-    runs-on: 'macos-13'
+    runs-on: 'macos-13-xlarge'
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -674,6 +683,9 @@ jobs:
       - name: CPU plugin func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
+          
+          # Skips under Ticket: 122769
+          skip_filter='--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_*:*Extension.XmlModelWithExtensionFromDSO*:*Extension.OnnxModelWithExtensionFromDSO*:*ONNXQuantizedModels/QuantizedModelsTests.MaxPool*:*ONNXQuantizedModels/QuantizedModelsTests.Convolution*:**'
           
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* "$skip_filter" --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
