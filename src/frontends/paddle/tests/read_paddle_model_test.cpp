@@ -20,8 +20,10 @@
 #include "openvino/pass/serialize.hpp"
 
 TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
-    auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdmodel";
-    auto param = std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdiparams";
+    auto model =
+        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdmodel");
+    auto param = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                                    "conv2d_relu/conv2d_relu.pdiparams");
 
     ov::Core core;
     auto read_file = [&](const std::string& file_name, size_t& size) {
