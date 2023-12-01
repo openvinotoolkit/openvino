@@ -96,7 +96,7 @@ public:
         const InterpolateTransformationTestValues testValues = GetParam();
 
         if (testValues.opset_version == 1) {
-            ngraph::op::InterpolateAttrs interpAttrs;
+            ov::op::v0::Interpolate::Attributes interpAttrs;
             interpAttrs.axes = testValues.interpAttrs.axes;
             interpAttrs.mode = testValues.interpAttrs.mode;
             interpAttrs.align_corners = testValues.interpAttrs.align_corners;
@@ -124,7 +124,7 @@ public:
                 testValues.expected.precisionAfterOperation,
                 testValues.expected.dequantizationAfter);
         } else if (testValues.opset_version == 4) {
-            ngraph::op::v4::Interpolate::InterpolateAttrs interp4Attrs;
+            ov::op::v4::Interpolate::InterpolateAttrs interp4Attrs;
             interp4Attrs.mode = testValues.interp4Attrs.mode;
             interp4Attrs.coordinate_transformation_mode = testValues.interp4Attrs.coordinate_transformation_mode;
             interp4Attrs.pads_begin = testValues.interp4Attrs.pads_begin;
@@ -424,8 +424,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+            ov::op::v4::Interpolate::InterpolateMode::NEAREST,
+            ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
             {0, 0, 0, 0},
             {0, 0, 0, 0}),
         4,
@@ -449,8 +449,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+            ov::op::v4::Interpolate::InterpolateMode::NEAREST,
+            ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
             {0, 0, 0, 0},
             {0, 0, 0, 0}),
         4,
@@ -474,8 +474,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+            ov::op::v4::Interpolate::InterpolateMode::NEAREST,
+            ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
             {0, 0, 0, 0},
             {0, 0, 0, 0}),
         4,
@@ -499,8 +499,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+            ov::op::v4::Interpolate::InterpolateMode::NEAREST,
+            ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
             {0, 0, 0, 0},
             {0, 0, 0, 0}),
         4,
@@ -524,8 +524,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+            ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
+            ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
             {0, 0, 0, 0},
             {0, 0, 0, 0}),
         4,
@@ -549,8 +549,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
+            ov::op::v4::Interpolate::InterpolateMode::NEAREST,
+            ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
             {0, 0, 0, 0},
             {0, 0, 0, 0}),
         4,
@@ -574,8 +574,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
-            ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
-            ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+            ov::op::v4::Interpolate::InterpolateMode::NEAREST,
+            ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
             {0, 0, 0, 1},
             {0, 0, 1, 0}),
         4,
