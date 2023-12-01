@@ -18,8 +18,7 @@ namespace XARCH {
 void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                 const ov::intel_cpu::PlainTensor& v_input,
                 const ov::intel_cpu::PlainTensor& past_k_output,
-                const ov::intel_cpu::PlainTensor& past_v_output,
-                const size_t num_heads, const size_t L0);
+                const ov::intel_cpu::PlainTensor& past_v_output);
 
 }  // namespace XARCH
 }  // namespace Cpu

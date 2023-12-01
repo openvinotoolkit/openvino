@@ -47,33 +47,30 @@ void attn_copy(TA* a, TB* b, size_t n) {
 
 template <typename T, typename T2>
 void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
-                const ov::intel_cpu::PlainTensor& v_input,
-                const ov::intel_cpu::PlainTensor& past_k_output,
-                const ov::intel_cpu::PlainTensor& past_v_output,
-                const size_t Hk, const size_t L0) {
-    auto&& ss = k_input.shape();
-    size_t B = ss[0], L1 = ss[2], S = ss[3];
-    parallel_for3d(B, Hk, L1, [&](size_t b, size_t h, size_t m) {
-        attn_copy(&past_k_output.at<T2>({b, h, m + L0, 0}),
+                        const ov::intel_cpu::PlainTensor& v_input,
+                        const ov::intel_cpu::PlainTensor& past_k_output,
+                        const ov::intel_cpu::PlainTensor& past_v_output) {
+    size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
+    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
+        attn_copy(&past_k_output.at<T2>({b, h, m, 0}),
                   &k_input.at<T>({b, h, m, 0}),
                   S);
-        attn_copy(&past_v_output.at<T2>({b, h, m + L0, 0}),
+        attn_copy(&past_v_output.at<T2>({b, h, m, 0}),
                   &v_input.at<T>({b, h, m, 0}),
                   S);
     });
 }
 
 void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
-                const ov::intel_cpu::PlainTensor& v_input,
-                const ov::intel_cpu::PlainTensor& past_k_output,
-                const ov::intel_cpu::PlainTensor& past_v_output,
-                const size_t Hk, const size_t L0) {
+                 const ov::intel_cpu::PlainTensor& v_input,
+                 const ov::intel_cpu::PlainTensor& past_k_output,
+                 const ov::intel_cpu::PlainTensor& past_v_output) {
     if (past_k_output.get_precision() == ov::element::bf16) {
-        attn_memcpy_kernel<ov::bfloat16, ov::bfloat16>(k_input, v_input, past_k_output, past_v_output, Hk, L0);
+        attn_memcpy_kernel<ov::bfloat16, ov::bfloat16>(k_input, v_input, past_k_output, past_v_output);
     } else if (past_k_output.get_precision() == ov::element::f16) {
-        attn_memcpy_kernel<float, ov::float16>(k_input, v_input, past_k_output, past_v_output, Hk, L0);
+        attn_memcpy_kernel<float, ov::float16>(k_input, v_input, past_k_output, past_v_output);
     } else {
-        attn_memcpy_kernel<float, float>(k_input, v_input, past_k_output, past_v_output, Hk, L0);
+        attn_memcpy_kernel<float, float>(k_input, v_input, past_k_output, past_v_output);
     }
 }
 }  // namespace XARCH
