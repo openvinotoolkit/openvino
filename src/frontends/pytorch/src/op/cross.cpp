@@ -69,14 +69,15 @@ OutputVector translate_cross(const NodeContext& context) {
         if (pshape.rank().is_dynamic()) {
             FRONT_END_GENERAL_CHECK(false, "Rank should be known for aten::cross without explicit dim");
         }
-        long int dim_id = pshape.rank().get_length();
-        for (long int i = 0; i < pshape.rank().get_length(); i++) {
+        size_t dim_id = static_cast<size_t>(pshape.rank().get_length());
+        size_t rank = static_cast<size_t>(pshape.rank().get_length());
+        for (size_t i = 0; i < rank; i++) {
             if (pshape[i].is_static() && pshape[i] == ov::Dimension(3)) {
                 dim_id = i;
                 break;
             }
         }
-        if (dim_id == pshape.rank().get_length()) {
+        if (dim_id == rank) {
             FRONT_END_GENERAL_CHECK(false, "Suitable dim for aten::cross not found");
         }
         dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {dim_id}));
