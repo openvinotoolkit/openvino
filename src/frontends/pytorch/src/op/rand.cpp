@@ -39,7 +39,7 @@ OutputVector make_random_normal(const NodeContext& context,
     const uint64_t seed_1 = distrib(gen);
     const uint64_t seed_2 = distrib(gen);
 
-    auto min_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {0}));
+    auto min_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {std::numeric_limits<float>::min()}));
     auto max_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {1}));
 
     auto uniform_1 = context.mark_node(

@@ -1,21 +1,23 @@
 -c ../../constraints.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+auto-gptq>=0.5.1
+av
+basicsr
+datasets
+facexlib
 numpy
+optimum
+pandas
+protobuf
+pyctcdecode
 pytest
 pytest-html
-torch<2.1
-torchvision
-av
-transformers
-optimum
-auto-gptq>=0.5.1
-timm
 sacremoses
 sentencepiece
-datasets
-pyctcdecode
-protobuf
 soundfile
-pandas
 super-image
-basicsr
-facexlib
+timm
+torch
+torchvision
+transformers
+wheel
