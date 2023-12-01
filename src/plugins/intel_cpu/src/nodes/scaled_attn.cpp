@@ -32,6 +32,7 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
+using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
@@ -475,7 +476,7 @@ struct MHASingleToken {
     }
 };
 
-template <ScaledDotProductAttention::KernelTypes KType, typename T>
+template <ScaledDotProductAttention::KernelTypes KType, typename T, typename T2>
 struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor q_input;           // f32[B, H, L1, S]
     PlainTensor k_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
@@ -649,10 +650,45 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
+
+    auto fp16_kvcache_applicable = [&]() -> bool {
+        bool enable_fp16_kvcache = true;
+        const char* disable = std::getenv("OV_DISABLE_SDPA_KVCACHE_FP16");
+        if (disable && std::atoi(disable) > 0) {
+            enable_fp16_kvcache = false;
+        }
+        if (!enable_fp16_kvcache) return false;
+
+        if (!m_config.config.fuse_concat || !mayiuse(cpu_isa_t::avx2) || rtPrecision== ov::element::bf16) return false;
+
+        // applicable only in case of stateful model.
+        for (size_t idx = 1; idx <= 2; idx++) { // check outputs
+            auto&& childEdges = getChildEdgesAtPort(idx);
+            auto itr =
+                std::find_if(childEdges.begin(), childEdges.end(), [=](const EdgePtr& e){ return Type::MemoryOutput == e->getChild()->getType(); });
+            if (itr == childEdges.end()) {
+                return false;
+            }
+        }
+
+        for (size_t idx = orginSDPInputNumber + 0; idx <= orginSDPInputNumber + 1; idx++) { // check inputs
+            auto&& parentEdges = getParentEdgesAtPort(idx);
+            auto itr =
+                std::find_if(parentEdges.begin(), parentEdges.end(), [=](const EdgePtr& e){ return Type::MemoryInput == e->getParent()->getType(); });
+            if (itr == parentEdges.end()) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    auto kvCachePrecision = fp16_kvcache_applicable() ? ov::element::f16 : rtPrecision;
+    std::cout << "===================== kvPrecision = " << kvCachePrecision << ", rtPrecision = " << rtPrecision << std::endl;
 
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
     config.inConfs.resize(getOriginalInputsNumber());
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
@@ -682,15 +718,15 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
 
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
         config.inConfs[orginSDPInputNumber + 1].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
 
         config.outConfs[1].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(1)));
+            kvCachePrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(orginSDPInputNumber + 0);
         config.outConfs[2].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(2)));
+            kvCachePrecision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }
 
@@ -701,17 +737,19 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     // may fallback to abcd without inplace
     if (m_config.config.fuse_concat) {
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
         config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
         config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(1)));
+            kvCachePrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(-1);
         config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(2)));
+            kvCachePrecision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(-1);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
     }
+
+    m_config.kvCachePrecision = kvCachePrecision;
 }
 
 void ScaledDotProductAttention::createPrimitive() {
@@ -725,14 +763,20 @@ void ScaledDotProductAttention::createPrimitive() {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
     if (rtPrecision == ov::element::bf16) {
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16, ov::bfloat16>>(m_config);
     } else {
         // only support bf16/f32
         rtPrecision = ov::element::f32;
 #ifdef OV_CPU_WITH_MLAS
-        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
+        if (m_config.kvCachePrecision == ov::element::f16)
+            m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float, ov::float16>>(m_config);
+        else
+            m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float, float>>(m_config);
 #else
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
+        if (m_config.kvCachePrecision == ov::element::f16)
+            m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float, ov::float16>>(m_config);
+        else
+            m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float, float>>(m_config);
 #endif
     }
 }
