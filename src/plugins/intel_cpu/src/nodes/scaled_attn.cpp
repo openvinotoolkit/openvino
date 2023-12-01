@@ -29,8 +29,7 @@
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
-
-#include "common/cpu_convert.h"
+#include "kernels/scaled_attn/attn_memcpy.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
@@ -519,10 +518,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             // [B, H, L0, S]
             past_k_output.reset(outputs[1]);
             past_v_output.reset(outputs[2]);
-            parallel_for3d(B, Hk, L1, [&](size_t b, size_t h, size_t m) {
-                cpu_convert(&k_input.at<T>({b, h, m, 0}), &past_k_output.at<T2>({b, h, m + L0, 0}), precision_of<T>::value, precision_of<T2>::value, S);
-                cpu_convert(&v_input.at<T>({b, h, m, 0}), &past_v_output.at<T2>({b, h, m + L0, 0}), precision_of<T>::value, precision_of<T2>::value, S);
-            });
+            attn_memcpy(k_input, v_input, past_k_output, past_v_output, Hk, L0);
             if (!config.is_concat_inplaced) {
                 PlainTensor past_k_input, past_v_input;
                 past_k_input.reset(past_k_mem);
