@@ -28,7 +28,18 @@ ccache >= *3.0*
 3. Replace `gitPath, buildPath` if your target is out of current **Openvino** repo. 
 4. Set `appCmd, appPath` (mandatory) regarding target application
 5. Set up `runConfig` (mandatory):
-5.1. `getCommitListCmd` - *git* command, returning commit list *if you don't want to set commit intervals with command args*
+5.1. `getCommitListCmd` - *git* command, returning commit list *if you don't want to set commit intervals with command args* or `explicitList` if you want to set up commits manually.
+Examples:
+```
+"commitList" : {
+    "getCommitListCmd" : "git log start_hash..end_hash --boundary --pretty=\"%h\""
+}
+```
+```
+"commitList" : {
+    "explicitList" : ["hash_1", "hash_2", ... , "hash_N"]
+}
+```
 5.2. `mode` = `{checkOutput|bmPerfMode|compareBlobs|<to_extend>}` - cryterion of commit comparation
 5.3. `traversal` `{firstFailedVersion|firstFixedVersion|allBreaks|bruteForce|<to_extend>}` - traversal rule
 5.4. `preprocess` if you need preparation before commit building.

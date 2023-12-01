@@ -330,10 +330,11 @@ def handleCommit(commit, cfgData):
 
 def getCashedPath(commit, cfgData):
     shortHash = getMeaningfullCommitTail(commit)
-    if commit in cfgData["cachedPathConfig"]["cashMap"]:
-        return True, cfgData["cachedPathConfig"]["cashMap"][commit]
-    else:
-        return False, None
+    cashMap = cfgData["cachedPathConfig"]["cashMap"]
+    for k in cashMap:
+        if shortHash in k:
+            return True, cfgData["cachedPathConfig"]["cashMap"][k]
+    return False, None
 
 
 def returnToActualVersion(cfg):
