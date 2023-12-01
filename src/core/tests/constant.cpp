@@ -1351,6 +1351,60 @@ TEST(constant, shared_data) {
     EXPECT_EQ(p1, p2);
 }
 
+//
+// string
+//
+
+TEST(constant, ov_string) {
+    Shape shape{4};
+    vector<std::string> input{"abc", "one two three", "1", "0"};
+    ov::op::v0::Constant c(element::string, shape, input);
+    auto v = c.get_vector<std::string>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], "abc");
+    EXPECT_EQ(v[1], "one two three");
+    EXPECT_EQ(v[2], "1");
+    EXPECT_EQ(v[3], "0");
+
+    const std::string* p = c.get_data_ptr<std::string>();
+    EXPECT_EQ(p[0], "abc");
+    EXPECT_EQ(p[1], "one two three");
+    EXPECT_EQ(p[2], "1");
+    EXPECT_EQ(p[3], "0");
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
+}
+
+TEST(constant, ov_string_broadcast) {
+    Shape shape{4};
+    ov::op::v0::Constant c(element::string, shape, vector<string>{"one two "});
+    auto v = c.get_vector<std::string>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], "one two ");
+    EXPECT_EQ(v[1], "one two ");
+    EXPECT_EQ(v[2], "one two ");
+    EXPECT_EQ(v[3], "one two ");
+
+    const std::string* p = c.get_data_ptr<std::string>();
+    EXPECT_EQ(p[0], "one two ");
+    EXPECT_EQ(p[1], "one two ");
+    EXPECT_EQ(p[2], "one two ");
+    EXPECT_EQ(p[3], "one two ");
+}
+
+TEST(constant, ov_string_shared_data) {
+    Shape shape{100, 200};
+    auto c1 = make_shared<ov::op::v0::Constant>(element::string, shape, vector<std::string>{"123"});
+    auto c2 = static_pointer_cast<ov::op::v0::Constant>(c1->clone_with_new_inputs({}));
+    const int16_t* p1 = c1->get_data_ptr<int16_t>();
+    const int16_t* p2 = c2->get_data_ptr<int16_t>();
+    EXPECT_EQ(p1, p2);
+}
+
 template <typename T1, typename T2>
 ::testing::AssertionResult test_convert() {
     Shape shape{5};
@@ -1361,6 +1415,15 @@ template <typename T1, typename T2>
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());
     rc << "Conversion failed";
     return rc;
+}
+
+TEST(constant, convert_input_ov_string) {
+    Shape shape{5};
+    vector<std::string> expected{"1", "2", "3", "4", "5"};
+    auto c1 = make_shared<ov::op::v0::Constant>(ov::element::from<std::string>(), shape, expected);
+    vector<std::string> actual = c1->template cast_vector<std::string>();
+
+    EXPECT_EQ(actual, expected);
 }
 
 TEST(constant, convert_input) {
@@ -1708,12 +1771,42 @@ TEST(constant, bad_get_data_ptr) {
     }
 }
 
+TEST(constant, bad_get_data_ptr_ov_string) {
+    ov::op::v0::Constant c(element::string, Shape{}, vector<std::string>{"abc"});
+    EXPECT_EQ(*c.get_data_ptr<element::Type_t::string>(), "abc");
+    try {
+        c.get_data_ptr<element::Type_t::f64>();
+        FAIL() << "Bad type not detected.";
+    } catch (const AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("get_data_ptr"));
+    }
+    try {
+        c.get_data_ptr<element::Type_t::i32>();
+        FAIL() << "Bad type not detected.";
+    } catch (const AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("get_data_ptr"));
+    }
+}
+
 TEST(constant, hold_tensor) {
     Shape shape{4};
     void* hostDataPtr = nullptr;
     std::shared_ptr<ov::op::v0::Constant> constOp;
     {
         auto tensor = ov::Tensor(element::f32, Shape{1, 2, 3, 3});
+        hostDataPtr = tensor.data();
+        constOp = std::make_shared<ov::op::v0::Constant>(tensor);
+    }
+    const void* constDataPtr = constOp->get_data_ptr();
+    ASSERT_EQ(constDataPtr, hostDataPtr);
+}
+
+TEST(constant, hold_tensor_ov_string) {
+    Shape shape{4};
+    void* hostDataPtr = nullptr;
+    std::shared_ptr<ov::op::v0::Constant> constOp;
+    {
+        auto tensor = ov::Tensor(element::string, Shape{1, 2, 3, 3});
         hostDataPtr = tensor.data();
         constOp = std::make_shared<ov::op::v0::Constant>(tensor);
     }
@@ -1818,6 +1911,29 @@ TEST(constant, cast_vector) {
         EXPECT_TRUE(constant->cast_vector<int64_t>(0).empty())
             << "Constant::cast_vector failed empty casting for type " << type;
     }
+}
+
+TEST(constant, cast_vector_ov_string) {
+    element::Type_t type = element::string;
+    std::vector<std::string> data = {"a", "b", "c", "d", "e", "f", "g", "h"};
+    std::vector<std::string> expected_partial_data = {"a", "b", "c", "d", "e", "f"};
+
+    const auto& constant = op::v0::Constant::create(type, Shape{data.size()}, data);
+
+    const auto& default_casted = constant->cast_vector<std::string>();
+    EXPECT_EQ(default_casted, data) << "Constant::cast_vector failed default casting for type " << type;
+
+    int64_t num_elements_for_partial_casting = static_cast<int64_t>(expected_partial_data.size());
+    const auto& partially_casted = constant->cast_vector<std::string>(num_elements_for_partial_casting);
+    EXPECT_EQ(partially_casted, expected_partial_data)
+        << "Constant::cast_vector failed partial casting for type " << type;
+
+    int64_t num_elements_for_over_casting = static_cast<int64_t>(data.size()) + 10;
+    const auto& over_casted = constant->cast_vector<std::string>(num_elements_for_over_casting);
+    EXPECT_EQ(over_casted, data) << "Constant::cast_vector failed for partial casting for type " << type;
+
+    EXPECT_TRUE(constant->cast_vector<std::string>(0).empty())
+        << "Constant::cast_vector failed empty casting for type " << type;
 }
 
 TEST(constant, get_values_as) {

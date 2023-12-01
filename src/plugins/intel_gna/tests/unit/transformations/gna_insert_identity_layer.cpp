@@ -81,7 +81,7 @@ typedef tuple<size_t,  // Concat axis
 class InsertIdentityLayerConcatTest : public InsertIdentityLayerTest,
                                       public ::testing::WithParamInterface<InsertIdentityConcatTestParams> {
 public:
-    static string getTestCaseName(const testing::TestParamInfo<InsertIdentityConcatTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityConcatTestParams>& obj) {
         size_t axis, inputs_num;
         tie(axis, inputs_num) = obj.param;
 
@@ -198,7 +198,7 @@ typedef tuple<ELTWISE_TYPE,  // eltwise type
 class InsertIdentityLayerEltwiseTest : public InsertIdentityLayerTest,
                                        public ::testing::WithParamInterface<InsertIdentityEltwiseTestParams> {
 public:
-    static string getTestCaseName(const testing::TestParamInfo<InsertIdentityEltwiseTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityEltwiseTestParams>& obj) {
         ELTWISE_TYPE type;
         bool low_precision, both_inputs_32bits;
         tie(type, low_precision, both_inputs_32bits) = obj.param;
@@ -472,7 +472,7 @@ typedef tuple<bool,  // with pooling
 class InsertIdentityLayerConvMatMulTest : public InsertIdentityLayerTest,
                                           public ::testing::WithParamInterface<InsertIdentityConvTestParams> {
 public:
-    static string getTestCaseName(const testing::TestParamInfo<InsertIdentityConvTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityConvTestParams>& obj) {
         bool with_pool, with_act, swap_matmul;
         tie(with_pool, with_act, swap_matmul) = obj.param;
 
@@ -613,7 +613,7 @@ TEST_F(InsertIdentityLayerResultTest, CompareWithRefs) {
 }
 
 class InsertIdentityForNonQuantizableConcatInputTest : public InsertIdentityLayerTest {
-    string getName() {
+    std::string getName() {
         return "InsertIdentityForPrecAgnosticConcatInput";
     }
 

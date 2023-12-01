@@ -172,8 +172,8 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
 
         auto squeeze_B = rg.make<ov::op::v0::Squeeze>(Bzrh, axis_0);
 
-        string act_name_1 = pattern_map.at(activation_1)->get_type_name();
-        string act_name_2 = pattern_map.at(activation_2)->get_type_name();
+        std::string act_name_1 = pattern_map.at(activation_1)->get_type_name();
+        std::string act_name_2 = pattern_map.at(activation_2)->get_type_name();
         auto to_lower = [](unsigned char c) {
             return std::tolower(c);
         };
@@ -186,7 +186,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
                                                  Rzrh,
                                                  squeeze_B,
                                                  hidden_size,
-                                                 vector<string>{act_name_1, act_name_2});
+                                                 vector<std::string>{act_name_1, act_name_2});
 
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), rg.get());

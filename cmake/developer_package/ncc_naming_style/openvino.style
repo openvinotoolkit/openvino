@@ -18,7 +18,7 @@ VariableReference: '^\w+$'
 
 EnumName: '^[A-Z][\w]+$'
 # excepts element_type
-EnumConstantName: '^([A-Z\d_]+|undefined|dynamic|boolean|bf16|f16|f32|f64|i4|i8|i16|i32|i64|u1|u4|u8|u16|u32|u64|nf4|asymmetric|align_corners|round_prefer_floor|round_prefer_ceil|floor|ceil|simple|nearest|linear|linear_onnx|cubic|area|scales|sizes|half_pixel|tf_half_pixel_for_nn|pytorch_half_pixel|asymetric)$'
+EnumConstantName: '^([A-Z\d_]+|undefined|dynamic|boolean|bf16|f16|f32|f64|i4|i8|i16|i32|i64|u1|u4|u8|u16|u32|u64|nf4|string|asymmetric|align_corners|round_prefer_floor|round_prefer_ceil|floor|ceil|simple|nearest|linear|linear_onnx|cubic|area|scales|sizes|half_pixel|tf_half_pixel_for_nn|pytorch_half_pixel|asymetric)$'
 # TODO: align
 UsingDeclaration: '^.*$'
 TypedefName: '^.*$'

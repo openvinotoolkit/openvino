@@ -118,6 +118,7 @@ template class TBlob<unsigned long>;
 template class TBlob<unsigned long long>;
 template class TBlob<bool>;
 template class TBlob<char>;
+template class TBlob<std::string>;
 #endif
 
 }  // namespace InferenceEngine
