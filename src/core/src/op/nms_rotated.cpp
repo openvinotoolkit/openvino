@@ -81,9 +81,7 @@ bool op::v13::NMSRotated::visit_attributes(AttributeVisitor& visitor) {
 void op::v13::NMSRotated::validate_and_infer_types() {
     OV_OP_SCOPE(v13_NMSRotated_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 

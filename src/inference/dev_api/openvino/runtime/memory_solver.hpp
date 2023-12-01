@@ -8,12 +8,15 @@
  */
 #pragma once
 
-#include <ie_common.h>
 #include <stdint.h>
 
 #include <algorithm>
 #include <map>
 #include <vector>
+
+#include "openvino/core/except.hpp"
+
+namespace ov {
 
 /**
  * @brief Helps to solve issue of optimal memory allocation only for particular
@@ -42,7 +45,6 @@
  *  Exec order is predefined.
  */
 
-IE_SUPPRESS_DEPRECATED_START
 class MemorySolver {
 public:
     /** @brief Representation of edge (size and live time)*/
@@ -67,7 +69,7 @@ public:
     /** @brief Performes inplace normalization of the input boxes
         @return lifespan of all boxes
     */
-    static int normalizeBoxes(std::vector<Box>& boxes) {
+    static int normalize_boxes(std::vector<Box>& boxes) {
         int max_ts = 0;
         for (const Box& box : boxes)
             max_ts = std::max(std::max(max_ts, box.start), box.finish);
@@ -113,10 +115,10 @@ public:
         // 2. Box.finish >= Box.start (except Box.finish == -1)
         // 3. Box.size > 0 (or == 0 ?)
         // 4. Box.id == any unique value
-        _time_duration = normalizeBoxes(_boxes);
+        _time_duration = normalize_boxes(_boxes);
     }
 
-    inline bool popupTogetherWith(MemorySolver::Box& box_new, const MemorySolver::Box& box_old) {
+    inline bool popup_together_with(MemorySolver::Box& box_new, const MemorySolver::Box& box_old) {
         if (box_new.id + box_new.size > box_old.id && box_old.id + box_old.size > box_new.id) {
             // Move the new one up. There is an intersection
             box_new.id = box_old.id + box_old.size;
@@ -131,7 +133,7 @@ public:
      * @return Size of common memory blob required for storing all
      */
     int64_t solve() {
-        maxTopDepth();  // at first make sure that we no need more for boxes sorted by box.start
+        max_top_depth();  // at first make sure that we no need more for boxes sorted by box.start
         std::vector<std::vector<const Box*>> time_slots(_time_duration);
         for (auto& slot : time_slots)
             slot.reserve(_top_depth);  // 2D array [_time_duration][_top_depth]
@@ -155,8 +157,8 @@ public:
                     for (auto* box_in_slot : time_slots[i_slot]) {
                         // intersect with already stored boxes for all covered time slots
                         // and move up the new one if needed
-                        // Execution of 'popupTogetherWith' is important even if 'popped_up' is already 'true'
-                        popped_up = popupTogetherWith(box, *box_in_slot) || popped_up;
+                        // Execution of 'popup_together_with' is important even if 'popped_up' is already 'true'
+                        popped_up = popup_together_with(box, *box_in_slot) || popped_up;
                     }
                 }
             } while (popped_up);
@@ -174,23 +176,23 @@ public:
     }
 
     /** Provides calculated offset for specified box id */
-    int64_t getOffset(int id) const {
+    int64_t get_offset(int id) const {
         auto res = _offsets.find(id);
         if (res == _offsets.end())
-            IE_THROW() << "There are no box for provided ID";
+            OPENVINO_THROW("There are no box for provided ID");
         return res->second;
     }
 
     /** Additional info. Max sum of box sizes required for any time stamp. */
-    int64_t maxDepth() {
+    int64_t max_depth() {
         if (_depth == -1)
-            calcDepth();
+            calc_depth();
         return _depth;
     }
     /** Additional info. Max num of boxes required for any time stamp. */
-    int64_t maxTopDepth() {
+    int64_t max_top_depth() {
         if (_top_depth == -1)
-            calcDepth();
+            calc_depth();
         return _top_depth;
     }
 
@@ -201,7 +203,7 @@ private:
     int64_t _depth = -1;
     int _time_duration = -1;
 
-    void calcDepth() {
+    void calc_depth() {
         int64_t top_depth = 0;
         int64_t depth = 0;
         std::map<int64_t, std::vector<const Box*>> release_at;
@@ -218,11 +220,12 @@ private:
                 top_depth--;
             }
             release_at.erase(time);
-            IE_ASSERT(top_depth > 0);
+            OPENVINO_ASSERT(top_depth > 0);
 
             _top_depth = std::max(_top_depth, top_depth);
             _depth = std::max(_depth, depth);
         }
     }
 };
-IE_SUPPRESS_DEPRECATED_END
+
+}  // namespace ov
