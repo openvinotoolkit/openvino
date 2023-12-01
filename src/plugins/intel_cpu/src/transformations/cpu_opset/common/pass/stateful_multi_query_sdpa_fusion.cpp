@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "stateful_multi_query_sdp_fusion.hpp"
+#include "stateful_multi_query_sdpa_fusion.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -17,13 +17,13 @@
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/common/op/sdp.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-StatefulMultiQuerySDPFusion::StatefulMultiQuerySDPFusion() {
-    MATCHER_SCOPE(StatefulMultiQuerySDPFusion);
+StatefulMultiQuerySDPAFusion::StatefulMultiQuerySDPAFusion() {
+    MATCHER_SCOPE(StatefulMultiQuerySDPAFusion);
     using namespace ov::pass::pattern;
 
     auto past_k = wrap_type<opset6::ReadValue>();
@@ -48,7 +48,8 @@ StatefulMultiQuerySDPFusion::StatefulMultiQuerySDPFusion() {
     auto transpose_v = wrap_type<opset6::Transpose>({reshape1_v, order_v});
 
     auto order_q = wrap_type<opset6::Constant>();
-    auto transpose_q = wrap_type<opset6::Transpose>({any_input(), order_q});
+    auto q_input = any_input();
+    auto transpose_q = wrap_type<opset6::Transpose>({q_input, order_q});
     auto sdp0 = wrap_type<opset13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v});
     auto sdp1 = wrap_type<opset13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
     auto sdp2 = wrap_type<opset13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input(), any_input()});
@@ -103,14 +104,14 @@ StatefulMultiQuerySDPFusion::StatefulMultiQuerySDPFusion() {
             return false;
         std::cout << "2Match Multi Query|Find Assign|" << root->get_friendly_name() << std::endl;
         auto args = sdp_node->input_values();
-        std::cout << "args0 shape|" << pattern_map.at(transpose_q).get_node_shared_ptr()->input_value(0).get_partial_shape() << std::endl;
-        args[0] = pattern_map.at(transpose_q).get_node_shared_ptr()->input_value(0);
+        std::cout << "args0 shape|" << pattern_map.at(q_input).get_node_shared_ptr()->output(0).get_partial_shape() << std::endl;
+        args[0] = pattern_map.at(q_input).get_node_shared_ptr()->output(0);
         args[1] = concat_k_node->input_value(1);
         args[2] = concat_v_node->input_value(1);
         std::cout << "-2|" << past_k_node->output(0).get_partial_shape() << std::endl;
         args.push_back(read_cvt_k_node ? read_cvt_k_node->output(0) : past_k_node->output(0));
         args.push_back(read_cvt_v_node ? read_cvt_v_node->output(0) : past_v_node->output(0));
-        ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
+        ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
 
         const auto order_k_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
         const auto order_v_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
@@ -135,7 +136,7 @@ StatefulMultiQuerySDPFusion::StatefulMultiQuerySDPFusion() {
         config.is_multi_query = true;
 
         auto& old_node = sdp_node;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(args, config);
+        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::replace_node(old_node, {new_node->output(0)});
         if (assign_cvt_k_node)

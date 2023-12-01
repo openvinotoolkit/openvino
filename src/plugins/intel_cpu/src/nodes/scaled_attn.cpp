@@ -569,12 +569,18 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         }
 
         // q: [B, H, L1, S]
-        B = q_input.size(0);
-        H = q_input.size(1);
-        L1 = q_input.size(2);
+        B = config.config.is_lbhs_input ? q_input.size(1) : q_input.size(0);
+        H = config.config.is_lbhs_input ? q_input.size(2) : q_input.size(1);
+        L1 = config.config.is_lbhs_input ? q_input.size(0) : q_input.size(2);
         S = q_input.size(-1);
 
         PlainTensor present_key, present_value;
+        if (config.config.is_lbhs_input) {
+            q_input = q_input.permute({1, 2, 0, 3});
+            k_input = k_input.permute({1, 2, 0, 3});
+            v_input = v_input.permute({1, 2, 0, 3});
+        }
+
         concat_pastkv(inputs, outputs, k_input, v_input, present_key, present_value);
 
         ov::intel_cpu::PlainTensor output_emb(outputs[0]);
@@ -709,17 +715,19 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     }
 
     if (m_config.config.fuse_concat) {
-        ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
+        ArbitraryOrderDescCreator fuseConcatDescCreator({2, 0, 1, 3});
+        if (m_config.config.is_lbhs_input)
+            fuseConcatDescCreator = ArbitraryOrderDescCreator({0, 1, 2, 3});
 
-        config.inConfs[orginSDPInputNumber + 0].setMemDesc(cabdDescCreator.createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 0].setMemDesc(fuseConcatDescCreator.createSharedDesc(
             kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
-        config.inConfs[orginSDPInputNumber + 1].setMemDesc(cabdDescCreator.createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(fuseConcatDescCreator.createSharedDesc(
             kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
 
-        config.outConfs[1].setMemDesc(cabdDescCreator.createSharedDesc(
+        config.outConfs[1].setMemDesc(fuseConcatDescCreator.createSharedDesc(
             kvCachePrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(orginSDPInputNumber + 0);
-        config.outConfs[2].setMemDesc(cabdDescCreator.createSharedDesc(
+        config.outConfs[2].setMemDesc(fuseConcatDescCreator.createSharedDesc(
             kvCachePrecision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }

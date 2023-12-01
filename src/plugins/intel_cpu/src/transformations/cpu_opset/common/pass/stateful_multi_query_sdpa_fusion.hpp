@@ -8,10 +8,10 @@
 
 namespace ov {
 namespace intel_cpu {
-class StatefulMultiQuerySDPFusion : public ov::pass::MatcherPass {
+class StatefulMultiQuerySDPAFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("StatefulMultiQuerySDPFusion", "0");
-    StatefulSDPFusion();
+    StatefulMultiQuerySDPAFusion();
 };
 
 }   // namespace intel_cpu

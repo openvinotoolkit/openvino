@@ -113,6 +113,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/stateful_multi_query_sdpa_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -121,6 +122,7 @@
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 // Misc
 #include "nodes/mvn.h"
@@ -660,8 +662,11 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
-
+    // CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::VisualizeTree, "pre.svg");
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+    if (getenv("FUSE_MQ"))
+        CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulMultiQuerySDPAFusion);
+    // CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::VisualizeTree, "after.svg");
     postLPTPassManager.run_passes(model);
 }
 

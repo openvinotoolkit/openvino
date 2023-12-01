@@ -26,6 +26,8 @@ public:
         bool fuse_causal_attn = false;  // fuse causal mask and attn mask into attn_mask
         bool is_causal = false;         // apply causal mask internally
         bool fuse_concat = false;       // fuse (concat->sdp) ==> sdp
+        bool is_lbhs_input = false;     // true implies input is [L, B, H, S] otherwise [B,H,L,S]
+        bool is_multi_query = false;    // multi-query that q, k head needs broadcast
     };
 
     ScaledDotProductAttentionWithKVCache(const OutputVector& args, const Config& cfg);
