@@ -126,6 +126,10 @@ void EmbeddingBagSum::execute(const uint8_t* srcData, const uint8_t* weightsData
             return processData<element_type_traits<ov::element::f32>::value_type>(reinterpret_cast<const float*>(srcData),
                     reinterpret_cast<const float*>(weightsData), inDims, outMemory);
         }
+        case ov::element::f16: {
+            return processData<element_type_traits<ov::element::f16>::value_type>(reinterpret_cast<const ov::float16*>(srcData),
+                    reinterpret_cast<const ov::float16*>(weightsData), inDims, outMemory);
+        }
         case ov::element::i8: {
             return processData<element_type_traits<ov::element::i8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
                     reinterpret_cast<const int8_t*>(weightsData), inDims, outMemory);
