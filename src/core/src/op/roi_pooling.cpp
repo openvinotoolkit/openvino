@@ -41,9 +41,7 @@ void ROIPooling::validate_and_infer_types() {
                           " and: ",
                           coords_et);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, feat_maps_et, output_shapes[0]);
 
     const auto& feat_maps_ps = get_input_partial_shape(0);
