@@ -96,7 +96,7 @@ jobs:
           skip_filter=''
           if [[ "${{ runner.arch }}" == "ARM64" ]] && [[ "${{ runner.os }}" == "macOS" ]]; then
             # Skips under Ticket: 122769
-            skip_filter='--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_*:*Extension.XmlModelWithExtensionFromDSO*:*Extension.OnnxModelWithExtensionFromDSO*:*ONNXQuantizedModels/QuantizedModelsTests.MaxPool*:*ONNXQuantizedModels/QuantizedModelsTests.Convolution*:**'
+            skip_filter='--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_*:*Extension.XmlModelWithExtensionFromDSO*:*Extension.OnnxModelWithExtensionFromDSO*:*ONNXQuantizedModels/QuantizedModelsTests.MaxPool*:*ONNXQuantizedModels/QuantizedModelsTests.Convolution*:*'
           fi
           
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke* "$skip_filter"
