@@ -747,6 +747,7 @@ void regclass_graph_Model(py::module m) {
                 Delete Result node from the list of results. Method will not delete node from graph.
 
                 :param result: Result node to delete.
+                :type parameter: op.Parameter
             )");
 
     model.def("remove_parameter",
@@ -765,6 +766,7 @@ void regclass_graph_Model(py::module m) {
             * call graph validation to check all changes
 
             :param parameter: Parameter node to delete.
+            :type parameter: op.Parameter
         )");
 
     model.def(
@@ -785,6 +787,18 @@ void regclass_graph_Model(py::module m) {
                 Delete sink node from the list of sinks. Method doesn't delete node from graph.
 
                 :param sink: Sink to delete.
+                :type parameter: openvino.runtime.Node
+        )");
+    
+    model.def("remove_variable",
+              &ov::Model::remove_parameter,
+              py::arg("variable"),
+              R"(
+            Delete variable from the list of variables.
+            Method doesn't delete nodes that used this variable from the graph.
+
+            :param variable:  Variable to delete.
+            :type variable: op.util.Variable
         )");
 
     model.def("add_parameters",
@@ -837,6 +851,47 @@ void regclass_graph_Model(py::module m) {
                     :param sinks: new sink nodes.
                     :type sinks: List[openvino.runtime.Node]
                  )");
+    
+    model.def("add_variables",
+            &ov::Model::add_variables,
+            py::arg("variables"),
+            R"(
+                Add new variables to the list. 
+                
+                Method doesn't validate graph, it should be done manually after all changes.
+
+                :param variables: new variables to add.
+                :type variables: List[op.util.Variable]
+                )");
+
+    model.def("get_variables",
+            &ov::Model::get_variables,
+            R"(
+                Return a list of model's variables.
+                
+                :return: a list of model's variables.
+                :rtype: List[op.util.Variable]
+                )");
+
+    model.def_property_readonly("variables",
+                                &ov::Model::get_variables,
+                                R"(
+                                        Return a list of model's variables.
+                                        
+               :return: a list of model's variables.
+                :rtype: List[op.util.Variable]
+                )");
+    
+    model.def("get_variable_by_id",
+        &ov::Model::get_variable_by_id,
+        R"(
+            Return a variable by specified variable_id.
+            
+            :param variable_id: a variable id to get variable node.
+            :type variable_id: str
+            :return: a variable node.
+            :rtype: op.util.Variable
+            )");
 
     model.def(
         "get_sinks",
