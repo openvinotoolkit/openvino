@@ -32,8 +32,8 @@ class TestAtan2(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(input_shape=[1, 1], input_type=np.float32),
-        dict(input_shape=[8, 8], input_type=np.float32),
+        dict(input_shape=[1.0, 1.0], input_type=np.float32),
+        dict(input_shape=[8.0, 8.0], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
