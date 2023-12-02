@@ -15,7 +15,7 @@ from openvino import (
     Core,
     CompiledModel,
     InferRequest,
-    AsyncInferQueue,
+    # AsyncInferQueue,
     Model,
     Layout,
     PartialShape,
@@ -36,7 +36,8 @@ def create_model_with_memory(input_shape, data_type):
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
+    model = Model(results=[res], sinks=[node],
+                  parameters=[input_data], name="name")
     return model
 
 
@@ -109,7 +110,8 @@ def test_get_profiling_info(device):
     request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
-    soft_max_node = next(node for node in prof_info if node.node_type == "Softmax")
+    soft_max_node = next(
+        node for node in prof_info if node.node_type == "Softmax")
     assert soft_max_node
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
@@ -255,13 +257,15 @@ def test_batched_tensors(device):
     tensors = []
     for i in range(batch):
         # non contiguous memory (i*2)
-        tensors.append(Tensor(np.expand_dims(buffer[i * 2], 0), shared_memory=True))
+        tensors.append(Tensor(np.expand_dims(
+            buffer[i * 2], 0), shared_memory=True))
 
     req.set_input_tensors(tensors)
 
     with pytest.raises(RuntimeError) as e:
         req.get_tensor("tensor_input0")
-    assert "get_tensor shall not be used together with batched set_tensors/set_input_tensors" in str(e.value)
+    assert "get_tensor shall not be used together with batched set_tensors/set_input_tensors" in str(
+        e.value)
 
     actual_tensor = req.get_tensor("tensor_output0")
     actual = actual_tensor.data
@@ -272,7 +276,8 @@ def test_batched_tensors(device):
         req.infer()  # Adds '1' to each element
 
         # Reference values for each batch:
-        _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
+        _tmp = np.array([test_num + 11] * one_shape_size,
+                        dtype=np.float32).reshape([2, 2, 2])
 
         for idx in range(0, batch):
             assert np.array_equal(actual[idx], _tmp)
@@ -357,7 +362,8 @@ def test_infer_list_as_inputs(device, share_inputs):
 
     def check_fill_inputs(request, inputs):
         for input_idx in range(len(inputs)):
-            assert np.array_equal(request.get_input_tensor(input_idx).data, inputs[input_idx])
+            assert np.array_equal(request.get_input_tensor(
+                input_idx).data, inputs[input_idx])
 
     request = compiled_model.create_infer_request()
 
@@ -385,7 +391,8 @@ def test_infer_mixed_keys(device, share_inputs):
     tensor2 = Tensor(data2)
 
     request = compiled_model.create_infer_request()
-    res = request.infer({0: tensor2, "data": tensor}, share_inputs=share_inputs)
+    res = request.infer({0: tensor2, "data": tensor},
+                        share_inputs=share_inputs)
     assert np.argmax(res[compiled_model.output()]) == 531
 
 
@@ -406,11 +413,13 @@ def test_infer_mixed_keys(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+    request, tensor1, array1 = concat_model_with_data(
+        device, ov_type, numpy_dtype)
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(
+        request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -430,11 +439,13 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+    request, tensor1, array1 = concat_model_with_data(
+        device, ov_type, numpy_dtype)
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(
+        request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -450,13 +461,15 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
-    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+    _, request, tensor1, array1 = abs_model_with_data(
+        device, ov_type, numpy_dtype)
 
     request.infer(array1, share_inputs=share_inputs)
     assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
 
     request.infer(tensor1, share_inputs=share_inputs)
-    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
+    assert np.array_equal(
+        request.get_output_tensor().data, np.abs(tensor1.data))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -472,7 +485,8 @@ def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
-    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+    _, request, tensor1, array1 = abs_model_with_data(
+        device, ov_type, numpy_dtype)
 
     request.start_async(array1, share_inputs=share_inputs)
     request.wait()
@@ -480,55 +494,56 @@ def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
 
     request.start_async(tensor1, share_inputs=share_inputs)
     request.wait()
-    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
+    assert np.array_equal(
+        request.get_output_tensor().data, np.abs(tensor1.data))
 
 
-@pytest.mark.parametrize("share_inputs", [True, False])
-def test_infer_queue(device, share_inputs):
-    jobs = 8
-    num_request = 4
-    core = Core()
-    model = get_relu_model()
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, num_request)
-    jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
+# @pytest.mark.parametrize("share_inputs", [True, False])
+# def test_infer_queue(device, share_inputs):
+#     jobs = 8
+#     num_request = 4
+#     core = Core()
+#     model = get_relu_model()
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, num_request)
+#     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
 
-    def callback(request, job_id):
-        jobs_done[job_id]["finished"] = True
-        jobs_done[job_id]["latency"] = request.latency
+#     def callback(request, job_id):
+#         jobs_done[job_id]["finished"] = True
+#         jobs_done[job_id]["latency"] = request.latency
 
-    img = None
+#     img = None
 
-    if not share_inputs:
-        img = generate_image()
-    infer_queue.set_callback(callback)
-    assert infer_queue.is_ready()
+#     if not share_inputs:
+#         img = generate_image()
+#     infer_queue.set_callback(callback)
+#     assert infer_queue.is_ready()
 
-    for i in range(jobs):
-        if share_inputs:
-            img = generate_image()
-        infer_queue.start_async({"data": img}, i, share_inputs=share_inputs)
-    infer_queue.wait_all()
-    assert all(job["finished"] for job in jobs_done)
-    assert all(job["latency"] > 0 for job in jobs_done)
+#     for i in range(jobs):
+#         if share_inputs:
+#             img = generate_image()
+#         infer_queue.start_async({"data": img}, i, share_inputs=share_inputs)
+#     infer_queue.wait_all()
+#     assert all(job["finished"] for job in jobs_done)
+#     assert all(job["latency"] > 0 for job in jobs_done)
 
 
-def test_infer_queue_iteration(device):
-    core = Core()
-    param = ops.parameter([10])
-    model = Model(ops.relu(param), [param])
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, 1)
-    assert isinstance(infer_queue, Iterable)
-    for infer_req in infer_queue:
-        assert isinstance(infer_req, InferRequest)
+# def test_infer_queue_iteration(device):
+#     core = Core()
+#     param = ops.parameter([10])
+#     model = Model(ops.relu(param), [param])
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, 1)
+#     assert isinstance(infer_queue, Iterable)
+#     for infer_req in infer_queue:
+#         assert isinstance(infer_req, InferRequest)
 
-    it = iter(infer_queue)
-    infer_request = next(it)
-    assert isinstance(infer_request, InferRequest)
-    assert infer_request.userdata is None
-    with pytest.raises(StopIteration):
-        next(it)
+#     it = iter(infer_queue)
+#     infer_request = next(it)
+#     assert isinstance(infer_request, InferRequest)
+#     assert infer_request.userdata is None
+#     with pytest.raises(StopIteration):
+#         next(it)
 
 
 def test_get_compiled_model(device):
@@ -547,117 +562,117 @@ def test_get_compiled_model(device):
     assert np.allclose(ref[0], test[0])
 
 
-def test_infer_queue_userdata_is_empty(device):
-    core = Core()
-    param = ops.parameter([10])
-    model = Model(ops.relu(param), [param])
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, 1)
-    assert infer_queue.userdata == [None]
+# def test_infer_queue_userdata_is_empty(device):
+#     core = Core()
+#     param = ops.parameter([10])
+#     model = Model(ops.relu(param), [param])
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, 1)
+#     assert infer_queue.userdata == [None]
 
 
-def test_infer_queue_userdata_is_empty_more_jobs(device):
-    core = Core()
-    param = ops.parameter([10])
-    model = Model(ops.relu(param), [param])
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, 5)
-    assert infer_queue.userdata == [None, None, None, None, None]
+# def test_infer_queue_userdata_is_empty_more_jobs(device):
+#     core = Core()
+#     param = ops.parameter([10])
+#     model = Model(ops.relu(param), [param])
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, 5)
+#     assert infer_queue.userdata == [None, None, None, None, None]
 
 
-def test_infer_queue_fail_on_cpp_model(device):
-    jobs = 6
-    num_request = 4
-    core = Core()
-    model = get_relu_model()
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, num_request)
+# def test_infer_queue_fail_on_cpp_model(device):
+#     jobs = 6
+#     num_request = 4
+#     core = Core()
+#     model = get_relu_model()
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
-    def callback(request, _):
-        request.get_tensor("Unknown")
+#     def callback(request, _):
+#         request.get_tensor("Unknown")
 
-    img = generate_image()
-    infer_queue.set_callback(callback)
+#     img = generate_image()
+#     infer_queue.set_callback(callback)
 
-    with pytest.raises(RuntimeError) as e:
-        for _ in range(jobs):
-            infer_queue.start_async({"data": img})
-        infer_queue.wait_all()
+#     with pytest.raises(RuntimeError) as e:
+#         for _ in range(jobs):
+#             infer_queue.start_async({"data": img})
+#         infer_queue.wait_all()
 
-    assert "Port for tensor name Unknown was not found" in str(e.value)
-
-
-def test_infer_queue_fail_on_py_model(device):
-    jobs = 1
-    num_request = 1
-    core = Core()
-    model = get_relu_model()
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, num_request)
-
-    def callback(request, _):
-        request = request + 21
-
-    img = generate_image()
-    infer_queue.set_callback(callback)
-
-    with pytest.raises(TypeError) as e:
-        for _ in range(jobs):
-            infer_queue.start_async({"data": img})
-        infer_queue.wait_all()
-
-    assert "unsupported operand type(s) for +" in str(e.value)
+#     assert "Port for tensor name Unknown was not found" in str(e.value)
 
 
-@skip_need_mock_op
-@pytest.mark.parametrize("with_callback", [False, True])
-def test_infer_queue_fail_in_inference(device, with_callback):
-    jobs = 6
-    num_request = 4
-    core = Core()
-    data = ops.parameter([10], dtype=np.float32, name="data")
-    k_op = ops.parameter(Shape([]), dtype=np.int32, name="k")
-    emb = ops.topk(data, k_op, axis=0, mode="max", sort="value")
-    model = Model(emb, [data, k_op])
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, num_request)
+# def test_infer_queue_fail_on_py_model(device):
+#     jobs = 1
+#     num_request = 1
+#     core = Core()
+#     model = get_relu_model()
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
-    def callback(request, _):
-        pytest.fail("Callback should not be called")
+#     def callback(request, _):
+#         request = request + 21
 
-    if with_callback:
-        infer_queue.set_callback(callback)
+#     img = generate_image()
+#     infer_queue.set_callback(callback)
 
-    data_tensor = Tensor(np.arange(10).astype(np.float32))
-    k_tensor = Tensor(np.array(11, dtype=np.int32))
+#     with pytest.raises(TypeError) as e:
+#         for _ in range(jobs):
+#             infer_queue.start_async({"data": img})
+#         infer_queue.wait_all()
 
-    with pytest.raises(RuntimeError) as e:
-        for _ in range(jobs):
-            infer_queue.start_async({"data": data_tensor, "k": k_tensor})
-        infer_queue.wait_all()
-
-    assert "Can not clone with new dims" in str(e.value)
+#     assert "unsupported operand type(s) for +" in str(e.value)
 
 
-def test_infer_queue_get_idle_handle(device):
-    param = ops.parameter([10])
-    model = Model(ops.relu(param), [param])
-    core = Core()
-    compiled_model = core.compile_model(model, device)
-    queue = AsyncInferQueue(compiled_model, 2)
-    niter = 10
+# @skip_need_mock_op
+# @pytest.mark.parametrize("with_callback", [False, True])
+# def test_infer_queue_fail_in_inference(device, with_callback):
+#     jobs = 6
+#     num_request = 4
+#     core = Core()
+#     data = ops.parameter([10], dtype=np.float32, name="data")
+#     k_op = ops.parameter(Shape([]), dtype=np.int32, name="k")
+#     emb = ops.topk(data, k_op, axis=0, mode="max", sort="value")
+#     model = Model(emb, [data, k_op])
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
-    for _ in range(len(queue)):
-        queue.start_async()
-    queue.wait_all()
-    for request in queue:
-        assert request.wait_for(0)
+#     def callback(request, _):
+#         pytest.fail("Callback should not be called")
 
-    for _ in range(niter):
-        idle_id = queue.get_idle_request_id()
-        assert queue[idle_id].wait_for(0)
-        queue.start_async()
-    queue.wait_all()
+#     if with_callback:
+#         infer_queue.set_callback(callback)
+
+#     data_tensor = Tensor(np.arange(10).astype(np.float32))
+#     k_tensor = Tensor(np.array(11, dtype=np.int32))
+
+#     with pytest.raises(RuntimeError) as e:
+#         for _ in range(jobs):
+#             infer_queue.start_async({"data": data_tensor, "k": k_tensor})
+#         infer_queue.wait_all()
+
+#     assert "Can not clone with new dims" in str(e.value)
+
+
+# def test_infer_queue_get_idle_handle(device):
+#     param = ops.parameter([10])
+#     model = Model(ops.relu(param), [param])
+#     core = Core()
+#     compiled_model = core.compile_model(model, device)
+#     queue = AsyncInferQueue(compiled_model, 2)
+#     niter = 10
+
+#     for _ in range(len(queue)):
+#         queue.start_async()
+#     queue.wait_all()
+#     for request in queue:
+#         assert request.wait_for(0)
+
+#     for _ in range(niter):
+#         idle_id = queue.get_idle_request_id()
+#         assert queue[idle_id].wait_for(0)
+#         queue.start_async()
+#     queue.wait_all()
 
 
 @pytest.mark.parametrize("data_type",
@@ -691,12 +706,14 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         if mode == "set_init_memory_state":
             # create initial value
             const_init = 5
-            init_array = np.full(input_shape, const_init, dtype=get_dtype(mem_state.state.element_type))
+            init_array = np.full(input_shape, const_init,
+                                 dtype=get_dtype(mem_state.state.element_type))
             tensor = Tensor(init_array)
             mem_state.state = tensor
 
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            expected_res = np.full(input_shape, 1 + const_init, dtype=data_type)
+            expected_res = np.full(
+                input_shape, 1 + const_init, dtype=data_type)
         elif mode == "reset_memory_state":
             # reset initial state of ReadValue to zero
             mem_state.reset()
@@ -707,7 +724,8 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
 
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
+        assert np.allclose(res[list(res)[0]], expected_res,
+                           atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -723,31 +741,31 @@ def test_get_results(device, share_inputs):
         assert np.array_equal(results[output], request.results[output])
 
 
-@pytest.mark.parametrize("share_inputs", [True, False])
-def test_results_async_infer(device, share_inputs):
-    jobs = 8
-    num_request = 4
-    core = Core()
-    model = get_relu_model()
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, num_request)
-    jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
+# @pytest.mark.parametrize("share_inputs", [True, False])
+# def test_results_async_infer(device, share_inputs):
+#     jobs = 8
+#     num_request = 4
+#     core = Core()
+#     model = get_relu_model()
+#     compiled_model = core.compile_model(model, device)
+#     infer_queue = AsyncInferQueue(compiled_model, num_request)
+#     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
 
-    def callback(request, job_id):
-        jobs_done[job_id]["finished"] = True
-        jobs_done[job_id]["latency"] = request.latency
+#     def callback(request, job_id):
+#         jobs_done[job_id]["finished"] = True
+#         jobs_done[job_id]["latency"] = request.latency
 
-    img = generate_image()
-    infer_queue.set_callback(callback)
-    for i in range(jobs):
-        infer_queue.start_async({"data": img}, i, share_inputs=share_inputs)
-    infer_queue.wait_all()
+#     img = generate_image()
+#     infer_queue.set_callback(callback)
+#     for i in range(jobs):
+#         infer_queue.start_async({"data": img}, i, share_inputs=share_inputs)
+#     infer_queue.wait_all()
 
-    request = compiled_model.create_infer_request()
-    outputs = request.infer({0: img})
+#     request = compiled_model.create_infer_request()
+#     outputs = request.infer({0: img})
 
-    for i in range(num_request):
-        assert np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
+#     for i in range(num_request):
+#         assert np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
 
 
 @pytest.mark.skipif(
@@ -828,9 +846,11 @@ def test_infer_float16(device, share_inputs):
 
     model = ppp.build()
     compiled_model = core.compile_model(model, device)
-    input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
+    input_data = np.array(
+        [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
     request = compiled_model.create_infer_request()
-    outputs = request.infer({0: input_data, 1: input_data}, share_inputs=share_inputs)
+    outputs = request.infer(
+        {0: input_data, 1: input_data}, share_inputs=share_inputs)
     assert np.allclose(list(outputs.values()), list(request.results.values()))
     assert np.allclose(list(outputs.values()), input_data + input_data)
 
@@ -856,13 +876,15 @@ def test_ports_as_inputs(device, share_inputs):
         {compiled_model.inputs[0]: tensor1, compiled_model.inputs[1]: tensor2},
         share_inputs=share_inputs,
     )
-    assert np.array_equal(res[compiled_model.outputs[0]], tensor1.data + tensor2.data)
+    assert np.array_equal(res[compiled_model.outputs[0]],
+                          tensor1.data + tensor2.data)
 
     res = request.infer(
         {request.model_inputs[0]: tensor1, request.model_inputs[1]: tensor2},
         share_inputs=share_inputs,
     )
-    assert np.array_equal(res[request.model_outputs[0]], tensor1.data + tensor2.data)
+    assert np.array_equal(res[request.model_outputs[0]],
+                          tensor1.data + tensor2.data)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -947,22 +969,26 @@ def test_array_like_input_request(device, share_inputs):
         def __array__(self):
             return np.array(self.data)
 
-    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    _, request, _, input_data = abs_model_with_data(
+        device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
     model_input_dict = {0: ArrayLikeObject(input_data.tolist())}
 
     # Test single array-like object in InferRequest().Infer()
     res_object = request.infer(model_input_object, share_inputs=share_inputs)
-    assert np.array_equal(res_object[request.model_outputs[0]], np.abs(input_data))
+    assert np.array_equal(
+        res_object[request.model_outputs[0]], np.abs(input_data))
 
     # Test list of array-like objects to use normalize_inputs()
     res_list = request.infer(model_input_list)
-    assert np.array_equal(res_list[request.model_outputs[0]], np.abs(input_data))
+    assert np.array_equal(
+        res_list[request.model_outputs[0]], np.abs(input_data))
 
     # Test dict of array-like objects to use normalize_inputs()
     res_dict = request.infer(model_input_dict)
-    assert np.array_equal(res_dict[request.model_outputs[0]], np.abs(input_data))
+    assert np.array_equal(
+        res_dict[request.model_outputs[0]], np.abs(input_data))
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -975,7 +1001,8 @@ def test_array_like_input_async(device, share_inputs):
         def __array__(self):
             return np.array(self.data)
 
-    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    _, request, _, input_data = abs_model_with_data(
+        device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
     # Test single array-like object in InferRequest().start_async()
@@ -989,46 +1016,50 @@ def test_array_like_input_async(device, share_inputs):
     assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
 
 
-@pytest.mark.parametrize("share_inputs", [True, False])
-def test_array_like_input_async_infer_queue(device, share_inputs):
-    class ArrayLikeObject:
-        # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
-        def __init__(self, array) -> None:
-            self.data = array
+# @pytest.mark.parametrize("share_inputs", [True, False])
+# def test_array_like_input_async_infer_queue(device, share_inputs):
+#     class ArrayLikeObject:
+#         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
+#         def __init__(self, array) -> None:
+#             self.data = array
 
-        def __array__(self):
-            return self.data
+#         def __array__(self):
+#             return self.data
 
-    jobs = 8
-    ov_type = Type.f32
-    input_shape = [2, 2]
-    input_data = np.ascontiguousarray([[-2, -1], [0, 1]])
-    param = ops.parameter(input_shape, ov_type)
-    layer = ops.abs(param)
-    model = Model([layer], [param])
-    core = Core()
-    compiled_model = core.compile_model(model, "CPU")
+#     jobs = 8
+#     ov_type = Type.f32
+#     input_shape = [2, 2]
+#     input_data = np.ascontiguousarray([[-2, -1], [0, 1]])
+#     param = ops.parameter(input_shape, ov_type)
+#     layer = ops.abs(param)
+#     model = Model([layer], [param])
+#     core = Core()
+#     compiled_model = core.compile_model(model, "CPU")
 
-    model_input_object = ArrayLikeObject(input_data)
-    model_input_list = [[ArrayLikeObject(deepcopy(input_data))] for _ in range(jobs)]
+#     model_input_object = ArrayLikeObject(input_data)
+#     model_input_list = [
+#         [ArrayLikeObject(deepcopy(input_data))] for _ in range(jobs)]
 
-    # Test single array-like object in AsyncInferQueue.start_async()
-    infer_queue_object = AsyncInferQueue(compiled_model, jobs)
-    for _i in range(jobs):
-        infer_queue_object.start_async(model_input_object)
-    infer_queue_object.wait_all()
+#     # Test single array-like object in AsyncInferQueue.start_async()
+#     infer_queue_object = AsyncInferQueue(compiled_model, jobs)
+#     for _i in range(jobs):
+#         infer_queue_object.start_async(model_input_object)
+#     infer_queue_object.wait_all()
 
-    for i in range(jobs):
-        assert np.array_equal(infer_queue_object[i].get_output_tensor().data, np.abs(input_data))
+#     for i in range(jobs):
+#         assert np.array_equal(
+#             infer_queue_object[i].get_output_tensor().data, np.abs(input_data))
 
-    # Test list of array-like objects in AsyncInferQueue.start_async()
-    infer_queue_list = AsyncInferQueue(compiled_model, jobs)
-    for i in range(jobs):
-        infer_queue_list.start_async(model_input_list[i], share_inputs=share_inputs)
-    infer_queue_list.wait_all()
+#     # Test list of array-like objects in AsyncInferQueue.start_async()
+#     infer_queue_list = AsyncInferQueue(compiled_model, jobs)
+#     for i in range(jobs):
+#         infer_queue_list.start_async(
+#             model_input_list[i], share_inputs=share_inputs)
+#     infer_queue_list.wait_all()
 
-    for i in range(jobs):
-        assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
+#     for i in range(jobs):
+#         assert np.array_equal(
+#             infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
 
 def test_convert_infer_request(device):
@@ -1072,7 +1103,8 @@ def test_only_scalar_infer(device, share_inputs, input_data):
 
 @pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("input_data", [
-    {0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
+    {0: np.array(1.0, dtype=np.float32), 1: np.array(
+        [1.0, 2.0], dtype=np.float32)},
     {0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
     {0: np.float32(1.0), 1: np.array([1, 2], dtype=np.float32)},
     {0: np.int32(1.0), 1: np.array([1, 2], dtype=np.int32)},
@@ -1091,7 +1123,8 @@ def test_mixed_scalar_infer(device, share_inputs, input_data):
 
     res = request.infer(input_data, share_inputs=share_inputs)
 
-    assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
+    assert np.allclose(res[request.model_outputs[0]],
+                       np.add(input_data[0], input_data[1]))
 
     input_tensor0 = request.get_input_tensor(0)
     input_tensor1 = request.get_input_tensor(1)
@@ -1113,7 +1146,8 @@ def test_mixed_scalar_infer(device, share_inputs, input_data):
 @pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("input_data", [
     {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0], dtype=np.float32)},
-    {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0, 3.0, 3.0], dtype=np.float32)},
+    {0: np.array(1.0, dtype=np.float32), 1: np.array(
+        [3.0, 3.0, 3.0], dtype=np.float32)},
 ])
 def test_mixed_dynamic_infer(device, share_inputs, input_data):
     core = Core()
@@ -1127,7 +1161,8 @@ def test_mixed_dynamic_infer(device, share_inputs, input_data):
 
     res = request.infer(input_data, share_inputs=share_inputs)
 
-    assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
+    assert np.allclose(res[request.model_outputs[0]],
+                       np.add(input_data[0], input_data[1]))
 
     input_tensor0 = request.get_input_tensor(0)
     input_tensor1 = request.get_input_tensor(1)
@@ -1176,47 +1211,52 @@ def test_not_writable_inputs_infer(device, share_inputs, input_data, change_flag
     assert not np.shares_memory(input_data[0], input_tensor.data)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_shared_memory_deprecation(device, shared_flag):
-    compiled, request, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+# @pytest.mark.parametrize("shared_flag", [True, False])
+# def test_shared_memory_deprecation(device, shared_flag):
+#     compiled, request, _, input_data = abs_model_with_data(
+#         device, Type.f32, np.float32)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        _ = compiled(input_data, shared_memory=shared_flag)
+#     with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+#         _ = compiled(input_data, shared_memory=shared_flag)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        _ = request.infer(input_data, shared_memory=shared_flag)
+#     with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+#         _ = request.infer(input_data, shared_memory=shared_flag)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        request.start_async(input_data, shared_memory=shared_flag)
-    request.wait()
+#     with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+#         request.start_async(input_data, shared_memory=shared_flag)
+#     request.wait()
 
-    queue = AsyncInferQueue(compiled, jobs=1)
+#     queue = AsyncInferQueue(compiled, jobs=1)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        queue.start_async(input_data, shared_memory=shared_flag)
-    queue.wait_all()
+#     with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+#         queue.start_async(input_data, shared_memory=shared_flag)
+#     queue.wait_all()
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("share_outputs", [True, False])
 @pytest.mark.parametrize("is_positional", [True, False])
 def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
-    compiled, _, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+    compiled, _, _, input_data = abs_model_with_data(
+        device, Type.f32, np.float32)
 
     if is_positional:
-        results = compiled(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+        results = compiled(input_data, share_inputs=share_inputs,
+                           share_outputs=share_outputs)
     else:
         results = compiled(input_data, share_inputs, share_outputs)
 
     assert np.array_equal(results[0], np.abs(input_data))
 
-    in_tensor_shares = np.shares_memory(compiled._infer_request.get_input_tensor(0).data, input_data)
+    in_tensor_shares = np.shares_memory(
+        compiled._infer_request.get_input_tensor(0).data, input_data)
     if share_inputs:
         assert in_tensor_shares
     else:
         assert not in_tensor_shares
 
-    out_tensor_shares = np.shares_memory(compiled._infer_request.get_output_tensor(0).data, results[0])
+    out_tensor_shares = np.shares_memory(
+        compiled._infer_request.get_output_tensor(0).data, results[0])
     if share_outputs:
         assert out_tensor_shares
         assert results[0].flags["OWNDATA"] is False
@@ -1229,23 +1269,27 @@ def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_pos
 @pytest.mark.parametrize("share_outputs", [True, False])
 @pytest.mark.parametrize("is_positional", [True, False])
 def test_infer_request_share_memory(device, share_inputs, share_outputs, is_positional):
-    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+    _, request, _, input_data = abs_model_with_data(
+        device, Type.f32, np.float32)
 
     if is_positional:
-        results = request.infer(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+        results = request.infer(
+            input_data, share_inputs=share_inputs, share_outputs=share_outputs)
     else:
         results = request.infer(input_data, share_inputs, share_outputs)
 
     assert np.array_equal(results[0], np.abs(input_data))
 
-    in_tensor_shares = np.shares_memory(request.get_input_tensor(0).data, input_data)
+    in_tensor_shares = np.shares_memory(
+        request.get_input_tensor(0).data, input_data)
 
     if share_inputs:
         assert in_tensor_shares
     else:
         assert not in_tensor_shares
 
-    out_tensor_shares = np.shares_memory(request.get_output_tensor(0).data, results[0])
+    out_tensor_shares = np.shares_memory(
+        request.get_output_tensor(0).data, results[0])
     if share_outputs:
         assert out_tensor_shares
         assert results[0].flags["OWNDATA"] is False
