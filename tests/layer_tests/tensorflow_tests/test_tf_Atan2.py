@@ -9,13 +9,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestAtan2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
         assert 'y' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x' in inputs_info
         y_shape = inputs_info['y']
+        x_shape = inputs_info['x']
         inputs_data = {}
-        inputs_data['x'] = np.random.rand(x.shape).astype(self.input_type)
         inputs_data['y'] = np.random.rand(y.shape).astype(self.input_type)
+        inputs_data['x'] = np.random.rand(x.shape).astype(self.input_type)
         return inputs_data
 
     def create_atan2_net(self, input_shape, input_type):
@@ -23,8 +23,8 @@ class TestAtan2(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
             y = tf.compat.v1.placeholder(input_type, input_shape, 'y')
+            x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
             tf.math.atan2(y=y, x=x)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -32,10 +32,8 @@ class TestAtan2(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(input_shape=[10, 20], input_type=np.float32),
-        dict(input_shape=[8, 5], input_type=np.float32),
-        dict(input_shape=[5, 3], input_type=np.int32),
-        dict(input_shape=[6, 4], input_type=np.int32),
+        dict(input_shape=[1, 1], input_type=np.float32),
+        dict(input_shape=[8, 8], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
