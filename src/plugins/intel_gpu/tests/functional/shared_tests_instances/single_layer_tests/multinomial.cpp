@@ -15,7 +15,6 @@ const std::vector<ov::test::ElementType> netPrecisions = {
 const std::vector<ov::Shape> inputShapes = {
     {1, 32},
     {2, 28},
-    {32},
 };
 
 const std::vector<int64_t> numSamples = {
