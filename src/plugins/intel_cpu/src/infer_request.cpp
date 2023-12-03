@@ -406,7 +406,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
             // otherwise we got incorrect check on shape compatibility inside isCompatible
             // because lower and upper bound will be compared
             actualDesc = actualDesc->cloneWithNewDims(
-                ov::is_scalar(mem_desc_ptr->getShape().getDims()) ? VectorDims{1} : mem_desc_ptr->getShape().getDims());
+                ov::is_scalar(tensor->get_shape()) ? VectorDims{1} : VectorDims{tensor->get_shape()});
         }
 
         if (actualDesc->isCompatible(*mem_desc_ptr)) {
