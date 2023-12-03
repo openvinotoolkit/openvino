@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
-import pytest
-from py.xml import html
 
+import pytest
 from models_hub_common.utils import get_params
+from py.xml import html
 
 
 def pytest_generate_tests(metafunc):

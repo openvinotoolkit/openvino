@@ -1,19 +1,20 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import sys
 import math
-import tempfile
-import torch
-import pytest
+import os
 import subprocess
-from torch_utils import TestTorchConvertModel
-from openvino import convert_model, Model, PartialShape, Type
-import openvino.runtime.opset12 as ops
-from openvino.frontend import ConversionExtension
-import numpy as np
+import sys
+import tempfile
 
+import numpy as np
+import openvino.runtime.opset12 as ops
+import pytest
+import torch
+from openvino import convert_model, Model, PartialShape, Type
+from openvino.frontend import ConversionExtension
+
+from torch_utils import TestTorchConvertModel
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
@@ -79,7 +80,7 @@ class TestAlikedConvertModel(TestTorchConvertModel):
         subprocess.check_call(
             ["git", "checkout", "6008af43942925eec7e32006814ef41fbd0858d8"], cwd=self.repo_dir.name)
         subprocess.check_call([sys.executable, "-m", "pip", "install",
-                              "-r", os.path.join(self.repo_dir.name, "requirements.txt")])
+                               "-r", os.path.join(self.repo_dir.name, "requirements.txt")])
         subprocess.check_call(["sh", "build.sh"], cwd=os.path.join(
             self.repo_dir.name, "custom_ops"))
 

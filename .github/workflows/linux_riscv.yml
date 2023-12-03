@@ -45,7 +45,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
@@ -58,8 +58,8 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_Release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_Release
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     if: "!needs.smart_ci.outputs.skip_workflow"

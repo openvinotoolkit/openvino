@@ -206,7 +206,7 @@ def generate_add_model() -> openvino._pyopenvino.Model:
     param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
-    return Model(add, [param1, param2], "TestFunction")
+    return Model(add, [param1, param2], "TestModel")
 
 
 def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
