@@ -7,6 +7,7 @@ import jsonschema
 import logging
 from pathlib import Path
 from ghapi.all import GhApi
+from fnmatch import fnmatch
 
 
 class ComponentConfig:
@@ -121,6 +122,12 @@ def parse_args():
                         help='Path to the schema file for components config')
     parser.add_argument('-l', '--labeler-config', default='.github/labeler.yml',
                         help='Path to PR labeler config file')
+    parser.add_argument('--skip-when-only-listed-labels-set',
+                        help="Comma-separated list of labels. If PR has only these labels set, "
+                             "return indicator that CI can be skipped")
+    parser.add_argument('--skip-when-only-listed-files-changed',
+                        help="Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, "
+                             "return indicator that CI can be skipped")
     args = parser.parse_args()
     return args
 
@@ -189,25 +196,25 @@ def main():
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
 
-    # We don't need to run workflow if changes were only in documentation
-    # This is the case when we have no product labels set except "docs"
-    # or only if md files were matched (the latter covers cases where *.md is outside docs directory)
-    only_docs_changes = False
+    skip_workflow = False
     if args.pr and not run_full_scope:
-        # We don't want to add helper labels to labeler config for now, so handling it manually
-        docs_label_only = changed_component_names - {'docs'} == set()
-        if docs_label_only:
-            only_docs_changes = True
-        else:
+        if args.skip_when_only_listed_labels_set:
+            excepted_labels = set(args.skip_when_only_listed_labels_set.split(','))
+            excepted_labels_only = changed_component_names - excepted_labels == set()
+            skip_workflow = excepted_labels_only
+
+        if not skip_workflow and args.skip_when_only_listed_files_changed:
             # To avoid spending extra API requests running step below only if necessary
             changed_files = gh_api.pulls.list_files(args.pr)
-            doc_suffixes = ['.md', '.rst', '.png', '.jpg', '.svg']
-            only_docs_changes = all([Path(f.filename).suffix in doc_suffixes for f in changed_files])
-            logger.debug(f"doc files only: {only_docs_changes}")
+            patterns = set(args.skip_when_only_listed_files_changed.split(','))
 
-    if only_docs_changes:
-        logger.info(f"Changes are documentation only, workflow may be skipped")
-        affected_components['docs_only'] = ComponentConfig.FullScope
+            matched_files_only = all(any(fnmatch(f.filename, pattern) for pattern in patterns) for f in changed_files)
+            logger.debug(f"matched files only: {matched_files_only}")
+            skip_workflow = matched_files_only
+
+    if skip_workflow:
+        logger.info(f"All changes are marked for skip, workflow may be skipped")
+        set_github_output("skip_workflow", str(skip_workflow))
 
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}

@@ -48,8 +48,22 @@ void StridedSliceTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(ssParams.inputShape))};
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto ss = ngraph::builder::makeStridedSlice(relu, ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
-                                                ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
+
+    ov::Shape constShape = {ssParams.begin.size()};
+    auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.begin.data());
+    auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.end.data());
+    auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.strides.data());
+
+    auto ss = std::make_shared<ov::op::v1::StridedSlice>(relu,
+                                                        beginNode,
+                                                        endNode,
+                                                        strideNode,
+                                                        ssParams.beginMask,
+                                                        ssParams.endMask,
+                                                        ssParams.newAxisMask,
+                                                        ssParams.shrinkAxisMask,
+                                                        ssParams.ellipsisAxisMask);
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "strided_slice");
 }

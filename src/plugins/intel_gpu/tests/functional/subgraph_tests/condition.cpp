@@ -51,7 +51,15 @@ enum InnerBodyType {
     /**
      * Inner body with single constant with zero dimensions
      */
-    Type06 = 6
+    Type06 = 6,
+    /**
+     * Inner body with single constant
+    */
+    Type07 = 7,
+    /**
+     * Inner body with single parameter
+    */
+    Type08 = 8
 };
 
 public:
@@ -288,6 +296,39 @@ protected:
     }
 };
 
+class InnerBodyType07 : public InnerBodyGenerator {
+protected:
+    std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
+        auto constant   = ngraph::opset9::Constant::create(prc, input_shape.to_shape(), {2.0f});
+        constant->set_friendly_name("body7_constant");
+        auto result     = std::make_shared<ngraph::opset1::Result>(constant);
+        auto o_layout = result->get_layout();
+        result->set_friendly_name("body7_result");
+        auto body       = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector {result},
+            ngraph::ParameterVector{},
+            "constant_to_result");
+        return body;
+    }
+};
+
+class InnerBodyType08 : public InnerBodyGenerator {
+protected:
+    std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
+        auto constant   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 10.0f);
+        constant->set_friendly_name("body8_const");
+        auto data       = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
+        data->set_friendly_name("body8_data");
+        auto result     = std::make_shared<ngraph::opset1::Result>(data);
+        result->set_friendly_name("body8_result");
+        auto body       = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector {result},
+            ngraph::ParameterVector{data},
+            "parameter_to_result");
+        return body;
+    }
+};
+
 static std::shared_ptr<InnerBodyGenerator> get_inner_body_generator(InnerBodyGenerator::InnerBodyType type) {
     std::shared_ptr<InnerBodyGenerator> generator_ptr;
     switch (type) {
@@ -314,6 +355,14 @@ static std::shared_ptr<InnerBodyGenerator> get_inner_body_generator(InnerBodyGen
         case InnerBodyGenerator::InnerBodyType::Type06:
         {
             return std::make_shared<InnerBodyType06>();
+        }
+        case InnerBodyGenerator::InnerBodyType::Type07:
+        {
+            return std::make_shared<InnerBodyType07>();
+        }
+        case InnerBodyGenerator::InnerBodyType::Type08:
+        {
+            return std::make_shared<InnerBodyType08>();
         }
         default:
         {
@@ -453,6 +502,16 @@ static std::ostream& operator<<(std::ostream& os, const InnerBodyGenerator::Inne
             os << "Type06";
             break;
         }
+        case InnerBodyGenerator::InnerBodyType::Type07:
+        {
+            os << "Type07";
+            break;
+        }
+        case InnerBodyGenerator::InnerBodyType::Type08:
+        {
+            os << "Type08";
+            break;
+        }
         default:
         {
             os << "NONE";
@@ -574,6 +633,92 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_static, StaticConditionLayerGPUT
                 testing::Combine(
                     testing::ValuesIn(inputs_shape),
                     testing::ValuesIn(netPrecisions_static),
+                    testing::ValuesIn(if_cond_types),
+                    testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                StaticConditionLayerGPUTest::getTestCaseName);
+
+
+/// Static shape single layer test
+class StaticConditionSingleLayerGPUTest : public testing::WithParamInterface<ConditionParams>,
+                        virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConditionParams>& obj) {
+        InferenceEngine::SizeVector data_shape;
+        InferenceEngine::Precision data_prc;
+        TestModelGenerator::PredicateTypes pred;
+        std::string targetDevice;
+
+        std::tie(data_shape, data_prc, pred, targetDevice) = obj.param;
+        std::ostringstream result;
+        result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
+        result << "netPRC=" << std::to_string(data_prc) << "_";
+        result << "ifCond=" << pred << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        auto res_str = result.str();
+        std::replace(res_str.begin(), res_str.end(), '-', '_');
+        return res_str;
+    }
+
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        TestModelGenerator::PredicateTypes pred;
+        std::tie(data_shape, data_prc, pred, targetDevice) = GetParam();
+        const auto ngShape = ov::PartialShape{data_shape};
+        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
+        TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type07,
+                                            InnerBodyGenerator::InnerBodyType::Type08,
+                                            pred,
+                                            prc,
+                                            ngShape);
+        function = model_generator.get_function();
+    }
+
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        auto tensor_desc = info.getTensorDesc();
+        auto blob = make_blob_with_precision(tensor_desc);
+        blob->allocate();
+
+        if (tensor_desc.getLayout() == InferenceEngine::SCALAR) {
+            auto prc = tensor_desc.getPrecision();
+            auto scalar_1d = ov::test::utils::make_reshape_view(blob, {1});
+            if (prc == InferenceEngine::Precision::BOOL) {
+                auto mem_blob = dynamic_cast<InferenceEngine::MemoryBlob*>(blob.get());
+                auto mem = mem_blob->rwmap();
+                auto data_ptr = mem.as<bool*>();
+                *data_ptr = false;
+            } else {
+                ov::test::utils::fill_data_with_broadcast(scalar_1d, 0, {20.f});
+            }
+        } else {
+            ov::test::utils::fill_data_with_broadcast(blob, 0, {20.f});
+        }
+        return blob;
+    }
+
+    InferenceEngine::SizeVector data_shape;
+    InferenceEngine::Precision data_prc;
+};
+
+TEST_P(StaticConditionSingleLayerGPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Run();
+}
+
+std::vector<InferenceEngine::Precision> netPrecisions_static_single = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::I8
+};
+
+std::vector<InferenceEngine::SizeVector> inputs_shape_single = {
+    {64}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_static, StaticConditionSingleLayerGPUTest,
+                testing::Combine(
+                    testing::ValuesIn(inputs_shape_single),
+                    testing::ValuesIn(netPrecisions_static_single),
                     testing::ValuesIn(if_cond_types),
                     testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 StaticConditionLayerGPUTest::getTestCaseName);

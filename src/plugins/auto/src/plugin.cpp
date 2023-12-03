@@ -13,7 +13,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -478,7 +477,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                 auto& rt_info = input.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
                     if (element_type != input.get_element_type()) {
                         preproc.input(i).tensor().set_element_type(element_type);
@@ -500,7 +499,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                 auto& rt_info = output.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
                     if (element_type != output.get_element_type()) {
                         preproc.output(i).tensor().set_element_type(element_type);
@@ -546,8 +545,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_model = cloned_model;
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
-    auto_s_context->m_device_priorities_initial = support_devices;
-    auto_s_context->m_str_devices = str_devices;
+    auto_s_context->m_device_priorities_initial = std::move(support_devices);
+    auto_s_context->m_str_devices = std::move(str_devices);
     auto_s_context->m_plugin = shared_from_this();
     auto_s_context->m_ov_core = get_core();
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
@@ -603,7 +602,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                 device_supported_layers.emplace(layer_qm.first);
             }
             supported_layers = supported_layers.empty()
-                            ? device_supported_layers : (device_supported_layers.empty()
+                            ? std::move(device_supported_layers) : (device_supported_layers.empty()
                             ? supported_layers : inter_section(supported_layers, device_supported_layers));
         }
         for (auto&& iter : supported_layers) {
