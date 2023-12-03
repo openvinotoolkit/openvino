@@ -7,7 +7,7 @@
 #include "group_normalization_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 op::v12::GroupNormalization::GroupNormalization() : m_num_groups{0}, m_epsilon{0} {}
@@ -32,9 +32,7 @@ bool op::v12::GroupNormalization::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v12::GroupNormalization::validate_and_infer_types() {
     OV_OP_SCOPE(v12_GroupNormalization_validate_and_infer_types);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
     set_output_type(0, get_input_element_type(0), output_shapes.at(0));
 }
