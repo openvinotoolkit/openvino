@@ -36,8 +36,11 @@ def full(name : str, shape : list, dtype, value):
 def full_tensor(name : str, shape : list, dtype, value):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        if paddle.__version__ >= '2.0.0':
+        if paddle.__version__ >= '2.5.1':
             node_value = paddle.static.data(name='value', shape=[], dtype=dtype)
+            x1 = paddle.full(shape=shape, fill_value=node_value, dtype=dtype, name='full1')
+        elif paddle.__version__ >= '2.0.0':
+            node_value = paddle.static.data(name='value', shape=[1], dtype=dtype)
             x1 = paddle.full(shape=shape, fill_value=node_value, dtype=dtype, name='full1')
         else:
             node_value = paddle.static.data(name='value', shape=[1], dtype=dtype)
@@ -52,7 +55,7 @@ def full_tensor(name : str, shape : list, dtype, value):
             feed={"value": value},
             fetch_list=[out])
 
-        if paddle.__version__ >= '2.0.0':
+        if paddle.__version__ >= '2.5.1':
             saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array(value).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
         else:
             saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array([value]).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
