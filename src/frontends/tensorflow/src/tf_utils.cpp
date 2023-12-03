@@ -173,7 +173,7 @@ bool CfMarkerType::is_copyable() const {
 Type get_ov_type(const ::tensorflow::DataType& type) {
     using ::tensorflow::DataType;
 
-    static unordered_map<DataType, Type> type_map{
+    static map<DataType, Type> type_map{
         {DataType::DT_FLOAT, f32},         {DataType::DT_DOUBLE, f64},     {DataType::DT_INT32, i32},
         {DataType::DT_UINT8, u8},          {DataType::DT_INT16, i16},      {DataType::DT_INT8, i8},
         {DataType::DT_INT64, i64},         {DataType::DT_BOOL, boolean},   {DataType::DT_BFLOAT16, bf16},
