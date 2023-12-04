@@ -64,7 +64,7 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
             // we cannot replace other unpacks even if they exist, leaving Unpack-op(s) in the graph for this Parameter
 
             updated_parameters.push_back(parameter);
-            // In case if at least one Unpack exists there is an opportinity to attach diagnostics
+            // In case if at least one Unpack exists there is an opportunity to attach diagnostics
             for (const auto& consumer : consumer_unpacks) {
                 std::stringstream message;
                 message << "Not prim::TupleUnpack operations exist except this one: " << consumer
