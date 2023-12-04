@@ -61,10 +61,17 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     if (node_context.has_attribute("axis")) {
         axis = node_context.get_attribute<int>("axis");
     }
+
+    int64_t pd_version = node_context.get_version();
+
+    bool python_div = false;
+    if (pd_version >= 2005000 || pd_version == 0) {
+        python_div = true;
+    }
     return node_context.default_single_output_mapping(
         {std::make_shared<default_opset::Divide>(x,
                                                  y,
-                                                 true,
+                                                 python_div,
                                                  ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, axis))},
         {"Out"});
 }
