@@ -41,7 +41,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_compression_message  # pylint: disable=no-name-in-module,import-error
+    get_tf_fe_message, get_compression_message, get_ovc_message  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
@@ -908,10 +908,14 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
             ov_update_message = get_ov_update_message()
             ov_api20_message = get_ov_api20_message()
+            ovc_message = get_ovc_message()
+            _, is_caffe, is_mxnet, is_kaldi, _ = deduce_legacy_frontend_by_namespace(argv)
             if ov_update_message is not None:
                 print(ov_update_message)
             if ov_api20_message is not None and ov_model is not None:
                 print(ov_api20_message)
+            if ovc_message is not None and not is_caffe and not is_mxnet and not is_kaldi:
+                print(ovc_message)
             is_fallback = getattr(argv, 'is_fallback', False)
             if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
                 # now TF FE is default frontend for TensorFlow models conversion

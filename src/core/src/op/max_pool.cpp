@@ -40,7 +40,8 @@ void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
@@ -168,7 +169,8 @@ void MaxPool::validate_and_infer_types() {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
