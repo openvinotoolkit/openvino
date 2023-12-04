@@ -59,6 +59,23 @@ def create_model_with_memory(input_shape, data_type):
     return model
 
 
+def abs_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [1, 4]
+    param = ops.parameter(input_shape, ov_type)
+    model = Model(ops.abs(param), [param])
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    request = compiled_model.create_infer_request()
+
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, -7, -8, 9])
+
+    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
+
+    return compiled_model, request, tensor1, array1
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_queue(device, share_inputs):
     jobs = 8
@@ -314,3 +331,81 @@ def test_shared_memory_deprecation(device, shared_flag):
     with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
         queue.start_async(input_data, shared_memory=shared_flag)
     queue.wait_all()
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("share_outputs", [True, False])
+@pytest.mark.parametrize("is_positional", [True, False])
+def test_infer_request_share_memory(device, share_inputs, share_outputs, is_positional):
+    _, request, _, input_data = abs_model_with_data(
+        device, Type.f32, np.float32)
+
+    if is_positional:
+        results = request.infer(
+            input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+    else:
+        results = request.infer(input_data, share_inputs, share_outputs)
+
+    assert np.array_equal(results[0], np.abs(input_data))
+
+    in_tensor_shares = np.shares_memory(
+        request.get_input_tensor(0).data, input_data)
+
+    if share_inputs:
+        assert in_tensor_shares
+    else:
+        assert not in_tensor_shares
+
+    out_tensor_shares = np.shares_memory(
+        request.get_output_tensor(0).data, results[0])
+    if share_outputs:
+        assert out_tensor_shares
+        assert results[0].flags["OWNDATA"] is False
+    else:
+        assert not out_tensor_shares
+        assert results[0].flags["OWNDATA"] is True
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
+    _, request, tensor1, array1 = abs_model_with_data(
+        device, ov_type, numpy_dtype)
+
+    request.infer(array1, share_inputs=share_inputs)
+    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
+
+    request.infer(tensor1, share_inputs=share_inputs)
+    assert np.array_equal(
+        request.get_output_tensor().data, np.abs(tensor1.data))
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("share_outputs", [True, False])
+@pytest.mark.parametrize("is_positional", [True, False])
+def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
+    compiled, _, _, input_data = abs_model_with_data(
+        device, Type.f32, np.float32)
+
+    if is_positional:
+        results = compiled(input_data, share_inputs=share_inputs,
+                           share_outputs=share_outputs)
+    else:
+        results = compiled(input_data, share_inputs, share_outputs)
+
+    assert np.array_equal(results[0], np.abs(input_data))
+
+    in_tensor_shares = np.shares_memory(
+        compiled._infer_request.get_input_tensor(0).data, input_data)
+    if share_inputs:
+        assert in_tensor_shares
+    else:
+        assert not in_tensor_shares
+
+    out_tensor_shares = np.shares_memory(
+        compiled._infer_request.get_output_tensor(0).data, results[0])
+    if share_outputs:
+        assert out_tensor_shares
+        assert results[0].flags["OWNDATA"] is False
+    else:
+        assert not out_tensor_shares
+        assert results[0].flags["OWNDATA"] is True
