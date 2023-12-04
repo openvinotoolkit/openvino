@@ -6,6 +6,7 @@
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "memory.hpp"
+#include "scaled_attn.h"
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
@@ -538,71 +539,30 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return MemoryInputBase::isSupportedOperation(op, errorMessage);
 }
 
-void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
+MemoryInputSDPA::MemoryInputSDPA(const std::string id,
+                                 const std::string& name,
+                                 const std::string& type,
+                                 const Shape& output_shape,
+                                 const ov::element::Type& output_prc,
+                                 const GraphContext::CPtr context,
+                                 const ov::optional<Shape>& input_shape,
+                                 const ov::optional<ov::element::Type>& input_prc,
+                                 const std::shared_ptr<ScaledDotProductAttention>& sdpaNode) :
+    MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc), m_sdpaNode(sdpaNode) {}
 
-    auto&& shape = getOutputShapeAtPort(0);
-    auto precision = getOriginalOutputPrecisionAtPort(0);
-    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-    NodeConfig config;
-    if (!getParentEdges().empty()) {
-        PortConfig inPortConfig;
-        inPortConfig.inPlace(-1);
-        inPortConfig.constant(false);
-        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-        config.inConfs.push_back(std::move(inPortConfig));
-    }
-
-    auto&& childEdges = getChildEdgesAtPort(0);
-    auto itr = std::find_if(childEdges.begin(), childEdges.end(),
-        [](const EdgePtr& edge){ return Type::ScaledDotProductAttention == edge->getChild()->getType(); });
-
-    OPENVINO_ASSERT(itr != childEdges.end(), "MemoryInputSDPA isn't attached to an SDPA node");
-    auto SDPA = (*itr)->getChild();
-    auto childPort = (*itr)->getOutputNum();
-
-    // Since this is a very specialized implementation, lets mimic SDPA precision and set cabd layout
-    precision = SDPA->getOriginalInputPrecisionAtPort(childPort);
-    ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
-
-    PortConfig outPortConfig;
-    outPortConfig.inPlace(0);
-    outPortConfig.constant(false);
-    outPortConfig.setMemDesc(cabdDescCreator.createSharedDesc(precision, shape));
-    config.outConfs.push_back(std::move(outPortConfig));
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+void MemoryInputSDPA::createPrimitive() {
+    MemoryInputBase::createPrimitive();
+// determine the output node idx
+// child_port_idx =
 }
 
-void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
-    auto&& childEdges = getChildEdgesAtPort(0);
-    auto itr = std::find_if(childEdges.begin(), childEdges.end(),
-        [](const EdgePtr& edge){ return Type::ScaledDotProductAttention == edge->getChild()->getType(); });
-
-    OPENVINO_ASSERT(itr != childEdges.end(), "MemoryInputSDPA isn't attached to an SDPA node");
-    auto childEdge = *itr;
-    auto child = childEdge->getChild();
-    auto childPd = child->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(childPd,
-        child->getTypeStr(), " ",
-        child->getName(),
-        "failed initOptimalPrimitiveDescriptor() call, preferable primitive descriptor is not set");
-
-    const auto& childConfig = childPd->getConfig();
-    auto childPrecision = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc()->getPrecision();
-
-    auto selectedPd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selectedPd,
-        "MemoryInputSDPA ",
-        getName(),
-        " failed initOptimalPrimitiveDescriptor() call, preferable primitive descriptor is not set");
-
-    auto config = selectedPd->getConfig();
-    auto memDesc = config.outConfs.front().getMemDesc();
-    auto newMemDesc = memDesc->cloneWithNewPrecision(childPrecision);
-    config.outConfs.front().setMemDesc(newMemDesc);
-    //bypass any checks, we enforce the child descriptor precision
-    selectedPd->setConfig(config);
+void MemoryInputSDPA::assignState(MemStatePtr newState) {
+    auto sdpaNode = m_sdpaNode.lock();
+    OPENVINO_ASSERT(sdpaNode);
+    auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(newState);
+    OPENVINO_ASSERT(sdpaState);
+    sdpaNode->assignState(sdpaState, child_port_idx);
+    //Should we assign memory to the adjacent MemoryOutput?
 }
 
 MemStatePtr MemoryInputSDPA::makeState() const {
@@ -624,7 +584,25 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     auto internal_memory =
         std::make_shared<Memory>(eng, mem_desc, std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrRealloc>()));
 
-    return std::make_shared<VariableStateSingleBuffer>(state_name, internal_memory, original_desc);
+    return std::make_shared<VariableStateKVcache>(state_name, internal_memory, original_desc);
+}
+
+bool MemoryInputSDPA::isExecutable() const {
+    // this node is mostly a proxy to transfer the state to the SDPA
+    // so the SDPA itself should handle the reset state as it handles the memory manipulation
+    return false;
+}
+
+void MemoryInputSDPA::execute(dnnl::stream strm) {
+    return;
+}
+
+void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
+    if (getParentEdgeAt(0)) {
+        Node::resolveInPlaceEdges(look);
+    } else {
+        // place some kind of fake memory simply to transfer the the shape
+    }
 }
 
 }   // namespace node

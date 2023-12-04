@@ -34,7 +34,7 @@ public:
     VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc);
 
     //ov::IVariableState
-    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    void set_state(const ov::SoPtr<ov::ITensor>& state) final;
     ov::SoPtr<ov::ITensor> get_state() const override;
     void reset() final;
     bool is_reset_state() const final;
@@ -44,9 +44,14 @@ protected:
     virtual MemoryPtr internal_state_mem() const = 0;
     virtual void reset_impl() = 0;
     virtual void commit_impl() = 0;
+    virtual void set_state_impl(const ov::SoPtr<ov::ITensor>& state);
 
     static MemoryDescPtr to_static(const MemoryDescPtr& desc);
     static const dnnl::engine& get_engine();
+
+    MemoryDescPtr get_external_desc() const {
+        return m_external_desc;
+    }
 
 private:
     MemoryDescPtr m_external_desc;
@@ -113,6 +118,37 @@ private:
 private:
     MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
     MemoryPtr m_internal_mem;
+};
+
+class VariableStateKVcache : public VariableStateBase {
+public:
+    VariableStateKVcache(const std::string& name,
+                         const MemoryPtr& buffer,
+                         const MemoryDescPtr& external_desc);
+
+    //ov::IVariableState
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+    //ov::intel_cpu::VariableStateBase
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
+    MemoryDescPtr internal_desc() const override;
+
+    MemoryPtr internal_state_mem() const override;
+    void assign_internal_state(const MemoryPtr& mem);
+
+    MemoryPtr hidden_state_mem() const;
+    void assign_hidden_state(const MemoryPtr& mem);
+
+private:
+    //ov::intel_cpu::VariableStateBase
+    void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
+    void reset_impl() override;
+    void commit_impl() override;
+
+private:
+    MemoryPtr m_internal_mem; // kv cache
+    MemoryPtr m_hidden_state; // beam access table
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

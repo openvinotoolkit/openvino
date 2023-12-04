@@ -5,6 +5,7 @@
 #pragma once
 #include <ie_common.h>
 #include <node.h>
+#include <memory_state.h>
 
 #include <memory>
 #include <string>
@@ -41,6 +42,8 @@ public:
 
     enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
 
+    void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
+
 private:
     struct Executor {
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
@@ -54,6 +57,9 @@ private:
     Config m_config;
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
+
+    std::shared_ptr<VariableStateKVcache> k_state;
+    std::shared_ptr<VariableStateKVcache> v_state;
 };
 
 }  // namespace node

@@ -34,7 +34,7 @@ const dnnl::engine& VariableStateBase::get_engine() {
     return eng;
 }
 
-void VariableStateBase::set_state(const ov::SoPtr<ov::ITensor>& state) {
+void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     m_state = state; // simply to extend the lifetime
     auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
 
@@ -49,6 +49,10 @@ void VariableStateBase::set_state(const ov::SoPtr<ov::ITensor>& state) {
 
     Memory mem(get_engine(), state_desc, src);
     input_mem()->load(mem);
+}
+
+void VariableStateBase::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    set_state_impl(state);
     reset_state_flag = false;
 }
 
@@ -189,6 +193,76 @@ MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
 
 void VariableStateSingleBuffer::commit_impl() {
     //nothing to do
+}
+
+
+VariableStateKVcache::VariableStateKVcache(const std::string& name,
+    const MemoryPtr& buffer, const MemoryDescPtr& external_desc) : VariableStateBase(name, external_desc) {
+    OPENVINO_ASSERT(buffer);
+    m_internal_mem = buffer;
+    auto desc = m_internal_mem->getDescPtr();
+    auto&& shape = desc->getShape();
+
+    OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
+}
+
+void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
+    //1. reset the memory object
+    m_state = state; // simply to extend the lifetime
+    auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
+
+    //May be optimized by reusing the state tensor underlining memory pointer, but corner cases should be considered
+    m_internal_mem = std::make_shared<Memory>(get_engine(), state_desc);
+    auto src = m_state->data();
+    auto dst = m_internal_mem->getData();
+    if (src && dst) {
+        std::memcpy(dst, src, m_state->get_byte_size());
+    }
+
+    //2. Reset the beam search table
+    //m_hidden_state = 
+}
+
+void VariableStateKVcache::reset_impl() {
+    // 1. reset internal state
+    auto new_desc = to_static(get_external_desc());
+    m_internal_mem->redefineDesc(new_desc);
+    m_internal_mem->nullify();
+
+    // 2. reset hidden state
+
+}
+
+void VariableStateKVcache::commit_impl() {
+    //nothing to do
+}
+
+MemoryPtr VariableStateKVcache::input_mem() {
+    return m_internal_mem;
+}
+
+MemoryPtr VariableStateKVcache::output_mem() {
+    return m_internal_mem;
+}
+
+MemoryDescPtr VariableStateKVcache::internal_desc() const {
+    return m_internal_mem->getDescPtr(); //since we don't store initial one
+}
+
+MemoryPtr VariableStateKVcache::internal_state_mem() const {
+    return m_internal_mem;
+}
+
+void VariableStateKVcache::assign_internal_state(const MemoryPtr& mem) {
+    m_internal_mem = mem;
+}
+
+MemoryPtr VariableStateKVcache::hidden_state_mem() const {
+    return m_hidden_state;
+}
+
+void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
+    m_hidden_state = mem;
 }
 
 }  // namespace intel_cpu

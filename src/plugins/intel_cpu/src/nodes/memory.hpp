@@ -22,6 +22,7 @@ namespace node {
 
 class MemoryOutput;
 class MemoryInputBase;
+class ScaledDotProductAttention;
 
 class MemoryNode {
  public:
@@ -137,7 +138,6 @@ public:
     void registerOutputNode(MemoryOutput* node);
     void deregisterSibling(MemoryOutput* node);
 
-    // May be extracted to some interface when necessary
     void assignState(MemStatePtr newState) override;
     MemoryOutput& getOutputNode();
 
@@ -165,13 +165,31 @@ public:
 
 class MemoryInputSDPA : public MemoryInputBase {
 public:
-    using MemoryInputBase::MemoryInputBase;
+    MemoryInputSDPA(const std::string id,
+                    const std::string& name,
+                    const std::string& type,
+                    const Shape& output_shape,
+                    const ov::element::Type& output_prc,
+                    const GraphContext::CPtr context,
+                    const ov::optional<Shape>& input_shape,
+                    const ov::optional<ov::element::Type>& input_prc,
+                    const std::shared_ptr<ScaledDotProductAttention>& sdpaNode);
+
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+ 
+    void createPrimitive() override;
 
-    void initSupportedPrimitiveDescriptors() override;
-    void initOptimalPrimitiveDescriptor() override;
+    bool isExecutable() const override;
+    void execute(dnnl::stream strm) override;
 
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
+
+private:
+    std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
+    int child_port_idx;
 };
 }   // namespace node
 }   // namespace intel_cpu

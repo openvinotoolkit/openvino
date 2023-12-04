@@ -23,6 +23,7 @@
 #include "nodes/input.h"
 #include "nodes/rnn.h"
 #include "nodes/memory.hpp"
+#include "nodes/scaled_attn.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "onednn/dnnl.h"
@@ -2837,6 +2838,19 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             input_prc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
         }
 
+        //search for SDPA
+        std::shared_ptr<ScaledDotProductAttention> sdpa;
+        for (auto&& edge : node->getChildEdgesAtPort(0)) {
+            auto child = edge->getChild();
+            if (Type::ScaledDotProductAttention == child->getType()) {
+                if (sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child)) {
+                    break;
+                } else {
+                    OPENVINO_THROW("Couldn't cast node", child->getName()," to ScaledDotProductAttention type");
+                }
+            }
+        }
+
         auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
             memInputNode->getId(),
             memInputNode->getName(),
@@ -2845,7 +2859,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             memInputNode->getOriginalOutputPrecisionAtPort(0),
             graph.getGraphContext(),
             input_shape,
-            input_prc);
+            input_prc,
+            sdpa);
 
         if (!memInputNode->getParentEdges().empty()) {
             auto parentEdge = memInputNode->getParentEdgeAt(0);

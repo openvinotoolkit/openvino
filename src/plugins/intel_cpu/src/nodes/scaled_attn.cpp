@@ -838,6 +838,28 @@ void ScaledDotProductAttention::createPrimitive() {
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
+    if (k_state && k_state->is_reset_state()) {
+        constexpr int k_idx = 3;
+        //The memory from the initialization graph is bypassed using inplace memory usage
+        //so it may be captured from the input edge
+        auto k_input = getParentEdgeAt(k_idx)->getMemoryPtr();
+        // perform the K tensor and the corresponding beam_table reinitialization
+        // using k_input data
+        // this is an example, most likely some kind of a strided tensor would be used
+        k_state->assign_internal_state(k_input);
+    }
+
+    if (v_state && v_state->is_reset_state()) {
+        constexpr int v_idx = 3;
+        //The memory from the initialization graph is bypassed using inplace memory usage
+        //so it may be captured from the input edge
+        auto v_input = getParentEdgeAt(v_idx)->getMemoryPtr();
+        // perform the V tensor and the corresponding beam_table reinitialization
+        // using v_input data
+        // this is an example, most likely some kind of a strided tensor would be used
+        v_state->assign_internal_state(v_input);
+    }
+
     std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getParentEdgeAt(i)->getMemoryPtr();
@@ -884,6 +906,24 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
         return false;
     }
     return true;
+}
+
+void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx) {
+    constexpr int k_idx = 3;
+    constexpr int v_idx = 4;
+
+    if (k_idx == idx) {
+        k_state = state;
+    } else if (v_idx == idx) {
+        v_state = state;
+    } else {
+        OPENVINO_THROW(
+            "Unexpected idx ", idx , " for a state in a node with type: ", getTypeStr(), " and name ", getName());
+    }
+
+    if (state->is_reset_state()) {
+        //do some preliminary state modifications when necessary
+    }
 }
 
 }  // namespace node
