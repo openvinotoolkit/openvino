@@ -12,7 +12,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #define _USE_MATH_DEFINES
-#include <cmath>
+#include <math.h>
 
 namespace ov {
 namespace frontend {
