@@ -43,9 +43,8 @@ bool ov::op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor) {
 void ov::op::v1::AvgPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_AvgPool_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
