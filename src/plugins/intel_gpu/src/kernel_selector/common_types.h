@@ -492,6 +492,8 @@ enum class ScatterUpdateAxis {
     Y,
     Z,
     W,
+    U,
+    V,
     FEATURE,
     BATCH,
 };
