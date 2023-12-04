@@ -1,8 +1,13 @@
 .. {#openvino_docs_MO_DG_Python_API}
 
-Convert Models Represented as Python Objects
-============================================
+[LEGACY] Convert Models Represented as Python Objects
+=============================================================
 
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Model Preparation <openvino_docs_model_processing_introduction>` article. 
 
 Model conversion API is represented by ``convert_model()`` method in openvino.tools.mo namespace. ``convert_model()`` is compatible with types from openvino.runtime, like PartialShape, Layout, Type, etc.
 
