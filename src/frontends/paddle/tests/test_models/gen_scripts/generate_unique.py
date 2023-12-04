@@ -21,10 +21,13 @@ def unique(name: str, x, **op_args):
         unique_outs = paddle.unique(node_x, **op_args)
         if isinstance(unique_outs, tuple):
             outputs = []
-            for out in unique_outs:
+            for i, out in enumerate(unique_outs):
+                if i == 0:
+                    outputs.append(out)
+                    continue
                 if out is not None:
-                    if out.dtype == paddle.int64 or out.dtype == paddle.int32:
-                        out = paddle.cast(out, "float32")
+                    if out.dtype == paddle.int64:
+                        out = paddle.cast(out, "int32")
                 outputs.append(out)
         else:
             outputs = [unique_outs]
