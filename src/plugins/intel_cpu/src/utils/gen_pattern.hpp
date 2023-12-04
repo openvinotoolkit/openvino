@@ -923,6 +923,13 @@ std::shared_ptr<Node> makeConst(const ov::element::Type& type,
     return std::make_shared<ov::op::v0::Constant>(type, shape, std::vector<T>(values));
 }
 
+inline std::shared_ptr<Node> makeConst(const std::vector<Symbol>& v) {
+    auto node = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto& rt_info = node->get_rt_info();
+    rt_info["symbolic_const_value"] = v;
+    return node;
+}
+
 template <typename T>
 std::shared_ptr<Node> makeConst(const ov::element::Type& type, const ov::Shape& shape, const std::vector<T>& values) {
     return std::make_shared<ov::op::v0::Constant>(type, shape, values);

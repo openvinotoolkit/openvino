@@ -522,7 +522,10 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
                                                                 {"shrink_axis_mask", {}},
                                                                 {"ellipsis_mask", {}}});
     auto flatten_Concat_500 = makePattern<opset1::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
-    auto flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500}, {{"special_zero", true}});
+    auto const_target_shape = makeConst({0, 0, head_cnt, ndims});
+    // [length, batch, head_cnt, half_rotary_dims, 2]
+    auto flatten_Reshape_501 =
+        makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape}, {{"special_zero", true}});
     auto slice_Slice_443 =
         makePattern<opset1::StridedSlice>({cur_key, {0, 0, 0, ndims}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
                                           {{"begin_mask", {1, 1, 1, 0}},
