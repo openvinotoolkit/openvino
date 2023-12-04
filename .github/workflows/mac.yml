@@ -211,7 +211,7 @@ jobs:
           if-no-files-found: 'error'
 
   Samples:
-    needs: [Build, Smart_CI]
+    needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     uses: ./.github/workflows/samples_tests.yml
     with:
