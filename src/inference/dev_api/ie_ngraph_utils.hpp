@@ -55,6 +55,8 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(
         return ::ngraph::element::Type(::ngraph::element::Type_t::u1);
     case Precision::NF4:
         return ::ngraph::element::Type(::ngraph::element::Type_t::nf4);
+    case Precision::STRING:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::string);
     case Precision::Q78:
     case Precision::MIXED:
     case Precision::CUSTOM:
@@ -105,6 +107,8 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline Precision convertPrecision(const ::ngraph
         return Precision(Precision::BOOL);
     case ::ngraph::element::Type_t::nf4:
         return Precision(Precision::NF4);
+    case ::ngraph::element::Type_t::string:
+        return Precision(Precision::STRING);
     case ::ngraph::element::Type_t::dynamic:
         return Precision(Precision::UNSPECIFIED);
     default:
