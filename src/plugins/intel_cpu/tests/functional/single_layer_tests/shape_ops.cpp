@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/partial_shape.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ov_models/builders.hpp"
@@ -281,52 +280,19 @@ const auto params_EmptyTensor = ::testing::Combine(::testing::Values(shape_Empty
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_EmptyTensor, ShapeOpsCPUTest, params_EmptyTensor, ShapeOpsCPUTest::getTestCaseName);
 
+// test cases about NeedShapeInfer return right result
+inputDescription shape_NeedShapeInfer{{{-1, -1},
+                                 {ngraph::Shape{640, 80}, ngraph::Shape{640, 80}, ngraph::Shape{1280, 40}, ngraph::Shape{1280, 40}}},
+                                 {std::vector<int>{320, 160}, std::vector<int>{640, 80}, std::vector<int>{320, 160}, std::vector<int>{640, 80}}};
 
-TEST(smoke_reshape, need_shape_infer) {
-    ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, -1}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2})};
-    auto dataInput = inputs.front();
-    auto secondaryInput = inputs.back();
-    auto shapeOps = std::make_shared<ngraph::opset1::Reshape>(dataInput, secondaryInput, true);
-    CPUTestsBase testBase;
-    auto function = testBase.makeNgraphFunction(ov::element::i32, inputs, shapeOps, "ReshapNeedShapeInfer");
-    ov::Core core;
-    auto model = core.compile_model(function, "CPU");
-    auto infer_request = model.create_infer_request();
-    auto input_tensor = ov::Tensor(ov::element::i32, {640, 80});
-    uint32_t second_input_data[2] = {320, 160};
-    auto second_input_tensor = ov::Tensor(ov::element::i32, {2}, second_input_data);
-    infer_request.set_input_tensor(0, input_tensor);
-    infer_request.set_input_tensor(1, second_input_tensor);
-    infer_request.infer();
-    auto output_tensor = infer_request.get_output_tensor(0);
-    auto output_shape = output_tensor.get_shape();
-    ov::Shape expected_shape =  {320, 160};
-    EXPECT_EQ(output_shape, expected_shape);
-    second_input_data[0] = 640;
-    second_input_data[1] = 80;
-    infer_request.infer();
-    output_tensor = infer_request.get_output_tensor(0);
-    output_shape = output_tensor.get_shape();
-    expected_shape = {640, 80};
-    EXPECT_EQ(output_shape, expected_shape);
-    input_tensor = ov::Tensor(ov::element::i32, {1280, 40});
-    second_input_data[0] = 320;
-    second_input_data[1] = 160;
-    infer_request.set_input_tensor(0, input_tensor);
-    infer_request.infer();
-    output_tensor = infer_request.get_output_tensor(0);
-    output_shape = output_tensor.get_shape();
-    expected_shape = {320, 160};
-    EXPECT_EQ(output_shape, expected_shape);
-    second_input_data[0] = 640;
-    second_input_data[1] = 80;
-    infer_request.infer();
-    output_tensor = infer_request.get_output_tensor(0);
-    output_shape = output_tensor.get_shape();
-    expected_shape = {640, 80};
-    EXPECT_EQ(output_shape, expected_shape);
-}
+const auto params_NeedShapeInfer = ::testing::Combine(::testing::Values(shape_NeedShapeInfer),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(shapeNodeType::Reshape),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
+                                                ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NeedShapeInfer, ShapeOpsCPUTest, params_NeedShapeInfer, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace reshapeTest
 
