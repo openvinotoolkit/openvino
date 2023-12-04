@@ -23,8 +23,8 @@ NamedOutputs grid_sampler(const NodeContext& node) {
         {"nearest", v9::GridSample::InterpolationMode::NEAREST}};
     const std::unordered_map<std::string, v9::GridSample::PaddingMode> grid_sample_padding_mode_map{
         {"zeros", v9::GridSample::PaddingMode::ZEROS},
-        {"reflection", v9::GridSample::PaddingMode::BORDER},
-        {"border", v9::GridSample::PaddingMode::REFLECTION}};
+        {"border", v9::GridSample::PaddingMode::BORDER},
+        {"reflection", v9::GridSample::PaddingMode::REFLECTION}};
 
     attributes.align_corners = node.get_attribute<bool>("align_corners", true);
     attributes.mode = grid_sample_mode_map.at(node.get_attribute<std::string>("mode", "bilinear"));
