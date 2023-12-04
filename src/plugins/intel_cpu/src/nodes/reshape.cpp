@@ -65,9 +65,6 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 }
 
 bool Reshape::needShapeInfer() const {
-    if (inputShapesModified()) {
-        return true;
-    }
     const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
@@ -80,6 +77,9 @@ bool Reshape::needShapeInfer() const {
             }
             return true;
         }
+    }
+    if (inputShapesModified()) {
+        return true;
     }
     return false;
 }
