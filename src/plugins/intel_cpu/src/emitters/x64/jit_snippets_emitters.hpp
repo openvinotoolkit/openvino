@@ -84,7 +84,9 @@ public:
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     using jit_emitter::emit_code;
@@ -226,7 +228,9 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 protected:
     size_t aux_gprs_count() const override {return 1;}
@@ -256,7 +260,9 @@ public:
     MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                   const ov::snippets::lowered::ExpressionPtr& expr);
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 protected:
     ov::element::Type src_prc;
@@ -265,13 +271,15 @@ protected:
     size_t count = 0;
     size_t byte_offset = 0;
 
-    // memoryEnitters is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
+#ifdef CPU_DEBUG_CAPS
+    // memoryEmitters is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
     // memory_track function is to record start subtensor address and current subtensor address and iteration.
     // If segfault happens, build_in segfault capabilty will give developers these info to understand what is wrong.
     mutable size_t start_address = 0;
     mutable size_t current_address = 0;
     mutable size_t iteration = 0;
     void memory_track(size_t gpr_idx_for_mem_address) const;
+#endif
 };
 
 class StoreEmitter : public MemoryEmitter  {
@@ -281,7 +289,9 @@ public:
                  const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -293,7 +303,9 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+#ifdef CPU_DEBUG_CAPS
     std::shared_ptr<snippets::op::Store> store_node = nullptr;
+#endif
 };
 
 class LoadEmitter : public MemoryEmitter {
@@ -303,7 +315,9 @@ public:
                 const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -315,7 +329,9 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+#ifdef CPU_DEBUG_CAPS
     std::shared_ptr<snippets::op::Load> load_node = nullptr;
+#endif
 };
 
 class BroadcastLoadEmitter : public MemoryEmitter {
@@ -325,7 +341,9 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -333,7 +351,9 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+#ifdef CPU_DEBUG_CAPS
     std::shared_ptr<snippets::op::BroadcastLoad> broadcast_load_node = nullptr;
+#endif
 };
 
 class LoadConvertEmitter : public MemoryEmitter {
@@ -343,7 +363,9 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -355,7 +377,9 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+#ifdef CPU_DEBUG_CAPS
     std::shared_ptr<snippets::op::Load> load_convert_node = nullptr;
+#endif
 };
 
 class StoreConvertEmitter : public MemoryEmitter {
@@ -365,7 +389,9 @@ public:
                         const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -377,7 +403,9 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+#ifdef CPU_DEBUG_CAPS
     std::shared_ptr<snippets::op::Store> store_convert_node = nullptr;
+#endif
 };
 
 class BrgemmEmitter : public jit_emitter {
@@ -388,7 +416,9 @@ public:
 
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
     static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
@@ -442,7 +472,9 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::i8}, {element::bf16}};
     }
+#ifdef CPU_DEBUG_CAPS
     void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,

@@ -1686,10 +1686,12 @@ size_t jit_power_static_emitter::aux_vecs_count() const {
     return 1;
 }
 
+#ifdef CPU_DEBUG_CAPS
 void jit_power_static_emitter::print_debug_info() const {
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "power:" << power << " scale:" << scale << " shift:" << shift << "\n";
 }
+#endif
 
 /// PRELU ///
 jit_prelu_emitter::jit_prelu_emitter(x64::jit_generator* host,
@@ -2190,10 +2192,12 @@ void jit_is_inf_emitter::register_table_entries() {
     }
 }
 
+#ifdef CPU_DEBUG_CAPS
 void jit_is_inf_emitter::print_debug_info() const {
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "detect_negative:" << detect_negative << " detect_positive" << detect_positive << "\n";
 }
+#endif
 
 /// IS_NAN ///
 template <>

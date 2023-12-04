@@ -87,10 +87,12 @@ void jit_dnnl_emitter::emit_data() const {
     }
 }
 
+#ifdef CPU_DEBUG_CAPS
 void jit_dnnl_emitter::print_debug_info() const {
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
 }
+#endif
 
 jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator *host, cpu_isa_t host_isa,
                                            dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
