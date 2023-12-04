@@ -352,7 +352,11 @@ def extract_model_graph(argv):
         from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
         trackable_is_imported = True
     except:
-        log.warning("Could not import tensorflow.python.training.tracking.base.Trackable type.")
+        try:
+            from tensorflow.python.trackable.base import Trackable
+            trackable_is_imported = True
+        except:
+            log.warning("Could not import tensorflow.python.training.tracking.base.Trackable type.")
     env_setup = get_environment_setup("tf")
     if isinstance(model, tf.Graph):
         return True
