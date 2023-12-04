@@ -20,7 +20,7 @@ struct Evaluate : element::NoAction<bool> {
     template <element::Type_t ET>
     static result_type visit(const Tensor& in0, Tensor& out, const AxisSet& reduction_axes) {
         using T = fundamental_type_for<ET>;
-        reference::reduce_l2(in0.data<T>(), out.data<T>(), in0.get_shape(), reduction_axes);
+        reference::reduce_l2(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
         return true;
     }
 };

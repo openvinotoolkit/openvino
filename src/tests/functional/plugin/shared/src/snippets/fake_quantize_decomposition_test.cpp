@@ -12,7 +12,7 @@
 
 #include <ie_core.hpp>
 #include "ov_ops/type_relaxed.hpp"
-#include "fake_quantize_function.hpp"
+#include "fake_quantize_helper.hpp"
 #include "function_helper.hpp"
 
 namespace LayerTestsDefinitions {

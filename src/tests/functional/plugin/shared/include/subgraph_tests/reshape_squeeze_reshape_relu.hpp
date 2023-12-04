@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-TEST_P(ReshapeSqueezeReshapeRelu, CompareWithRefs){
-    Run();
+TEST_P(ReshapeSqueezeReshapeRelu, CompareWithRefs) {
+    run();
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

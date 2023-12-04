@@ -84,8 +84,19 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
             ib >> perfEntry.parentPrimitive;
         }
     }
+    {
+        bool bool_prop_value;
+        ib >> bool_prop_value;
+        m_config.set_property(ov::intel_gpu::partial_build_program(bool_prop_value));
+        ib >> bool_prop_value;
+        m_config.set_property(ov::intel_gpu::optimize_data(bool_prop_value));
+        ib >> bool_prop_value;
+        m_config.set_property(ov::intel_gpu::allow_new_shape_infer(bool_prop_value));
+    }
 
-    m_network = std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0, 0);
+    auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
+    imported_prog->load(ib);
+    build(imported_prog);
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -158,7 +169,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "activation", "Activation" },
                 { "arg_max_min", "ArgMax" },
                 { "batch_norm", "BatchNormalization" },
-                { "binary_convolution", "BinaryConvolution" },
                 { "border", "Pad" },
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },
@@ -281,7 +291,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         const auto& user_ids = prim_info.c_users;
         size_t output_size = user_ids.size();
         bool is_output = user_ids.empty();
-        auto out_et = cldnn::data_type_to_element_type(prim_info.output_layout.data_type);
+        auto out_et = prim_info.output_layout.data_type;
         auto out_pshape = prim_info.output_layout.get_partial_shape();
         std::shared_ptr<ov::Node> return_node;
 
@@ -322,12 +332,12 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
             results.back()->set_friendly_name(layerName + "_result");
 
         std::map<std::string, std::string> info;
-        info[ov::exec_model_info::OUTPUT_PRECISIONS] = cldnn::data_type_to_element_type(prim_info.output_layout.data_type).get_type_name();
+        info[ov::exec_model_info::OUTPUT_PRECISIONS] = ov::element::Type(prim_info.output_layout.data_type).get_type_name();
         info[ov::exec_model_info::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
         info[ov::exec_model_info::OUTPUT_LAYOUTS] = prim_info.layout_str;
         info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
         info[ov::exec_model_info::IMPL_TYPE] = prim_info.kernel_id;
-        info[ov::exec_model_info::RUNTIME_PRECISION] = cldnn::data_type_to_element_type(prim_info.runtime_precision).get_type_name();
+        info[ov::exec_model_info::RUNTIME_PRECISION] = ov::element::Type(prim_info.runtime_precision).get_type_name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (auto& fused_id : prim_info.c_fused_ids) {
@@ -449,8 +459,14 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
             ob << perf_item.second.second.parentPrimitive;
         }
     }
+    {
+        ob << m_config.get_property(ov::intel_gpu::partial_build_program);
+        ob << m_config.get_property(ov::intel_gpu::optimize_data);
+        ob << m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
+    }
 
-    m_network->save(ob);
+    ob.set_stream(m_network->get_stream_ptr().get());
+    m_network->get_program()->save(ob);
 }
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model() {

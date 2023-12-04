@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 
@@ -65,13 +65,10 @@ protected:
         init_input_shapes({shapes});
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
-        }
-        const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
-        const auto softMax = std::make_shared<SoftmaxOpType>(paramOuts.at(0), axis);
+        const auto softMax = std::make_shared<SoftmaxOpType>(params.at(0), axis);
         const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(softMax)};
 
         // TODO: This workaround is needed as there is no full support for f16 type in the reference implementation

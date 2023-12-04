@@ -37,7 +37,7 @@ class TestMul(PytorchLayerTest):
         self.input_type = np.float32
         self.other_array = other_array
         self.other_type = np.float32
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestMulTypes(PytorchLayerTest):

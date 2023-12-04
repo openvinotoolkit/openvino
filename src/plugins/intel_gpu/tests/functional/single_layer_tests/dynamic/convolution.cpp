@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -89,12 +89,10 @@ protected:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
         ov::ParameterVector inputParams;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
-        auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), netType, kernel, stride, padBegin,
+        auto convolutionNode = ngraph::builder::makeConvolution(inputParams.front(), netType, kernel, stride, padBegin,
                                                                 padEnd, dilation, padType, convOutChannels);
         if (activationFusing) {
                 auto activationNode = ngraph::builder::makeActivation(convolutionNode, netType, ngraph::helpers::ActivationTypes::Relu);
@@ -149,8 +147,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
 
 const std::vector<SizeVector> kernels1D = { {3}, {1} };
 const std::vector<SizeVector> strides1D = { {1} };
-const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0} };
-const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0} };
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0}, {1} };
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0}, {1} };
 const std::vector<SizeVector> dilations1D = { {1} };
 const SizeVector numOutChannels = { 64, 63 };
 const std::vector<InputShape> inputShapes1D = {

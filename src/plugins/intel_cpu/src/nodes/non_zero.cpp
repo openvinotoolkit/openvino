@@ -6,8 +6,8 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
-#include <ie_parallel.hpp>
-#include <ngraph/opsets/opset3.hpp>
+#include "openvino/core/parallel.hpp"
+#include <openvino/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 
@@ -20,9 +20,9 @@ namespace node {
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
 
-bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
+        if (op->get_type_info() != ov::op::v3::NonZero::get_type_info_static()) {
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
             return false;
         }
@@ -32,24 +32,24 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "NonZero layer with name '" + getName() + "' ";
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (op->get_output_element_type(0) != ngraph::element::i32) {
-        IE_THROW() << errorPrefix << "doesn't support demanded output precision";
+    if (op->get_output_element_type(0) != ov::element::i32) {
+        OPENVINO_THROW(errorPrefix, "doesn't support demanded output precision");
     }
 }
 
 void NonZero::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (!getChildEdges().size())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
@@ -57,13 +57,16 @@ void NonZero::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto &inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
-        IE_THROW() << "Can't create primitive descriptor for NonZero layer with name: " << getName() << " doesn't support "
-                   << inPrc.name() << " precision on 0 port";
+    if (!one_of(inPrc, ov::element::f32, ov::element::bf16, ov::element::f32, ov::element::i32, ov::element::u32, ov::element::i8,  ov::element::u8)) {
+        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
+                       getName(),
+                       " doesn't support ",
+                       inPrc.get_type_name(),
+                       " precision on 0 port");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp}},
-                         {{LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, ov::element::i32}},
                          impl_desc_type::ref);
 }
 
@@ -121,12 +124,13 @@ void NonZero::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this };
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t),
-              OV_CASE(Precision::I32, int),
-              OV_CASE(Precision::U32, uint32_t),
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, float16),
+              OV_CASE(ov::element::i32, int),
+              OV_CASE(ov::element::u32, uint32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
 }
 template <typename T>
 void NonZero::executeSpecified() {

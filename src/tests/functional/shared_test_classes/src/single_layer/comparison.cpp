@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/comparison.hpp"
 
 using namespace LayerTestsDefinitions::ComparisonParams;
@@ -68,7 +68,9 @@ void ComparisonLayerTest::SetUp() {
 
     ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondInputType == InputLayerType::PARAMETER) {
         inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondInput));
     }

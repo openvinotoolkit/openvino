@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -187,7 +187,7 @@ private:
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         const auto filter = std::make_shared<op::v0::Parameter>(params.inType, params.filterShape);
-        auto output_shape = std::make_shared<opset8::Constant>(element::i64,
+        auto output_shape = std::make_shared<op::v0::Constant>(element::i64,
                                                                params.constantOutputShape,
                                                                params.constantOutputShapeData);
         const auto GroupConvolutionBackpropData =

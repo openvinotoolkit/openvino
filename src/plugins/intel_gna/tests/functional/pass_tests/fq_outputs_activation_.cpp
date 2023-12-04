@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -80,7 +80,9 @@ protected:
         auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
         ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(inputVector[0], ngPrc, outputCount, 1);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < outputCount; ++i) {

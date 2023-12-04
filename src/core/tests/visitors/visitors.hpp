@@ -10,12 +10,13 @@
 #include <vector>
 
 #include "ngraph/factory.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace test {
@@ -96,7 +97,7 @@ public:
     virtual operator std::vector<uint64_t>&() {
         OPENVINO_THROW("Invalid type access");
     }
-    virtual operator HostTensorPtr&() {
+    virtual operator ngraph::HostTensorPtr&() {
         OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::shared_ptr<ov::Model>&() {
@@ -217,10 +218,9 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            auto& data = m_values.get<HostTensorPtr>(name);
-            data->read(a->get()->get_ptr(), a->get()->size());
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+            auto& data = m_values.get<ov::Tensor>(name);
+            std::memcpy(a->get()->get_ptr(), data.data(), a->get()->size());
         } else if (auto a = ov::as_type<
                        ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
                        &adapter)) {
@@ -240,7 +240,6 @@ public:
         } else {
             OPENVINO_THROW("Attribute \"", name, "\" cannot be unmarshalled");
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
@@ -291,7 +290,7 @@ public:
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        HostTensorPtr& data = m_values.get<HostTensorPtr>(name);
+        ngraph::HostTensorPtr& data = m_values.get<ngraph::HostTensorPtr>(name);
         data->read(adapter.get_ptr(), adapter.size());
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
@@ -309,10 +308,9 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
-            data->write(a->get()->get_ptr(), a->get()->size());
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+            ov::Tensor data(element::u8, Shape{a->get()->size()});
+            std::memcpy(data.data(), a->get()->get_ptr(), a->get()->size());
             m_values.insert(name, data);
         } else if (auto a = ov::as_type<
                        ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
@@ -333,7 +331,6 @@ public:
         } else {
             OPENVINO_THROW("Attribute \"", name, "\" cannot be marshalled");
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {

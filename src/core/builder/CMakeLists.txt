@@ -4,10 +4,10 @@
 
 set(TARGET_NAME "openvino_builders")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
 set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${BUILDER_INCLUDE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -35,8 +35,9 @@ endif()
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+# install & export
+
 ov_install_static_lib(openvino_builders ${OV_CPACK_COMP_CORE})
 
-# developer package
-
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::builders)
+ov_developer_package_export_targets(TARGET openvino::builders
+                                    INSTALL_INCLUDE_DIRECTORIES "${BUILDER_INCLUDE_DIR}/")

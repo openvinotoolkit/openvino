@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/tile.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -55,10 +58,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const TileParams& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
+        const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
         const auto repeats =
-            std::make_shared<opset1::Constant>(params.repeats.type, params.repeats.shape, params.repeats.data.data());
-        const auto tile = std::make_shared<opset1::Tile>(A, repeats);
+            std::make_shared<op::v0::Constant>(params.repeats.type, params.repeats.shape, params.repeats.data.data());
+        const auto tile = std::make_shared<op::v0::Tile>(A, repeats);
         const auto f = std::make_shared<Model>(NodeVector{tile}, ParameterVector{A});
         return f;
     }
@@ -99,6 +102,14 @@ std::vector<TileParams> generateParams() {
                    reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
                    reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6}),
                    "tile_3d_to_3d_repeats_broadcast"),
+        TileParams(reference_tests::Tensor(ET, {1}, std::vector<T>{1}),
+                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 2, 3}),
+                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   "tile_1d_to_3d_with_zero_on_axis_0"),
+        TileParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 0, 3}),
+                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   "tile_1d_to_3d_with_zero_on_axis_1"),
     };
     return params;
 }

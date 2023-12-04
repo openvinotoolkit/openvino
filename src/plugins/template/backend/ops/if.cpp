@@ -23,7 +23,7 @@ bool call(ov::TensorVector& func_outputs,
     }
 
     std::unordered_map<std::shared_ptr<ov::Node>, size_t> results_map;
-    // map function outputs -> ov::HostTensor
+    // map function outputs -> ov::Tensor
     for (size_t output_count = 0; output_count < function->get_results().size(); ++output_count) {
         auto output = function->get_results()[output_count];
         results_map[output] = output_count;

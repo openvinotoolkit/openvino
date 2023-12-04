@@ -5,21 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
       - 'releases/**'
@@ -30,13 +16,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
   Build:
+    needs: Smart_CI
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
-      image: ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -47,10 +58,11 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_Release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_Release
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
+    if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
@@ -60,11 +72,21 @@ jobs:
         with:
           path: 'openvino'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
-            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
@@ -85,7 +107,6 @@ jobs:
 
           python3 -m venv ${OPENVINO_BUILD_DIR}/env
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           python3 -m pip install conan
@@ -119,18 +140,20 @@ jobs:
           # patch settings.yml to contain riscv64 architecture
           sed -i 's/sparcv9/riscv64/g' ~/.conan2/settings.yml
           # generate host profile for linux_riscv64
-          echo "include(default)" > ${OPENVINO_BUILD_DIR}/linux_riscv64
-          echo "[buildenv]" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
-          echo "CC=riscv64-linux-gnu-gcc" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
-          echo "CXX=riscv64-linux-gnu-g++" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
+          echo "include(default)" > ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "[buildenv]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "CC=riscv64-linux-gnu-gcc" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "CXX=riscv64-linux-gnu-g++" >> ${CONAN_LINUX_RISCV64_PROFILE}
           # install OpenVINO dependencies
           conan install ${OPENVINO_REPO}/conanfile.txt \
-            -pr:h ${OPENVINO_BUILD_DIR}/linux_riscv64 \
+            -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
             -s:h arch=riscv64 \
             -s:h build_type=${CMAKE_BUILD_TYPE} \
             -o:h onetbb/*:tbbbind=False \
             -of ${OPENVINO_BUILD_DIR}/dependencies \
             -b missing
+        env:
+          CONAN_LINUX_RISCV64_PROFILE: ${{ env.OPENVINO_BUILD_DIR }}/linux_riscv64
 
       #
       # Build
@@ -147,12 +170,9 @@ jobs:
             -DENABLE_PYTHON=ON \
             -DENABLE_WHEEL=ON \
             -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
-            -DPython3_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))") \
             -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
             -DENABLE_TESTS=ON \
-            -DTHREADING=SEQ \
             -DENABLE_PYTHON_PACKAGING=ON \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_PROTOBUF=ON \
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \

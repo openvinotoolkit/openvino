@@ -36,12 +36,14 @@ class Cast(Op):
 
     @staticmethod
     def type_infer(node: Node):
-        assert node.has_valid('dst_type'), 'Destination type of "Cast" operation should be extracted earlier'
+        assert node.has_valid(
+            'dst_type'), 'Destination type of "Cast" operation should be extracted earlier'
         node.out_port(0).set_data_type(node.dst_type)
 
     @staticmethod
     def helper_value_propagation(node_name, value, dst_type):
-        new_blob, finite_match_count, zero_match_count = convert_blob(value, dst_type)
+        new_blob, finite_match_count, zero_match_count = convert_blob(
+            value, dst_type)
 
         if finite_match_count:
             log.error("{} elements of {} were clipped to infinity while converting an input blob for node '{}' to {}."
@@ -63,6 +65,10 @@ class Cast(Op):
             we would pad them to 6 element with the last element as zero and we would pack them into 3 uint8 values
         """
         assert dst_type in [packed_U4, packed_I4]
+        # TODO: Remove this comment when it's clear that we can fix it easily
+        # raise Exception("Packing of u4/i4 data is no longer supported in mo because it is now incompatible with the new "
+        #                 "order of the halfs of a byte that was introduced in OpenVINO runtime recently. Use ovc "
+        #                 "command line tool or openvino.convert_model python function instead.")
 
         minimum_regular_dtype = np.uint8 if dst_type == packed_U4 else np.int8
         # initial casing from the source type to the numpy-friendly type which could absorb all the values of dst_type
@@ -83,10 +89,12 @@ class Cast(Op):
         padded = np.concatenate((flattened, np.zeros([pad], dtype=minimum_regular_dtype)))
         assert np.prod(padded.shape) % num_values_fitting_into_uint8 == 0
 
-        bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(np.uint8)
-        bit_order_big = np.flip(bit_order_little, axis=1)
-        bit_order_big_flattened = bit_order_big.flatten()
-        packed = np.packbits(bit_order_big_flattened)
+        bit_order_little = (padded[:, None] & (
+            1 << np.arange(num_bits)) > 0).astype(np.uint8)
+        bit_order_big_flattened = bit_order_little.flatten()
+        # u1 still has reversed bit order:
+        packed = np.packbits(bit_order_big_flattened,
+                             bitorder='little' if num_bits > 1 else 'big')
 
         node.out_node(0)['force_shape'] = data_shape.copy()
         node.out_node(0)['force_type'] = np_data_type_to_precision(dst_type)

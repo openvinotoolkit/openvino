@@ -4,7 +4,7 @@
 
 #include <ngraph/op/parameter.hpp>
 #include "shared_test_classes/single_layer/random_uniform.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 

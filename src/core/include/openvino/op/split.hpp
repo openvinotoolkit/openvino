@@ -39,9 +39,8 @@ public:
     void set_num_splits(const size_t num_splits) {
         m_num_splits = num_splits;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;

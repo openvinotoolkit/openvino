@@ -10,8 +10,8 @@
 #include <string>
 
 #include "openvino/core/type/element_type.hpp"
-#include "tensor_bundle.pb.h"
-#include "trackable_object_graph.pb.h"
+#include "ov_tensorflow/tensor_bundle.pb.h"
+#include "ov_tensorflow/trackable_object_graph.pb.h"
 
 namespace ov {
 namespace frontend {

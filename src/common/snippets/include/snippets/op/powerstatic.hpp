@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include <ngraph/op/power.hpp>
 #include <snippets/snippets_isa.hpp>
 
 namespace ov {

@@ -1,11 +1,10 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "jit_kernel_base.hpp"
-#include "ie_precision.hpp"
 #include <set>
 
 namespace ov {
@@ -14,6 +13,12 @@ namespace intel_cpu {
 enum class GridSampleInterpolationMode { BILINEAR, BICUBIC, NEAREST };
 enum class GridSamplePaddingMode { ZEROS, BORDER, REFLECTION };
 
+namespace kernel {
+
+class GridSampleKernelBase;
+
+#if defined(OPENVINO_ARCH_X86_64)
+
 struct GridSampleKernelConfParams {
     bool dynamicShapes  = false;
     bool dynamicBatch   = false;
@@ -21,8 +26,8 @@ struct GridSampleKernelConfParams {
     bool alignCorners  = false;
     GridSampleInterpolationMode interpolationMode = GridSampleInterpolationMode::BILINEAR;
     GridSamplePaddingMode paddingMode = GridSamplePaddingMode::ZEROS;
-    InferenceEngine::Precision inDataPrc;
-    InferenceEngine::Precision gridPrc;
+    ov::element::Type inDataPrc;
+    ov::element::Type gridPrc;
     uint64_t batchNum      = 1lu;
     uint64_t cannelNum     = 1lu;
     uint64_t srcBatchStepB = 0lu;
@@ -66,7 +71,8 @@ public:
         assert(ker_);
         ker_(args);
     }
-    explicit GridSampleKernelBase(const char* name, const GridSampleKernelConfParams& jcp) : JitKernelBase(name), ker_(nullptr), jcp(jcp) {}
+    explicit GridSampleKernelBase(const char* name, const GridSampleKernelConfParams& jcp, dnnl::impl::cpu::x64::cpu_isa_t isa)
+        : JitKernelBase(name, isa), ker_(nullptr), jcp(jcp) {}
 
     virtual void create_ker() = 0;
     uint64_t getVecLen() {
@@ -173,5 +179,8 @@ private:
     void hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, const Vmm& vWCoord, const Vmm& vWidth);
 };
 
+#endif // OPENVINO_ARCH_X86_64
+
+}   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov

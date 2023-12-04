@@ -15,7 +15,7 @@ namespace low_precision {
 
 MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(
     const Params& params,
-    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : LayerTransformation(params), restrictions(restrictions), groupSize(1ul) {
+    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : CleanupTransformation(params), restrictions(restrictions), groupSize(1ul) {
     MATCHER_SCOPE(MultiplyToGroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
@@ -143,6 +143,10 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 }
 
 bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+        return false;
+    }
+
     const PartialShape outPShape = operation->get_output_partial_shape(0);
     const auto rank = outPShape.rank();
     if (rank.is_dynamic()) {

@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -51,7 +51,7 @@ protected:
         size_t port;
 
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
-        IE_ASSERT(shape_size(constShape) == 1);
+        OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
         const auto param = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(nonConstShape));

@@ -512,7 +512,7 @@ def set_rpath(rpath, binary):
                 log.warn(f"WARNING: {binary}: missed ELF header")
                 return
         rpath_tool = "patchelf"
-        cmd = [rpath_tool, "--set-rpath", rpath, binary]
+        cmd = [rpath_tool, "--set-rpath", rpath, binary, "--force-rpath"]
     elif sys.platform == "darwin":
         rpath_tool = "install_name_tool"
         cmd = [rpath_tool, "-add_rpath", rpath, binary]

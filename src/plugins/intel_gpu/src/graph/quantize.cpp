@@ -3,7 +3,6 @@
 //
 
 #include "quantize_inst.h"
-#include "binary_convolution_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
@@ -22,29 +21,8 @@ layout quantize_inst::calc_output_layout(quantize_node const& node, kernel_impl_
     if (desc->output_data_types[0])
         out_dt = *desc->output_data_types[0];
 
-    if (out_dt == data_types::bin) {
-        output_format = format::b_fs_yx_32fp;
-    }
-
     return layout{out_dt, output_format, input_layout.get_tensor()};
 }
-
-template<typename ShapeType>
-std::vector<layout> quantize_inst::calc_output_layouts(quantize_node const&, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<quantize>();
-
-    auto input_layout = impl_param.get_input_layout();
-    auto output_format = input_layout.format;
-    auto out_dt = desc->output_data_types[0].value_or(input_layout.data_type);
-
-    if (out_dt == data_types::bin) {
-        output_format = format::b_fs_yx_32fp;
-    }
-
-    return { layout{input_layout.get<ShapeType>(), out_dt, output_format} };
-}
-
-template std::vector<layout> quantize_inst::calc_output_layouts<ov::PartialShape>(quantize_node const& node, const kernel_impl_params& impl_param);
 
 std::string quantize_inst::to_string(quantize_node const& node) {
     auto desc = node.get_primitive();

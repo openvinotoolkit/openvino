@@ -4,83 +4,35 @@
 
 #pragma once
 
-#include <vector>
-#include <map>
-#include <regex>
-#include <unordered_set>
-#include <string>
-#include <functional>
-
-#include "openvino/util/file_util.hpp"
-
-#include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/test_constants.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-
-#include "cache/cache.hpp"
 #include "utils/node.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace util {
 
-static std::vector<std::regex> FROTEND_REGEXP = {
-#ifdef ENABLE_OV_ONNX_FRONTEND
-    std::regex(R"(.*\.onnx)"),
-#endif
-#ifdef ENABLE_OV_PADDLE_FRONTEND
-    std::regex(R"(.*\.pdmodel)"),
-    std::regex(R"(.*__model__)"),
-#endif
-#ifdef ENABLE_OV_TF_FRONTEND
-    std::regex(R"(.*\.pb)"),
-#endif
-#ifdef ENABLE_OV_IR_FRONTEND
-    std::regex(R"(.*\.xml)"),
-#endif
-#ifdef ENABLE_OV_TF_LITE_FRONTEND
-    std::regex(R"(.*\.tflite)"),
-#endif
-#ifdef ENABLE_OV_PYTORCH_FRONTEND
-    std::regex(R"(.*\.pt)"),
-#endif
-};
+std::string get_model_type(const std::shared_ptr<ov::Model>& model);
 
-enum ModelCacheStatus {
-    SUCCEED = 0,
-    NOT_FULLY_CACHED = 1,
-    NOT_READ = 2
-};
+std::map<std::string, ov::conformance::InputInfo>
+get_input_info_by_model(const std::shared_ptr<ov::Model>& model);
 
-static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
-    { ModelCacheStatus::SUCCEED, "successful_models" },
-    { ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models" },
-    { ModelCacheStatus::NOT_READ, "not_read_models" },
-};
+std::map<std::string, ov::conformance::InputInfo>
+align_input_info(const std::shared_ptr<ov::Model>& model,
+                 const std::shared_ptr<ov::Model>& model_ref,
+                 const std::map<std::string, ov::conformance::InputInfo> &in_info,
+                 const std::map<std::string, ov::conformance::InputInfo> &in_info_ref,
+                 const std::map<std::string, std::string> &matched_op = {});
 
-std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
-find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
-
-// model_cache_status: model_list
-std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    std::shared_ptr<ICache>& cache,
-    const std::vector<std::string>& models,
-    bool extract_body, bool from_cache = false);
-
-void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
-                               const std::string& output_dir);
-
-inline ExtractedPattern
-generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
+inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>>
+generate_model(ov::NodeVector& nodes,
                std::unordered_set<std::string>& checked_ops,
-               const std::string& extractor_name) {
+               bool is_copy_constants = true,
+               bool is_save_only_borders = false) {
     // map to recover graph using cloned nodes and original connections
     // { original_node_name, cloned_node }
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> cloned_node_map;
     // map to fill output nodes in models:
     // { original_node_names, out_port_idx_without_orig_node_to_check }
     std::unordered_map<std::string, std::unordered_set<size_t>> model_output_nodes;
-    std::map<std::string, InputInfo> model_input_info;
+    std::map<std::string, ov::conformance::InputInfo> model_input_info;
     ov::ParameterVector model_parameters;
     {
         // prepare map { original_op_name, cloned_node }
@@ -89,7 +41,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             auto orig_node_name = node->get_friendly_name();
             checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
-                                     clone_node(node, true, false, orig_node_name) });
+                                     clone_node(node, is_copy_constants, false, orig_node_name) });
             
             // create temporary vector to fill node output indexes
             std::vector<size_t> out_ports(node->outputs().size());
@@ -127,7 +79,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                             if (cloned_node_map.count(orig_in_node_name)) {
                                 auto orig_in_node = cloned_node_map[orig_in_node_name];
                                 auto cloned_in_node_name = cloned_in_node->get_friendly_name();
-                                ov::replace_output_update_name(cloned_in_node->get_default_output(), orig_in_node->output(out_idx));
+                                ov::replace_output_update_name(cloned_in_node->output(out_idx), orig_in_node->output(out_idx));
                                 if (ov::op::util::is_parameter(orig_in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(orig_in_node);
                                     model_parameters.push_back(param);
@@ -188,29 +140,52 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
     // prepare unique model name based on operations from model
     std::string string_to_hash;
     for (const auto& op : model->get_ordered_ops()) {
+        bool is_erase_node = !is_save_only_borders;
         std::ostringstream result;
         result << op->get_type_info();
-        for (const auto& in : op->inputs()) { 
+        for (size_t i = 0; i < op->inputs().size(); ++i) {
+            const auto& in = op->input(i);
+            if (!is_node_to_skip(op->get_input_node_shared_ptr(i))) {
+                is_erase_node |= true;
+            }
             result << in.get_element_type();
             result << in.get_partial_shape().rank();
             result << in.get_partial_shape().is_static();
         }
         for (const auto& out : op->outputs()) {
+            for (const auto& target_input : out.get_target_inputs()) {
+                if (!is_node_to_skip(target_input.get_node()->shared_from_this())) {
+                    is_erase_node |= true;
+                    break;
+                }
+            }
             result << out.get_element_type();
             result << out.get_partial_shape().rank();
             result << out.get_partial_shape().is_static();
         }
         string_to_hash += result.str();
+        if (is_erase_node) {
+            cloned_node_map.erase(op->get_friendly_name());
+        }
     }
     for (const auto& in : model_input_info) {
         string_to_hash += (in.second.is_const ? "1" : "0");
     }
     auto h1 = std::hash<std::string>{}(string_to_hash);
     model->set_friendly_name(std::to_string(h1));
-
-    return { model, model_input_info, extractor_name };
+    {
+        auto it = nodes.begin();
+        while (it != nodes.end()) {
+            if (cloned_node_map.count((*it)->get_friendly_name())) {
+                nodes.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    
+    return { model, model_input_info };
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace util
 }  // namespace ov

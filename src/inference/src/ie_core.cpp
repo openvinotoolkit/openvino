@@ -10,7 +10,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 #include "any_copy.hpp"
@@ -31,10 +30,6 @@
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/op/parameter.hpp"
@@ -42,6 +37,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -395,7 +391,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
-        const auto flag = executorManager()->getTbbFlag();
+        const auto flag = ov::threading::executor_manager()->get_property(ov::force_tbb_terminate.name()).as<bool>();
         return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 

@@ -6,7 +6,7 @@
 #include "shared_test_classes/single_layer/reduce_ops.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;

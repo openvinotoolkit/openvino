@@ -14,9 +14,9 @@
 #include "transformations/utils/utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
+#include "ov_lpt_models/reduce.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/constant.hpp"
 
 using namespace testing;
 using namespace ov;

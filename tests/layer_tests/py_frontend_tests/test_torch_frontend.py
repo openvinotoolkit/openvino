@@ -22,6 +22,9 @@ class aten_relu(torch.nn.Module):
 
 class aten_multi_input_output(torch.nn.Module):
     def forward(self, x, y, z):
+        x = x.to(torch.float32)
+        y = y.to(torch.float32)
+        z = z.to(torch.float32)
         return torch.nn.functional.relu(x), x * y, z / x
 
 

@@ -12,7 +12,6 @@
 namespace ov {
 namespace snippets {
 
-using code = const uint8_t *;
 using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
 /**

@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/strided_slice_function.hpp"
+#include "ov_lpt_models/strided_slice.hpp"
 
 namespace LayerTestsDefinitions {
 

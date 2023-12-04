@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/conversion.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,8 +43,13 @@ void ConversionLayerTest::SetUp() {
     for (auto&& shape : inputShape) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
-
+    std::shared_ptr<ov::Node> conversion;
+    if (ov::test::utils::ConversionTypes::CONVERT == conversionOpType) {
+        conversion = std::make_shared<ov::op::v0::Convert>(params.front(), targetPrc);
+    } else {
+        const auto like = std::make_shared<ov::op::v0::Constant>(targetPrc, ov::Shape{1});
+        conversion = std::make_shared<ov::op::v1::ConvertLike>(params.front(), like);
+    }
     ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(conversion)};
     function = std::make_shared<ngraph::Function>(results, params, "Conversion");
 }

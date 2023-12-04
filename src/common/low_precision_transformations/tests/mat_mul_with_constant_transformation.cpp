@@ -12,10 +12,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {

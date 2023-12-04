@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.scatter import ScatterElementsUpdate, ScatterUpdate
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
@@ -12,9 +11,8 @@ from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, result, connect, valued_const_with_data
 
 
-@generator
-class ScatterElementsInferTest(unittest.TestCase):
-    @generate(*[
+class TestScatterElementsInferTest():
+    @pytest.mark.parametrize("data, indices, updates, axis, ref_res",[
         ([[0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0]],
@@ -96,15 +94,14 @@ class ScatterElementsInferTest(unittest.TestCase):
         ScatterElementsUpdate.infer(scatter_el_node)
 
         res_output_shape = scatter_el_node.out_node().shape
-        self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
+        assert np.array_equal(int64_array(ref_res).shape, res_output_shape)
 
         res_output_value = scatter_el_node.out_node().value
-        self.assertTrue(np.array_equal(ref_res, res_output_value))
+        assert np.array_equal(ref_res, res_output_value)
 
 
-@generator
-class ScatterUpdateInferTest(unittest.TestCase):
-    @generate(*[
+class TestScatterUpdateInferTest():
+    @pytest.mark.parametrize("data, indices, updates, axis, ref_res",[
         ([[0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0]],
@@ -188,7 +185,7 @@ class ScatterUpdateInferTest(unittest.TestCase):
         ScatterUpdate.infer(scatter_update_node)
 
         res_output_shape = scatter_update_node.out_node().shape
-        self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
+        assert np.array_equal(int64_array(ref_res).shape, res_output_shape)
 
         res_output_value = scatter_update_node.out_node().value
-        self.assertTrue(np.array_equal(ref_res, res_output_value))
+        assert np.array_equal(ref_res, res_output_value)

@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 
-#include "cnn_network_ngraph_impl.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -19,7 +18,6 @@
 
 using namespace ov;
 using namespace testing;
-using namespace InferenceEngine;
 
 namespace {
 
@@ -32,8 +30,8 @@ struct FQReshapeFusionTestCase {
     bool is_negative;
 };
 
-class nGraphFQReshapeFusionTests : public ov::test::TestsCommon,
-                                   public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
+class FQReshapeFusionTests : public ov::test::TestsCommon,
+                             public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
 public:
     std::shared_ptr<ov::Model> f, ref_f;
 
@@ -115,7 +113,7 @@ private:
     }
 };
 
-TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
+TEST_P(FQReshapeFusionTests, ReshapeMatMul) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     pass::Manager manager;
     manager.register_pass<ov::pass::InitUniqueNames>(unh);
@@ -134,7 +132,7 @@ TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
 
 INSTANTIATE_TEST_SUITE_P(
     NGraph,
-    nGraphFQReshapeFusionTests,
+    FQReshapeFusionTests,
     testing::Values(
         // positive
         FQReshapeFusionTestCase{{1, 2, 1, 3},

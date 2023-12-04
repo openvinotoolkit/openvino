@@ -11,15 +11,12 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {}
+    {{ov::hint::inference_precision.name(), ov::element::f32}}
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
-};
-
-const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
+    {{ov::hint::inference_precision.name(), ov::element::f32},
+     {ov::device::priorities(ov::test::utils::DEVICE_CPU)}},
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
@@ -48,7 +45,9 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
+
 
     auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
     auto add = ngraph::builder::makeEltwise(split->output(0), in2add, ngraph::helpers::EltwiseTypes::ADD);
@@ -93,15 +92,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
-                        ::testing::Combine(
-                                ::testing::Values(getFunction2()),
-                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
-                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
-                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
-                        OVInferRequestDynamicTests::getTestCaseName);
-
 }  // namespace

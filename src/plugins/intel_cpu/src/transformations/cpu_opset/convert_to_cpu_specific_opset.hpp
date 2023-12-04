@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/pass/constant_folding.hpp>
-#include "ngraph/op/fake_quantize.hpp"
-#include "ngraph/pass/manager.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/pass/manager.hpp"
 #include "common/pass/reshape_fc_fusion.hpp"
 #include "common/pass/align_matmul_input_ranks.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
@@ -28,10 +28,10 @@
 namespace ov {
 namespace intel_cpu {
 
-inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
+inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
@@ -42,13 +42,18 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
-    if (!ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
+    if (!ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(nGraphFunc)) {
         CPU_REGISTER_PASS_COMMON(manager, ReshapeFullyConnectedFusion);
     }
     // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions_map {{ ngraph::element::i64, ngraph::element::i32 }});
+    CPU_REGISTER_PASS_COMMON(manager,
+                             ov::pass::ConvertPrecision,
+                             precisions_map{{ov::element::i64, ov::element::i32}},
+                             type_to_fuse_map{{}},
+                             false,
+                             false);
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(manager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);

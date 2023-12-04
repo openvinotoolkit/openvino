@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "shared_test_classes/subgraph/softsign.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 

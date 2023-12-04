@@ -8,7 +8,7 @@ set(PLUGIN_FILES "" CACHE INTERNAL "")
 
 function(ov_plugin_get_file_name target_name library_name)
     set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
-    set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
+    set(LIB_SUFFIX "${OV_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
     get_target_property(LIB_NAME ${target_name} OUTPUT_NAME)
     if (LIB_NAME STREQUAL "LIB_NAME-NOTFOUND")
@@ -168,6 +168,7 @@ function(ov_add_plugin)
 endfunction()
 
 function(ie_add_plugin)
+    message(WARNING "'ie_add_plugin' is deprecated. Please, use 'ov_add_plugin'")
     ov_add_plugin(${ARGN})
 endfunction()
 
@@ -203,7 +204,7 @@ macro(ov_register_in_plugins_xml)
                     -D "OV_CONFIG_OUTPUT_FILE=${config_output_file}"
                     -D "OV_PLUGIN_NAME=${device_name}"
                     -D "OV_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                    -P "${IEDevScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
+                    -P "${OpenVINODeveloperScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
                     "Remove ${device_name} from the plugins.xml file"
                   VERBATIM)
@@ -232,7 +233,7 @@ macro(ov_register_in_plugins_xml)
               -D "OV_DEVICE_NAME=${device_name}"
               -D "OV_PLUGIN_PROPERTIES=${${device_name}_CONFIG}"
               -D "OV_PLUGIN_LIBRARY_NAME=${library_name}"
-              -P "${IEDevScripts_DIR}/plugins/create_plugin_file.cmake"
+              -P "${OpenVINODeveloperScripts_DIR}/plugins/create_plugin_file.cmake"
           COMMENT "Register ${device_name} device as ${library_name}"
           VERBATIM)
 
@@ -247,7 +248,7 @@ macro(ov_register_in_plugins_xml)
                           -D "CMAKE_SHARED_MODULE_PREFIX=${CMAKE_SHARED_MODULE_PREFIX}"
                           -D "OV_CONFIG_OUTPUT_FILE=${config_output_file}"
                           -D "OV_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                          -P "${IEDevScripts_DIR}/plugins/register_plugin_cmake.cmake"
+                          -P "${OpenVINODeveloperScripts_DIR}/plugins/register_plugin_cmake.cmake"
                         COMMENT
                           "Registering plugins to plugins.xml config file"
                         VERBATIM)
@@ -266,6 +267,7 @@ endmacro()
 # ie_register_plugins()
 #
 macro(ie_register_plugins)
+    message(WARNING "'ie_register_plugins' is deprecated. Please, use 'ov_register_plugins'")
     ov_register_plugins(${ARGN})
 endmacro()
 
@@ -346,7 +348,7 @@ function(ov_generate_plugins_hpp)
     else()
         set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ov_plugins.hpp")
     endif()
-    set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
+    set(plugins_hpp_in "${OpenVINODeveloperScripts_DIR}/plugins/plugins.hpp.in")
 
     add_custom_command(OUTPUT "${ov_plugins_hpp}"
                        COMMAND
@@ -357,10 +359,10 @@ function(ov_generate_plugins_hpp)
                         -D "OV_PLUGINS_HPP_HEADER=${ov_plugins_hpp}"
                         ${device_configs}
                         ${as_extension}
-                        -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                        -P "${OpenVINODeveloperScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        DEPENDS
                          "${plugins_hpp_in}"
-                         "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                         "${OpenVINODeveloperScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
                          "Generate ov_plugins.hpp"
                        VERBATIM)

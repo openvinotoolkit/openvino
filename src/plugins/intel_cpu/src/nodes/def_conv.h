@@ -71,9 +71,9 @@ struct jit_uni_def_conv_kernel {
 
 class DeformableConvolution : public Node {
 public:
-    DeformableConvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    DeformableConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
@@ -84,7 +84,7 @@ public:
     bool enforceRef = false;
     constexpr static int sampledPointsPerPixel = 4;  // count of sampling points ({top|bottom}, {left|right})
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     struct DefConvAttr {
         size_t group = 1;

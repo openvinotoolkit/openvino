@@ -7,7 +7,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset9.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
 
 using namespace InferenceEngine;
@@ -92,8 +92,6 @@ void ROIAlignLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> proposalVector;
     std::vector<int> roiIdxVector;
     proposalVector.resize(coordsShape[0] * 4);
@@ -106,7 +104,7 @@ void ROIAlignLayerTest::SetUp() {
     auto coords = std::make_shared<ngraph::opset1::Constant>(ngPrc, coordsShape, proposalVector.data());
     auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
-    std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ngraph::opset3::ROIAlign>(paramOuts[0],
+    std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ngraph::opset3::ROIAlign>(params[0],
                                                                                         coords,
                                                                                         roisIdx,
                                                                                         pooledH,
@@ -173,8 +171,6 @@ void ROIAlignV9LayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> proposalVector;
     std::vector<int> roiIdxVector;
     proposalVector.resize(coordsShape[0] * 4);
@@ -194,7 +190,7 @@ void ROIAlignV9LayerTest::SetUp() {
     auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ngraph::opset9::ROIAlign>(
-            paramOuts[0],
+            params[0],
             coords,
             roisIdx,
             pooledH,

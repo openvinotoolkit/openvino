@@ -7,12 +7,8 @@
 #include <fstream>
 
 #include "common_test_utils/test_control.hpp"
-#include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ngraph;
 using namespace ov::frontend;
 
 using PaddleFuzzyOpTest = FrontEndFuzzyOpTest;
@@ -575,6 +571,11 @@ static const std::vector<std::string> models{
     std::string("unique_ret_index_inverse_counts"),
     std::string("unique_ret_index_axis"),
     std::string("unique_ret_index_i32"),
+    std::string("unstack_1"),
+    std::string("unstack_2"),
+    std::string("unstack_3"),
+    std::string("unstack_4"),
+    std::string("unstack_5"),
     std::string("where_1"),
     std::string("where_2"),
     std::string("where_3"),

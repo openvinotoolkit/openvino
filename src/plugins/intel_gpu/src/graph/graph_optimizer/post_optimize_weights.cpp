@@ -7,7 +7,6 @@
 #include "implementation_map.hpp"
 
 #include "convolution_inst.h"
-#include "binary_convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
@@ -124,8 +123,6 @@ void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<convolution>()) {
             optimize_weights(node->as<convolution>(), p);
-        } else if (node->is_type<binary_convolution>()) {
-            optimize_weights(node->as<binary_convolution>(), p);
         } else if (node->is_type<deconvolution>()) {
             optimize_weights(node->as<deconvolution>(), p);
         } else if (node->is_type<deformable_conv>()) {

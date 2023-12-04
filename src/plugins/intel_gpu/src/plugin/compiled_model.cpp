@@ -35,6 +35,20 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
     if (config.get_property(ov::internal::exclusive_async_requests)) {
         //exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
+    } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
+        auto executor_config =
+            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                    0,
+                                                    0,
+                                                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
+                                                    1,
+                                                    0,
+                                                    0,
+                                                    ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
+                                                    {{config.get_property(ov::num_streams), MAIN_CORE_PROC, 1, 0, 0}},
+                                                    true};
+        auto post_config = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(post_config);
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
@@ -49,11 +63,11 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     : ov::ICompiledModel(model,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(model->is_dynamic() ? model : nullptr)
     , m_model_name(model->get_friendly_name())
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
@@ -65,18 +79,18 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     }
 }
 
-CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
+CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
     : ov::ICompiledModel(nullptr,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(nullptr)
     , m_model_name("")
     , m_loaded_from_cache(true) {
     {
@@ -152,10 +166,9 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
         }
     }
 
-    auto pos = ib.tellg();
+    auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, 0);
+        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
 }
@@ -179,9 +192,6 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     cldnn::BinaryOutputBuffer ob(model);
 
-    bool is_dynamic = get_graph(0)->get_network()->is_dynamic();
-
-    ob << is_dynamic;
     // Inputs
     {
         const auto& params = inputs();
@@ -221,12 +231,7 @@ void CompiledModel::export_model(std::ostream& model) const {
         }
     }
 
-    if (is_dynamic) {
-        ov::pass::StreamSerialize serializer(model, {}, ov::pass::Serialize::Version::UNSPECIFIED);
-        serializer.run_on_model(m_model);
-    } else {
-        get_graph(0)->export_model(ob);
-    }
+    get_graph(0)->export_model(ob);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -250,6 +255,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 
             // Configs
             ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},

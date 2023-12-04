@@ -112,6 +112,36 @@ OutputVector translate_minimum(const NodeContext& context) {
     return {res};
 }
 
+OutputVector translate_amin(const NodeContext& context) {
+    // aten::amin(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
+
+    // aten::amin.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 3, 4);
+    auto x = context.get_input(0);
+    auto dims = context.get_input(1);
+    auto keep_dims = context.const_input<bool>(2);
+    auto res = context.mark_node(std::make_shared<v1::ReduceMin>(x, dims, keep_dims));
+    if (!context.input_is_none(3)) {
+        context.mutate_input(3, res);
+    }
+    return {res};
+}
+
+OutputVector translate_amax(const NodeContext& context) {
+    // aten::amax(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
+
+    // aten::amax.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 3, 4);
+    auto x = context.get_input(0);
+    auto dims = context.get_input(1);
+    auto keep_dims = context.const_input<bool>(2);
+    auto res = context.mark_node(std::make_shared<v1::ReduceMax>(x, dims, keep_dims));
+    if (!context.input_is_none(3)) {
+        context.mutate_input(3, res);
+    }
+    return {res};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include "openvino/op/loop.hpp"
 
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace {
 enum LOOP_IN_TYPE { INVARIANT, MERGED };
@@ -30,36 +35,36 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
                                                const int64_t& trip_count_value,
                                                const std::vector<LOOP_IN_TYPE>& loop_in_type,
                                                const ov::element::Type& net_type) override {
-        auto X = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Y = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Yi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto body_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-        auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);
-        auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
-        auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ov::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ov::op::v1::Multiply>(sum, M_body);
         auto body =
             std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, ov::ParameterVector{Xi, Yi, M_body});
 
-        auto loop = std::make_shared<ov::opset8::Loop>(trip_count, exec_condition);
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
 
         loop->set_invariant_input(Xi, X);
         loop->set_invariant_input(Yi, Y);
         loop->set_merged_input(M_body, M, Zo);
 
-        loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
         // Output is last Zo
-        auto result = std::make_shared<ov::opset8::Result>(loop->get_iter_value(Zo, -1));
+        auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(Zo, -1));
         return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{X, Y, M});
     }
 };
@@ -131,7 +136,7 @@ struct LoopStaticInputs : public LoopFunctionalBase {
                                                const ov::element::Type& net_type) override {
         ov::ParameterVector loop_params;
         for (auto&& input : loop_inputs) {
-            loop_params.emplace_back(std::make_shared<ov::opset8::Parameter>(input.type, input.shape));
+            loop_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(input.type, input.shape));
         }
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
@@ -139,26 +144,26 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         const std::vector<ov::PartialShape> body_params_shapes(loop_inputs.size(), ov::PartialShape::dynamic());
         ov::ParameterVector body_params;
         for (const auto& pshape : body_params_shapes) {
-            body_params.emplace_back(std::make_shared<ov::opset8::Parameter>(net_type, pshape));
+            body_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(net_type, pshape));
         }
 
         const auto body_condition_const =
-            std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
-        const auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+            std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        const auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         std::shared_ptr<ov::Node> trip_count_input;
-        trip_count_input = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
+        trip_count_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
 
         // Body
         std::shared_ptr<ov::Node> Zo = body_params[0];
         for (size_t i = 1; i < body_params.size(); ++i) {
-            Zo = std::make_shared<ov::opset8::Add>(body_params[i], Zo);
+            Zo = std::make_shared<ov::op::v1::Add>(body_params[i], Zo);
         }
 
         const auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, Zo}, body_params);
 
-        const auto loop = std::make_shared<ov::opset8::Loop>(trip_count_input, exec_condition);
+        const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count_input, exec_condition);
         loop->set_function(body);
-        loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
         for (size_t i = 0; i < body_params.size(); ++i) {
             if (loop_in_type[i] == LOOP_IN_TYPE::INVARIANT) {
@@ -177,9 +182,9 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         // start=0, stride=1, part_size=1, end=-1, axis=1
         const auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
 
-        const auto result0 = std::make_shared<ov::opset8::Result>(out0);
-        const auto result1 = std::make_shared<ov::opset8::Result>(out1);
-        const auto result2 = std::make_shared<ov::opset8::Result>(out2);
+        const auto result0 = std::make_shared<ov::op::v0::Result>(out0);
+        const auto result1 = std::make_shared<ov::op::v0::Result>(out1);
+        const auto result2 = std::make_shared<ov::op::v0::Result>(out2);
         const auto function =
             std::make_shared<ov::Model>(ov::ResultVector{result0, result1, result2}, loop_params, "loop");
         return function;

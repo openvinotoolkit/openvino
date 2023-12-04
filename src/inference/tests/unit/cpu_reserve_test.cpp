@@ -44,6 +44,12 @@ public:
                                                    test_data._cpu_status);
 
         ASSERT_EQ(test_data._stream_processors, test_processors);
+        for (size_t i = 0; i < test_processors.size(); i++) {
+            for (size_t j = 0; j < test_processors[i].size(); j++) {
+                ASSERT_EQ(test_data._cpu_mapping_table[test_processors[i][j]][CPU_MAP_USED_FLAG],
+                          test_data._cpu_status);
+            }
+        }
     }
 };
 
@@ -869,8 +875,6 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams_ecoreonly = {
     },
     NOT_USED,
 };
-// streams_info_table={1, MAIN_CORE_PROC, 36}, but the number of physical cores is 18,
-// in this case, threads are assigned on physical and logical cores.
 LinuxCpuReserveTestCase _1socket_18cores_hyper_1streams = {
     36,
     1,
@@ -933,6 +937,38 @@ LinuxCpuReserveTestCase _1socket_18cores_hyper_2streams = {
     },
     NOT_USED,
 };
+// other plugin reserved 2 threads
+LinuxCpuReserveTestCase _1socket_18cores_hyper_plugin_reserve_2threads = {
+    36,
+    1,
+    {{36, 18, 0, 18, 0, 0}},
+    {
+        {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {4, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},  {5, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
+        {6, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},  {7, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {8, 0, 0, 4, HYPER_THREADING_PROC, 4, -1},  {9, 0, 0, 4, HYPER_THREADING_PROC, 4, -1},
+        {10, 0, 0, 5, HYPER_THREADING_PROC, 5, -1}, {11, 0, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {12, 0, 0, 6, HYPER_THREADING_PROC, 6, -1}, {13, 0, 0, 6, HYPER_THREADING_PROC, 6, -1},
+        {14, 0, 0, 7, HYPER_THREADING_PROC, 7, -1}, {15, 0, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {16, 0, 0, 8, HYPER_THREADING_PROC, 8, -1}, {17, 0, 0, 9, HYPER_THREADING_PROC, 8, -1},
+        {18, 0, 0, 0, MAIN_CORE_PROC, 0, CPU_USED}, {19, 0, 0, 1, MAIN_CORE_PROC, 1, CPU_USED},
+        {20, 0, 0, 2, MAIN_CORE_PROC, 2, -1},       {21, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {22, 0, 0, 4, MAIN_CORE_PROC, 4, -1},       {23, 0, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {24, 0, 0, 6, MAIN_CORE_PROC, 6, -1},       {25, 0, 0, 7, MAIN_CORE_PROC, 7, -1},
+        {26, 0, 0, 8, MAIN_CORE_PROC, 8, -1},       {27, 0, 0, 9, MAIN_CORE_PROC, 9, -1},
+        {28, 0, 0, 10, MAIN_CORE_PROC, 10, -1},     {29, 0, 0, 11, MAIN_CORE_PROC, 11, -1},
+        {30, 0, 0, 12, MAIN_CORE_PROC, 12, -1},     {31, 0, 0, 13, MAIN_CORE_PROC, 13, -1},
+        {32, 0, 0, 14, MAIN_CORE_PROC, 14, -1},     {33, 0, 0, 15, MAIN_CORE_PROC, 15, -1},
+        {34, 0, 0, 16, MAIN_CORE_PROC, 16, -1},     {35, 0, 0, 17, MAIN_CORE_PROC, 17, -1},
+    },
+    {{16, MAIN_CORE_PROC, 1, 0, 0}, {16, HYPER_THREADING_PROC, 1, 0, 0}},
+    {
+        {20}, {21}, {22}, {23}, {24}, {25}, {26}, {27}, {28}, {29}, {30}, {31}, {32}, {33}, {34}, {35},
+        {0},  {1},  {2},  {3},  {4},  {5},  {6},  {7},  {8},  {9},  {10}, {11}, {12}, {13}, {14}, {15},
+    },
+    NOT_USED,
+};
 LinuxCpuReserveTestCase _1socket_32cores_hyper_1streams = {
     32,
     1,
@@ -986,6 +1022,7 @@ INSTANTIATE_TEST_SUITE_P(CPUReserve,
                                          _1socket_16cores_hyper_4streams_ecoreonly,
                                          _1socket_18cores_hyper_1streams,
                                          _1socket_18cores_hyper_2streams,
+                                         _1socket_18cores_hyper_plugin_reserve_2threads,
                                          _1socket_32cores_hyper_1streams));
 #endif
 }  // namespace

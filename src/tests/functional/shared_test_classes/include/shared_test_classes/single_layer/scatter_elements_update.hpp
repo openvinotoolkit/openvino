@@ -24,6 +24,15 @@ using scatterElementsUpdateParamsTuple = typename std::tuple<
         InferenceEngine::Precision,        // indices precision
         std::string>;                      // Device name
 
+using scatterElementsUpdate12ParamsTuple = typename std::tuple<
+        axisShapeInShape,                  // shape description
+        std::vector<int64_t>,              // indices value
+        ov::op::v12::ScatterElementsUpdate::Reduction,  // Reduce mode
+        bool,                              // Use init value
+        InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // indices precision
+        std::string>;                      // Device name
+
 class ScatterElementsUpdateLayerTest : public testing::WithParamInterface<scatterElementsUpdateParamsTuple>,
                                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
@@ -31,6 +40,14 @@ public:
     static std::vector<axisShapeInShape> combineShapes(
         const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>>& inputShapes);
 
+protected:
+    void SetUp() override;
+};
+
+class ScatterElementsUpdate12LayerTest : public testing::WithParamInterface<scatterElementsUpdate12ParamsTuple>,
+                                         virtual public LayerTestsUtils::LayerTestsCommon  {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<scatterElementsUpdate12ParamsTuple> &obj);
 protected:
     void SetUp() override;
 };

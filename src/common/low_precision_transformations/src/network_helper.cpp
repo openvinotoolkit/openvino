@@ -195,7 +195,7 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
 }
 
 void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
-    ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
+    ov::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
 std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opset1::Add> addAfterMultiply, const int multiplyBranch) {

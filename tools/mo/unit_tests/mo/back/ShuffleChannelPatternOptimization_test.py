@@ -1,10 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
-
-from generator import generate, generator
+import pytest
 
 from openvino.tools.mo.back.ShuffleChannelPatternOptimization import ShuffleChannelFusion, DepthToSpaceFusion
 from openvino.tools.mo.ops.depth_to_space import DepthToSpaceOp
@@ -18,8 +16,7 @@ from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_d
     valued_const_with_data, connect, regular_op_with_empty_data
 
 
-@generator
-class ShuffleChannelFusionTest(unittest.TestCase):
+class TestShuffleChannelFusionTest():
     @staticmethod
     def get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group):
         nodes = {
@@ -67,7 +64,7 @@ class ShuffleChannelFusionTest(unittest.TestCase):
 
         return graph, graph_ref
 
-    @generate(*[
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, group",[
         ([1, 512, 7, 6], [1, 2, 256, 7, 6], [0, 2, 1, 3, 4], [1, 512, 7, 6], 2),
         ([2, 512, 7, 6], [2, 2, 256, 7, 6], [0, 2, 1, 3, 4], [2, 512, 7, 6], 2),
         ([1, 200, 200, 200], [1, 50, 4, 200, 200], [0, 2, 1, 3, 4], [1, 200, 200, 200], 50),
@@ -77,11 +74,11 @@ class ShuffleChannelFusionTest(unittest.TestCase):
         ShuffleChannelFusion().find_and_replace_pattern(graph)
         graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-        self.assertTrue(flag, resp)
-        self.assertTrue(len(graph.get_op_nodes(name='final_reshape')) == 1 and
-                        graph.get_op_nodes(name='final_reshape')[0].op == 'ShuffleChannels')
+        assert flag, resp
+        assert len(graph.get_op_nodes(name='final_reshape')) == 1 and \
+                        graph.get_op_nodes(name='final_reshape')[0].op == 'ShuffleChannels'
 
-    @generate(*[
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, group",[
         ([1, 512, 7, 6], [0, 2, 256, 7, 6], [0, 2, 1, 3, 4], [1, 512, 7, 6], 2),
         ([1, 512, 7, 6], [1, 2, 256, 7, 6], [0, 2, 1, 4, 3], [1, 512, 7, 6], 2),
         ([1, 512, 7, 6], [1, 2, 256, 7, 6], [0, 2, 1, 3, 4], [-1, 512, 7, 6], 2),
@@ -91,11 +88,10 @@ class ShuffleChannelFusionTest(unittest.TestCase):
         graph_ref = graph.copy()
         ShuffleChannelFusion().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
-@generator
-class DepthToSpaceFusionTest(unittest.TestCase):
+class TestDepthToSpaceFusionTest():
     @staticmethod
     def get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size):
         nodes = {
@@ -145,7 +141,7 @@ class DepthToSpaceFusionTest(unittest.TestCase):
 
         return graph, graph_ref
 
-    @generate(*[
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size",[
         ([1, 512, 7, 6], [1, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [1, 128, 14, 12], 2),
         ([2, 512, 7, 6], [2, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [2, 128, 14, 12], 2),
         ([1, 200, 200, 200], [1, 2, 2, 50, 200, 200], [0, 1, 4, 2, 5, 3], [1, 50, 400, 400], 2),
@@ -155,11 +151,11 @@ class DepthToSpaceFusionTest(unittest.TestCase):
         DepthToSpaceFusion().find_and_replace_pattern(graph)
         graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-        self.assertTrue(flag, resp)
-        self.assertTrue(len(graph.get_op_nodes(name='final_reshape')) == 1 and
-                        graph.get_op_nodes(name='final_reshape')[0].op == 'DepthToSpace')
+        assert flag, resp
+        assert len(graph.get_op_nodes(name='final_reshape')) == 1 and \
+                        graph.get_op_nodes(name='final_reshape')[0].op == 'DepthToSpace'
 
-    @generate(*[
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, group",[
         ([1, 512, 7, 6], [0, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [1, 128, 14, 12], 2),
         ([2, 512, 7, 6], [2, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [-1, 128, 14, 12], 2),
         ([1, 200, 200, 200], [1, 2, 2, 50, 200, 200], [0, 1, 4, 2, 3, 5], [1, 50, 400, 400], 2),
@@ -169,4 +165,4 @@ class DepthToSpaceFusionTest(unittest.TestCase):
         graph_ref = graph.copy()
         DepthToSpaceFusion().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-        self.assertTrue(flag, resp)
+        assert flag, resp

@@ -14,9 +14,9 @@
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
 
-#include "lpt_ngraph_functions/precision_propagation_function.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/precision_propagation.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

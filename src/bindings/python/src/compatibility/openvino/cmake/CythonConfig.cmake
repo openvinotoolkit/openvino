@@ -36,9 +36,12 @@ function( _find_cython_executable )
     get_filename_component( _python_path ${Python3_EXECUTABLE} PATH )
     file(TO_CMAKE_PATH "$ENV{HOME}" ENV_HOME)
     find_host_program( CYTHON_EXECUTABLE
-      NAMES cython cython.bat cython3
-      HINTS ${_python_path} ${ENV_HOME}/.local/bin $ENV{HOMEBREW_OPT}/cython/bin
+      NAMES cython cython.exe cython.bat cython3
+      HINTS ${_python_path}
+            ${ENV_HOME}/.local/bin
+            $ENV{HOMEBREW_OPT}/cython/bin
             ${ENV_HOME}/Library/Python/${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/bin
+            ${_python_path}/Scripts
       )
   else()
     find_host_program( CYTHON_EXECUTABLE
@@ -68,7 +71,11 @@ if(CYTHON_EXIT_CODE EQUAL 0)
   string(REGEX REPLACE "^Cython version ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1" CYTHON_VERSION "${CYTHON_OUTPUT}")
 else()
   if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
-      set(CYTHON_MESSAGE_MODE TRACE)
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+        set(CYTHON_MESSAGE_MODE TRACE)
+      else()
+        set(CYTHON_MESSAGE_MODE WARNING)
+      endif()
   endif()
   if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
       set(CYTHON_MESSAGE_MODE FATAL_ERROR)

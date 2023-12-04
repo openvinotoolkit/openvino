@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Node
@@ -28,9 +27,8 @@ nodes_attributes = {
     }
 }
 
-@generator
-class ExpandDimsOp(unittest.TestCase):
-    @generate(*[(0, [1, 2, 3, 224, 224]),
+class TestExpandDimsOp():
+    @pytest.mark.parametrize("axis, ref_out_shape",[(0, [1, 2, 3, 224, 224]),
                 (1, [2, 1, 3, 224, 224]),
                 (2, [2, 3, 1, 224, 224]),
                 (3, [2, 3, 224, 1, 224]),
@@ -45,12 +43,11 @@ class ExpandDimsOp(unittest.TestCase):
 
         ExpandDims.infer(expand_dims_node)
 
-        self.assertTrue(np.array_equal(expand_dims_node.out_node().shape, np.array(ref_out_shape)))
+        assert np.array_equal(expand_dims_node.out_node().shape, np.array(ref_out_shape))
 
 
-@generator
-class ExpandDimsOpDynamicDims(unittest.TestCase):
-    @generate(*[(0, [1, 2, 3, dynamic_dimension_value, 224]),
+class TestExpandDimsOpDynamicDims():
+    @pytest.mark.parametrize("axis, ref_out_shape",[(0, [1, 2, 3, dynamic_dimension_value, 224]),
                 (1, [2, 1, 3, dynamic_dimension_value, 224]),
                 (2, [2, 3, 1, dynamic_dimension_value, 224]),
                 (3, [2, 3, dynamic_dimension_value, 1, 224]),
@@ -66,12 +63,11 @@ class ExpandDimsOpDynamicDims(unittest.TestCase):
 
         ExpandDims.infer(expand_dims_node)
 
-        self.assertTrue(strict_compare_tensors(expand_dims_node.out_node().shape, shape_array(ref_out_shape)))
+        assert strict_compare_tensors(expand_dims_node.out_node().shape, shape_array(ref_out_shape))
 
 
-@generator
-class ExpandDimsOpValueInfer(unittest.TestCase):
-    @generate(*[(0, [2, 3, 224, 224], [1, 2, 3, 224, 224]),
+class TestExpandDimsOpValueInfer():
+    @pytest.mark.parametrize("axis, in_shape, ref_out_shape",[(0, [2, 3, 224, 224], [1, 2, 3, 224, 224]),
                 (1, [2, 3, 224, 224], [2, 1, 3, 224, 224]),
                 (2, [2, 3, 224, 224], [2, 3, 1, 224, 224]),
                 (3, [2, 3, 224, 224], [2, 3, 224, 1, 224]),
@@ -88,5 +84,5 @@ class ExpandDimsOpValueInfer(unittest.TestCase):
 
         ExpandDims.infer(expand_dims_node)
 
-        self.assertTrue(np.array_equal(expand_dims_node.out_node().shape, np.array(ref_out_shape)))
-        self.assertTrue(np.array_equal(expand_dims_node.out_node().value, np.array(in_value.reshape(ref_out_shape))))
+        assert np.array_equal(expand_dims_node.out_node().shape, np.array(ref_out_shape))
+        assert np.array_equal(expand_dims_node.out_node().value, np.array(in_value.reshape(ref_out_shape)))

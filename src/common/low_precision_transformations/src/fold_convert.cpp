@@ -14,7 +14,7 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
-FoldConvertTransformation::FoldConvertTransformation(const Params& params) : LayerTransformation(params) {
+FoldConvertTransformation::FoldConvertTransformation(const Params& params) : CleanupTransformation(params) {
     MATCHER_SCOPE(FoldConvertTransformation);
     auto subtract = pattern::wrap_type<ov::opset1::Subtract>();
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(subtract, matcher_name);
@@ -57,10 +57,11 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ov::pa
 
 bool FoldConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     return
-        (ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(1)) &&
+        CleanupTransformation::canBeTransformed(context, operation) &&
+        ((ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(1)) &&
         ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(1)->get_input_node_ptr(0))) ||
         (ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(0)) &&
-        ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(0)->get_input_node_ptr(0)));
+        ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(0)->get_input_node_ptr(0))));
 }
 
 bool FoldConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

@@ -121,6 +121,7 @@ OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(unique);
+OP_CONVERTER(unstack);
 OP_CONVERTER(where);
 OP_CONVERTER(while_);
 OP_CONVERTER(write_to_array);
@@ -251,6 +252,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
             {"unique", op::unique},
+            {"unstack", op::unstack},
             {"where", op::where},
             {"while", op::while_},
             {"write_to_array", op::write_to_array},

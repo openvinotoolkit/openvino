@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <cmath>
-
-#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

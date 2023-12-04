@@ -14,8 +14,8 @@
 #include "common_test_utils/test_constants.hpp"
 #include "ie_api.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using namespace InferenceEngine;
 using Config = std::pair<std::string, std::map<std::string, std::string>>;

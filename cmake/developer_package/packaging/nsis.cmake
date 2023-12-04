@@ -5,6 +5,8 @@
 macro(ov_nsis_specific_settings)
     # installation directory
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "Intel")
+    # License to be embedded in the installer
+    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
     # TODO: provide icons
     # set(CPACK_NSIS_MUI_ICON "")
@@ -83,11 +85,6 @@ macro(ov_archive_cpack_set_dirs)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER})
     endif()
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_nsis_cpack_set_dirs()

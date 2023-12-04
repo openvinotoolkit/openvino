@@ -6,7 +6,7 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {

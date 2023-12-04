@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/import_export_base.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 

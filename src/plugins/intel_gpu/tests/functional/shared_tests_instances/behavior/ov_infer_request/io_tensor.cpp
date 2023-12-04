@@ -22,14 +22,6 @@ auto configs = []() {
     };
 };
 
-auto MultiConfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}};
-};
-
-auto AutoConfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}};
-};
-
 auto AutoBatchConfigs = []() {
     return std::vector<ov::AnyMap>{
         // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
@@ -42,18 +34,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
-                        OVInferRequestIOTensorTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(MultiConfigs())),
-                        OVInferRequestIOTensorTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs())),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestIOTensorTest,
@@ -101,20 +81,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecision
                                  ::testing::ValuesIn(prcs),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU),
                                  ::testing::ValuesIn(configs())),
-                         OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(MultiConfigs())),
-                         OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(AutoConfigs())),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,

@@ -17,8 +17,8 @@
 
 import sys
 
-if sys.version_info[0] < 3 or (sys.version_info[0] == 3 and sys.version_info[1] < 7):
-    exit("Python* 3.7 or higher is required to run the Deployment Manager.")
+if sys.version_info[0] < 3 or (sys.version_info[0] == 3 and sys.version_info[1] < 8):
+    exit("Python* 3.8 or higher is required to run the Deployment Manager.")
 
 if __name__ == '__main__':
     from deployman.main import main

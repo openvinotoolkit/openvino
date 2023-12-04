@@ -55,13 +55,15 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Kernel, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Brgemm, BrgemmShapeInfer),
         // Note that Result has no output PortConnectors, so the shape must be empty
         SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //
         SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
-        SHAPE_INFER_OP_SPECIFIC(op::Brgemm),
+        SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
 };

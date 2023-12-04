@@ -64,7 +64,7 @@ public:
             OPENVINO_SUPPRESS_DEPRECATED_START
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + IE_BUILD_POSTFIX));
+                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
             core.add_extension(extension);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const ov::Exception& ex) {
@@ -95,7 +95,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
         [&]() {
             const std::string deviceName = std::to_string(index++);
             core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                    std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                    std::string("mock_engine") + OV_BUILD_POSTFIX),
                                  deviceName);
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
@@ -118,7 +118,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         file << ov::util::FileTraits<char>::file_separator;
         file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
-        file << IE_BUILD_POSTFIX;
+        file << OV_BUILD_POSTFIX;
         file << ov::util::FileTraits<char>::dot_symbol;
         file << ov::util::FileTraits<char>::library_ext();
         file << "\" name=\"";

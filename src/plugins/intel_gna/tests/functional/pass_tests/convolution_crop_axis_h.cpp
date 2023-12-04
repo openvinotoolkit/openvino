@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -87,7 +87,9 @@ protected:
         const std::vector<int64_t> crop_end{20};
         const std::vector<int64_t> crop_stride{1};
         const std::vector<int64_t> axes{h_index_in_nchw};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split_node = ngraph::builder::makeSlice(convolution_node, crop_begin, crop_end, crop_stride, axes, ngPrc);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto convolution_node2 = ngraph::builder::makeConvolution(split_node,
                                                                   ngPrc,

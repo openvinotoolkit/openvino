@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/scaleshift_conv_scaleshift.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 

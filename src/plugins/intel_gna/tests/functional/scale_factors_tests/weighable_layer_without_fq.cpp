@@ -7,8 +7,8 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -71,7 +71,7 @@ protected:
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
             static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
-        auto concat = ngraph::builder::makeConcat({fq1, fq2}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fq1, fq2}, 1);
         function = std::make_shared<ngraph::Function>(concat, params, "WeighableLayerWithoutFq");
     }
 };  // class WeighableLayerWithoutFqTest

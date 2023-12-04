@@ -36,7 +36,7 @@ public:
     ///             the biggest element of two.
     /// \param sort Specifies order of output elements and/or indices
     ///             Accepted values: none, index, value
-    /// \param index_element_type Specyfies type of produced indices
+    /// \param index_element_type Specifies type of produced indices
     TopK(const Output<Node>& data,
          const Output<Node>& k,
          const int64_t axis,
@@ -53,9 +53,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:
@@ -83,7 +81,7 @@ public:
     ///             the biggest element of two.
     /// \param sort Specifies order of output elements and/or indices
     ///             Accepted values: none, index, value
-    /// \param index_element_type Specyfies type of produced indices
+    /// \param index_element_type Specifies type of produced indices
     TopK(const Output<Node>& data,
          const Output<Node>& k,
          const int64_t axis,
@@ -99,9 +97,7 @@ public:
          const element::Type& index_element_type = element::i32);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v3
@@ -153,9 +149,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     bool get_stable() const {

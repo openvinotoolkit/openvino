@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node
@@ -31,9 +30,8 @@ graph_edges_sizes = [
 ]
 
 
-@generator
-class TestComplexOp(unittest.TestCase):
-    @generate(*[
+class TestComplexOp():
+    @pytest.mark.parametrize("input_shape, output_shape",[
         ([1, 260, 100, 150], [1, 260, 100, 150, 2]),
         ([1, 260, 100], [1, 260, 100, 2]),
         ([5, 14, 300, 40], [5, 14, 300, 40, 2]),
@@ -52,5 +50,5 @@ class TestComplexOp(unittest.TestCase):
 
         msg = "Complex operation infer failed for case: expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['complex_data']['shape'], int64_array(output_shape)),
-                        msg.format(output_shape, graph.node['complex_data']['shape']))
+        assert np.array_equal(graph.node['complex_data']['shape'], int64_array(output_shape)),\
+                        msg.format(output_shape, graph.node['complex_data']['shape'])

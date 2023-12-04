@@ -59,7 +59,7 @@ public:
         bool is_caching_test;
         std::tie(test_inputs, blocked_format, is_caching_test) = testing::TestWithParam<matrix_nms_test_params>::GetParam();
 
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         const auto plain_format = format::bfyx;
 
         auto& engine = get_test_engine();
@@ -666,26 +666,27 @@ INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_top_k_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_single_box_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_no_output_inputs)
 
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_smoke_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_gaussian_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_two_batches_two_classes_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_by_keep_top_k_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_two_batches_two_classes_by_classid_cross_batch_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_two_batches_two_classes_by_score_cross_batch_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_background_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_flipped_coordinates_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_post_threshold_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_identical_boxes_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_top_k_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_single_box_inputs)
-INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_no_output_inputs)
+using ov::float16;
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_smoke_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_gaussian_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_two_batches_two_classes_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_by_keep_top_k_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_two_batches_two_classes_by_classid_cross_batch_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_two_batches_two_classes_by_score_cross_batch_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_background_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_flipped_coordinates_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_post_threshold_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_identical_boxes_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_top_k_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_single_box_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_no_output_inputs)
 
 #ifndef RUN_ALL_MODEL_CACHING_TESTS
-INSTANTIATE_TEST_SUITE_P(matrix_nms_test_FLOAT16get_matrix_nms_smoke_inputs_cached,
-                         matrix_nms_gpu_test_FLOAT16get_matrix_nms_smoke_inputs,
+INSTANTIATE_TEST_SUITE_P(matrix_nms_test_float16get_matrix_nms_smoke_inputs_cached,
+                         matrix_nms_gpu_test_float16get_matrix_nms_smoke_inputs,
                          testing::Combine(testing::Values(get_matrix_nms_smoke_inputs()), testing::ValuesIn(layout_formats),
                                           testing::Values(true)),
-                         matrix_nms_gpu_test_FLOAT16get_matrix_nms_smoke_inputs::PrintToStringParamName);
+                         matrix_nms_gpu_test_float16get_matrix_nms_smoke_inputs::PrintToStringParamName);
 #endif
 
 #undef INSTANTIATE_MATRIX_NMS_TEST_SUITE

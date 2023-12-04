@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/einsum.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -56,11 +57,11 @@ private:
         OutputVector output_vector;
         ParameterVector param_vector;
         for (const auto& input_tensor : params.inputs) {
-            auto param = std::make_shared<opset1::Parameter>(input_tensor.type, input_tensor.shape);
+            auto param = std::make_shared<op::v0::Parameter>(input_tensor.type, input_tensor.shape);
             output_vector.push_back(param);
             param_vector.push_back(param);
         }
-        const auto einsum = std::make_shared<opset7::Einsum>(output_vector, params.equation);
+        const auto einsum = std::make_shared<op::v7::Einsum>(output_vector, params.equation);
         const auto f = std::make_shared<Model>(OutputVector{einsum}, param_vector);
         return f;
     }

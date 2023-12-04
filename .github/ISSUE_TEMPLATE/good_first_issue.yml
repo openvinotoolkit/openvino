@@ -57,3 +57,12 @@ body:
       placeholder: GitHub users
     validations:
       required: true
+
+  - type: textarea
+    id: ticket
+    attributes:
+      label: Ticket
+      description: |
+          Provide the ticket number, if available.
+    validations:
+      required: false

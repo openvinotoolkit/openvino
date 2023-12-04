@@ -3,8 +3,8 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -118,7 +118,7 @@ protected:
                 } else if (offsetType == OffsetType::REAL_MISC) {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 4, -2, 100);
                 } else {
-                    IE_THROW() << "Unexpected offset type";
+                    OPENVINO_THROW("Unexpected offset type");
                 }
             } else if (i == 2) {  // "c_filter_vals"
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), filtShape, 2, -1, 100);
@@ -126,7 +126,7 @@ protected:
                 auto modShape = targetInputStaticShapes[3];
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), modShape, 1, 0, 100);
             } else {
-                IE_THROW() << "Unknown input of DeformableConvolution";
+                OPENVINO_THROW("Unknown input of DeformableConvolution");
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

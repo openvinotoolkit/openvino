@@ -59,6 +59,7 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     copy_runtime_info(indices.get_node_shared_ptr(), gather);
     return gather;
 }
+
 Output<Node> ChangeAxes(const Output<Node>& indices,
                         const AxisVector& transpose_axis_order,
                         const std::shared_ptr<ov::op::v0::Constant>& axis) {

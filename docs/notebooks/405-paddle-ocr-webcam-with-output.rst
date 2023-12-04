@@ -1,8 +1,6 @@
 PaddleOCR with OpenVINO™
 ========================
 
-
-
 This demo shows how to run PP-OCR model on OpenVINO natively. Instead of
 exporting the PaddlePaddle model to ONNX and then converting to the
 OpenVINO Intermediate Representation (OpenVINO IR) format with model
@@ -19,49 +17,57 @@ GitHub <https://github.com/PaddlePaddle/PaddleOCR>`__ or `PaddleOCR
 Gitee <https://gitee.com/paddlepaddle/PaddleOCR>`__. Working pipeline of
 the PaddleOCR is as follows:
 
-.. note::
+   **NOTE**: To use this notebook with a webcam, you need to run the
+   notebook on a computer with a webcam. If you run the notebook on a
+   server, the webcam will not work. You can still do inference on a
+   video file.
 
-   To use this notebook with a webcam, you need to run the notebook on a computer 
-   with a webcam. If you run the notebook on a server, the webcam will not work. 
-   You can still do inference on a video file.
+**Table of contents:**
 
-.. _top:
 
-**Table of contents**:
+-  `Imports <#imports>`__
 
-- `Imports <#imports>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Models for PaddleOCR <#models-for-paddleocr>`__
 
-  - `Select inference device <#select-inference-device>`__
-  - `Models for PaddleOCR <#models-for-paddleocr>`__
+      -  `Download the Model for Text
+         Detection <#download-the-model-for-text-detection>`__
+      -  `Load the Model for Text
+         Detection <#load-the-model-for-text-detection>`__
+      -  `Download the Model for Text
+         Recognition <#download-the-model-for-text-recognition>`__
+      -  `Load the Model for Text Recognition with Dynamic
+         Shape <#load-the-model-for-text-recognition-with-dynamic-shape>`__
 
-    - `Download the Model for Text Detection <#download-the-model-for-text-detection>`__
-    - `Load the Model for Text Detection <#load-the-model-for-text-detection>`__
-    - `Download the Model for Text Recognition <#download-the-model-for-text-recognition>`__
-    - `Load the Model for Text Recognition with Dynamic Shape <#load-the-model-for-text-recognition-with-dynamic-shape>`__
+   -  `Preprocessing Image Functions for Text Detection and
+      Recognition <#preprocessing-image-functions-for-text-detection-and-recognition>`__
+   -  `Postprocessing Image for Text
+      Detection <#postprocessing-image-for-text-detection>`__
+   -  `Main Processing Function for
+      PaddleOCR <#main-processing-function-for-paddleocr>`__
 
-  - `Preprocessing Image Functions for Text Detection and Recognition <#preprocessing-image-functions-for-text-detection-and-recognition>`__
-  - `Postprocessing Image for Text Detection <#postprocessing-image-for-text-detection>`__
-  - `Main Processing Function for PaddleOCR <#main-processing-function-for-paddleocr>`__
-
-- `Run Live PaddleOCR with OpenVINO <#run-live-paddleocr-with-openvino>`__
+-  `Run Live PaddleOCR with
+   OpenVINO <#run-live-paddleocr-with-openvino>`__
 
 .. code:: ipython3
 
-    !pip install -q "openvino-dev>=2023.0.0"
-    !pip install -q "paddlepaddle==2.5.0"
-    !pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1"
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "paddlepaddle==2.5.0"
+    %pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
 
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
@@ -76,7 +82,7 @@ Imports `⇑ <#top>`__
     from pathlib import Path
     import tarfile
     
-    from openvino.runtime import Core
+    import openvino as ov
     from IPython import display
     import copy
 
@@ -98,17 +104,16 @@ Imports `⇑ <#top>`__
     import notebook_utils as utils
     import pre_post_processing as processing
 
-Select inference device `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -128,9 +133,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Models for PaddleOCR `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Models for PaddleOCR 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PaddleOCR includes two parts of deep learning models, text detection and
 text recognition. Pre-trained models used in the demo are downloaded and
@@ -173,9 +177,8 @@ files to load to CPU/GPU.
             else:
                 print("Error Extracting the model. Please check the network.")
 
-Download the Model for Text **Detection** `⇑ <#top>`__
--------------------------------------------------------------------------------------------------------------------------------
-
+Download the Model for Text **Detection** 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
 
@@ -195,7 +198,7 @@ Download the Model for Text **Detection** `⇑ <#top>`__
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/405-padd…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/405-padd…
 
 
 .. parsed-literal::
@@ -204,14 +207,13 @@ Download the Model for Text **Detection** `⇑ <#top>`__
     Model Extracted to model/ch_PP-OCRv3_det_infer/inference.pdmodel.
 
 
-Load the Model for Text **Detection** `⇑ <#top>`__
--------------------------------------------------------------------------------------------------------------------------------
-
+Load the Model for Text **Detection** 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime for text detection.
-    core = Core()
+    core = ov.Core()
     det_model = core.read_model(model=det_model_file_path)
     det_compiled_model = core.compile_model(model=det_model, device_name=device.value)
     
@@ -219,9 +221,8 @@ Load the Model for Text **Detection** `⇑ <#top>`__
     det_input_layer = det_compiled_model.input(0)
     det_output_layer = det_compiled_model.output(0)
 
-Download the Model for Text **Recognition** `⇑ <#top>`__
--------------------------------------------------------------------------------------------------------------------------------
-
+Download the Model for Text **Recognition** 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
 
@@ -239,7 +240,7 @@ Download the Model for Text **Recognition** `⇑ <#top>`__
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/405-padd…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/405-padd…
 
 
 .. parsed-literal::
@@ -248,8 +249,8 @@ Download the Model for Text **Recognition** `⇑ <#top>`__
     Model Extracted to model/ch_PP-OCRv3_rec_infer/inference.pdmodel.
 
 
-Load the Model for Text **Recognition** with Dynamic Shape
-`⇑ <#top>`__
+Load the Model for Text **Recognition** with Dynamic Shape 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Input to text recognition model refers to detected bounding boxes with
 different image sizes, for example, dynamic input shapes. Hence:
@@ -277,9 +278,8 @@ different image sizes, for example, dynamic input shapes. Hence:
     rec_input_layer = rec_compiled_model.input(0)
     rec_output_layer = rec_compiled_model.output(0)
 
-Preprocessing Image Functions for Text Detection and Recognition. `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Preprocessing Image Functions for Text Detection and Recognition 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Define preprocessing functions for text detection and recognition: 1.
 Preprocessing for text detection: resize and normalize input images. 2.
@@ -394,9 +394,8 @@ with Chinese text) for easy batching in inference.
         norm_img_batch = norm_img_batch.copy()
         return norm_img_batch
 
-Postprocessing Image for Text Detection `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Postprocessing Image for Text Detection 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -434,9 +433,8 @@ Postprocessing Image for Text Detection `⇑ <#top>`__
         dt_boxes = processing.filter_tag_det_res(dt_boxes, ori_im.shape)    
         return dt_boxes
 
-Main Processing Function for PaddleOCR `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Main Processing Function for PaddleOCR 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run ``paddleOCR`` function in different operations, either a webcam or a
 video file. See the list of procedures below:
@@ -608,9 +606,8 @@ video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Live PaddleOCR with OpenVINO `⇑ <#top>`__
-###############################################################################################################################
-
+Run Live PaddleOCR with OpenVINO 
+--------------------------------------------------------------------------
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -619,10 +616,8 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-.. note::
-
-   Popup mode may not work if you run this notebook on a remote computer.
-
+   **NOTE**: Popup mode may not work if you run this notebook on a
+   remote computer.
 
 Run live PaddleOCR:
 
@@ -638,12 +633,13 @@ Run live PaddleOCR:
 
 .. parsed-literal::
 
-    [ WARN:0@10.144] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@10.145] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@10.896] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@10.896] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 If you do not have a webcam, you can still run this demo with a video
-file. Any `format supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
+file. Any `format supported by
+OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work.
 
 .. code:: ipython3

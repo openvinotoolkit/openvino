@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 using ::testing::_;

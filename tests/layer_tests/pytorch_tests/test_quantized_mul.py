@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -38,6 +40,8 @@ class TestQuantizedMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_quantized_mul(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_mul(scale, zero_point, dtype), None, ["quantized::mul"], 

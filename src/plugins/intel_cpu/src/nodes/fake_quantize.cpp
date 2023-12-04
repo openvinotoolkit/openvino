@@ -16,7 +16,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <common/dnnl_thread.hpp>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -25,7 +25,7 @@
 #include <common/primitive_hashing_utils.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
@@ -36,6 +36,7 @@
 
 using namespace dnnl;
 using namespace InferenceEngine;
+using namespace ov;
 using namespace details;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -229,7 +230,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
 
     void generate() override {
         do_dequantization = jqp_.op_type == Algorithm::FQCommon;
-        do_rounding = do_dequantization || jqp_.dst_prc == Precision::FP32;
+        do_rounding = do_dequantization || jqp_.dst_prc == ov::element::f32;
 
         this->preamble();
 
@@ -668,80 +669,80 @@ private:
         L(exit_label);
     }
 
-    inline void load_vector(Zmm zmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Zmm zmm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(zmm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpmovsxbd(zmm_src, op);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpmovzxbd(zmm_src, op);
                 break;
             default:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(zmm_src, zmm_src);
         }
     }
 
-    inline void load_vector(Ymm ymm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Ymm ymm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(ymm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpmovsxbd(ymm_src, op);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpmovzxbd(ymm_src, op);
                 break;
             default:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(ymm_src, ymm_src);
         }
     }
 
-    inline void load_vector(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Xmm xmm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(xmm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpmovsxbd(xmm_src, op);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpmovzxbd(xmm_src, op);
                 break;
             default:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovss(xmm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 movsx(reg_tmp_32, op);
                 uni_vmovq(xmm_src, reg_tmp_64);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 movzx(reg_tmp_32, op);
                 uni_vmovq(xmm_src, reg_tmp_64);
                 break;
@@ -749,25 +750,25 @@ private:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Zmm zmm_dst, Precision dst_prc) {
-        if (dst_prc != Precision::FP32) {
+    inline void store_vector(const Xbyak::Address &op, Zmm zmm_dst, ov::element::Type dst_prc) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(zmm_dst, zmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(op, zmm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 vpmovsdb(op, zmm_dst);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 vpmaxsd(zmm_dst, zmm_dst, vmm_zero);
                 vpmovusdb(op, zmm_dst);
                 break;
@@ -776,19 +777,19 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Ymm ymm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address &op, Ymm ymm_dst, ov::element::Type dst_prc) {
         Xmm xmm_dst = Xmm(ymm_dst.getIdx());
 
-        if (dst_prc != Precision::FP32) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(ymm_dst, ymm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(op, ymm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpackssdw(ymm_dst, ymm_dst, ymm_dst);
 
                 vpermq(ymm_dst, ymm_dst, 0x08);
@@ -797,7 +798,7 @@ private:
 
                 vmovq(op, xmm_dst);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpackusdw(ymm_dst, ymm_dst, ymm_dst);
 
                 vpermq(ymm_dst, ymm_dst, 0x08);
@@ -811,22 +812,22 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
-        if (dst_prc != Precision::FP32) {
+    inline void store_vector(const Xbyak::Address &op, Xmm xmm_dst, ov::element::Type dst_prc) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(op, xmm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovd(op, xmm_dst);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovd(op, xmm_dst);
@@ -836,23 +837,23 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
-        if (dst_prc != Precision::FP32) {
+    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, ov::element::Type dst_prc) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovss(op, xmm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovq(reg_tmp_64, xmm_dst);
@@ -864,9 +865,9 @@ private:
     }
 };
 #endif
-bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
+        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
             return false;
@@ -883,7 +884,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             }
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (!std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+            if (!std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
                 errorMessage = "Has non const 'range' input on " + std::to_string(i) + " port";
                 return false;
             }
@@ -892,7 +893,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             size_t count_not_unit_axis = 0;
             auto shape = getNormalizedDimsBySize(fq->get_input_shape(i), dataRank);
 
-            if (ngraph::shape_size(shape) != 1) {
+            if (ov::shape_size(shape) != 1) {
                 size_t not_unit_axis = 0;
                 for (size_t i = 0; i < shape.size(); i++) {
                     if (shape[i] > 1) {
@@ -914,9 +915,9 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node
                 }
             }
         }
-        if (fq->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NONE &&
-            fq->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-            errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(fq->get_auto_broadcast().m_type);
+        if (fq->get_auto_broadcast().m_type != ov::op::AutoBroadcastType::NONE &&
+            fq->get_auto_broadcast().m_type != ov::op::AutoBroadcastType::NUMPY) {
+            errorMessage = "Doesn't support broadcast type: " + ov::as_string(fq->get_auto_broadcast().m_type);
             return false;
         }
     } catch (...) {
@@ -932,9 +933,9 @@ struct FakeQuantKey {
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
         seed = hash_combine(seed, jqp.is_planar);
-        seed = hash_combine(seed, jqp.src_prc.getPrecVal());
-        seed = hash_combine(seed, jqp.wei_prc.getPrecVal());
-        seed = hash_combine(seed, jqp.dst_prc.getPrecVal());
+        seed = hash_combine(seed, jqp.src_prc.hash());
+        seed = hash_combine(seed, jqp.wei_prc.hash());
+        seed = hash_combine(seed, jqp.dst_prc.hash());
         seed = hash_combine(seed, jqp.op_type);
         if (jqp.op_type ==  Algorithm::FQBinarization) {
             seed = hash_combine(seed, jqp.c);
@@ -960,22 +961,22 @@ struct FakeQuantKey {
 };
 }  // namespace
 
-FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
-        const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
+        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
 
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
         if (levels <= 1)
-            IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
+            OPENVINO_THROW(errorPrefix, "supports 'levels' attribute greater than or equal to 2");
 
         if (inputShapes.size() != 5)
-            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << inputShapes.size();
+            OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", inputShapes.size());
         if (outputShapes.size() != 1)
-            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << outputShapes.size();
+            OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", outputShapes.size());
 
         auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
@@ -994,7 +995,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
         const auto ilShape = getNormalizedDimsBySize(fq->get_input_shape(1), dataRank);
         auto inputLowAxis = initAxisIdx(ilShape);
-        isInputLowBroadcasted = (ngraph::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
+        isInputLowBroadcasted = (ov::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
         if (!isInputLowBroadcasted) {
             axis = inputLowAxis;
             axisSize = ilShape[inputLowAxis];
@@ -1002,7 +1003,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
         const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataRank);
         auto inputHighAxis = initAxisIdx(ihShape);
-        isInputHighBroadcasted = (ngraph::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
+        isInputHighBroadcasted = (ov::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
         if (!isInputHighBroadcasted) {
             axis = inputHighAxis;
             axisSize = ihShape[inputHighAxis];
@@ -1010,7 +1011,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
         const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataRank);
         auto outputLowAxis = initAxisIdx(olShape);
-        isOutputLowBroadcasted = (ngraph::is_scalar(olShape) || olShape[outputLowAxis] == 1);
+        isOutputLowBroadcasted = (ov::is_scalar(olShape) || olShape[outputLowAxis] == 1);
         if (!isOutputLowBroadcasted) {
             axis = outputLowAxis;
             axisSize = olShape[outputLowAxis];
@@ -1018,31 +1019,31 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
         const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataRank);
         auto outputHighAxis = initAxisIdx(ohShape);
-        isOutputHighBroadcasted = (ngraph::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
+        isOutputHighBroadcasted = (ov::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
         if (!isOutputHighBroadcasted) {
             axis = outputHighAxis;
             axisSize = ohShape[outputHighAxis];
         }
 
-        auto inputLowAxisSize = ngraph::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
-        auto inputHighAxisSize = ngraph::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
-        auto outputLowAxisSize = ngraph::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
-        auto outputHighAxisSize = ngraph::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
+        auto inputLowAxisSize = ov::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
+        auto inputHighAxisSize = ov::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
+        auto outputLowAxisSize = ov::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
+        auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
         if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
-            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+            OPENVINO_THROW(errorPrefix, "has different quantization axis size on 'data' and 'range' inputs");
         }
 
-        const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;
@@ -1076,7 +1077,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             if (isInputLowBroadcasted) {
                 binarizationThresholds.push_back(inputLowData[0]);
             } else {
-                IE_ASSERT(axisSize != -1);
+                OPENVINO_ASSERT(axisSize != -1);
                 binarizationThresholds.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationThresholds[i] = inputLowData[i];
@@ -1086,7 +1087,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             if (isOutputHighBroadcasted) {
                 binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
             } else {
-                IE_ASSERT(axisSize != -1);
+                OPENVINO_ASSERT(axisSize != -1);
                 binarizationOutputMask.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
@@ -1169,10 +1170,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
-                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
-                                   << "inputLow = " << il << ", inputHigh = " << ih;
-            }
+                if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
+                    std::isinf(ih)) {
+                    OPENVINO_THROW("Quantize layer with name '",
+                                   getName(),
+                                   "' has invalid input quantize ranges: ",
+                                   "inputLow = ",
+                                   il,
+                                   ", inputHigh = ",
+                                   ih);
+                }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
                 inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
@@ -1189,8 +1196,13 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                    IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
-                                       << "outputLow = " << ol << ", outputHigh = " << oh;
+                    OPENVINO_THROW("Quantize layer with name '",
+                                   getName(),
+                                   "' has wrong output quantize ranges: ",
+                                   "outputLow = ",
+                                   ol,
+                                   ", outputHigh = ",
+                                   oh);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1239,7 +1251,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -1268,46 +1280,46 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
 
 void FakeQuantize::init() {
     if (binarization) {
-        inputPrecision = Precision::FP32;
-        outputPrecision = Precision::BIN;
+        inputPrecision = ov::element::f32;
+        outputPrecision = ov::element::u1;
     } else {
         inputPrecision = getOriginalInputPrecisionAtPort(0);
         outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
-        if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
-            inputPrecision = Precision::FP32;
+        if (inputPrecision != ov::element::f32 && inputPrecision != ov::element::u8 && inputPrecision != ov::element::i8)
+            inputPrecision = ov::element::f32;
 
-        if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
-            outputPrecision = Precision::FP32;
+        if (outputPrecision != ov::element::f32 && outputPrecision != ov::element::u8 && outputPrecision != ov::element::i8)
+            outputPrecision = ov::element::f32;
     }
 }
 
 void FakeQuantize::getSupportedDescriptors() {
     if (getParentEdges().size() != 5)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i).size() != 1)
-            IE_THROW() << errorPrefix << "has unsupported number of parent edges at port " << i;
+            OPENVINO_THROW(errorPrefix, "has unsupported number of parent edges at port ", i);
     }
 
     if (getInputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
-        IE_THROW() << errorPrefix << "has different ranks for input and output tensors";
+        OPENVINO_THROW(errorPrefix, "has different ranks for input and output tensors");
     }
 
     if (isBinarization()) {
         if (getInputShapeAtPort(0).getRank() != 4ul) {
-            IE_THROW() << errorPrefix << "doesn't support input/output rank != 4";
+            OPENVINO_THROW(errorPrefix, "doesn't support input/output rank != 4");
         }
     }
 
     if (getAxis() != 1) {
         if (isBinarization())
-            IE_THROW() << errorPrefix << "doesn't support non per-tensor binarization for axis: " << getAxis();
+            OPENVINO_THROW(errorPrefix, "doesn't support non per-tensor binarization for axis: ", getAxis());
         if (getAxis() != 0)
-            IE_THROW() << errorPrefix << "doesn't support non per-tensor quantization for axis: " << getAxis();
+            OPENVINO_THROW(errorPrefix, "doesn't support non per-tensor quantization for axis: ", getAxis());
     }
 }
 
@@ -1329,8 +1341,8 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {
-            inputPrecision = Precision::FP32;
-            outputPrecision = Precision::FP32;
+            inputPrecision = ov::element::f32;
+            outputPrecision = ov::element::f32;
         }
     }
 
@@ -1354,7 +1366,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
                 dataConfig.setMemDesc(descCreator->createSharedDesc(getInputPrecision(), getInputShapeAtPort(i)));
             } else {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-                dataConfig.setMemDesc(descCreator->createSharedDesc(Precision::FP32, getInputShapeAtPort(i)));
+                dataConfig.setMemDesc(descCreator->createSharedDesc(ov::element::f32, getInputShapeAtPort(i)));
             }
             config.inConfs.push_back(dataConfig);
         }
@@ -1374,7 +1386,7 @@ bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
         auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
         if (!selectedPrimitiveDescriptor)
-            IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+            OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
 
         if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
             return true;
@@ -1393,7 +1405,7 @@ void FakeQuantize::prepareParams() {
     if (isBinarization()) {
         const size_t axisSize = getParentEdgeAt(0)->getMemory().getShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
-        IE_ASSERT(newPaddedSize != 0);
+        OPENVINO_ASSERT(newPaddedSize != 0);
 
         if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
                 ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
@@ -1440,14 +1452,14 @@ void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
 
         //Form FakeQuanKey
         FakeQuantKey key = {};
         key.jqp.src_prc = config.inConfs[0].getMemDesc()->getPrecision();
-        key.jqp.wei_prc = Precision::FP32;
+        key.jqp.wei_prc = ov::element::f32;
         key.jqp.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
         const auto &srcMemory = getParentEdgeAt(0)->getMemory();
@@ -1836,7 +1848,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
+        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {dataSize});
         memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data);
 
         postOpsMem.push_back(memPtr);
@@ -1894,7 +1906,7 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDi
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
 
-    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+    OPENVINO_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -1937,12 +1949,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    IE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    IE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    IE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    IE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
+    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
+    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
+    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
+    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
+    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -2129,7 +2141,7 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
         else
             pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::sse41>(_jqp));
     } else {
-        IE_THROW() << "Can't create jit fake quantize kernel";
+        OPENVINO_THROW("Can't create jit fake quantize kernel");
     }
     if (pKernel) {
         pKernel->create_ker();
@@ -2139,7 +2151,7 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
 
 void FakeQuantize::FakeQuantizeJitExecutor::exec(const FakeQuantize& node) {
     if (!pKernel)
-        IE_THROW() << "Can't execute, kernel for fake quantize node is not compiled";
+        OPENVINO_THROW("Can't execute, kernel for fake quantize node is not compiled");
 
     if (pKernel->jqp_.op_type == Algorithm::FQBinarization) {
         node.executeBinarization(pKernel);

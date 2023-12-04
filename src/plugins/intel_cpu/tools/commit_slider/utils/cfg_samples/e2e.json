@@ -2,7 +2,7 @@
     "appPath" : "/<e2e_path>/e2e/frameworks.ai.openvino.tests/e2e_oss/",
     "appCmd" : "pytest test_dynamism.py <e2e_args>",
     "envVars" : [
-        {"name" : "PYTHONPATH", "val" : "/<ov_path>/bin/intel64/Release/python_api/python3.8/"},
+        {"name" : "PYTHONPATH", "val" : "/<ov_path>/bin/intel64/Release/python/"},
         {"name" : "LD_LIBRARY_PATH", "val" : "/<ov_path>/bin/intel64/Release/"},
         {"name" : "MO_ROOT", "val" : "/<ov_path>/tools/mo/openvino/tools/"},
         {"name" : "OPENVINO_ROOT_DIR", "val" : "/<ov_path>/"}

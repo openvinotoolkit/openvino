@@ -10,7 +10,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include "openvino/reference/matmul.hpp"
 
-#include "compilation_context.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
 
 #include <cstddef>
@@ -130,21 +130,22 @@ public:
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, tp, get_test_default_config(engine));
-                process_program(_network.get_program());
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
+                ob.set_stream(get_test_stream_ptr().get());
+                program::build_program(engine, tp, get_test_default_config(engine))->save(ob);
             }
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
+                auto imported_prog = std::make_shared<cldnn::program>(engine, get_test_default_config(engine));
+                imported_prog->load(ib);
+                network = std::make_shared<cldnn::network>(imported_prog);
             }
         } else {
             network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
-            process_program(network->get_program());
         }
+        process_program(network->get_program());
 
         for (auto &input : network_inputs) {
             network->set_input_data(input.first, input.second);
@@ -175,7 +176,7 @@ class GemmGPUTestRandom : public GemmGPUTest {
 
     void generated_inputs() {
         for (size_t i = 0; i < shapes.size(); ++i) {
-            size_t size = ngraph::shape_size(shapes[i]);
+            size_t size = ov::shape_size(shapes[i]);
             input_data[i] = rg.generate_random_1d<float>(size, -1, 1, 10);
         }
     }
@@ -189,7 +190,7 @@ class GemmGPUTestRandom : public GemmGPUTest {
         input1_shape = (*input_it)->get_output_layout().get_shape();
         layout output_layout = prog_nodes[0]->get_output_layout();
         output_shape = output_layout.get_shape();
-        out_data.resize(ngraph::shape_size(output_shape));
+        out_data.resize(ov::shape_size(output_shape));
         calculate_output_data();
     }
 
@@ -247,299 +248,313 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(false), ::testing::Values(true),
         ::testing::Values(1.0f), ::testing::Values(0.0f)));
 
-template <typename T>
-void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 3 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 1 } });
+class gemm_gpu_tests: public ::testing::Test {
+public:
+    void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 3 } });
+        auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 1 } });
 
-    std::vector<T> input_data = {
-        1.f, -2.f,  3.f, -4.f,
-        5.f,  6.f, 1.f, 2.f,
-        3.f, 3.f, 2.f, -1.f,
+        std::vector<float> input_data = {
+            1.f, -2.f,  3.f, -4.f,
+            5.f,  6.f, 1.f, 2.f,
+            3.f, 3.f, 2.f, -1.f,
 
-        1.f, -2.f,  3.f, -4.f,
-        5.f,  6.f, 1.f, 2.f,
-        3.f, 3.f, 2.f, -1.f,
-    };
+            1.f, -2.f,  3.f, -4.f,
+            5.f,  6.f, 1.f, 2.f,
+            3.f, 3.f, 2.f, -1.f,
+        };
 
-    std::vector<T> input_data2 = {
-        2.f, 5.f, -4.f, -7.f,
-    };
-    set_values(input, input_data);
-    set_values(input2, input_data2);
+        std::vector<float> input_data2 = {
+            2.f, 5.f, -4.f, -7.f,
+        };
+        set_values(input, input_data);
+        set_values(input2, input_data2);
 
-    std::vector<T> out_data = {
-        8.f, 22.f, 20.f
-    };
+        std::vector<float> out_data = {
+            8.f, 22.f, 20.f
+        };
 
-    topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        input_layout("input2", input2->get_layout())
-    );
-    topology.add(
-        crop("crop.1", input_info("input"), { 1, 1, 4, 3 }, { 0, 1, 0, 0 })
-    );
-    topology.add(
-        gemm("output", { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true)
-    );
+        topology topology;
+        topology.add(
+            input_layout("input", input->get_layout())
+        );
+        topology.add(
+            input_layout("input2", input2->get_layout())
+        );
+        topology.add(
+            crop("crop.1", input_info("input"), { 1, 1, 4, 3 }, { 0, 1, 0, 0 })
+        );
+        topology.add(
+            gemm("output", { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true)
+        );
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-    network->set_input_data("input", input);
-    network->set_input_data("input2", input2);
-    auto outputs = network->execute();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+        network->set_input_data("input2", input2);
+        auto outputs = network->execute();
 
-    auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        auto output = outputs.at("output").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
-    for (uint32_t i = 0; i < out_data.size(); ++i) {
-        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+        for (uint32_t i = 0; i < out_data.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        }
     }
-}
 
-TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
-    test_basic_bfyx_t2_inplace_crop_with_pad<float>(false);
-}
+    void test_dynamic(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        ov::Shape in1_shape = { 1, 1, 3, 4 };
+        ov::Shape in2_shape = { 1, 4 };
+        auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+        auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
+        auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+        auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
 
-TEST(gemm_gpu, dynamic) {
-    auto& engine = get_test_engine();
-    ov::Shape in1_shape = { 1, 1, 3, 4 };
-    ov::Shape in2_shape = { 1, 4 };
-    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
-    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
-    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
-    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
+        std::vector<float> input1_data = {
+            1.f, -2.f, 3.f, -4.f,
+            5.f, 6.f, 1.f, 2.f,
+            3.f, 3.f, 2.f, -1.f,
+        };
 
-    std::vector<float> input1_data = {
-        1.f, -2.f, 3.f, -4.f,
-        5.f, 6.f, 1.f, 2.f,
-        3.f, 3.f, 2.f, -1.f,
-    };
+        std::vector<float> input2_data = {
+            2.f, 5.f, -4.f, -7.f,
+        };
+        set_values(input1, input1_data);
+        set_values(input2, input2_data);
 
-    std::vector<float> input2_data = {
-        2.f, 5.f, -4.f, -7.f,
-    };
-    set_values(input1, input1_data);
-    set_values(input2, input2_data);
+        std::vector<float> out_data = {
+            8.f, 22.f, 20.f
+        };
 
-    std::vector<float> out_data = {
-        8.f, 22.f, 20.f
-    };
+        topology topology;
+        topology.add(input_layout("input1", in1_layout),
+                    input_layout("input2", in2_layout),
+                    gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+        );
 
-    topology topology;
-    topology.add(input_layout("input1", in1_layout),
-                 input_layout("input2", in2_layout),
-                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
-    );
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input1", input1);
+        network->set_input_data("input2", input2);
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("input1", input1);
-    network.set_input_data("input2", input2);
-
-    auto inst = network.get_primitive("gemm");
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_TRUE(impl->is_dynamic());
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("gemm").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
-    for (uint32_t i = 0; i < out_data.size(); ++i) {
-        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
-    }
-}
-
-TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
-    auto& engine = get_test_engine();
-
-    auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
-    auto in1_actual_layout = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
-    auto in2_dyn_layout = layout{ ov::PartialShape{ 4, ov::Dimension(1, 10) }, data_types::f32, format::bfyx };
-    auto in2_actual_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::f32, format::bfyx };
-    auto input1_1 = engine.allocate_memory(in1_actual_layout);
-    auto input1_2 = engine.allocate_memory(in1_actual_layout);
-    auto input2_1 = engine.allocate_memory(in2_actual_layout);
-    auto input2_2 = engine.allocate_memory(in2_actual_layout);
-
-    std::vector<float> input1_data1 = {
-        1.f, -2.f, 3.f, -4.f,
-        5.f, 6.f, 1.f, 2.f,
-        3.f, 3.f, 2.f, -1.f,
-    };
-    std::vector<float> input1_data2 = {
-        -1.f, 2.f, -3.f, 4.f,
-        5.f, 6.f, -1.f, 2.f,
-        3.f, -3.f, 2.f, 1.f,
-    };
-    std::vector<float> input2_data1 = {
-        2.f, 5.f, -4.f, -7.f,
-    };
-    std::vector<float> input2_data2 = {
-        4.f, 7.f, 2.f, 5.f,
-    };
-    set_values(input1_1, input1_data1);
-    set_values(input1_2, input1_data2);
-    set_values(input2_1, input2_data1);
-    set_values(input2_2, input2_data2);
-
-    std::vector<float> out_data1 = {
-        8.f, 22.f, 20.f
-    };
-    std::vector<float> out_data2 = {
-        24.f, 70.f, 0.f
-    };
-
-    topology topology;
-    topology.add(input_layout("input1", in1_dyn_layout),
-                 input_layout("input2", in2_dyn_layout),
-                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-
-    {
-        network.set_input_data("input1", input1_1);
-        network.set_input_data("input2", input2_1);
-
-        auto outputs = network.execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "gemm");
-
-        auto prog = network.get_program();
-        auto& node = prog->get_node("gemm");
-        auto impl = node.get_selected_impl();
+        auto inst = network->get_primitive("gemm");
+        auto impl = inst->get_impl();
         ASSERT_TRUE(impl != nullptr);
         ASSERT_TRUE(impl->is_dynamic());
 
-        auto output_prim_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+        auto outputs = network->execute();
+
+        auto output = outputs.at("gemm").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
-        for (uint32_t i = 0; i < out_data1.size(); ++i) {
-            ASSERT_FLOAT_EQ(output_ptr[i], out_data1[i]);
+        for (uint32_t i = 0; i < out_data.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
         }
     }
 
-    {
-        network.set_input_data("input1", input1_2);
-        network.set_input_data("input2", input2_2);
+    void test_dynamic_multi_inference_same_shape(bool is_caching_test) {
+        auto& engine = get_test_engine();
 
-        auto outputs = network.execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "gemm");
+        auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
+        auto in1_actual_layout = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
+        auto in2_dyn_layout = layout{ ov::PartialShape{ 4, ov::Dimension(1, 10) }, data_types::f32, format::bfyx };
+        auto in2_actual_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::f32, format::bfyx };
+        auto input1_1 = engine.allocate_memory(in1_actual_layout);
+        auto input1_2 = engine.allocate_memory(in1_actual_layout);
+        auto input2_1 = engine.allocate_memory(in2_actual_layout);
+        auto input2_2 = engine.allocate_memory(in2_actual_layout);
 
-        auto output_prim_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+        std::vector<float> input1_data1 = {
+            1.f, -2.f, 3.f, -4.f,
+            5.f, 6.f, 1.f, 2.f,
+            3.f, 3.f, 2.f, -1.f,
+        };
+        std::vector<float> input1_data2 = {
+            -1.f, 2.f, -3.f, 4.f,
+            5.f, 6.f, -1.f, 2.f,
+            3.f, -3.f, 2.f, 1.f,
+        };
+        std::vector<float> input2_data1 = {
+            2.f, 5.f, -4.f, -7.f,
+        };
+        std::vector<float> input2_data2 = {
+            4.f, 7.f, 2.f, 5.f,
+        };
+        set_values(input1_1, input1_data1);
+        set_values(input1_2, input1_data2);
+        set_values(input2_1, input2_data1);
+        set_values(input2_2, input2_data2);
 
-        ASSERT_EQ(output_ptr.size(), (uint32_t)3);
-        for (uint32_t i = 0; i < out_data2.size(); ++i) {
-            ASSERT_FLOAT_EQ(output_ptr[i], out_data2[i]);
+        std::vector<float> out_data1 = {
+            8.f, 22.f, 20.f
+        };
+        std::vector<float> out_data2 = {
+            24.f, 70.f, 0.f
+        };
+
+        topology topology;
+        topology.add(input_layout("input1", in1_dyn_layout),
+                    input_layout("input2", in2_dyn_layout),
+                    gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        {
+            network->set_input_data("input1", input1_1);
+            network->set_input_data("input2", input2_1);
+
+            auto outputs = network->execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "gemm");
+
+            auto prog = network->get_program();
+            auto& node = prog->get_node("gemm");
+            auto impl = node.get_selected_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+
+            auto output_prim_mem = outputs.begin()->second.get_memory();
+            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+            ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+            for (uint32_t i = 0; i < out_data1.size(); ++i) {
+                ASSERT_FLOAT_EQ(output_ptr[i], out_data1[i]);
+            }
+        }
+
+        {
+            network->set_input_data("input1", input1_2);
+            network->set_input_data("input2", input2_2);
+
+            auto outputs = network->execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "gemm");
+
+            auto output_prim_mem = outputs.begin()->second.get_memory();
+            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+            ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+            for (uint32_t i = 0; i < out_data2.size(); ++i) {
+                ASSERT_FLOAT_EQ(output_ptr[i], out_data2[i]);
+            }
         }
     }
+
+    void test_dynamic_multi_inference_different_shape(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
+        auto in1_actual_layout1 = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
+        auto in1_actual_layout2 = layout{ ov::PartialShape{ 1, 1, 4, 4 }, data_types::f32, format::bfyx };
+        auto in2_dyn_layout = layout{ ov::PartialShape{ 4, ov::Dimension(1, 10) }, data_types::f32, format::bfyx };
+        auto in2_actual_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::f32, format::bfyx };
+        auto input1_1 = engine.allocate_memory(in1_actual_layout1);
+        auto input1_2 = engine.allocate_memory(in1_actual_layout2);
+        auto input2 = engine.allocate_memory(in2_actual_layout);
+
+        std::vector<float> input1_data1 = {
+            1.f, -2.f, 3.f, -4.f,
+            5.f, 6.f, 1.f, 2.f,
+            3.f, 3.f, 2.f, -1.f,
+        };
+        std::vector<float> input1_data2 = {
+            -1.f, 2.f, -3.f, 4.f,
+            5.f, 6.f, -1.f, 2.f,
+            3.f, -3.f, 2.f, 1.f,
+            1.f, 2.f, -5.f, 6.f,
+        };
+        std::vector<float> input2_data = {
+            2.f, 5.f, -4.f, -7.f,
+        };
+        set_values(input1_1, input1_data1);
+        set_values(input1_2, input1_data2);
+        set_values(input2, input2_data);
+
+        std::vector<float> out_data1 = {
+            8.f, 22.f, 20.f
+        };
+        std::vector<float> out_data2 = {
+            -8.f, 30.f, -24.f, -10.f
+        };
+
+        topology topology;
+        topology.add(input_layout("input1", in1_dyn_layout),
+                    input_layout("input2", in2_dyn_layout),
+                    gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        {
+            network->set_input_data("input1", input1_1);
+            network->set_input_data("input2", input2);
+
+            auto outputs = network->execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "gemm");
+
+            auto prog = network->get_program();
+            auto& node = prog->get_node("gemm");
+            auto impl = node.get_selected_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+
+            auto output_prim_mem = outputs.begin()->second.get_memory();
+            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+            ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+            for (uint32_t i = 0; i < out_data1.size(); ++i) {
+                ASSERT_FLOAT_EQ(output_ptr[i], out_data1[i]);
+            }
+        }
+
+        {
+            network->set_input_data("input1", input1_2);
+            network->set_input_data("input2", input2);
+
+            auto outputs = network->execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "gemm");
+
+            auto output_prim_mem = outputs.begin()->second.get_memory();
+            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+            ASSERT_EQ(output_ptr.size(), (uint32_t)4);
+            for (uint32_t i = 0; i < out_data2.size(); ++i) {
+                ASSERT_FLOAT_EQ(output_ptr[i], out_data2[i]);
+            }
+        }
+    }
+};
+
+TEST_F(gemm_gpu_tests, basic_bfyx_t2_inplace_crop_with_pad) {
+    this->test_basic_bfyx_t2_inplace_crop_with_pad(false);
 }
 
-TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
-    auto& engine = get_test_engine();
+TEST_F(gemm_gpu_tests, dynamic) {
+    this->test_dynamic(false);
+}
 
-    auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
-    auto in1_actual_layout1 = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
-    auto in1_actual_layout2 = layout{ ov::PartialShape{ 1, 1, 4, 4 }, data_types::f32, format::bfyx };
-    auto in2_dyn_layout = layout{ ov::PartialShape{ 4, ov::Dimension(1, 10) }, data_types::f32, format::bfyx };
-    auto in2_actual_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::f32, format::bfyx };
-    auto input1_1 = engine.allocate_memory(in1_actual_layout1);
-    auto input1_2 = engine.allocate_memory(in1_actual_layout2);
-    auto input2 = engine.allocate_memory(in2_actual_layout);
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape) {
+    this->test_dynamic_multi_inference_same_shape(false);
+}
 
-    std::vector<float> input1_data1 = {
-        1.f, -2.f, 3.f, -4.f,
-        5.f, 6.f, 1.f, 2.f,
-        3.f, 3.f, 2.f, -1.f,
-    };
-    std::vector<float> input1_data2 = {
-        -1.f, 2.f, -3.f, 4.f,
-        5.f, 6.f, -1.f, 2.f,
-        3.f, -3.f, 2.f, 1.f,
-        1.f, 2.f, -5.f, 6.f,
-    };
-    std::vector<float> input2_data = {
-        2.f, 5.f, -4.f, -7.f,
-    };
-    set_values(input1_1, input1_data1);
-    set_values(input1_2, input1_data2);
-    set_values(input2, input2_data);
-
-    std::vector<float> out_data1 = {
-        8.f, 22.f, 20.f
-    };
-    std::vector<float> out_data2 = {
-        -8.f, 30.f, -24.f, -10.f
-    };
-
-    topology topology;
-    topology.add(input_layout("input1", in1_dyn_layout),
-                 input_layout("input2", in2_dyn_layout),
-                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-
-    {
-        network.set_input_data("input1", input1_1);
-        network.set_input_data("input2", input2);
-
-        auto outputs = network.execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "gemm");
-
-        auto prog = network.get_program();
-        auto& node = prog->get_node("gemm");
-        auto impl = node.get_selected_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
-
-        auto output_prim_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
-
-        ASSERT_EQ(output_ptr.size(), (uint32_t)3);
-        for (uint32_t i = 0; i < out_data1.size(); ++i) {
-            ASSERT_FLOAT_EQ(output_ptr[i], out_data1[i]);
-        }
-    }
-
-    {
-        network.set_input_data("input1", input1_2);
-        network.set_input_data("input2", input2);
-
-        auto outputs = network.execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "gemm");
-
-        auto output_prim_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
-
-        ASSERT_EQ(output_ptr.size(), (uint32_t)4);
-        for (uint32_t i = 0; i < out_data2.size(); ++i) {
-            ASSERT_FLOAT_EQ(output_ptr[i], out_data2[i]);
-        }
-    }
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape) {
+    this->test_dynamic_multi_inference_different_shape(false);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1436,7 +1451,7 @@ public:
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), -200, 200);
             set_values(prim, rnd_vec);
         } else if (l.data_type == cldnn::data_types::f16) {
-            VF<FLOAT16> rnd_vec = rg.generate_random_1d<FLOAT16>(s.count(), -1, 1);
+            VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
             VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
@@ -1604,7 +1619,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_simple_tests_onednn, ::testing::Va
     gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_4, "" },
 }));
 
-class gemm_fp16_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1654,7 +1669,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_transposition_tests_onednn, ::test
     gemm_base_test_params{ CASE_GEMM_UINT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
 }));
 
-class gemm_fp16_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1684,7 +1699,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_broadcasting_tests_onednn, ::testin
     gemm_base_test_params{ CASE_GEMM_INT8_BROADCASTING_ONEDNN_4, "" },
 }));
 
-class gemm_fp16_broadcasting_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_broadcasting_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1724,7 +1739,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_combo_tests_onednn, ::testing::Val
     gemm_base_test_params{ CASE_GEMM_UINT8_COMBO_ONEDNN_4, "" },
 }));
 
-class gemm_fp16_combo_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_combo_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1854,7 +1869,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_broadcast_tests, ::testing
     gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1864,7 +1879,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1874,7 +1889,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nt_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_tn_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_tn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_tn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1884,7 +1899,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tn_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_tt_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_tt_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_tt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1894,7 +1909,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tt_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_nn_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_nn_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_broadcast_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_broadcast_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1947,8 +1962,20 @@ TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p,
 TEST_P(gemm_fp16_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p); }
 
+TEST_F(gemm_gpu_tests, dynamic_cached) {
+    this->test_dynamic(true);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape_cached) {
+    this->test_dynamic_multi_inference_same_shape(true);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_cached) {
+    this->test_dynamic_multi_inference_different_shape(true);
+}
 #endif // RUN_ALL_MODEL_CACHING_TESTS
-TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad_cached) {
-    test_basic_bfyx_t2_inplace_crop_with_pad<float>(true);
+
+TEST_F(gemm_gpu_tests, basic_bfyx_t2_inplace_crop_with_pad_cached) {
+    this->test_basic_bfyx_t2_inplace_crop_with_pad(true);
 }
 } // namespace

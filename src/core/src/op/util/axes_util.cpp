@@ -11,7 +11,7 @@ namespace ov {
 namespace op {
 namespace util {
 AxisSet get_normalized_axes_from_tensor(const Node* const node, const Tensor& tensor, const Rank& rank) {
-    const auto axes = ov::get_tensor_data_as<int64_t>(tensor, ov::util::Cast<int64_t>());
+    const auto axes = ov::get_tensor_data_as<int64_t>(tensor);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     return {normalize_axes(node->get_friendly_name(), axes, rank)};

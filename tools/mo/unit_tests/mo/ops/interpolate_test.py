@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.interpolate import Interpolate
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -72,9 +71,9 @@ graph_edges = [
 ]
 
 
-@generator
-class TestInterpolateOp(unittest.TestCase):
-    @generate(*[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
+class TestInterpolateOp():
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 390, 600], [0.5, 390 / 200, 600 / 410], [0, 2, 3]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -114,11 +113,12 @@ class TestInterpolateOp(unittest.TestCase):
         msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}, axes={}," \
               " expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
                         msg.format(sizes, scales, pads_begin, pads_end, axes, output_shape,
-                                   graph.node['interpolate_data']['shape']))
+                                   graph.node['interpolate_data']['shape'])
 
-    @generate(*[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 390, 600], [0.5, 390 / 200, 600 / 410], [0, 2, 3]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -165,11 +165,12 @@ class TestInterpolateOp(unittest.TestCase):
         msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}, axes={}," \
               " expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
                         msg.format(sizes, scales, pads_begin, pads_end, axes, output_shape,
-                                   graph.node['interpolate_data']['shape']))
+                                   graph.node['interpolate_data']['shape'])
 
-    @generate(*[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 10, 390, 600], [0.5, 1.0, 390 / 200, 600 / 410]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -212,11 +213,12 @@ class TestInterpolateOp(unittest.TestCase):
         msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}," \
               " expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
                         msg.format(sizes, scales, pads_begin, pads_end, output_shape,
-                                   graph.node['interpolate_data']['shape']))
+                                   graph.node['interpolate_data']['shape'])
 
-    @generate(*[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 10, 390, 600], [0.5, 1.0, 390 / 200, 600 / 410]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -262,6 +264,6 @@ class TestInterpolateOp(unittest.TestCase):
         msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}," \
               " expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
                         msg.format(sizes, scales, pads_begin, pads_end, output_shape,
-                                   graph.node['interpolate_data']['shape']))
+                                   graph.node['interpolate_data']['shape'])

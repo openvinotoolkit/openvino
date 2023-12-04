@@ -43,7 +43,7 @@ public:
             topology.add(data("axes", axes_));
             inputs.push_back(input_info("axes"));
         }
-        topology.add(slice("slice", inputs, tensor{output_shape_}));
+        topology.add(slice("slice", inputs));
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
 
@@ -112,11 +112,11 @@ TYPED_TEST(SliceTest, bfyx_positive_step) {
 TYPED_TEST(SliceTest, bfyx_negative_step) {
     this->input_shape_ = { 1, 2, 100, 12 };
     this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, { 1, 2, 5, 100 });
+    set_values<int64_t>(this->start_, { 0, 1, 5, 100 });
     this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, {0, 1, 0, 1});
+    set_values<int64_t>(this->stop_, {1, 0, 0, 1});
     this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { -1, -1, -1, -10 });
+    set_values<int64_t>(this->step_, { 1, -1, -1, -10 });
     this->output_shape_ = { 1, 1, 5, 10 };
     this->expected_output_ = {
             1799, 1789, 1779, 1769, 1759, 1699, 1689, 1679, 1669, 1659,
@@ -167,11 +167,11 @@ TYPED_TEST(SliceTest, bfyx_positive_step_cached) {
 TYPED_TEST(SliceTest, bfyx_negative_step_cached) {
     this->input_shape_ = { 1, 2, 100, 12 };
     this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, { 1, 2, 5, 100 });
+    set_values<int64_t>(this->start_, { 0, 1, 5, 100 });
     this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, {0, 1, 0, 1});
+    set_values<int64_t>(this->stop_, {1, 0, 0, 1});
     this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { -1, -1, -1, -10 });
+    set_values<int64_t>(this->step_, { 1, -1, -1, -10 });
     this->output_shape_ = { 1, 1, 5, 10 };
     this->expected_output_ = {
             1799, 1789, 1779, 1769, 1759, 1699, 1689, 1679, 1669, 1659,

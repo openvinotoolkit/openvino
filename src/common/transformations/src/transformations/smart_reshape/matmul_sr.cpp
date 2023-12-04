@@ -61,8 +61,11 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
+    auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
+    };
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label},
-                                                                           ov::pass::pattern::rank_equals(2));
+                                                                           reshape_predicate);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({reshape_label, other_input_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -83,8 +86,11 @@ ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
+    auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
+    };
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label},
-                                                                           ov::pass::pattern::rank_equals(2));
+                                                                           reshape_predicate);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({other_input_label, reshape_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {

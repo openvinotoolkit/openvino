@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-	<Type Name="FLOAT16">
+	<Type Name="ov::float16">
 		<DisplayString Condition = "format.exponent == 0 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 0">+0</DisplayString>
 		<DisplayString Condition = "format.exponent == 0 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 1">-0</DisplayString>
 		<DisplayString Condition = "format.exponent == 31 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 0">+infinity</DisplayString>

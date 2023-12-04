@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -122,9 +122,13 @@ protected:
             }
         }
 
+        ov::OutputVector paramsOuts;
+        for (const auto& param : params)
+          paramsOuts.push_back(param);
+
         std::vector<ov::Shape> WRB = {{numDirections, 3 * hiddenSize, inputSize}, {numDirections, 3 * hiddenSize, hiddenSize},
                 {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize}, {batchSize}};
-        auto gruSequenceOp = ngraph::builder::makeGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto gruSequenceOp = ngraph::builder::makeGRU(paramsOuts,
                                                      WRB,
                                                      hiddenSize,
                                                      activations,

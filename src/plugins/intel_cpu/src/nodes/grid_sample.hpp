@@ -7,10 +7,6 @@
 #include <node.h>
 #include "kernels/x64/grid_sample.hpp"
 
-#include <memory>
-#include <string>
-#include <vector>
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -63,8 +59,8 @@ private:
 
     uint64_t dataTypeSize = 1lu;
     uint64_t gridTypeSize = 1lu;
-    InferenceEngine::Precision dataPrecision;
-    InferenceEngine::Precision gridPrecision = InferenceEngine::Precision::FP32;
+    ov::element::Type dataPrecision;
+    ov::element::Type gridPrecision = ov::element::f32;
 
     int nthr = 1;
     std::vector<threadExecParams> execParamsPerThread;
@@ -72,7 +68,7 @@ private:
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t IN_GRID = 1;
 
-    std::shared_ptr<GridSampleKernelBase> jitKernel;
+    std::shared_ptr<kernel::GridSampleKernelBase> jitKernel;
 };
 
 }   // namespace node

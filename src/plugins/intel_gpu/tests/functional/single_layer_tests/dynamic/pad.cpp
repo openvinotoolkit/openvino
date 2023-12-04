@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/pad.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
 
@@ -121,8 +121,7 @@ protected:
             arg_pad_value = std::make_shared<ngraph::opset3::Constant>(inType, ngraph::Shape{}, &argPadValue);
         }
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
-        auto pad = std::make_shared<ngraph::opset3::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, padMode);
+        auto pad = std::make_shared<ngraph::opset3::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < pad->get_output_size(); ++i) {

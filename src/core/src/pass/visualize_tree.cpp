@@ -374,6 +374,7 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::dynamic:
     case ov::element::Type_t::u1:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
     case ov::element::Type_t::i4:
         ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
@@ -395,6 +396,9 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::u32:
     case ov::element::Type_t::u64:
         ss << pretty_value(constant->cast_vector<uint64_t>(max_elements), allow_obfuscate);
+        break;
+    case ov::element::Type_t::string:
+        ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     }
     const auto num_elements_in_constant = static_cast<int>(shape_size(constant->get_shape()));

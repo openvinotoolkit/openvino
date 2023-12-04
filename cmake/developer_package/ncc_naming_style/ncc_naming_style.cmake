@@ -6,7 +6,7 @@ if(NOT COMMAND ov_check_pip_packages)
     message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
-set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
+set(ncc_style_dir "${OpenVINODeveloperScripts_DIR}/ncc_naming_style")
 set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
 # find python3
@@ -32,6 +32,8 @@ if(ENABLE_NCC_STYLE)
         set(clang_version 14)
     elseif(Python3_VERSION_MINOR EQUAL 11)
         set(clang_version 14)
+    elseif(Python3_VERSION_MINOR EQUAL 12)
+        set(clang_version 15)
     else()
         message(WARNING "Cannot suggest clang package for python ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
     endif()

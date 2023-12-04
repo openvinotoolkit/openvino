@@ -28,6 +28,8 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<InferType>();} }
 #define SHAPE_INFER_OP_SPECIFIC(OP) \
     { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<OP::ShapeInfer>(n);} }
+#define SHAPE_INFER_OP_SPECIFIC_EXTERNAL(OP, InferType) \
+    { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<InferType>(n);} }
 
 const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry {
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::FusedMulAdd, NumpyBroadcastShapeInfer),
@@ -36,9 +38,9 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertTruncation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertTruncation, PassThroughShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer),
         //
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
-        SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCPU),
 };
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED

@@ -45,7 +45,7 @@ TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
     // Registered plugin with invalid so here
     ASSERT_NO_THROW(core.register_plugin(
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                           std::string("mock_registered_engine") + IE_BUILD_POSTFIX),
+                                           std::string("mock_registered_engine") + OV_BUILD_POSTFIX),
         mock_plugin_name));
     ASSERT_THROW(core.get_versions("MOCK_REGISTERED_HARDWARE"), ov::Exception);
 }
@@ -72,7 +72,7 @@ TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
 
     ASSERT_NO_THROW(
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
                              mock_plugin_name));
     ASSERT_NO_THROW(core.get_versions("MOCK_HARDWARE"));
 }
@@ -87,7 +87,7 @@ TEST(RegisterPluginTests, registerNewPluginNoThrows) {
     std::string mock_plugin_name{"MOCK_HARDWARE"};
     ASSERT_NO_THROW(
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
                              mock_plugin_name));
     ASSERT_NO_THROW(core.get_property(mock_plugin_name, ov::supported_properties));
 
@@ -104,10 +104,10 @@ TEST(RegisterPluginTests, registerExistingPluginThrows) {
     std::string mock_plugin_name{"MOCK_HARDWARE"};
     ASSERT_NO_THROW(
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
                              mock_plugin_name));
     ASSERT_THROW(core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                         std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                         std::string("mock_engine") + OV_BUILD_POSTFIX),
                                       mock_plugin_name),
                  ov::Exception);
 }
@@ -118,7 +118,7 @@ inline std::string getPluginFile() {
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                 std::string("mock_engine") + IE_BUILD_POSTFIX);
+                                                 std::string("mock_engine") + OV_BUILD_POSTFIX);
     stream << "\"></plugin></plugins></ie>";
     ov::test::utils::createFile(filename, stream.str());
     return filename;

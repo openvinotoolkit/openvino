@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -105,13 +105,12 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[2]));
             params[2]->set_friendly_name("axis");
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> gatherNode;
         if (isAxisConstant) {
-            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
+            gatherNode = std::make_shared<ov::op::v8::Gather>(params[0], params[1],
                     ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
         } else {
-            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
+            gatherNode = std::make_shared<ov::op::v8::Gather>(params[0], params[1], params[2], batchDims);
         }
 
         function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
@@ -205,8 +204,7 @@ protected:
             std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])
         };
         params[0]->set_friendly_name("data");
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
-        std::shared_ptr<ov::Node> gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0],
+        std::shared_ptr<ov::Node> gatherNode = std::make_shared<ov::op::v8::Gather>(params[0],
             ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({indices.size()}), indices),
             ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
 

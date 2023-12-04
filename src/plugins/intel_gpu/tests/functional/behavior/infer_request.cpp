@@ -10,7 +10,7 @@
 #include "openvino/runtime/core.hpp"
 
 #include <common_test_utils/test_common.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
@@ -198,4 +198,48 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
 
     ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
     ASSERT_NO_THROW(inf_req.infer());
+}
+
+TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
+    auto ov = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
+
+    auto compiled_model = ov.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = compiled_model.create_infer_request();
+
+    auto input = function->input();
+    ov::Tensor host_tensor(input.get_element_type(), input.get_shape());
+
+    // Infer with pre-allocated input tensor
+    ASSERT_NO_THROW(inf_req.infer());
+
+    // Infer with host_tensor
+    ASSERT_NO_THROW(inf_req.set_input_tensor(host_tensor));
+    ASSERT_NO_THROW(inf_req.infer());
+}
+
+TEST(VariablesTest, smoke_canSetStateTensor) {
+    auto ov = ov::Core();
+    const ov::Shape virable_shape = {1, 3, 2, 4};
+    const ov::Shape input_shape = {1, 3, 2, 4};
+    const ov::element::Type et = ov::element::f16;
+    auto model = ngraph::builder::subgraph::makeReadConcatSplitAssign(input_shape, et);
+    auto compiled_model = ov.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    ov::Tensor variable_tensor(et, virable_shape);
+    ov::Tensor input_tensor(et, input_shape);
+
+    auto variables = request.query_state();
+    ASSERT_EQ(variables.size(), 1);
+    auto variable = variables.front();
+    ASSERT_EQ(variable.get_name(), "v0");
+    auto default_state_tensor = variable.get_state();
+    ASSERT_EQ(default_state_tensor.get_shape(), virable_shape);
+
+    ASSERT_NO_THROW(request.infer());
 }

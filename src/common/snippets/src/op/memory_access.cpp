@@ -73,25 +73,25 @@ bool MemoryAccess::is_memory_access_output_port(size_t idx) const {
 
 void MemoryAccess::set_input_port_descriptor(const PortDescriptor& desc, const size_t i) {
     const auto it = m_input_ports.find(i);
-    NGRAPH_CHECK(it != m_input_ports.end(), "Index of input port descriptor should be less than count of input ports");
+    OPENVINO_ASSERT(it != m_input_ports.end(), "Index of input port descriptor should be less than count of input ports");
     (*it).second = { desc.count, desc.offset, i};
 }
 
 void MemoryAccess::set_output_port_descriptor(const PortDescriptor& desc, const size_t i) {
     const auto it = m_output_ports.find(i);
-    NGRAPH_CHECK(it != m_output_ports.end(), "Index of output port descriptor should be less than count of output ports");
+    OPENVINO_ASSERT(it != m_output_ports.end(), "Index of output port descriptor should be less than count of output ports");
     (*it).second = { desc.count, desc.offset, i};
 }
 
 const MemoryAccess::PortDescriptor& MemoryAccess::get_input_port_descriptor(const size_t i) const {
     const auto it = m_input_ports.find(i);
-    NGRAPH_CHECK(it != m_input_ports.end(), "Index of input port descriptor should be less than count of input ports");
+    OPENVINO_ASSERT(it != m_input_ports.end(), "Index of input port descriptor should be less than count of input ports");
     return (*it).second;
 }
 
 const MemoryAccess::PortDescriptor& MemoryAccess::get_output_port_descriptor(const size_t i) const {
     const auto it = m_output_ports.find(i);
-    NGRAPH_CHECK(it != m_output_ports.end(), "Index of output port descriptor should be less than count of output ports");
+    OPENVINO_ASSERT(it != m_output_ports.end(), "Index of output port descriptor should be less than count of output ports");
     return (*it).second;
 }
 

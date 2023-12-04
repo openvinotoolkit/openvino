@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -185,6 +185,7 @@ protected:
                                                       filter_weights_1);
         size_t out_width = ((inputShape[3] - kernal_size) / stride_size + 1);
         size_t out_height = ((inputShape[2] - 1) + 1);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto pool = ngraph::builder::makePooling(conv1,
                                                  {1, 2},
                                                  {0, 0},
@@ -194,6 +195,7 @@ protected:
                                                  ngraph::op::PadType::VALID,
                                                  false,
                                                  ngraph::helpers::PoolingTypes::MAX);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         out_width /= 2;
 
         ngraph::Shape pattern2_shape = {1, 1, 1, num_out_channels * out_height * out_width};

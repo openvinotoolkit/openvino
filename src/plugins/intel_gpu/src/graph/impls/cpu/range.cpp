@@ -66,7 +66,7 @@ struct range_impl : public typed_primitive_impl<range> {
             const auto output_dt = params->get_output_layout().data_type;
 
             op = std::make_shared<ov::op::v4::Range>();
-            op->set_output_type(data_type_to_element_type(output_dt));
+            op->set_output_type(output_dt);
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),

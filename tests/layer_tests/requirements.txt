@@ -1,6 +1,7 @@
 -c ../constraints.txt
 # paddlepaddle #  ticket 95904
 numpy
+onnxruntime
 requests
 torch
 torchvision

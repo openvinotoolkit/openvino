@@ -10,8 +10,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 //  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example
 
 namespace ov {

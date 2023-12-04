@@ -46,15 +46,13 @@ bool Buffer::visit_attributes(AttributeVisitor& visitor) {
 
 void Buffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Buffer_validate_and_infer_types);
-    ov::Shape output_shape;
+    ov::PartialShape output_shape;
     if (m_type == Type::NewMemory) {
         OPENVINO_ASSERT(get_input_size() == 0, "Buffer with new allocated memory must to not have arguments!");
         output_shape = m_shape;
     } else if (m_type == Type::IntermediateMemory) {
-        const auto& input_shape = get_input_partial_shape(0);
-        OPENVINO_ASSERT(input_shape.is_static(), "Buffer supports only static input shape");
         m_element_type = get_input_element_type(0);
-        output_shape = input_shape.get_shape();
+        output_shape = get_input_partial_shape(0);
     } else {
         OPENVINO_THROW("Buffer supports only the following types: NewMemory and IntermediateMemory");
     }

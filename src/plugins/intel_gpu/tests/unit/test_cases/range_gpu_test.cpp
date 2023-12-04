@@ -68,7 +68,7 @@ struct range_test_params {
 };
 
 std::ostream& operator<<(std::ostream& ost, const range_test_params& params) {
-    ost << data_type_traits::name(params.d_types) << ",";
+    ost << ov::element::Type(params.d_types) << ",";
     ost << "{start:" << params.start << ",stop:" << params.stop << ",step:" << params.step << "},";
     ost << " use_new_shape_infer(" << (params.use_new_shape_infer?"True":"False") << ")";
     return ost;
@@ -105,9 +105,9 @@ void doSmokeRange_fp16(range_test_params& params) {
     auto stop_val = static_cast<float>(params.stop);
     auto step_val = static_cast<float>(params.step);
 
-    tests::set_values(args.start.p, { float_to_half(start_val) });
-    tests::set_values(args.stop.p, { float_to_half(stop_val) });
-    tests::set_values(args.step.p, { float_to_half(step_val) });
+    tests::set_values(args.start.p, { ov::float16(start_val).to_bits() });
+    tests::set_values(args.stop.p, { ov::float16(stop_val).to_bits() });
+    tests::set_values(args.step.p, { ov::float16(step_val).to_bits() });
 
     auto outLen = (stop_val - start_val) / step_val;
 
