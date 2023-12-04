@@ -719,6 +719,14 @@ protected:
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
+    } else {
+        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
+    }
+}
+
+inline ngraph::HostTensorPtr make_tmp_out_host_tensor(const ov::Tensor& t) {
+    if (!t) {
+        return std::make_shared<DynamicTensor>(ov::element::dynamic);
     } else if (t.get_shape() == ov::Shape{0}) {
         return std::make_shared<DynamicTensor>(t.get_element_type());
     } else {
@@ -726,11 +734,12 @@ inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     }
 }
 
-inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
+inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors, const bool is_output) {
+    const auto make_tmp_ht = is_output ? make_tmp_out_host_tensor : make_tmp_host_tensor;
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        result.push_back(make_tmp_host_tensor(tensor));
+        result.push_back(make_tmp_ht(tensor));
     }
     return result;
 }
@@ -758,8 +767,8 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 }  // namespace
 
 bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
+    HostTensorVector output = create_tmp_tensors(output_values, true);
+    HostTensorVector input = create_tmp_tensors(input_values, false);
     bool sts = evaluate(output, input);
     if (sts)
         update_output_tensors(output_values, output);
@@ -770,8 +779,8 @@ bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
     // Call evaluate for old implementation with EvaluationContext
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
+    HostTensorVector output = create_tmp_tensors(output_values, true);
+    HostTensorVector input = create_tmp_tensors(input_values, false);
     bool sts = evaluate(output, input, evaluationContext);
     if (sts)
         update_output_tensors(output_values, output);
