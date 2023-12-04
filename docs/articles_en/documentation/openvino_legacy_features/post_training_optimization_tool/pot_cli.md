@@ -7,7 +7,7 @@
    :hidden:
 
    Simplified Mode <pot_docs_simplified_mode>
-   pot_configs_README
+   Configuration File Description  <pot_configs_README>
 
 
 
