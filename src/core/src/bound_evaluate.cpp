@@ -399,7 +399,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{1});
+    const auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
