@@ -562,7 +562,7 @@ int main(int argc, char* argv[]) {
         }
 
         bool isDynamicNetwork = false;
-
+        device_config.insert(ov::hint::enable_cpu_pinning(true));
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
                 throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
