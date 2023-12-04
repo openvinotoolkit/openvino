@@ -9,15 +9,23 @@ from save_model import saveModel
 import paddle
 import sys
 
+
 def partial_sum(name: str, x, y, start_index=0, length=-1):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         x_data = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
         y_data = paddle.static.data(name="y", shape=x.shape, dtype=y.dtype)
-        out = paddle.incubate.layers.nn.partial_sum(
+
+        if paddle.__version__ >= '2.5.1':
+            out = paddle.incubate.layers.nn.partial_sum(
+                [x_data, y_data], start_index=start_index, length=length
+            )
+        else:
+            out = paddle.fluid.contrib.layers.partial_sum(
             [x_data, y_data], start_index=start_index, length=length
-        )
+            )
+
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
