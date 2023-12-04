@@ -315,11 +315,12 @@ jobs:
 
   Samples:
     needs: Build
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     uses: ./.github/workflows/samples_tests.yml
     with:
       runner: 'ubuntu-20.04'
       image: 'ubuntu:20.04'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   Conformance:
     needs: [Build, Smart_CI]

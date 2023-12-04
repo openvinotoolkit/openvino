@@ -12,6 +12,10 @@ on:
         type: string
         required: false
         default: null
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
 
 jobs:
   Samples:
@@ -103,7 +107,7 @@ jobs:
       #
 
       - name: Samples tests
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).samples.test
+        if: fromJSON(inputs.affected-components).samples.test
         run: |
           export WORKSPACE=$INSTALL_DIR
           export IE_APP_PATH=$INSTALL_DIR/samples_bin
