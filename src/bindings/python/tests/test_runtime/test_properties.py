@@ -355,6 +355,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            intel_gpu.enable_full_model_caching,
+            "GPU_ENABLE_FULL_MODEL_CACHING",
+            ((True, True),),
+        ),
+        (
             intel_gpu_hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
             ((intel_gpu_hint.ThrottleLevel.LOW, hints.Priority.LOW),),
