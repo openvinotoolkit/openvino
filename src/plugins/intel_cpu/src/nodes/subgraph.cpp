@@ -517,11 +517,8 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     }
 }
 
-void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& dom = parallel_exec_domain;
-    // < N, C, H, W > < 1, 1, N, C*H*W>
-    const auto& callable = schedule.get_callable<kernel>();
-#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
+#ifdef CPU_DEBUG_CAPS
+void Snippet::SnippetJitExecutor::segfault_detector() {
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
@@ -534,6 +531,15 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
         new_handler.sa_handler = signal_handler;
         sigaction(SIGSEGV, &new_handler, nullptr);
     }
+}
+#endif
+
+void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+    const auto& dom = parallel_exec_domain;
+    // < N, C, H, W > < 1, 1, N, C*H*W>
+    const auto& callable = schedule.get_callable<kernel>();
+#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
+    segfault_detector();
 #endif
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
@@ -547,18 +553,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& work_size = parallel_exec_domain;
 #if defined(__linux__) && defined(CPU_DEBUG_CAPS)
-    if (enable_segfault_detector) {
-        __sighandler_t signal_handler = [](int signal) {
-            std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto err_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
-                err_emitter->print_debug_info();
-            auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));
-        };
-        struct sigaction new_handler{};
-        new_handler.sa_handler = signal_handler;
-        sigaction(SIGSEGV, &new_handler, nullptr);
-    }
+    segfault_detector();
 #endif
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
@@ -579,15 +574,14 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
     });
 }
 
-Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector)
-    : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic) {
+Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic)
+    : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic) {}
+
+Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector) :
+    SnippetExecutor(std::move(attrs), is_dynamic) {
 #ifdef CPU_DEBUG_CAPS
     enable_segfault_detector = segfault_detector;
 #endif
-    }
-
-Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector) :
-    SnippetExecutor(std::move(attrs), is_dynamic, segfault_detector) {
     numInput = snippetAttrs.inMemBlockedDims.size();
     numOutput = snippetAttrs.outMemBlockedDims.size();
     start_offset_in.resize(numInput);

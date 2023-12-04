@@ -108,6 +108,7 @@ public:
                       arithmetic_mode mode = arithmetic_mode::saturation,
                       ov::element::Type exec_prc = ov::element::f32,
                       emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
+
     /**
     * store_num values with src_prc in Vmm[in_vec_idx] is stored to ptr[reg_dst + offset_byte] address as dst_prc data, where offset_byte is in_idxs[1]
     * supported src_prc and dst_prc pairs are as below(x indicate for support):

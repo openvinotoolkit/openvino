@@ -219,7 +219,8 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {}
+intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
+}
 
 std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
     const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);

@@ -2243,7 +2243,6 @@ void jit_is_nan_emitter::register_table_entries() {
     }
 }
 
-
 /// SELECT ///
 jit_select_emitter::jit_select_emitter(x64::jit_generator* host,
                                        x64::cpu_isa_t host_isa,

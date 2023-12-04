@@ -1,6 +1,6 @@
 # Snippets segfault detector
 
-Subgraph in snippets is decomposed to many simple operations. The operations are converted to corresponding emitters to generate execution instruction. If there is a segfault happened in subgraph execution, it would take big effort to debug and investigate. This capability is introduced to identify the blamed emitter among the large kernel, and to cout useful blamed emitter information.
+Subgraph in snippets is decomposed to many simple operations. These operations are converted to corresponding emitters to generate execution instruction. If a segfault happens during a subgraph execution, it often requires a significant effort to debug and investigate the problem. This capability is introduced to identify the faulty emitter among the large kernel, and to print some useful emitter information.
 
 To turn on snippets segfault detector, the following environment variable should be used:
 ```sh

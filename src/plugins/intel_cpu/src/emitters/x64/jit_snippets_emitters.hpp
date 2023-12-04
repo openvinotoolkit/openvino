@@ -124,7 +124,6 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
-    void print_debug_info() const override;
 
 private:
     using jit_emitter::emit_code;
@@ -147,7 +146,6 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
-    void print_debug_info() const override;
 
 private:
     using jit_emitter::emit_code;
@@ -209,7 +207,6 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -268,7 +265,9 @@ protected:
     size_t count = 0;
     size_t byte_offset = 0;
 
-    // for segfault detector
+    // memoryEnitters is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
+    // memory_track function is to record start subtensor address and current subtensor address and iteration.
+    // If segfault happens, build_in segfault capabilty will give developers these info to understand what is wrong.
     mutable size_t start_address = 0;
     mutable size_t current_address = 0;
     mutable size_t iteration = 0;

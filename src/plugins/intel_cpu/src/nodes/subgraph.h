@@ -77,7 +77,7 @@ private:
 
     class SnippetExecutor {
         public:
-            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector);
+            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
             virtual ~SnippetExecutor() = default;
             std::shared_ptr<IShapeInfer> shapeInference = nullptr;
@@ -85,7 +85,6 @@ private:
         protected:
             SnippetAttrs snippetAttrs;
             bool is_dynamic = false;
-            bool enable_segfault_detector = false;
     };
 
     std::shared_ptr<SnippetExecutor> execPtr = nullptr;
@@ -110,6 +109,10 @@ private:
             // Evaluates generated snippet using parallel backend
             void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
             void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+#ifdef CPU_DEBUG_CAPS
+            inline void segfault_detector();
+            bool enable_segfault_detector = false;
+#endif
 
             // Holds generated snippet with information about how to schedule it
             snippets::Schedule schedule;
