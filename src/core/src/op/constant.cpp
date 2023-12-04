@@ -46,7 +46,7 @@ std::string to_cpp_string(T value) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T str_to_value(const std::string& s, size_t* pos) {
-    return static_cast<T>(std::is_signed<T>::value ? std::stol(s, pos) : std::stoul(s, pos));
+    return static_cast<T>(std::is_signed<T>::value ? std::stoll(s, pos) : std::stoull(s, pos));
 }
 
 template <class T, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
