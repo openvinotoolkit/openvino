@@ -192,18 +192,7 @@ OutputVector translate_randn(const NodeContext& context) {
     }
     auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
     auto mean = context.mark_node(v0::Constant::create(dtype, Shape{1}, {0}));
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> distrib(0.0f, 9999.0f);
-    float seed = distrib(gen);
-
-    auto res_pair = ov::frontend::make_random_normal(sizes, dtype, mean, scale, seed);
-    for (const auto& node : res_pair.second) {
-        context.mark_node(node);
-    }
-    auto res = res_pair.first;
-
+    auto res = make_random_normal(context, sizes, dtype, scale, mean);
     if (!dtype_applied) {
         res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
     }

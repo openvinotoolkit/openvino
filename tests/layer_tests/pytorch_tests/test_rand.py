@@ -89,40 +89,56 @@ class TestNormal(PytorchLayerTest):
         self._test(model, None, "aten::normal",
                    ie_device, precision, ir_version, custom_eps=1e30)
 
+
 class TestStatistics():
-    class aten_randn1(torch.nn.Module):
+    class aten_normal(torch.nn.Module):
         def forward(self, mean, std):
             return torch.normal(mean, std)
+
+    class aten_randn(torch.nn.Module):
+        def forward(self, size):
+            return torch.randn(*size)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("fw_model,inputs", [
-        (aten_randn1(), (0, 1, (1000000,))),
-        (aten_randn1(), (0, 1, (10000, 100))),
-        (aten_randn1(), (0, 3, (100000, 100))),
-        (aten_randn1(), (1, 6, (100000, 100))),
-        (aten_randn1(), (-20, 2, (10000, 100))),
-        (aten_randn1(), (-20, 100, (10000, 100))),
+        (aten_normal(), (0, 1, (1000000,))),
+        (aten_normal(), (0, 1, (10000, 100))),
+        (aten_normal(), (0, 3, (100000, 100))),
+        (aten_normal(), (1, 6, (100000, 100))),
+        (aten_normal(), (-20, 2, (10000, 100))),
+        (aten_normal(), (-20, 100, (10000, 100))),
+
+        (aten_randn(), (0, 1, (1000000,))),
+        (aten_randn(), (0, 1, (10000, 100))),
+        (aten_randn(), (0, 1, (100000, 100))),
     ])
-    def test_statistics(self, fw_model, inputs, ie_device, precision):
+    def test_normal_statistics(self, fw_model, inputs, ie_device, precision):
         import numpy.testing as npt
         import numpy as np
         import openvino as ov
-        mean_scalar, std_scalar, input_size = inputs
-        mean = torch.full(input_size, mean_scalar, dtype=torch.float32)
-        std = torch.full(input_size, std_scalar, dtype=torch.float32)
+        mean_scalar, std_scalar, size = inputs
+        mean = torch.full(size, mean_scalar, dtype=torch.float32)
+        std = torch.full(size, std_scalar, dtype=torch.float32)
 
-        ov_model = ov.convert_model(input_model=fw_model, example_input=(mean, std), input=[input_size, input_size])
+        if isinstance(fw_model, self.aten_randn):
+            example_input = (torch.tensor(size), )
+            input_size = [len(size)]
+        else:
+            example_input = (mean, std)
+            input_size = [size, size]
+
+        ov_model = ov.convert_model(input_model=fw_model, example_input=example_input, input=input_size)
         if ie_device == 'GPU' and precision == 'FP32':
             config = {'INFERENCE_PRECISION_HINT': 'f32'}
         else:
             config = {}
         compiled_model = ov.Core().compile_model(ov_model, ie_device, config)
 
-        fw_res = fw_model(mean, std)
-        ov_res = compiled_model((mean, std))[0]
+        fw_res = fw_model(*example_input)
+        ov_res = compiled_model(example_input)[0]
 
-        hist_fw, _ = np.histogram(fw_res.numpy(), bins=100, range=(-2*std_scalar, 2*std_scalar))
-        hist_ov, _ = np.histogram(ov_res, bins=100, range=(-2*std_scalar, 2*std_scalar))
+        hist_fw, _ = np.histogram(fw_res.numpy(), bins=100, range=(-2 * std_scalar, 2 * std_scalar))
+        hist_ov, _ = np.histogram(ov_res, bins=100, range=(-2 * std_scalar, 2 * std_scalar))
 
         npt.assert_allclose(hist_fw, hist_ov, atol=1e-1, rtol=1e-1)
