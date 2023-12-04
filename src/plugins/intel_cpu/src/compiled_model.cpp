@@ -247,7 +247,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
-            streams);  // ov::optimal_number_of_infer_requests has no negative values
+            streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(
