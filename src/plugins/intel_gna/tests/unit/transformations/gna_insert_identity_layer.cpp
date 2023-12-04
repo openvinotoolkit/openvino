@@ -640,7 +640,7 @@ public:
             auto relu = make_shared<Relu>(fq);
             auto reshape_const = make_shared<Constant>(i64, Shape{1}, m_input_shape);
             auto reshape = make_shared<Reshape>(inputs[1], reshape_const, false);
-            auto concat = makeConcat({relu, reshape}, 0);
+            auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{relu, reshape}, 0);
             auto result = make_shared<Result>(concat);
             m_func = make_shared<Model>(result, inputs, getName());
         }
@@ -654,7 +654,7 @@ public:
             auto reshape = make_shared<Reshape>(inputs[1], reshape_const, false);
             // We expect the following Identity layer to be inserted
             auto identity = make_shared<Identity>(reshape);
-            auto concat = makeConcat({relu, identity}, 0);
+            auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{relu, identity}, 0);
             auto result = make_shared<Result>(concat);
             m_ref_func = make_shared<Model>(result, inputs, getName());
         }

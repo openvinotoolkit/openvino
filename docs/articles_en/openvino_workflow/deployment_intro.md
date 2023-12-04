@@ -6,7 +6,6 @@
    :maxdepth: 1
    :hidden:
 
-   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    Local Distribution Libraries <openvino_docs_deploy_local_distribution>
    Optimize Binaries Size <opevino_conditional_compilation_deploying_guide>
 
@@ -31,8 +30,7 @@ Local Deployment Options
     - Furthermore, to customize your OpenVINO Docker image, use the `Docker CI Framework <https://github.com/openvinotoolkit/docker_ci>`__ to generate a Dockerfile and build the image.
 - Grab a necessary functionality of OpenVINO together with your application, also called "local distribution":
 
-  - using :doc:`OpenVINO Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>` - providing a convenient way for creating a distribution package;
-  - using the advanced :doc:`local distribution <openvino_docs_deploy_local_distribution>` approach;
+  - using the :doc:`local distribution <openvino_docs_deploy_local_distribution>` approach;
   - using `a static version of OpenVINO Runtime linked to the final app <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__.
 
 The table below shows which distribution type can be used for what target operating system:
@@ -50,8 +48,6 @@ The table below shows which distribution type can be used for what target operat
      - Ubuntu 22.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit
    * - PyPI (PIP package manager)
      - See https://pypi.org/project/openvino
-   * - :doc:`OpenVINO Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>`
-     - All operating systems
    * - :doc:`Libraries for Local Distribution <openvino_docs_deploy_local_distribution>`
      - All operating systems
    * - `Build OpenVINO statically and link to the final app <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__

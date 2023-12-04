@@ -12,9 +12,9 @@ namespace intel_cpu {
 
 class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
-    CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape);
+    CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape);
 
-    CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+    CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
                          const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
                          const VectorDims& strides = {});
 
@@ -27,7 +27,7 @@ public:
     bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
     bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
 
-    InferenceEngine::Precision getPrecision() const override {
+    ov::element::Type getPrecision() const override {
         return precision;
     }
 
@@ -78,7 +78,7 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
-    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+    MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override;
 
 private:
     size_t getElementOffset(size_t elemNumber) const override;
@@ -91,12 +91,12 @@ private:
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
-    void setPrecision(InferenceEngine::Precision prc) override {
+    void setPrecision(ov::element::Type prc) override {
         precision = prc;
     }
 
 private:
-    InferenceEngine::Precision precision;
+    ov::element::Type precision;
     size_t offsetPadding;
 };
 

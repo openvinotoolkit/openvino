@@ -15,7 +15,7 @@
 
 #include "common/blocked_desc_creator.h"
 
-#define THROW_ERROR IE_THROW() << "DepthToSpace layer with name '" << getName() << "' "
+#define THROW_ERROR(...) OPENVINO_THROW("DepthToSpace layer with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace InferenceEngine;
 using namespace dnnl::impl;
@@ -71,14 +71,14 @@ DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        THROW_ERROR << "has incorrect number of input/output edges!";
+        THROW_ERROR("has incorrect number of input/output edges!");
 
     auto depthToSpace = ov::as_type_ptr<const ov::opset1::DepthToSpace>(op);
     if (!depthToSpace)
-        THROW_ERROR << "supports only opset1";
+        THROW_ERROR("supports only opset1");
 
     const auto modeNgraph = depthToSpace->get_mode();
     if (modeNgraph == ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
@@ -86,22 +86,22 @@ DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
     } else if (modeNgraph == ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
-        THROW_ERROR << "doesn't support mode: " << ov::as_string(modeNgraph);
+        THROW_ERROR("doesn't support mode: ", ov::as_string(modeNgraph));
     }
 
     attrs.blockSize = depthToSpace->get_block_size();
     if (attrs.blockSize == 0)
-        THROW_ERROR << "has incorrect block_size parameter is zero!";
+        THROW_ERROR("has incorrect block_size parameter is zero!");
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
 
     if (srcRank < 3)
-        THROW_ERROR << "has incorrect number of input dimensions";
+        THROW_ERROR("has incorrect number of input dimensions");
     if (srcRank > 5)
-        THROW_ERROR << "doesn't support dimensions with rank greater than 5";
+        THROW_ERROR("doesn't support dimensions with rank greater than 5");
     if (srcRank != dstRank)
-        THROW_ERROR << "has incorrect number of input/output dimensions";
+        THROW_ERROR("has incorrect number of input/output dimensions");
 
     const size_t nSpatialDims = srcRank - 2;
     attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, nSpatialDims));
@@ -113,7 +113,7 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
     if (cpu::x64::mayiuse(cpu::x64::avx512_core)) {
@@ -164,11 +164,11 @@ void DepthToSpace::createPrimitive() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_ERROR << "has not allocated destination memory";
+        THROW_ERROR("has not allocated destination memory");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_ERROR << "has not allocated input memory";
+        THROW_ERROR("has not allocated input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR << "has unidentified preferable primitive descriptor";
+        THROW_ERROR("has unidentified preferable primitive descriptor");
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
@@ -193,7 +193,7 @@ void DepthToSpace::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
-        IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
+        OPENVINO_THROW("DepthToSpaceExecutor was not found for node ", getName(), ".");
     }
 
     execPtr = result.first;
@@ -201,7 +201,7 @@ void DepthToSpace::prepareParams() {
 
 DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
     if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
-        IE_THROW() << "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
+        OPENVINO_THROW("DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
 
     const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
@@ -290,7 +290,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
 
 void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
     if (!permuteKernel)
-        IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
+        OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
@@ -300,7 +300,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
 
 void DepthToSpace::execute(dnnl::stream strm) {
     if (!execPtr) {
-        THROW_ERROR << "doesn't have a compiled executor.";
+        THROW_ERROR("doesn't have a compiled executor.");
     }
 
     int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];

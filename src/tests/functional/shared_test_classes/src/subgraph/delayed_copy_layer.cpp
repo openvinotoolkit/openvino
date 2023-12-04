@@ -129,7 +129,8 @@ namespace SubgraphTestsDefinitions {
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
         auto reshape_pattern1 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(mem_r, reshape_pattern1, false);
-        auto split = ngraph::builder::makeSplit(reshape1, ngPrc, 2, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(reshape1, split_axis_op, 2);
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), input[0]}, 1);
         auto reshape_pattern2 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{8, memory_size / 8});
@@ -162,7 +163,8 @@ namespace SubgraphTestsDefinitions {
         auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
         auto reshape_pattern1 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(mem_c, reshape_pattern1, false);
-        auto split = ngraph::builder::makeSplit(reshape1, ngPrc, 2, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(reshape1, split_axis_op, 2);
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), input[0]}, 1);
         auto reshape_pattern2 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{8, memory_size / 8});

@@ -30,7 +30,7 @@ SizeVector MVNExecutor::transformTo5DCase(const SizeVector& shape, bool initAcro
         case 3 : { return SizeVector({shape[0], shape[1], 1, shape[2], 1}); }
         case 4 : { return SizeVector({shape[0], shape[1], 1, shape[2], shape[3]}); }
         case 5 : { return SizeVector({shape[0], shape[1], shape[2], shape[3], shape[4]}); }
-        default : { IE_THROW() << "MVN executor doesn't support planar layout with rank: " << shape.size(); }
+        default : { OPENVINO_THROW("MVN executor doesn't support planar layout with rank: ", shape.size()); }
     }
 }
 

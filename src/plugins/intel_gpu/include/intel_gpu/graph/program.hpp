@@ -154,7 +154,8 @@ public:
     std::vector<program_node*>& get_outputs() {
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
-    bool is_loop_body() const { return is_body_program; }
+    bool is_body_program() const { return _is_body_program; }
+    bool can_be_optimized() const { return _can_be_optimized; }
     bool is_internal_program() const { return is_internal; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
@@ -294,7 +295,9 @@ private:
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
     bool is_internal;
-    bool is_body_program;
+    bool _is_body_program;
+    // if subgraph can be optimized if it consists of only inputs and corresponding outputs
+    bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
     std::shared_ptr<ICompilationContext> _compilation_context;

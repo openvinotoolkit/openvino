@@ -94,6 +94,7 @@ enum class KernelType {
     EYE,
     GENERATE_PROPOSALS,
     MULTICLASS_NMS,
+    MULTINOMIAL,
     UNIQUE_COUNT,
     UNIQUE_GATHER,
     RMS,

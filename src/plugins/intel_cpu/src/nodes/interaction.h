@@ -15,8 +15,8 @@ namespace intel_cpu {
 namespace node {
 
 struct jit_move_scale_compile_params {
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     bool with_scales;
     size_t input_size;
     bool broadcast_scales;
@@ -71,8 +71,8 @@ private:
     MemoryPtr flatMemPtr;
     MemoryPtr outputMemPtr;
     std::vector<uint32_t> featureSizes;
-    InferenceEngine::Precision dataPrecision;
-    InferenceEngine::Precision outputDataType;
+    ov::element::Type dataPrecision;
+    ov::element::Type outputDataType;
     std::vector<float> fqScales;
     std::unique_ptr<jit_uni_move_scale_kernel> moveFeatureKernel;
     std::unique_ptr<jit_uni_move_scale_kernel> moveInteractKernel;

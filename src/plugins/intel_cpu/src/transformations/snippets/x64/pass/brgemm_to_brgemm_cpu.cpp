@@ -109,7 +109,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                                                          offset_a, offset_b, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
             } else {
-                IE_THROW() << "Invalid configuration for BRGEMM CPU";
+                OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
             }
         }
 

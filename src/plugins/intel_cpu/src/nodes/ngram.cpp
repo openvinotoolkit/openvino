@@ -33,7 +33,7 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     : Node(op, context, NgramShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto ngram = ov::as_type_ptr<const NgramNode>(op);
@@ -55,13 +55,13 @@ void Ngram::initSupportedPrimitiveDescriptors() {
         return;
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != InferenceEngine::Precision::I32 && idcesPrecision != InferenceEngine::Precision::I64) {
-        idcesPrecision = InferenceEngine::Precision::I32;
+    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+        idcesPrecision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, idcesPrecision}},
-                         {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          ref_any);
 }
 
@@ -102,12 +102,12 @@ void Ngram::execute(dnnl::stream strm) {
     auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts;
-    if (idcesPrecision == InferenceEngine::Precision::I32) {
+    if (idcesPrecision == ov::element::i32) {
         batchLenghts = computeBatchLenghts<std::int32_t>();
-    } else if (idcesPrecision == InferenceEngine::Precision::I64) {
+    } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        IE_THROW() << "Unsupported idces precision: " << idcesPrecision;
+        OPENVINO_THROW("Unsupported idces precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:

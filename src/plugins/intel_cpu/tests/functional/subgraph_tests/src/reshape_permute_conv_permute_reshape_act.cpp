@@ -6,6 +6,9 @@
 #include "subgraph_tests/reshape_permute_conv_permute_reshape_act.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+namespace {
+using ov::test::ConvReshapeAct;
+
 std::vector<std::array<size_t, 4>> input_shapes {
     {1, 1, 166, 2},
     {1, 1, 144, 2},
@@ -24,23 +27,21 @@ std::vector<size_t> output_channels {
     4,
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
+std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::f16,
 };
 
 std::map<std::string, std::string> additional_config = { };
 
-namespace SubgraphTestsDefinitions {
-    INSTANTIATE_TEST_SUITE_P(smoke_basic, ConvReshapeAct,
-        ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ov::test::utils::DEVICE_CPU),
-            ::testing::ValuesIn(input_shapes),
-            ::testing::ValuesIn(kernel_shapes),
-            ::testing::ValuesIn(output_channels),
-            ::testing::Values(additional_config)),
-        ConvReshapeAct::getTestCaseName);
-} // namespace SubgraphTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_basic, ConvReshapeAct,
+    ::testing::Combine(
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::ValuesIn(input_shapes),
+        ::testing::ValuesIn(kernel_shapes),
+        ::testing::ValuesIn(output_channels),
+        ::testing::Values(additional_config)),
+    ConvReshapeAct::getTestCaseName);
 
-
+}  // namespace

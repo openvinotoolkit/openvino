@@ -19,7 +19,7 @@ void ExtensionManager::AddExtension(const IExtensionPtr& extension) {
 
 InferenceEngine::ILayerImpl::Ptr ExtensionManager::CreateImplementation(const std::shared_ptr<ov::Node>& op) {
     if (!op)
-        IE_THROW() << "Cannot get nGraph operation!";
+        OPENVINO_THROW("Cannot get nGraph operation!");
     for (const auto& ext : _extensions) {
         auto implTypes = ext->getImplTypes(op);
         for (const auto& type : implTypes) {

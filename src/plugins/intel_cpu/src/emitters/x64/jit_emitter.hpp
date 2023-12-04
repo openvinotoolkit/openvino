@@ -31,7 +31,7 @@ struct emitter_params {
 class jit_emitter : public ov::snippets::Emitter {
 public:
     jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
+                ov::element::Type exec_prc = ov::element::f32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
@@ -59,7 +59,7 @@ protected:
 
     dnnl::impl::cpu::x64::jit_generator* h;
     dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
-    InferenceEngine::Precision exec_prc_;
+    ov::element::Type exec_prc_;
     Xbyak::Opmask k_mask;
 
     virtual void prepare_table();

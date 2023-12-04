@@ -40,7 +40,11 @@ Result MMShapeInfer::infer(
                 continue;
             } else if (shapeA[i] != 1) {
                 OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
-                    shapeA[i], " with second input dimension=", shapeB[i], " at index=", i);
+                               shapeA[i],
+                               " with second input dimension=",
+                               shapeB[i],
+                               " at index=",
+                               i);
             }
         }
         m_shapeY[i] = shapeB[i];

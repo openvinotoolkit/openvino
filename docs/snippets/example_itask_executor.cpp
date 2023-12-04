@@ -6,16 +6,16 @@
 #    define IN_OV_COMPONENT
 #    define WAS_OV_LIBRARY_DEFINED
 #endif
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED
 #    undef IN_OV_COMPONENT
 #    undef WAS_OV_LIBRARY_DEFINED
 #endif
 
-#include <memory>
 #include <future>
 #include <iostream>
+#include <memory>
 
 void example1() {
 // ! [itask_executor:define_pipeline]
@@ -24,9 +24,12 @@ void example1() {
     // When the promise is created we can get std::future to wait the result
     auto future = promise->get_future();
     // Rather simple task
-    InferenceEngine::Task task = [] {std::cout << "Some Output" << std::endl; };
+    ov::threading::Task task = [] {
+        std::cout << "Some Output" << std::endl;
+    };
     // Create an executor
-    InferenceEngine::ITaskExecutor::Ptr taskExecutor = std::make_shared<InferenceEngine::CPUStreamsExecutor>();
+    ov::threading::ITaskExecutor::Ptr taskExecutor =
+        std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{});
     if (taskExecutor == nullptr) {
         // ProcessError(e);
         return;

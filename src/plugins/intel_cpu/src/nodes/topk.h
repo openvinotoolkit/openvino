@@ -6,7 +6,6 @@
 
 #include <node.h>
 
-#include <ie_precision.hpp>
 #include <string>
 #include <memory>
 #include <vector>
@@ -35,7 +34,7 @@ struct jit_topk_config_params {
     bool stable;             // if require stable sorting
     TopKLayoutType layout;   // memory layout
     TopKAlgorithm algorithm; // topk sorting algorithm
-    InferenceEngine::Precision precision; // precision
+    ov::element::Type precision; // precision
     int data_size;           // data size
     int blk_size;            // block size
     int top_k;               // number of the output elements in the sorting dimension

@@ -2,11 +2,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime as ov_runtime
 import openvino.runtime.opset8 as ov
 import numpy as np
 import pytest
 
+from openvino import Type
 from openvino.runtime.utils.types import get_element_type
 
 
@@ -30,7 +30,7 @@ def test_constant_from_bool(val_type, value, output_shape):
     node = ov.constant(value, val_type)
     assert node.get_type_name() == "Constant"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == ov_runtime.Type.boolean
+    assert node.get_output_element_type(0) == Type.boolean
     assert list(node.get_output_shape(0)) == output_shape
 
 
@@ -138,7 +138,7 @@ def test_transpose():
     node = ov.transpose(input_tensor, input_order)
     assert node.get_type_name() == "Transpose"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == ov_runtime.Type.i32
+    assert node.get_output_element_type(0) == Type.i32
     assert list(node.get_output_shape(0)) == [3, 224, 224, 3]
 
 
@@ -149,7 +149,7 @@ def test_tile():
 
     assert node.get_type_name() == "Tile"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == ov_runtime.Type.i32
+    assert node.get_output_element_type(0) == Type.i32
     assert list(node.get_output_shape(0)) == [2, 2, 3]
 
 
@@ -177,7 +177,7 @@ def test_strided_slice():
     )
     assert node.get_type_name() == "StridedSlice"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == ov_runtime.Type.f32
+    assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == [1, 3, 4]
 
 
@@ -189,7 +189,7 @@ def test_reshape_v1():
     node = ov.reshape(param_a, shape, special_zero)
     assert node.get_type_name() == "Reshape"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == ov_runtime.Type.f32
+    assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == [2, 150, 4]
 
 
@@ -199,5 +199,5 @@ def test_shape_of():
     node = ov.shape_of(input_tensor)
     assert node.get_type_name() == "ShapeOf"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == ov_runtime.Type.i64
+    assert node.get_output_element_type(0) == Type.i64
     assert list(node.get_output_shape(0)) == [2]

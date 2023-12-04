@@ -103,15 +103,12 @@ void PoolingLayerCPUTest::SetUp() {
         poolInput = ngraph::builder::makeFakeQuantize(poolInput, inPrc, 256, newShape);
     }
 
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(poolInput,
-                                                                         stride,
-                                                                         padBegin,
-                                                                         padEnd,
-                                                                         kernel,
-                                                                         roundingType,
-                                                                         padType,
-                                                                         excludePad,
-                                                                         poolType);
+    std::shared_ptr<ov::Node> pooling;
+    if (ov::test::utils::PoolingTypes::MAX == poolType) {
+        pooling = std::make_shared<ov::op::v1::MaxPool>(poolInput, stride, padBegin, padEnd, kernel, roundingType, padType);
+    } else {
+        pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
+    }
 
     function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
 }
@@ -183,16 +180,16 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
     }
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPoolingV8(params[0],
-                                                                              stride,
-                                                                              dilation,
-                                                                              padBegin,
-                                                                              padEnd,
-                                                                              kernel,
-                                                                              roundingType,
-                                                                              padType,
-                                                                              indexElementType,
-                                                                              axis);
+    auto pooling = std::make_shared<ov::op::v8::MaxPool>(params[0],
+                                                         stride,
+                                                         dilation,
+                                                         padBegin,
+                                                         padEnd,
+                                                         kernel,
+                                                         roundingType,
+                                                         padType,
+                                                         indexElementType,
+                                                         axis);
     pooling->get_rt_info() = getCPUInfo();
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling->output(0))};
     function = std::make_shared<ngraph::Function>(results, params, "MaxPooling");

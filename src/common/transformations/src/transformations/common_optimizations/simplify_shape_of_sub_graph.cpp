@@ -36,7 +36,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
     matcher_pass_callback callback = [=](Matcher& m) {
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
-        NodeVector new_ops;
+        NodeRegistry new_ops;
         size_t i = 0, original_inputs_size = inputs.size();
         while (inputs.size() > i + 1) {
             auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
@@ -47,16 +47,36 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
                 continue;
             }
 
-            // Scalar inputs are not supported by Concat and we don't want to throw an exception here.
+            auto curr_indices = curr->input_value(1);
+            auto next_indices = next->input_value(1);
+            // Scalar or not same type inputs are not supported by Concat and we don't want to throw an exception here.
             // The transformation should not be applied instead.
-            if (curr->input_value(1).get_partial_shape().same_scheme(Shape{}) ||
-                next->input_value(1).get_partial_shape().same_scheme(Shape{})) {
+            if (curr_indices.get_partial_shape().same_scheme(Shape{}) ||
+                next_indices.get_partial_shape().same_scheme(Shape{})) {
                 return false;
+            }
+
+            const auto& curr_et = curr_indices.get_element_type();
+            const auto& next_et = next_indices.get_element_type();
+
+            if (!curr_et.compatible(next_et)) {
+                if (curr_et == element::u64 || next_et == element::u64) {
+                    // Not apply transformation as conversion can change values interpretation
+                    return false;
+                } else {
+                    constexpr auto common_type = element::i64;
+                    if (curr_et != common_type) {
+                        curr_indices = new_ops.make<v0::Convert>(curr_indices, common_type);
+                    }
+                    if (next_et != common_type) {
+                        next_indices = new_ops.make<v0::Convert>(next_indices, common_type);
+                    }
+                }
             }
 
             // curr and next are the same type of gather which takes data from the same source
             auto joint_indices =
-                op::util::make_try_fold<v0::Concat>(OutputVector{curr->input_value(1), next->input_value(1)}, 0);
+                new_ops.add(op::util::make_try_fold<v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
             std::shared_ptr<Node> new_gather;
             if (is_type<v1::Gather>(curr)) {
                 new_gather = register_new_node<v1::Gather>(curr->input_value(0),
@@ -73,12 +93,12 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
             } else {
                 OPENVINO_THROW("Unexpected Gather version");
             }
-            new_ops.push_back(joint_indices);
-            new_ops.push_back(new_gather);
+
+            new_ops.add(new_gather);
             inputs.erase(inputs.begin() + i);
             inputs[i] = new_gather->output(0);
         }
-        ov::copy_runtime_info(concat, new_ops);
+        ov::copy_runtime_info(concat, new_ops.get());
         if (inputs.size() == 1)  // we can optimize out concat
             return replace_output_update_name(concat->output(0), inputs[0]);
         if (original_inputs_size > inputs.size()) {

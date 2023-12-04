@@ -39,7 +39,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         Node(op, context, StridedSliceShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix = NameFromType(getType()) + " node with name '" + getName() + "' ";
 
@@ -47,10 +47,10 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     if ((attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
             (!attrs.isStridedSliceOp && (inputShapes.size() < 4 || inputShapes.size() > 5))) {
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
     }
     if (outputShapes.size() != 1) {
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
     }
 
     if (inputShapes.size() > STRIDE_ID) {
@@ -125,7 +125,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             attrs.ellipsisPos1 = attrs.ellipsisMask[i] == 1 && attrs.ellipsisPos1 == -1 ? i : attrs.ellipsisPos1;
         }
         if (attrs.ellipsisMaskCounter > 1)
-            IE_THROW() << errorPrefix << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
+            OPENVINO_THROW(errorPrefix, "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
@@ -210,8 +210,8 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    const InferenceEngine::Precision iPrecision = Precision::I32;
+    const ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    const ov::element::Type iPrecision = ov::element::i32;
     attrs.dataSize = dataPrecision.size();
 
     const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
@@ -316,7 +316,7 @@ bool StridedSlice::needShapeInfer() const {
 
 void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
-        IE_THROW() << errorPrefix << "doesn't have compiled executor!";
+        OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
 }
@@ -412,11 +412,11 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     params.attrs.beginDims = srcMemory[BEGIN_ID]->getShape().getStaticDims();
     params.attrs.endDims = srcMemory[END_ID]->getShape().getStaticDims();
     if (params.attrs.beginDims.size() != 1)
-        IE_THROW() << errorPrefix << "should have begin vector with 1 dimension";
+        OPENVINO_THROW(errorPrefix, "should have begin vector with 1 dimension");
     if (params.attrs.endDims.size() != 1)
-        IE_THROW() << errorPrefix << "should have end vector with 1 dimension";
+        OPENVINO_THROW(errorPrefix, "should have end vector with 1 dimension");
     if (params.attrs.beginDims[0] != params.attrs.endDims[0])
-        IE_THROW() << errorPrefix << "should have begin vector with size equal to end vector size";
+        OPENVINO_THROW(errorPrefix, "should have begin vector with size equal to end vector size");
 
     if (params.attrs.begin.empty())
         fillingInParameters(params.attrs.begin, BEGIN_ID, params.attrs.beginDims[0], 0);
@@ -426,9 +426,9 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > STRIDE_ID) {
         params.attrs.strideDims = srcMemory[STRIDE_ID]->getShape().getStaticDims();
         if (params.attrs.strideDims.size() > 1)
-            IE_THROW() << errorPrefix << "should have stride vector with 1 dimension";
+            OPENVINO_THROW(errorPrefix, "should have stride vector with 1 dimension");
         if (params.attrs.beginDims[0] != params.attrs.strideDims[0])
-            IE_THROW() << errorPrefix << "should have stride vector with size equal to begin vector size";
+            OPENVINO_THROW(errorPrefix, "should have stride vector with size equal to begin vector size");
 
         if (params.attrs.stride.empty())
             fillingInParameters(params.attrs.stride, STRIDE_ID, params.attrs.strideDims[0], 1);
@@ -437,9 +437,9 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > AXES_ID) {
         params.attrs.axesDims = srcMemory[AXES_ID]->getShape().getStaticDims();
         if (params.attrs.axesDims.size() != 1)
-            IE_THROW() << errorPrefix << "should have axes vector with 1 dimension.";
+            OPENVINO_THROW(errorPrefix, "should have axes vector with 1 dimension.");
         if (params.attrs.beginDims[0] != params.attrs.axesDims[0])
-            IE_THROW() << errorPrefix << "should have axes vector with size equal to begin vector size.";
+            OPENVINO_THROW(errorPrefix, "should have axes vector with size equal to begin vector size.");
 
         if (params.attrs.axes.empty())
             fillingInParameters(params.attrs.axes, AXES_ID, params.attrs.axesDims[0], 0);

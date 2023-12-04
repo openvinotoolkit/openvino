@@ -83,32 +83,32 @@ and `repo <https://github.com/databrickslabs/dolly>`__
 
 **Table of contents:**
 
-
 -  `Prerequisites <#prerequisites>`__
 
    -  `Select inference device <#select-inference-device>`__
 
--  `Download and Convert
-   Model <#download-and-convert-model>`__
--  `NNCF model weights
-   compression <#nncf-model-weights-compression>`__
+-  `Download and Convert Model <#download-and-convert-model>`__
+
+   -  `NNCF model weights
+      compression <#nncf-model-weights-compression>`__
+
 -  `Create an instruction-following inference
    pipeline <#create-an-instruction-following-inference-pipeline>`__
 
    -  `Setup imports <#setup-imports>`__
    -  `Prepare template for user
       prompt <#prepare-template-for-user-prompt>`__
-   -  `Helpers for output
-      parsing <#helpers-for-output-parsing>`__
-   -  `Main generation
-      function <#main-generation-function>`__
+   -  `Helpers for output parsing <#helpers-for-output-parsing>`__
+   -  `Main generation function <#main-generation-function>`__
    -  `Helpers for application <#helpers-for-application>`__
 
 -  `Run instruction-following
    pipeline <#run-instruction-following-pipeline>`__
 
-Prerequisites 
---------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -120,11 +120,13 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.28.0" "openvino==2023.2.0.dev20230922" "nncf>=2.6.0" datasets onnx onnxruntime gradio 
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino==2023.2.0.dev20230922" "nncf>=2.6.0" datasets onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git" 
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -153,8 +155,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Download and Convert Model 
----------------------------------------------------------------------
+Download and Convert Model
+--------------------------
+
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -221,8 +225,10 @@ compatible with Optimum models.
     Compiling the model to CPU ...
 
 
-NNCF model weights compression 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NNCF model weights compression
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 NNCF `Weights Compression
 algorithm <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/CompressWeights.md>`__
@@ -298,8 +304,10 @@ accuracy drop.
     Compiling the model to CPU ...
 
 
-Create an instruction-following inference pipeline 
----------------------------------------------------------------------------------------------
+Create an instruction-following inference pipeline
+--------------------------------------------------
+
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -402,8 +410,10 @@ generated tokens without waiting until when the whole generation is
 finished using Streaming API, it adds a new token to the output queue
 and then prints them when they are ready.
 
-Setup imports 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Setup imports
+~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -414,8 +424,10 @@ Setup imports
     from transformers import AutoTokenizer, TextIteratorStreamer
     import numpy as np
 
-Prepare template for user prompt 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare template for user prompt
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -445,8 +457,10 @@ into model with providing additional context.
         response_key=RESPONSE_KEY,
     )
 
-Helpers for output parsing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Helpers for output parsing
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
@@ -485,8 +499,10 @@ the code below find its id for using it as generation stop-criteria.
         except ValueError:
             pass
 
-Main generation function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Main generation function
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -545,8 +561,10 @@ parameter and returns model response.
             start = perf_counter()
         return model_output, perf_text
 
-Helpers for application 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Helpers for application
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -611,8 +629,10 @@ elements.
                 ov_model.compile()
         return current_text
 
-Run instruction-following pipeline 
------------------------------------------------------------------------------
+Run instruction-following pipeline
+----------------------------------
+
+
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text
@@ -690,9 +710,13 @@ generation parameters:
     
     if __name__ == "__main__":
         try:
-            demo.launch(enable_queue=True, share=False, height=800)
+            demo.queue().launch(debug=False, height=800)
         except Exception:
-            demo.launch(enable_queue=True, share=True, height=800)
+            demo.queue().launch(debug=False, share=True, height=800)
+    
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 
 .. parsed-literal::

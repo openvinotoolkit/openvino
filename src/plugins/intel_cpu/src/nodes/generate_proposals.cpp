@@ -247,7 +247,7 @@ void nms_cpu(const int num_boxes, int is_dead[],
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores, uint8_t* roi_num,
                        const int num_proposals, const size_t num_rois, const int post_nms_topn,
-                       Precision roi_num_type) {
+                       ov::element::Type roi_num_type) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
@@ -263,14 +263,14 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
         scores[i] = src_score[index];
     });
 
-    if (roi_num_type == Precision::I32) {
+    if (roi_num_type == ov::element::i32) {
         int32_t num = static_cast<int32_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int32_t));
-    } else if (roi_num_type == Precision::I64) {
+    } else if (roi_num_type == ov::element::i64) {
         int64_t num = static_cast<int64_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int64_t));
     } else {
-        IE_THROW() << "Incorrect element type of roi_num!";
+        OPENVINO_THROW("Incorrect element type of roi_num!");
     }
 }
 
@@ -293,7 +293,7 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto proposalOp = ov::as_type_ptr<const ov::op::v9::GenerateProposals>(op);
@@ -313,12 +313,12 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
         return;
 
     auto roiNumPrecision = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, roiNumPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -330,7 +330,7 @@ void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
 void GenerateProposals::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            IE_THROW() << "Incorrect number of input or output edges!";
+            OPENVINO_THROW("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -345,7 +345,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
-            IE_THROW() << "'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!";
+            OPENVINO_THROW("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
@@ -353,7 +353,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
-            IE_THROW() << "'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!";
+            OPENVINO_THROW("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
 
         size_t im_info_dims_size = 1;
         const auto &infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
@@ -405,7 +405,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         std::vector<int64_t> roi_num(batch_size);
         uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
-        const auto roi_num_item_size = roi_num_type == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t);
+        const auto roi_num_item_size = roi_num_type == ov::element::i32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
             // input image height & width
             const float img_H = p_img_info_cpu[0];
@@ -461,7 +461,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         memcpy(p_roi_num_item, &roi_num[0], getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->getSize());
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 

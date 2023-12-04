@@ -169,7 +169,7 @@ static std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t ngPRC, ov
 
 enum class LSTMType {
     LSTMCell = 0,
-    LSTMSequence = 1 // will be updated at next step.
+    LSTMSequence = 1
 };
 
 using DynamicTensorIteratorParams = typename std::tuple<
@@ -288,6 +288,10 @@ TEST_P(DynamicTensorIteratorTest, CompareWithRefs) {
     run();
 }
 
+std::vector<LSTMType> lstm_types = {
+    LSTMType::LSTMCell, LSTMType::LSTMSequence
+};
+
 std::vector<InputShape> input_shapes = {
     InputShape(ov::PartialShape({1, -1, 512}), {{1, 30, 512}, {1, 10, 512}, {1, 5, 512}})
 };
@@ -312,6 +316,17 @@ std::vector<ngraph::op::RecurrentSequenceDirection> reccurent_sequence_direction
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMCell, DynamicTensorIteratorTest,
                         testing::Combine(
                         /* lstm_type */ testing::ValuesIn({LSTMType::LSTMCell}),
+                        /* data_shape */ testing::ValuesIn(input_shapes),
+                        /* hidden_size */ testing::ValuesIn(hidden_sizes),
+                        /* direction */ testing::ValuesIn(reccurent_sequence_direction),
+                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
+                        /* data_prc */ testing::ValuesIn(net_precision),
+                        /* configuration */ testing::Values<ov::AnyMap>(net_configuration)),
+                        DynamicTensorIteratorTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMSequence, DynamicTensorIteratorTest,
+                        testing::Combine(
+                        /* lstm_type */ testing::ValuesIn({LSTMType::LSTMSequence}),
                         /* data_shape */ testing::ValuesIn(input_shapes),
                         /* hidden_size */ testing::ValuesIn(hidden_sizes),
                         /* direction */ testing::ValuesIn(reccurent_sequence_direction),

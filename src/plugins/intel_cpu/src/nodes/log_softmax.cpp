@@ -31,17 +31,18 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
     const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
     if (logSoftMax == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of LogSoftmax from opset5.";
+        OPENVINO_THROW("Operation with name '",
+                       op->get_friendly_name(),
+                       "' is not an instance of LogSoftmax from opset5.");
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
     if (dimsSize == 0)
@@ -51,15 +52,15 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         axis += dimsSize;
 
     if (dimsSize < static_cast<size_t>((size_t)(1) + axis))
-        IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
+        OPENVINO_THROW(errorPrefix, " has incorrect input parameters dimensions and axis number!");
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 

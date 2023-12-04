@@ -23,6 +23,19 @@ private:
 
 } // namespace memory_state
 
+template <>
+struct typed_program_node<assign> : public typed_program_node_base<assign> {
+private:
+    using parent = typed_program_node_base<assign>;
+
+public:
+    using parent::parent;
+
+    program_node& input() const { return get_dependency(0); }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
+
 using assign_node = typed_program_node<assign>;
 
 template<>
@@ -44,6 +57,8 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const override;
     void load(cldnn::BinaryInputBuffer& ib) override;
+
+    void on_execute() override;
 };
 
 using assign_inst = typed_primitive_inst<assign>;

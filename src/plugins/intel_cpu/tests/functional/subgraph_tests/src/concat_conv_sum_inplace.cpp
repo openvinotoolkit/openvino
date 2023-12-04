@@ -56,7 +56,7 @@ public:
         auto Relu2 = std::make_shared<ngraph::opset3::Relu>(inputParams[1]);
         Relu2->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
 
-        auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{Relu1, Relu2}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{Relu1, Relu2}, 1);
 
         auto conv = ngraph::builder::makeConvolution(concat, ngraph::element::f32, kernel, stride, padBegin,
                                                      padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);

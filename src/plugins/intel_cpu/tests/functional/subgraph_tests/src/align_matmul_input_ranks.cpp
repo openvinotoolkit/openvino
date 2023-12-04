@@ -56,7 +56,7 @@ protected:
         const auto ngPrec = element::f32;
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes.first)),
                                         std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes.second))};
-        const auto matMul = builder::makeMatMul(inputParams[0], inputParams[1], false, false);
+        const auto matMul = std::make_shared<ov::op::v0::MatMul>(inputParams[0], inputParams[1], false, false);
 
         selectedType = makeSelectedTypeStr(with_cpu_x86_avx512_core() ? "brgemm_avx512" : "jit_gemm", ngPrec);
 

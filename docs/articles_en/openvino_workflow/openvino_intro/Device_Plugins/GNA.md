@@ -1,6 +1,8 @@
 # GNA Device {#openvino_docs_OV_UG_supported_plugins_GNA}
 
 
+
+
 @sphinxdirective
 
 .. meta::
@@ -20,10 +22,11 @@ For more details on how to configure a system to use GNA, see the :doc:`GNA conf
 
    Intel's GNA is being discontinued and Intel® Core™ Ultra (formerly known as Meteor Lake) 
    will be the last generation of hardware to include it.
-   For this reason, OpenVINO 2023.2 will also be the last version supporting the GNA plugin.
-   Consider Intel's new Visual Processing Unit as a low-power solution for offloading 
+   For this reason, the GNA plugin will soon be discontinued.
+   Consider Intel's new Neural Processing Unit as a low-power solution for offloading 
    neural network computation, for processors offering the technology.
    
+
 
 Intel® GNA Generational Differences
 ###########################################################
@@ -238,7 +241,7 @@ With the following methods, you can collect profiling information with various p
    .. tab-item:: Python
       :sync: py
    
-      ``openvino.runtime.InferRequest.get_profiling_info``
+      ``openvino.InferRequest.get_profiling_info``
 
    .. tab-item:: C++
       :sync: cpp

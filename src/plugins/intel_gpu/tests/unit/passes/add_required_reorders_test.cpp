@@ -40,7 +40,7 @@ TEST(add_required_reorders, input_reorder_inside_shape_of_subgraph) {
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(eltwise("eltwise0", {input_info("gather0"), input_info("data_1")}, eltwise_mode::prod, data_types::f32));
     topology.add(reshape("reshape0", input_info("eltwise0"), false, {},

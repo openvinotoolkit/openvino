@@ -76,7 +76,7 @@ protected:
                         data[i] = indicesVals[i];
                     }
                 } else {
-                    IE_THROW() << "GatherNDUpdate. Unsupported indices precision: " << inputPrecision;
+                    OPENVINO_THROW("GatherNDUpdate. Unsupported indices precision: ", inputPrecision);
                 }
             } else {
                 if (inputPrecision.is_real()) {

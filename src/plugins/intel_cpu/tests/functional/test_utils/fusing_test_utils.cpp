@@ -44,7 +44,7 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
 
         auto getExecValue = [](const std::string &paramName, const ngraph::Node::RTMap& rtInfo) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 

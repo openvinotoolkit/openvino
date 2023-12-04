@@ -8,7 +8,6 @@
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include "openvino/core/parallel.hpp"
-#include "ie_precision.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "cum_sum.h"
 #include "utils/bfloat16.hpp"
@@ -36,24 +35,23 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "CumSum layer with name '" + op->get_friendly_name() + "' ";
 
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto &dataShape = getInputShapeAtPort(CUM_SUM_DATA);
     numOfDims = dataShape.getRank();
     if (numOfDims < 1) {
-        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << numOfDims;
+        OPENVINO_THROW(errorPrefix, " doesn't support 'data' input tensor with rank: ", numOfDims);
     }
 
     const auto cumsum = std::dynamic_pointer_cast<const ov::opset3::CumSum>(op);
     if (cumsum == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of CumSum from opset3.";
+        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of CumSum from opset3.");
 
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
@@ -65,7 +63,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     }
 
     if (dataShape != getOutputShapeAtPort(0))
-        IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
+        OPENVINO_THROW(errorPrefix, " has different 'data' input and output dimensions");
 }
 
 void CumSum::initSupportedPrimitiveDescriptors() {
@@ -74,22 +72,22 @@ void CumSum::initSupportedPrimitiveDescriptors() {
 
     dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
     if (!one_of(dataPrecision,
-                Precision::I8, Precision::U8,
-                Precision::I16, Precision::I32, Precision::I64, Precision::U64,
-                Precision::BF16, Precision::FP16, Precision::FP32))
-        IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+                ov::element::i8, ov::element::u8,
+                ov::element::i16, ov::element::i32, ov::element::i64, ov::element::u64,
+                ov::element::bf16, ov::element::f16, ov::element::f32))
+        OPENVINO_THROW(errorPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
 
     if (inputShapes.size() == numOfInputs) {
         const auto &axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
-        if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
-            IE_THROW() << errorPrefix << " has unsupported 'axis' input precision: " << axisTensorPrec.name();
+        if (axisTensorPrec != ov::element::i32 && axisTensorPrec != ov::element::i64)
+            OPENVINO_THROW(errorPrefix, " has unsupported 'axis' input precision: ", axisTensorPrec.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, dataPrecision);
     for (size_t i = 1; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, dataPrecision}},
@@ -101,15 +99,15 @@ void CumSum::execute(dnnl::stream strm) {
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
     OV_SWITCH(intel_cpu, CumSumExecute, this, dataPrecision,
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t),
-              OV_CASE(Precision::I16, int16_t),
-              OV_CASE(Precision::BF16, bfloat16_t),
-              OV_CASE(Precision::FP16, ov::float16),
-              OV_CASE(Precision::I32, int32_t),
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::I64, int64_t),
-              OV_CASE(Precision::U64, uint64_t))
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t),
+              OV_CASE(ov::element::i16, int16_t),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, ov::float16),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i64, int64_t),
+              OV_CASE(ov::element::u64, uint64_t))
 }
 
 template <typename dataType>
@@ -236,22 +234,22 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     const int64_t dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
-        case Precision::I32 : {
+        case ov::element::i32 : {
             const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.getData());
             axisValueFromBlob = static_cast<int64_t>(axisPtr[0]);
             break;
         }
-        case Precision::I64 : {
+        case ov::element::i64 : {
             const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.getData());
             axisValueFromBlob = axisPtr[0];
             break;
         }
         default : {
-            IE_THROW() << errorPrefix << "  doesn't support 'axis' input with precision: " << axisPrecision.name();
+            OPENVINO_THROW(errorPrefix, "  doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
         }
     }
     if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
-        IE_THROW() << errorPrefix << "  has axis with a value out of range: " << axisValueFromBlob;
+        OPENVINO_THROW(errorPrefix, "  has axis with a value out of range: ", axisValueFromBlob);
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 

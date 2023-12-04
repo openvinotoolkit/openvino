@@ -30,8 +30,8 @@ struct MVNAttrs {
     bool normalizeVariance_  = false;
     float epsValue_ = 0.0f;
     MVNEpsMode epsMode_ = INSIDE_SQRT;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 };
 
 class MVNExecutor {

@@ -133,7 +133,7 @@ private:
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights = false);
     void setJITBeyond5D();
     std::vector<int> update_src_dims();
-    bool canApplyJIT(const InferenceEngine::Precision &input_prec, const InferenceEngine::Precision &output_prec) const;
+    bool canApplyJIT(const ov::element::Type &input_prec, const ov::element::Type &output_prec) const;
 
     size_t blk_size;
     static const size_t REDUCE_DATA = 0;
@@ -162,7 +162,7 @@ private:
     size_t reduce_stride;
     uint8_t *tmp_ptr;
     ReduceLayoutType layout;
-    InferenceEngine::Precision input_prec, output_prec, intermediate_prec, tmp_prec;
+    ov::element::Type input_prec, output_prec, intermediate_prec, tmp_prec;
     VectorDims src_dims;
     VectorDims process_dst_dims;
     VectorDims axes_for_reduction;

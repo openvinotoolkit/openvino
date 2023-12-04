@@ -29,13 +29,13 @@ EmbeddingBagSum::EmbeddingBagSum(
     _layerName = op->get_friendly_name();
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
     if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1)
-        IE_THROW() << logPrefix << "has incorrect number of input or output edges!";
+        OPENVINO_THROW(logPrefix, "has incorrect number of input or output edges!");
 
     if (op->get_input_size() > PER_SAMPLE_WEIGHTS_IDX)
         _withWeights = true;
     if (_withWeights) {
         if (op->get_input_shape(PER_SAMPLE_WEIGHTS_IDX) != op->get_input_shape(INDICES_IDX))
-             IE_THROW() << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
+            OPENVINO_THROW(logPrefix, "must have equal shapes for indices and per_sample_weights inputs.");
     }
 }
 
@@ -76,7 +76,7 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
 
                 size_t inIdx = 0lu;
                 if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
-                    IE_THROW() << msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]);
+                    OPENVINO_THROW(msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                 }
                 size_t srcIndex = indices[inIdx] * _embDepth;
 
@@ -93,7 +93,7 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
 
                 for (inIdx = 1lu; inIdx < indicesSize; inIdx++) {
                     if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
-                        IE_THROW() << msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]);
+                        OPENVINO_THROW(msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                     }
                     size_t srcIndex = indices[inIdx] * _embDepth;
 
@@ -119,27 +119,26 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
     parallel_nt(0, threadBody);
 }
 
-void EmbeddingBagSum::execute(const uint8_t* srcData, const uint8_t* weightsData, const InferenceEngine::Precision &srcPrc,
+void EmbeddingBagSum::execute(const uint8_t* srcData, const uint8_t* weightsData, const ov::element::Type &srcPrc,
                               const VectorDims& inDims, const MemoryPtr& outMemory) {
     switch (srcPrc) {
-        case Precision::FP32: {
-            return processData<PrecisionTrait<Precision::FP32>::value_type>(reinterpret_cast<const float*>(srcData),
+        case ov::element::f32: {
+            return processData<element_type_traits<ov::element::f32>::value_type>(reinterpret_cast<const float*>(srcData),
                     reinterpret_cast<const float*>(weightsData), inDims, outMemory);
         }
-        case Precision::I8: {
-            return processData<PrecisionTrait<Precision::I8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
+        case ov::element::i8: {
+            return processData<element_type_traits<ov::element::i8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
                     reinterpret_cast<const int8_t*>(weightsData), inDims, outMemory);
         }
-        case Precision::U8: {
-            return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, inDims, outMemory);
+        case ov::element::u8: {
+            return processData<element_type_traits<ov::element::u8>::value_type>(srcData, weightsData, inDims, outMemory);
         }
-        case Precision::I32: {
-            return processData<PrecisionTrait<Precision::I32>::value_type>(reinterpret_cast<const int32_t*>(srcData),
+        case ov::element::i32: {
+            return processData<element_type_traits<ov::element::i32>::value_type>(reinterpret_cast<const int32_t*>(srcData),
                     reinterpret_cast<const int32_t*>(weightsData), inDims, outMemory);
         }
         default: {
-            IE_THROW() << "EmbeddingBagSum layer does not support precision '"
-                        + std::string(srcPrc.name()) + "'";
+            OPENVINO_THROW("EmbeddingBagSum layer does not support precision '" + std::string(srcPrc.get_type_name()) + "'");
         }
     }
 }

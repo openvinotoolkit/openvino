@@ -49,14 +49,10 @@
         - Public Network
         - Task
         - Input Size
-      * - `BLOOMZ-560M <https://huggingface.co/bigscience/bloomz-560m>`__
-        - BigScience Bloomz & MT0
-        - Transformer based llm
-        - 2048
-      * - `GPT-J-6B <https://huggingface.co/EleutherAI/gpt-j-6b>`__
-        - Eleuther AI
+      * - `chatGLM2-6B <https://huggingface.co/THUDM/chatglm2-6b/tree/main>`__
+        - THUDM
         - Transformer
-        - 2048
+        - 32K
       * - `Llama-2-7b-chat <https://ai.meta.com/llama/>`__
         - Meta AI
         - Auto regressive language
@@ -77,6 +73,14 @@
         -  DeepLab v3 Tf
         - semantic segmentation
         - 513x513
+      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
+        - Efficientdet
+        - classification
+        - 512x512
+      * - `faster_rcnn_resnet50_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`__
+        - Faster RCNN TF
+        - object detection
+        - 600x1024
       * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification

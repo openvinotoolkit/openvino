@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
@@ -431,6 +433,9 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
             if (p_inst->type() == cldnn::data::type_id())
                 _data_outputs.push_back(p_inst);
         }
+        if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(p_inst)) {
+            set_variables_state_info(state_prim->variable_id(), p_inst->get_output_layout(0));
+        }
     }
 
     for (const auto& p_inst : _exec_order) {
@@ -472,14 +477,6 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         if (p_inst->can_be_optimized() && !p_inst->is_dynamic()) {
             p_inst->update_output_memory();
         }
-    }
-
-    size_t num_variable_state_primitives;
-    ib >> num_variable_state_primitives;
-    for (size_t i = 0; i < num_variable_state_primitives; i++) {
-        primitive_id p_inst_id;
-        ib >> p_inst_id;
-        _variable_state_primitives.emplace_back(_primitives.at(p_inst_id));
     }
 
     add_default_output_chains();
@@ -621,11 +618,6 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
 
     ob << reuse_map;
 
-    ob << _variable_state_primitives.size();
-    for (const auto& p_inst : _variable_state_primitives) {
-        ob << p_inst->id();
-    }
-
     auto& prims_info = get_primitives_info();
     ob << prims_info.size();
     for (auto& prim_info : prims_info) {
@@ -692,7 +684,8 @@ void network::set_arguments() {
                 // In that case some_op is static and we may want to set arguments once,
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
-                if (dep.first->can_be_optimized() && dep.first->is_dynamic())
+                auto prim = dep.first->get_impl_params()->desc;
+                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() || prim->type == read_value::type_id()))
                     can_set_args = false;
             }
 
@@ -1256,7 +1249,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
 
                         auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
-                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                                        + "\n Expected size : " + to_string(output_mem->size()) + ", Binary : " + to_string(bin.size()));
 
                         output_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
                     }
@@ -1580,11 +1574,12 @@ void network::allocate_primitive_instance(program_node const& node) {
 
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {
-                if (dep.first->is_type<input_layout>() || dep.first->is_type<mutable_data>()) {
-                    return true;
+            const auto dep_node = dep.first;
+            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || dep_node->is_type<read_value>()) {
+                return true;
             }
-            if (dep.first->can_be_optimized()) {
-                if (is_mutable_input(*dep.first) || dep.first->is_dynamic()) {
+            if (dep_node->can_be_optimized()) {
+                if (is_mutable_input(*dep_node) || dep_node->is_dynamic()) {
                     return true;
                 }
             }
@@ -1613,15 +1608,8 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
-    if (node.is_type<assign>() || node.is_type<read_value>()) {
-        if (node.is_type<assign>()) {
-            auto assign_prim = node.as<assign>().get_primitive();
-            set_variables_state_info(assign_prim->variable_id, assign_prim->output_layout);
-        } else {
-            auto read_value_prim = node.as<read_value>().get_primitive();
-            set_variables_state_info(read_value_prim->variable_id, read_value_prim->output_layout);
-        }
-        _variable_state_primitives.push_back(inst);
+    if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0));
     }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
@@ -1659,79 +1647,36 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     }
 }
 
-network::VariableState& network::get_variable_memory(const std::string &variable_id) {
+void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable) {
+    GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
+    _variables_states[name] = variable;
+}
+
+bool network::has_variable(const std::string &variable_id) const {
+    return _variables_states.find(variable_id) != _variables_states.end();
+}
+
+ov::intel_gpu::VariableState& network::get_variable(const std::string &variable_id) const {
     auto it = _variables_states.find(variable_id);
-    if (it == _variables_states.end()) {
-        CLDNN_ERROR_MESSAGE(variable_id, "Variable not found");
-    }
+    OPENVINO_ASSERT(it != _variables_states.end(), "[GPU] ", variable_id, " variable not found");
     return *it->second;
 }
-
-void network::assign_variables_memories(variables_states_map &&variables_memories) {
-    _variables_states = variables_memories;
-    for (auto primitive : _variable_state_primitives) {
-        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
-            auto it = _variables_states.find(memory_state_primitive->variable_id());
-            if (it != _variables_states.end())
-                primitive->set_output_memory(it->second->memory, false);
-            else
-                CLDNN_ERROR_MESSAGE(memory_state_primitive->variable_id(), "Memory state not found");
-        }
-    }
+const ov::intel_gpu::VariableStateInfo& network::get_variable_info(const std::string &variable_id) const {
+    auto it = _variables_state_info.find(variable_id);
+    OPENVINO_ASSERT(it != _variables_state_info.end(), "[GPU] ", variable_id, " variable info not found");
+    return it->second;
 }
 
-void network::assign_variables_memories() {
-    for (auto primitive : _variable_state_primitives) {
-        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
-            auto it = _variables_states.find(memory_state_primitive->variable_id());
-            if (it != _variables_states.end()) {
-                primitive->set_output_memory(it->second->memory, false);
-            }
-        }
-    }
+const ov::intel_gpu::VariablesMap& network::get_variables() const {
+    return _variables_states;
 }
 
-void network::update_variable_memory(const std::string& variable_id, const cldnn::layout& layout) {
-    auto it = _variables_states.find(variable_id);
-    if (it == _variables_states.end()) {
-        cldnn::network::VariableState::Ptr variable_state = std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false));
-        _variables_states.insert({variable_id, variable_state});
-    } else {
-        bool can_reuse = it->second->memory && layout.count() <= it->second->memory->get_layout().count();
-        if (can_reuse)
-            it->second->set_memory(get_engine().reinterpret_buffer(*it->second->memory, layout));
-        else
-            it->second->set_memory(get_engine().allocate_memory(layout, false));
-        it->second->is_set = false;
-    }
-    for (auto primitive : _variable_state_primitives) {
-        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
-            if (!variable_id.compare(memory_state_primitive->variable_id())) {
-                auto& variable_state = get_variable_memory(variable_id);
-                primitive->set_output_memory(variable_state.memory, false);
-            }
-        }
-    }
-}
-
-void network::allocate_variables_memories() {
-    for (const auto& info : _variables_state_info) {
-        auto variable_layout = info.second;
-        if (variable_layout.is_static()) {
-            _variables_states.insert({info.first, std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(variable_layout, false))});
-        }
-    }
-}
-
-const cldnn::network::variables_state_info_map& network::get_variables_state_info() const {
+const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
     return _variables_state_info;
 }
 
-void network::set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout) {
-    auto it = _variables_state_info.find(variable_id);
-    if (it == _variables_state_info.end()) {
-        _variables_state_info.insert({variable_id, layout});
-    }
+void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout) {
+    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout});
 }
 
 }  // namespace cldnn
