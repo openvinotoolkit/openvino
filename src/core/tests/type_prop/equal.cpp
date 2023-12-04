@@ -35,7 +35,7 @@ TEST_F(TypePropEqualV1Test, lhs_upper_bound_within_rhs_bounds) {
     EXPECT_EQ(bc->get_output_partial_shape(0), ov::PartialShape({{0, 1}}));
 }
 
-TEST_F(TypePropEqualV1Test, rhs_upper_bound_within_rhs_bounds) {
+TEST_F(TypePropEqualV1Test, rhs_upper_bound_within_lhs_bounds) {
     constexpr auto et = ov::element::i32;
 
     const auto lhs = std::make_shared<Parameter>(et, ov::PartialShape{{0, -1}});
