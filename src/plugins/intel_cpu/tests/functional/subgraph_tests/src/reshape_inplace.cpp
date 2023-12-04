@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph/runtime/aligned_buffer.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 // Subgraph:
 /*
  *         params[0]   params[1]
@@ -50,8 +47,8 @@ protected:
         auto c = ngraph::builder::makeConstant<float>(rtPrc, {}, {1.0f});
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(c, shape);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, params[1], false);
-        ov::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape->output(0))};
-        function = std::make_shared<ngraph::Function>(results, params, "reshape_check");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape->output(0))};
+        function = std::make_shared<ov::Model>(results, params, "reshape_check");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
@@ -94,4 +91,6 @@ TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantChec
 
     run();
 }
-}  // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov
