@@ -1,6 +1,6 @@
 .. {#pot_introduction}
 
-(Deprecated) Post-training Quantization with POT
+[Deprecated] Post-training Quantization with POT
 ================================================
 
 
@@ -20,7 +20,7 @@
 
 
 
-.. note:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** 
 which supports the **uniform integer quantization** method. This method allows moving from floating-point precision 
