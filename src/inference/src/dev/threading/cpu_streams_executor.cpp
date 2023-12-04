@@ -186,8 +186,7 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto stream_id = _impl->_config._streams > 0 ? _streamId % _impl->_config._streams : 0;
-
+            const auto stream_id = _impl->_config._streams == 0 ? 0 : _streamId % _impl->_config._streams;
             get_cur_stream_info(stream_id,
                                 _impl->_config._cpu_reservation,
                                 org_proc_type_table,

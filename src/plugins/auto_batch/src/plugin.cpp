@@ -77,7 +77,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
     if (it == full_properties.end())
         OPENVINO_THROW("Value for ov::device::priorities is not set");
 
-    auto val = it->second.as<std::string>();
+    auto& val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     full_properties.erase(it);
     return get_core()->create_context(metaDevice.device_name, full_properties);
@@ -308,7 +308,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 auto& rt_info = input.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     rt_info["ie_legacy_td"] =
                         InferenceEngine::TensorDesc(td.getPrecision(), input.get_shape(), td.getLayout());
                 }
@@ -318,7 +318,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 auto& rt_info = output.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     rt_info["ie_legacy_td"] =
                         InferenceEngine::TensorDesc(td.getPrecision(), output.get_shape(), td.getLayout());
                 }
