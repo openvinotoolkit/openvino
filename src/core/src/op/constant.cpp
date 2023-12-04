@@ -44,12 +44,23 @@ std::string to_cpp_string(T value) {
     }
 }
 
-std::vector<double> from_string_vector(const std::vector<std::string>& str_values) {
-    std::vector<double> values;
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T str_to_value(const std::string& s, size_t* pos) {
+    return static_cast<T>(std::is_signed<T>::value ? std::stoll(s, pos) : std::stoull(s, pos));
+}
+
+template <class T, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
+T str_to_value(const std::string& s, size_t* pos) {
+    return static_cast<T>(std::stod(s, pos));
+}
+
+template <class T>
+std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
+    std::vector<T> values;
     values.reserve(str_values.size());
     std::transform(str_values.cbegin(), str_values.cend(), std::back_inserter(values), [](const std::string& s) {
         size_t pos;
-        auto v = std::stold(s, &pos);
+        auto v = str_to_value<T>(s, &pos);
         OPENVINO_ASSERT(s.size() == pos, "Could not parse literal '", s, "'");
         return v;
     });
@@ -97,33 +108,30 @@ Constant::Constant(const Tensor& tensor)
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
     : Constant(false, type, shape) {
+    const auto this_shape_size = shape_size(m_shape);
+    const auto values_size = values.size();
+    const auto has_single_value = (values_size == 1);
     NODE_VALIDATION_CHECK(this,
-                          values.size() == 1 || values.size() == shape_size(m_shape),
+                          has_single_value || values_size == this_shape_size,
                           "Did not get the expected number of literals for a constant of shape ",
                           m_shape,
                           " (got ",
-                          values.size(),
+                          values_size,
                           ", expected ",
-                          (shape_size(m_shape) == 1 ? "" : "1 or "),
-                          shape_size(m_shape),
+                          (this_shape_size == 1 ? "" : "1 or "),
+                          this_shape_size,
                           ").");
+    const auto is_checked_and_identical = has_single_value && (this_shape_size != 1);
 
     if (type == element::string) {
-        if (values.size() == 1) {
-            fill_data(type, values.front());
-        } else {
-            write_values(values);
-        }
+        fill_or_write(is_checked_and_identical, type, values);
+    } else if (type.is_real()) {
+        fill_or_write(is_checked_and_identical, type, from_string_vector<double>(values));
+    } else if (type.is_signed()) {
+        fill_or_write(is_checked_and_identical, type, from_string_vector<int64_t>(values));
     } else {
-        auto parsed_values = from_string_vector(values);
-        if (parsed_values.size() == 1) {
-            fill_data(type, parsed_values.front());
-        } else {
-            write_values(parsed_values);
-        }
+        fill_or_write(is_checked_and_identical, type, from_string_vector<uint64_t>(values));
     }
-    const auto is_checked_and_identical = (values.size() == 1) && (shape_size(m_shape) != 1);
-    update_identical_flags(is_checked_and_identical, is_checked_and_identical);
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape) : Constant(true, type, shape) {}
@@ -385,10 +393,11 @@ bool Constant::evaluate(TensorVector& outputs, const TensorVector& inputs) const
         outputs.emplace_back(m_element_type, m_shape);
     else
         outputs[0].set_shape(m_shape);
+
     if (m_element_type == ov::element::string) {
         auto num_elements = shape_size(m_shape);
-        const std::string* src_strings = static_cast<const std::string*>(get_data_ptr());
-        std::string* dst_strings = static_cast<std::string*>(outputs[0].data());
+        auto src_strings = static_cast<const std::string*>(get_data_ptr());
+        auto dst_strings = static_cast<std::string*>(outputs[0].data());
         std::copy_n(src_strings, num_elements, dst_strings);
     } else {
         std::memcpy(outputs[0].data(), get_data_ptr(), outputs[0].get_byte_size());
