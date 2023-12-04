@@ -18,11 +18,11 @@ namespace frontend {
 /// \param mean Mean of the distribution
 /// \param scale Standard deviation of the distribution
 /// \param seed Seed for the random number generator
-FRONTEND_API std::pair<OutputVector, NodeVector>  make_random_normal(const Output<Node>& sizes,
-                                                       element::Type target_type,
-                                                       const Output<Node>& mean_const,
-                                                       const Output<Node>& scale_const,
-                                                       float seed);
+FRONTEND_API std::pair<OutputVector, NodeVector> make_random_normal(const Output<Node>& sizes,
+                                                                    element::Type target_type,
+                                                                    const Output<Node>& mean_const,
+                                                                    const Output<Node>& scale_const,
+                                                                    float seed);
 
 }  // namespace frontend
 }  // namespace ov

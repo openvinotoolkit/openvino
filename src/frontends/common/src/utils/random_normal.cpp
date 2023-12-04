@@ -3,11 +3,13 @@
 //
 
 #include "openvino/frontend/utils/random_normal.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+
 #include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #define _USE_MATH_DEFINES
+#include <cmath>
 
 namespace default_opset = ov::opset12;
 
@@ -15,11 +17,10 @@ namespace ov {
 namespace frontend {
 
 std::pair<OutputVector, NodeVector> make_random_normal(const Output<Node>& sizes,
-                                element::Type target_type,
-                                const Output<Node>& mean_const,
-                                const Output<Node>& scale_const,
-                                float seed) {
-
+                                                       element::Type target_type,
+                                                       const Output<Node>& mean_const,
+                                                       const Output<Node>& scale_const,
+                                                       float seed) {
     // We start by generating two random series from a uniform distribution
     const uint64_t global_seed = 0;
 

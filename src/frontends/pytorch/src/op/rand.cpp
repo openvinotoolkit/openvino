@@ -4,6 +4,7 @@
 #include <random>
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/utils/random_normal.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -17,7 +18,6 @@
 #include "pt_framework_node.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils.hpp"
-#include "openvino/frontend/utils/random_normal.hpp"
 
 namespace ov {
 namespace frontend {
@@ -38,7 +38,7 @@ OutputVector make_random_normal(const NodeContext& context,
     float seed = distrib(gen);
 
     auto res_pair = ov::frontend::make_random_normal(sizes, target_type, mean_const, scale_const, seed);
-    for (const auto& node: res_pair.second) {
+    for (const auto& node : res_pair.second) {
         context.mark_node(node);
     }
     return res_pair.first;
@@ -199,11 +199,10 @@ OutputVector translate_randn(const NodeContext& context) {
     float seed = distrib(gen);
 
     auto res_pair = ov::frontend::make_random_normal(sizes, dtype, mean, scale, seed);
-    for (const auto& node: res_pair.second) {
+    for (const auto& node : res_pair.second) {
         context.mark_node(node);
     }
     auto res = res_pair.first;
-//    auto res = make_random_normal(context, sizes, dtype, scale, mean);
 
     if (!dtype_applied) {
         res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
