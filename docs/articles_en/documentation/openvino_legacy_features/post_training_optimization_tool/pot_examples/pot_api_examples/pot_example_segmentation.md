@@ -1,4 +1,13 @@
+<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool/pot_examples/pot_api_examples/pot_example_segmentation.md
 # Quantizing Semantic Segmentation Model {#pot_example_segmentation_README}
+=======
+.. {#pot_example_segmentation_README}
+
+[Deprecated] Quantizing Semantic Segmentation Model
+=============================================================
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
+>>>>>>> f09d0284e9 (add note to pot):docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool/pot_examples/pot_api_examples/pot_example_segmentation.rst
 
 @sphinxdirective
 
