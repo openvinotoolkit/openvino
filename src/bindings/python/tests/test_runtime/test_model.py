@@ -23,8 +23,9 @@ from openvino import (
     serialize,
 )
 from openvino.runtime import Output
+from openvino.runtime.op.util import VariableInfo, Variable
 
-from tests.utils.helpers import generate_add_model, create_filename_for_test
+from tests.utils.helpers import generate_add_model, generate_model_with_memory, create_filename_for_test
 
 
 def test_descriptor_tensor():
@@ -547,3 +548,21 @@ def test_model_get_raw_address():
 
     assert model._get_raw_address() == model_with_same_addr._get_raw_address()
     assert model._get_raw_address() != model_different._get_raw_address()
+
+
+def test_model_add_remove_variable():
+    model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    assert len(model.get_variables()) == 1
+    model.add_variables([variable_1])
+    assert len(model.get_variables()) == 2
+    variable_by_id = model.get_variable_by_id("var_id_667")
+    assert variable_by_id.info.variable_id == "var_id_667"
+    model.remove_variable(variable_1)
+    assert len(model.get_variables()) == 1
