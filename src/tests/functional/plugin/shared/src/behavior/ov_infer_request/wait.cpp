@@ -17,6 +17,10 @@ void OVInferRequestWaitTests::SetUp() {
     output = execNet.output();
 }
 
+std::string OVInferRequestWaitTests::getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+    return OVInferRequestTests::getTestCaseName(obj);
+}
+
 void OVInferRequestWaitTests::TearDown() {
     req = {};
     input = {};
