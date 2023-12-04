@@ -319,6 +319,10 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         const auto& type_info = op->get_type_info();
         auto version_info = std::string(type_info.get_version());
         auto type = version_info + "::" + type_info.name;
+        auto& rt_info = op->get_rt_info();
+        if (rt_info.count("opset") && rt_info["opset"] == "type_relaxed_opset") {
+            type = std::string("ov::op::TypeRelaxed<") + type + ">";
+        }
         auto name = opname[op.get()];
         os << prefix << "    ";
 
