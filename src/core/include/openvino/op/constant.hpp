@@ -70,19 +70,22 @@ public:
     template <typename T>
     Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
         : Constant(false, type, shape) {
+        const auto this_shape_size = shape_size(m_shape);
+        const auto values_size = values.size();
+        const auto has_single_value = (values_size == 1);
         NODE_VALIDATION_CHECK(this,
-                              values.size() == 1 || values.size() == shape_size(m_shape),
+                              has_single_value || values_size == this_shape_size,
                               "Did not get the expected number of literals for a constant of shape ",
                               m_shape,
                               " (got ",
-                              values.size(),
+                              values_size,
                               ", expected ",
-                              (shape_size(m_shape) == 1 ? "" : "1 or "),
-                              shape_size(m_shape),
+                              (this_shape_size == 1 ? "" : "1 or "),
+                              this_shape_size,
                               ").");
 
-        if (values.size() == 1) {
-            fill_data(type, values.front());
+        if (has_single_value) {
+            fill_data(type, values[0]);
         } else {
             write_values(values);
         }
@@ -890,6 +893,16 @@ private:
 #    pragma GCC diagnostic pop
 #endif
     }
+
+    template <class T>
+    void fill_or_write(const bool fill, const element::Type& et, const std::vector<T>& values) {
+        if (fill) {
+            fill_data(et, values[0]);
+        } else {
+            write_values(values);
+        }
+    }
+
     template <ov::element::Type_t Type,
               typename ValueT,
               typename std::enable_if<Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::u4 ||
