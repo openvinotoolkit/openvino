@@ -925,21 +925,21 @@ public:
 
     void allocateHost(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_host(nullptr, size, 0, &error));
+        _allocate(_usmHelper.allocate_host(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmHost in cl extensions constructor failed");
     }
 
     void allocateShared(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_shared(nullptr, size, 0, &error));
+        _allocate(_usmHelper.allocate_shared(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmShared in cl extensions constructor failed");
     }
 
     void allocateDevice(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_device(nullptr, size, 0, &error));
+        _allocate(_usmHelper.allocate_device(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
     }
