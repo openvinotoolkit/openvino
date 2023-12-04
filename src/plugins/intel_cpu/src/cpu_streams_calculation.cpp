@@ -161,7 +161,6 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     (latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM)) ||
                    (proc_type_table.size() == 1) || ((input_streams_changed == true) && (input_streams == 1))) {
             n_streams = 1;
-            n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
             if ((proc_type_table.size() == 1) && (model_prefer_threads > 0)) {
                 stream_info[NUMBER_OF_STREAMS] = n_streams;
                 if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
