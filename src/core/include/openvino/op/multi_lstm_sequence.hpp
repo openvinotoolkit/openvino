@@ -77,6 +77,6 @@ private:
     direction m_direction{direction::FORWARD};
     LSTMWeightsFormat m_weights_format;
 };
-}  // namespace v5
+}  // namespace v13
 }  // namespace op
 }  // namespace ov

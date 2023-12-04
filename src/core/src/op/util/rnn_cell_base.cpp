@@ -111,6 +111,8 @@ ov::op::util::RNNMultiCellBase::RNNMultiCellBase(const OutputVector& args,
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta) {}
 
+ov::op::util::RNNMultiCellBase::RNNMultiCellBase() : m_hidden_size(0), m_clip(0.f) {}
+
 bool ov::op::util::RNNMultiCellBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_RNNMultiCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);

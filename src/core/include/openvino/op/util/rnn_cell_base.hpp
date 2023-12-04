@@ -202,7 +202,7 @@ public:
                 const std::vector<float>& activations_beta);
 
     RNNMultiCellBase();
-    ~RNNMultiCellBase() override = default;
+    //~RNNMultiCellBase() override = default;
 
     ///
     /// \brief      Validates static rank and dimension for provided input parameters.
