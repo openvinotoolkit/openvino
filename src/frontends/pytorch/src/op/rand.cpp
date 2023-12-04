@@ -17,6 +17,7 @@
 #include "pt_framework_node.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils.hpp"
+#include "openvino/frontend/utils/random_normal.hpp"
 
 namespace ov {
 namespace frontend {
@@ -33,42 +34,14 @@ OutputVector make_random_normal(const NodeContext& context,
                                 const Output<Node>& mean_const) {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint64_t> distrib(0, 9999);
+    std::uniform_real_distribution<float> distrib(0.0f, 9999.0f);
+    float seed = distrib(gen);
 
-    const uint64_t global_seed = 0;
-
-    const uint64_t seed_1 = distrib(gen);
-    const uint64_t seed_2 = distrib(gen);
-
-    auto min_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {std::numeric_limits<float>::min()}));
-    auto max_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {1}));
-
-    auto uniform_1 = context.mark_node(
-        std::make_shared<v8::RandomUniform>(sizes, min_val, max_val, target_type, global_seed, seed_1));
-    auto uniform_2 = context.mark_node(
-        std::make_shared<v8::RandomUniform>(sizes, min_val, max_val, target_type, global_seed, seed_2));
-
-    // Compute Box–Muller transform
-    // random_normal = scale * ng.sqrt(-2.0 * ng.log(uniform_1)) * ng.cos(2.0 * np.pi * uniform_2) + mean
-    auto pi = context.mark_node(v0::Constant::create(target_type, Shape{1}, {3.141592653589793}));
-    auto minus_two = context.mark_node(v0::Constant::create(target_type, Shape{1}, {-2.0}));
-    auto two = context.mark_node(v0::Constant::create(target_type, Shape{1}, {2.0}));
-
-    auto log = context.mark_node(std::make_shared<v0::Log>(uniform_1));
-    auto multiply_minus_two_log = context.mark_node(std::make_shared<v1::Multiply>(log, minus_two));
-    auto sqrt = context.mark_node(std::make_shared<v0::Sqrt>(multiply_minus_two_log));
-
-    auto multiply_pi_uniform2 = context.mark_node(std::make_shared<v1::Multiply>(uniform_2, pi));
-    auto multiply_two_pi_uniform_2 = context.mark_node(std::make_shared<v1::Multiply>(multiply_pi_uniform2, two));
-    auto cos = context.mark_node(std::make_shared<v0::Cos>(multiply_two_pi_uniform_2));
-
-    auto sqrt_x_cos = context.mark_node(std::make_shared<v1::Multiply>(sqrt, cos));
-    auto product = context.mark_node(std::make_shared<v1::Multiply>(scale_const, sqrt_x_cos));
-    auto sum = context.mark_node(std::make_shared<v1::Add>(product, mean_const));
-    // if we don't disable downcasting then log(float32_min) gives -inf
-    disable_fp16_compression(uniform_1);
-    disable_fp16_compression(log);
-    return {sum};
+    auto res_pair = ov::frontend::make_random_normal(sizes, target_type, mean_const, scale_const, seed);
+    for (const auto& node: res_pair.second) {
+        context.mark_node(node);
+    }
+    return res_pair.first;
 }
 };  // namespace
 
@@ -219,7 +192,19 @@ OutputVector translate_randn(const NodeContext& context) {
     }
     auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
     auto mean = context.mark_node(v0::Constant::create(dtype, Shape{1}, {0}));
-    auto res = make_random_normal(context, sizes, dtype, scale, mean);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> distrib(0.0f, 9999.0f);
+    float seed = distrib(gen);
+
+    auto res_pair = ov::frontend::make_random_normal(sizes, dtype, mean, scale, seed);
+    for (const auto& node: res_pair.second) {
+        context.mark_node(node);
+    }
+    auto res = res_pair.first;
+//    auto res = make_random_normal(context, sizes, dtype, scale, mean);
+
     if (!dtype_applied) {
         res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
     }

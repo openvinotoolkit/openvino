@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/random_normal.hpp"
+#include "openvino/frontend/utils/random_normal.hpp"
 
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/common.hpp"
+#include "openvino/op/constant.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -23,11 +24,14 @@ OutputVector random_normal(const Node& node) {
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
-    const auto seed = node.get_attribute_value<float>("seed", 0);
+    auto scale_node = ov::op::v0::Constant::create(target_type, Shape{1}, {scale});
+    auto mean_node = ov::op::v0::Constant::create(target_type, Shape{1}, {mean});
 
+    const auto seed = node.get_attribute_value<float>("seed", 0);
     const auto shape = node.get_attribute_as_constant<std::vector<int64_t>>("shape");
 
-    return detail::make_random_normal(shape, target_type, mean, scale, seed);
+    auto res = ov::frontend::make_random_normal(shape, target_type, mean_node, scale_node, seed);
+    return res.first;
 }
 
 }  // namespace set_1

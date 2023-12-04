@@ -6,10 +6,10 @@
 
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/output_vector.hpp"
+#include "openvino/frontend/visibility.hpp"
 
-namespace ngraph {
-namespace onnx_import {
-namespace detail {
+namespace ov {
+namespace frontend {
 
 /// \brief Creates a random normal tensor with the given shape and type.
 /// \details Uses Box-Mueller algorithm to generate random numbers from a Gauassian distribution
@@ -18,12 +18,11 @@ namespace detail {
 /// \param mean Mean of the distribution
 /// \param scale Standard deviation of the distribution
 /// \param seed Seed for the random number generator
-OutputVector make_random_normal(const Output<ngraph::Node>& shape,
-                                element::Type type,
-                                float mean,
-                                float scale,
-                                float seed);
+FRONTEND_API std::pair<OutputVector, NodeVector>  make_random_normal(const Output<Node>& sizes,
+                                                       element::Type target_type,
+                                                       const Output<Node>& mean_const,
+                                                       const Output<Node>& scale_const,
+                                                       float seed);
 
-}  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace frontend
+}  // namespace ov
