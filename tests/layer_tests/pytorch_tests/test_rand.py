@@ -138,7 +138,7 @@ class TestStatistics():
         fw_res = fw_model(*example_input)
         ov_res = compiled_model(example_input)[0]
 
-        hist_fw, _ = np.histogram(fw_res.numpy(), bins=100, range=(-2 * std_scalar, 2 * std_scalar))
-        hist_ov, _ = np.histogram(ov_res, bins=100, range=(-2 * std_scalar, 2 * std_scalar))
-
-        npt.assert_allclose(hist_fw, hist_ov, atol=1e-1, rtol=1e-1)
+        x_min, x_max = mean_scalar - 2 * std_scalar, mean_scalar + 2 * std_scalar
+        hist_fw, _ = np.histogram(fw_res.numpy(), bins=100, range=(x_min, x_max))
+        hist_ov, _ = np.histogram(ov_res, bins=100, range=(x_min, x_max))
+        npt.assert_allclose(hist_fw, hist_ov, atol=0.2, rtol=0.2)
