@@ -1,7 +1,9 @@
 .. {#pot_compression_algorithms_quantization_default_README}
 
-DefaultQuantization Parameters
-==============================
+[Deprecated] DefaultQuantization Parameters
+========================================================
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 
 The DefaultQuantization Algorithm is designed to perform fast and accurate quantization. It does not offer direct control over the accuracy metric itself but provides many options that can be used to improve it.

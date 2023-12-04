@@ -1,7 +1,7 @@
 .. {#pot_compression_cli_README}
 
-Use Post-Training Optimization Tool Command-Line Interface (Model Zoo flow)
-===========================================================================
+[Deprecated] Use Post-Training Optimization Tool Command-Line Interface (Model Zoo flow)
+====================================================================================================
 
 
 .. toctree::
@@ -9,9 +9,10 @@ Use Post-Training Optimization Tool Command-Line Interface (Model Zoo flow)
    :hidden:
 
    Simplified Mode <pot_docs_simplified_mode>
-   pot_configs_README
+   Configuration File Description  <pot_configs_README>
 
 
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 Introduction
 ####################

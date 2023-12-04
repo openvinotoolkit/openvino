@@ -1,7 +1,9 @@
 .. {#pot_configs_README}
 
-Configuration File Description
-==============================
+[Deprecated] Configuration File Description
+==============================================
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 
 The tool is designed to work with the configuration file where all the parameters required for the optimization are specified. These parameters are organized as a dictionary and stored in
