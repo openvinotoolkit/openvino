@@ -26,6 +26,7 @@ OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_add_);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_alias_copy);
 OP_CONVERTER(translate_all);
 OP_CONVERTER(translate_amax);
 OP_CONVERTER(translate_amin);
@@ -54,6 +55,7 @@ OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_copy_);
+OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_derive_index);
@@ -97,6 +99,7 @@ OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
+OP_CONVERTER(translate_linalg_cross);
 OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
@@ -130,6 +133,8 @@ OP_CONVERTER(translate_new_zeros);
 OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
+OP_CONVERTER(translate_normal);
+OP_CONVERTER(translate_normal_);
 OP_CONVERTER(translate_not);
 OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_one_hot);
@@ -265,6 +270,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::add_", op::translate_add_},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
+        {"aten::alias", op::skip_node},
+        {"aten::alias_copy", op::translate_alias_copy},
         {"aten::all", op::translate_all},
         {"aten::amax", op::translate_amax},
         {"aten::amin", op::translate_amin},
@@ -322,6 +329,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
+        {"aten::cross", op::translate_cross},
         {"aten::cumsum", op::translate_cumsum},
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
@@ -389,6 +397,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::lift", op::skip_node},
         {"aten::lift_fresh", op::skip_node},
         {"aten::lift_fresh_copy", op::skip_node},
+        {"aten::linalg_cross", op::translate_linalg_cross},
         {"aten::linalg_norm", op::translate_linalg_norm},
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
         {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
@@ -440,6 +449,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::new_zeros", op::translate_new_zeros},
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
+        {"aten::normal", op::translate_normal},
+        {"aten::normal_", op::translate_normal_},
         {"aten::numel", op::translate_numel},
         {"aten::numpy_T", op::translate_t},
         {"aten::one_hot", op::translate_one_hot},
@@ -470,6 +481,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
+        // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
+        // when complex dtype will be supported
+        // for real dtypes, these operations return input tensor without changes and can be skipped
+        {"aten::resolve_conj", op::skip_node},
+        {"aten::resolve_neg", op::skip_node},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::translate_rsqrt},
@@ -495,6 +511,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
+        {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
         {"aten::sqrt", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten::square", op::translate_square},

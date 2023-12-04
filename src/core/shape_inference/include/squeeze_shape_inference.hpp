@@ -40,12 +40,10 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         unique_axes.reset(new std::set<int64_t>());
     } else if (number_of_inputs == 2) {
         const auto& axes_shape = input_shapes[1];
-        OPENVINO_SUPPRESS_DEPRECATED_START
         NODE_VALIDATION_CHECK(op,
-                              axes_shape.is_dynamic() || is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
+                              axes_shape.is_dynamic() || ov::util::is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
                               "Second input (axes) should not be of rank higher than 1. Got: ",
                               axes_shape.rank().get_length());
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<int64_t> axes;
         if (arg_rank.is_static() && axes_shape.is_static()) {
