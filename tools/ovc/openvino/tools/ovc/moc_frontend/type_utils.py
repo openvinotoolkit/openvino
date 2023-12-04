@@ -3,9 +3,8 @@
 
 import sys
 
-from openvino.runtime import Type
-
 import openvino as ov
+from openvino.runtime import Type
 
 
 def is_type(val):
@@ -78,4 +77,3 @@ def to_ov_type(val):
 
             return paddle_to_ov_type[val]
     raise Exception("Unexpected type object. Expected ov.Type, np.dtype, tf.dtypes.DType. Got {}".format(type(val)))
-
