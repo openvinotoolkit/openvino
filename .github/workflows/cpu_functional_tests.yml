@@ -55,6 +55,7 @@ jobs:
           pushd $INSTALL_DIR
             tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
           popd
+          
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
@@ -85,9 +86,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-tests-functional-cpu-stamp
+            ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp
 
       - name: Intel CPU plugin func tests (parallel)
         run: |
@@ -107,7 +108,7 @@ jobs:
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
