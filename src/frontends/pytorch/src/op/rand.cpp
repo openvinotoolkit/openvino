@@ -37,11 +37,10 @@ OutputVector make_random_normal(const NodeContext& context,
     std::uniform_real_distribution<float> distrib(0.0f, 9999.0f);
     float seed = distrib(gen);
 
-    auto res_pair = ov::frontend::make_random_normal(sizes, target_type, mean_const, scale_const, seed);
-    for (const auto& node : res_pair.second) {
-        context.mark_node(node);
-    }
-    return res_pair.first;
+    pass::NodeRegistry registry;
+    auto res = ov::frontend::make_random_normal(registry, sizes, target_type, mean_const, scale_const, seed);
+    context.mark_nodes(registry.get());
+    return res;
 }
 };  // namespace
 

@@ -29,7 +29,6 @@ OutputVector random_normal(const Node& node) {
 
     const auto seed = node.get_attribute_value<float>("seed", 0);
     const auto shape = node.get_attribute_as_constant<std::vector<int64_t>>("shape");
-
     auto res = ov::frontend::make_random_normal(shape, target_type, mean_node, scale_node, seed);
     return res.first;
 }
