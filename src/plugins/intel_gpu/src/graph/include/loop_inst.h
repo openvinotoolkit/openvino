@@ -271,7 +271,8 @@ private:
 
 private:
         void validate_backedge_memory() {
-            if (from_mem) {
+            bool is_dynamic = (from_primitive->is_dynamic() || to_primitive->is_dynamic());
+            if (!is_dynamic && from_mem) {
                 const size_t from_mem_bytes = from_mem->get_layout().bytes_count();
                 OPENVINO_ASSERT((from_mem_bytes == total_bytes), "Invalid backedge memory layout: size(",
                         from_mem_bytes, ",", from_mem->get_layout().to_short_string(),
@@ -317,8 +318,6 @@ public:
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
 
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
     void validate_backedges(loop_node const & node) const;
 
     void update_shape() override { primitive_inst::update_shape(); }

@@ -32,6 +32,14 @@ inputs:
     description: "Path to labeler configuration file"
     required: false
     default: ".github/labeler.yml"
+  skip_when_only_listed_labels_set:
+    description: "Comma-separated list of labels. If PR has only these labels set, 
+                  return indicator that CI can be skipped"
+    required: false
+  skip_when_only_listed_files_changed:
+    description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, 
+                  return indicator that CI can be skipped"
+    required: false
 
 outputs:
   all_components:
@@ -40,6 +48,9 @@ outputs:
   affected_components:
     description: "Affected components to run validation for and their validation scope"
     value: ${{ steps.smart_ci.outputs.affected_components }}
+  skip_workflow:
+    description: "Whether the workflow should be run with Smart CI rules applied or skipped completely"
+    value: ${{ steps.smart_ci.outputs.skip_workflow }}
 
 runs:
   using: "composite"
@@ -80,7 +91,9 @@ runs:
           -p "${{ inputs.component_pattern }}" \
           -c "${{ inputs.components_config }}" \
           -m "${{ inputs.components_config_schema }}" \
-          -l "${{ inputs.labeler_config }}"
+          -l "${{ inputs.labeler_config }}" \
+          --skip-when-only-listed-labels-set "${{ inputs.skip_when_only_listed_labels_set }}" \
+          --skip-when-only-listed-files-changed "${{ inputs.skip_when_only_listed_files_changed }}"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }}

@@ -22,13 +22,11 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
     const auto& updates_shape = input_shapes[2];
     const auto& axis_shape = input_shapes[3];
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(axis_shape.rank(), {0, 1}),
+                          ov::util::is_rank_compatible_any_of(axis_shape.rank(), {0, 1}),
                           "Axis input shape are required to be scalar or 1D tensor. ",
                           "Got: ",
                           axis_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& data_rank = data_shape.rank();
     const auto& indices_rank = indices_shape.rank();

@@ -849,8 +849,10 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     }
 
     if (minSize > internalBlobs.size()) {
-        IE_THROW() << "Can't prepare memory for internal blob, requested index: " << indx <<
-            " is out of bounds of the internalBlobs vector of size " << internalBlobs.size();
+        OPENVINO_THROW("Can't prepare memory for internal blob, requested index: ",
+                       indx,
+                       " is out of bounds of the internalBlobs vector of size ",
+                       internalBlobs.size());
     }
 
     const auto &internalBlob = internalBlobs[indx];
@@ -1671,7 +1673,7 @@ void Node::updateLastInputDims() {
     }
 
     for (size_t i = 0; i < lastInputDims.size(); i++)
-        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().getDims();
 }
 
 bool Node::canFuseSimpleOperation(const NodePtr& node) const {

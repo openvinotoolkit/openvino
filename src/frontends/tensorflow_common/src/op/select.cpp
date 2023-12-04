@@ -2,12 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/select.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -18,7 +26,7 @@ OutputVector translate_select_base_op(const NodeContext& node,
                                       const Output<Node>& x,
                                       const Output<Node>& y) {
     // at this point all inputs are NumPy broadcastable
-    auto select = make_shared<opset10::Select>(condition, x, y);
+    auto select = make_shared<v1::Select>(condition, x, y);
     set_node_name(node.get_name(), select);
     return {select};
 }
@@ -54,21 +62,21 @@ OutputVector translate_select_op(const NodeContext& node) {
     // compute number of dimensions to unsqueeze the condition
     auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
-    auto num_new_axes = make_shared<Subtract>(x_rank, cond_rank);
+    auto num_new_axes = make_shared<v1::Subtract>(x_rank, cond_rank);
 
     // generate a new shape for the condition
-    auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
-    auto new_subshape = make_shared<Broadcast>(const_one, num_new_axes);
-    auto cond_shape = make_shared<ShapeOf>(condition, element::i32);
+    auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto new_subshape = make_shared<v3::Broadcast>(const_one, num_new_axes);
+    auto cond_shape = make_shared<v3::ShapeOf>(condition, element::i32);
     // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
-    auto const_1 = make_shared<Constant>(element::i32, Shape{1}, 1);
-    auto new_cond_shape = make_shared<Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
+    auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
 
     // prepare the condition to have the same rank as operands `x` and `y`
-    auto prep_cond = make_shared<Reshape>(condition, new_cond_shape, false)->output(0);
+    auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
     // squeeze prep_cond by one extra dimension specially added
-    auto const_0 = make_shared<Constant>(element::i32, Shape{1}, 0);
-    prep_cond = make_shared<Squeeze>(prep_cond, const_0);
+    auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
 
     return translate_select_base_op(node, prep_cond, x, y);
 }

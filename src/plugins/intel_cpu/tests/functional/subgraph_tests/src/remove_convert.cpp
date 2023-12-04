@@ -47,16 +47,15 @@ public:
         auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
         auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
         auto stride = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
-        auto slice = builder::makeStridedSlice(convert,
-                                               begin,
-                                               end,
-                                               stride,
-                                               element::f32,
-                                               {0, 0, 0, 0},
-                                               {1, 1, 0, 1},
-                                               {},
-                                               {},
-                                               {});
+        auto slice = std::make_shared<ov::op::v1::StridedSlice>(convert,
+                                                                begin,
+                                                                end,
+                                                                stride,
+                                                                std::vector<int64_t>{0, 0, 0, 0},
+                                                                std::vector<int64_t>{1, 1, 0, 1},
+                                                                std::vector<int64_t>{},
+                                                                std::vector<int64_t>{},
+                                                                std::vector<int64_t>{});
         auto convert2 = std::make_shared<ov::op::v0::Convert>(slice, inType);
         function = std::make_shared<ov::Model>(convert2, ov::ParameterVector{input_params}, "remove_convert");
     };

@@ -60,15 +60,15 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
         opsStats.insert({op, PassRate()});
     }
     auto& passrate = opsStats[op];
-    if (isCrashReported) {
-        isCrashReported = false;
+    if (passrate.isCrashReported) {
+        passrate.isCrashReported = false;
         if (passrate.crashed > 0)
             passrate.crashed--;
     } else {
         passrate.rel_all += rel_influence_coef;
     }
-    if (isHangReported) {
-        isHangReported = false;
+    if (passrate.isHangReported) {
+        passrate.isHangReported = false;
         return;
     }
     switch (status) {
@@ -87,12 +87,12 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
         break;
     case PassRate::CRASHED: {
         passrate.crashed++;
-        isCrashReported = true;
+        passrate.isCrashReported = true;
         break;
     }
     case PassRate::HANGED: {
         passrate.hanged++;
-        isHangReported = true;
+        passrate.isHangReported = true;
         break;
     }
     }

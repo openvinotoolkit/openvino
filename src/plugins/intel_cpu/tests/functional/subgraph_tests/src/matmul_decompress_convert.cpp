@@ -136,14 +136,14 @@ public:
 protected:
     template<typename T>
     void transposeShape(T& shape) {
-        IE_ASSERT(shape.size() > 1);
+        OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
     void CheckFCWeightsPrecision(ElementType expectedWeiElemType) const {
         auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
@@ -379,11 +379,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
 
 } // namespace
 
-
-/* In case of Convert has 2 or more consumers there is a problem with memory allocation in CPU plug-in (see Edge::init() method).
-   Maybe we can just remove the check (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) and everything will be OK,
-   But this solution should be additionally checked. For now, for these cases we will not be doing CF on the CPU side and it should be done
-   on the ngraph side.
+/* In case of Convert has 2 or more consumers there is a problem with memory allocation in CPU plug-in (see Edge::init()
+ method). Maybe we can just remove the check (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant())
+ and everything will be OK, But this solution should be additionally checked. For now, for these cases we will not be
+ doing CF on the CPU side and it should be done on the ngraph side.
 
  * Graph before:
    ------------              ------------            ------------
@@ -398,9 +397,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
     |       MatMul        |               |       MatMul        |
     -----------------------               -----------------------
                       |                       |
-                   --------------------------------- 
-                   |             Concat            | 
-                   --------------------------------- 
+                   ---------------------------------
+                   |             Concat            |
+                   ---------------------------------
                                    |
                                 --------
                                 |Output|
@@ -415,9 +414,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
     |       MatMul        |               |       MatMul        |
     -----------------------               -----------------------
                       |                       |
-                   --------------------------------- 
-                   |             Concat            | 
-                   --------------------------------- 
+                   ---------------------------------
+                   |             Concat            |
+                   ---------------------------------
                                    |
                                 --------
                                 |Output|

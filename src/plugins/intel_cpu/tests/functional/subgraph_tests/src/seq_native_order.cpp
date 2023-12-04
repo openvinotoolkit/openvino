@@ -64,7 +64,7 @@ public:
         } else if (seqType == SEQ_TYPE::RNN) {
             result << "RNN_";
         } else {
-            IE_THROW() << "Unsupported seq type";
+            OPENVINO_THROW("Unsupported seq type");
         }
         result << "hidden_size=" << hidden_size << "_input_size=" << input_size << "_";
         result << "batch_size_dyn=" << bounds[0] << "_seq_length_dyn=" << bounds[1] << "_";
@@ -144,7 +144,7 @@ protected:
         if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(seq_len_shape);
         } else {
-            IE_ASSERT(seq_len_shape.is_static());
+            OPENVINO_ASSERT(seq_len_shape.is_static());
             weightShape.push_back(seq_len_shape.to_shape());
         }
 
@@ -230,7 +230,7 @@ protected:
                                                 ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
                                                 ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else {
-            IE_THROW() << "Unsupported seq type";
+            OPENVINO_THROW("Unsupported seq type");
         }
 
         std::vector<int64_t> order_ref_after = {2, 1, 0, 3};

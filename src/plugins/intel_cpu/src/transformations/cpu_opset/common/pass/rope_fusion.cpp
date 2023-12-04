@@ -291,7 +291,6 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
 
             auto begin = as_type_ptr<opset1::Constant>(inputs[1].get_node_shared_ptr());
             auto end = as_type_ptr<opset1::Constant>(inputs[2].get_node_shared_ptr());
-            // stride is all 1
             auto stride = as_type_ptr<opset1::Constant>(inputs[3].get_node_shared_ptr());
 
             if (!begin)
@@ -301,6 +300,7 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
             if (!stride)
                 return false;
 
+            // stride is all 1
             auto v_stride = stride->cast_vector<int32_t>();
             for (auto& v : v_stride) {
                 if (v != 1)
@@ -309,6 +309,9 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
 
             auto v_begin = begin->cast_vector<int32_t>();
             auto v_end = end->cast_vector<int32_t>();
+            if (v_begin.size() != v_end.size()) {
+                return false;
+            }
 
             auto& begin_mask = s1->get_begin_mask();
             auto& end_mask = s1->get_end_mask();
@@ -318,7 +321,8 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
             }
 
             auto int32_max = std::numeric_limits<std::int32_t>::max();
-            for (size_t i = 0; i < mask_size; i++) {
+            size_t i = 0;
+            for (; i < mask_size; i++) {
                 if (begin_mask[i] != end_mask[i])
                     return false;
                 // all valid [begin, end] are [0, int32_max]
@@ -326,6 +330,11 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
                     if (v_begin[i] != 0 || v_end[i] != int32_max)
                         return false;
                 }
+            }
+            // the non-masked part
+            for (; i < v_begin.size(); i++) {
+                if (v_begin[i] != 0 || v_end[i] != int32_max)
+                    return false;
             }
             return true;
         });

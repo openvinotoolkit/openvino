@@ -46,8 +46,20 @@ namespace {
 template <class A, class B, class C>
 void appendSlices(A&& destVector, B&& src, const int64_t chunkSize, const int64_t totalSize, C precission) {
     for (int64_t start = 0; start < totalSize; start += chunkSize) {
-        using ngraph::builder::makeStridedSlice;
-        destVector.push_back(makeStridedSlice(src, { 0, start }, { 0, start + chunkSize }, { 1, 1 }, precission, { 1, 0 }, { 1, 0 }));
+        ov::Shape constShape = {2};
+        auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{ 0, start });
+        auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{ 0, start + chunkSize });
+        auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{ 1, 1 });
+        auto ssNode = std::make_shared<ov::op::v1::StridedSlice>(src,
+                                                                beginNode,
+                                                                endNode,
+                                                                strideNode,
+                                                                std::vector<int64_t>{ 1, 0 },
+                                                                std::vector<int64_t>{ 1, 0 },
+                                                                std::vector<int64_t>{},
+                                                                std::vector<int64_t>{},
+                                                                std::vector<int64_t>{});
+        destVector.push_back(ssNode);
     }
 }
 } // namespace

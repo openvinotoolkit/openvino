@@ -110,9 +110,9 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
         const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H_t->get_shape(), H_t->get_element_type(), variable_name_H});
         auto variable_C = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            ov::op::util::VariableInfo{C_t->get_shape(), C_t->get_element_type(), variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -196,7 +196,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
 
         const std::string variable_name_H("GRUTensorIterator/Yi/variable");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H_t->get_shape(), H_t->get_element_type(), variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -277,7 +277,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
 
         const std::string variable_name_H("RNNTensorIterator/Yi/variable");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H_t->get_shape(), H_t->get_element_type(), variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -356,9 +356,9 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
         const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H_t->get_shape(), H_t->get_element_type(), variable_name_H});
         auto variable_C = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            ov::op::util::VariableInfo{C_t->get_shape(), C_t->get_element_type(), variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -441,9 +441,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         const std::string variable_name_H("LSTMLoop/H_t/variable_2");
         const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H_t->get_shape(), H_t->get_element_type(), variable_name_H});
         auto variable_C = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            ov::op::util::VariableInfo{C_t->get_shape(), C_t->get_element_type(), variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -522,9 +522,9 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
         const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H->get_shape(), H->get_element_type(), variable_name_H});
         auto variable_C = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            ov::op::util::VariableInfo{C->get_shape(), C->get_element_type(), variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -635,9 +635,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         const std::string variable_name_H("LSTMLoop/H_t/variable_2");
         const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H_t->get_shape(), H_t->get_element_type(), variable_name_H});
         auto variable_C = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            ov::op::util::VariableInfo{C_t->get_shape(), C_t->get_element_type(), variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -716,9 +716,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         const std::string variable_name_H("LSTMLoop/H_t/variable_2");
         const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            ov::op::util::VariableInfo{H->get_shape(), H->get_element_type(), variable_name_H});
         auto variable_C = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            ov::op::util::VariableInfo{C->get_shape(), C->get_element_type(), variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -930,9 +930,9 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto variable_h = make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_0"});
+            ov::op::util::VariableInfo{H->get_shape(), H->get_element_type(), "node_28/variable_0"});
         auto variable_c = make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_1"});
+            ov::op::util::VariableInfo{C->get_shape(), C->get_element_type(), "node_28/variable_1"});
         auto read_val_H = create_read_value(H, variable_h);
         auto read_val_C = create_read_value(C, variable_c);
 

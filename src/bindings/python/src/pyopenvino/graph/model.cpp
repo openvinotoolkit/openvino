@@ -44,7 +44,7 @@ static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::
     ov::SinkVector sinks;
     for (const auto& node : nodes) {
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-        NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
+        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
         sinks.push_back(sink);
     }
     return sinks;
@@ -54,10 +54,34 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
     std::vector<std::shared_ptr<ov::Node>> nodes;
     for (const auto& sink : sinks) {
         auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-        NGRAPH_CHECK(node != nullptr, "Sink {} is not instance of Node");
+        OPENVINO_ASSERT(node != nullptr, "Sink {} is not instance of Node");
         nodes.push_back(node);
     }
     return nodes;
+}
+
+// Assign operations created via Assign py binding have Variables which are not connected to
+// ReadValue operations. This function attempts to resolve this situation by finding correct Variables
+// for Assigns.
+static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model>& model, const ov::SinkVector& sinks) {
+    const auto& variables = model->get_variables();
+    ov::op::util::VariableVector variables_to_delete;
+    for (const auto& sink : sinks) {
+        if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(sink)) {
+            for (const auto& variable : variables) {
+                auto info = variable->get_info();
+                if (assign->get_variable_id() == info.variable_id && variable != assign->get_variable()) {
+                    variables_to_delete.push_back(assign->get_variable());
+                    assign->set_variable(variable);
+                    break;
+                }
+            }
+        }
+    }
+
+    for (const auto& var : variables_to_delete) {
+        model->remove_variable(var);
+    }
 }
 
 void regclass_graph_Model(py::module m) {
@@ -75,12 +99,14 @@ void regclass_graph_Model(py::module m) {
                           const std::string& name) {
                   set_tensor_names(params);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(res, sinks, params, name);
+                  auto model = std::make_shared<ov::Model>(res, sinks, params, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("name"),
+              py::arg("name") = "",
               R"(
                     Create user-defined Model which is a representation of a model.
 
@@ -159,7 +185,9 @@ void regclass_graph_Model(py::module m) {
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -795,7 +823,7 @@ void regclass_graph_Model(py::module m) {
             for (py::handle sink : sinks) {
                 auto sink_cpp =
                     std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
-                NGRAPH_CHECK(sink_cpp != nullptr, "Assign {} is not instance of Sink");
+                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign {} is not instance of Sink");
                 sinks_cpp.push_back(sink_cpp);
             }
             self.add_sinks(sinks_cpp);
