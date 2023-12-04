@@ -14,8 +14,8 @@ class TestAtan2(CommonTFLayerTest):
         y_shape = inputs_info['y']
         x_shape = inputs_info['x']
         inputs_data = {}
-        inputs_data['y'] = np.random.rand(y_shape).astype(self.input_type)
-        inputs_data['x'] = np.random.rand(x_shape).astype(self.input_type)
+        inputs_data['y'] = np.random.rand(*y_shape).astype(self.input_type)
+        inputs_data['x'] = np.random.rand(*x_shape).astype(self.input_type)
         return inputs_data
 
     def create_atan2_net(self, input_shape, input_type):
