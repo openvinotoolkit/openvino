@@ -67,8 +67,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStatic) {
 }
 
 TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionDynamic) {
-    const PartialShape query_key_value_mask_shape{-1, -1, -1};
-    const PartialShape scale_shape{};
+    const PartialShape query_key_value_mask_scale_shape{-1, -1, -1};
 
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
