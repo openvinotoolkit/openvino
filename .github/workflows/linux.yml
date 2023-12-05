@@ -25,7 +25,7 @@ jobs:
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
-      val_cycle: "${{ steps.smart_ci.outputs.val_cycle }}"
+      val_cycle: "${{ steps.val_cycle.outputs.val_cycle }}"
     steps:
       - name: checkout action
         uses: actions/checkout@v4
