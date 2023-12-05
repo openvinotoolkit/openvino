@@ -630,7 +630,6 @@ MemStatePtr MemoryInputSDPA::makeState() const {
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
 
     auto mem_desc = getBaseMemDescAtOutputPort(0);
-    const auto& eng = getEngine();
 
     auto state_name = getId();
 
@@ -640,10 +639,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    auto internal_memory =
-        std::make_shared<Memory>(eng, mem_desc, std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrRealloc>()));
-
-    return std::make_shared<VariableStateKVcache>(state_name, internal_memory, original_desc);
+    return std::make_shared<VariableStateKVcache>(state_name, original_desc);
 }
 
 bool MemoryInputSDPA::isExecutable() const {

@@ -196,12 +196,9 @@ void VariableStateSingleBuffer::commit_impl() {
 }
 
 
-VariableStateKVcache::VariableStateKVcache(const std::string& name,
-    const MemoryPtr& buffer, const MemoryDescPtr& external_desc) : VariableStateBase(name, external_desc) {
-    OPENVINO_ASSERT(buffer);
-    m_internal_mem = buffer;
-    auto desc = m_internal_mem->getDescPtr();
-    auto&& shape = desc->getShape();
+VariableStateKVcache::VariableStateKVcache(const std::string& name, const MemoryDescPtr& external_desc) :
+    VariableStateBase(name, external_desc) {
+    auto&& shape = external_desc->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
@@ -225,16 +222,36 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     }
 
     //2. Reset the beam search table
-    //m_hidden_state =
+    auto&& stateDims = state_desc->getShape().getStaticDims();
+    const size_t size_B = stateDims[axis_B];
+    const size_t size_L = stateDims[axis_L];
+    auto mem_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
+
+    m_hidden_state = std::make_shared<Memory>(get_engine(), mem_desc);
+    auto buff = reinterpret_cast<int*>(m_hidden_state->getData());
+    for (size_t i = 0; i < size_B; ++i) {
+        for (size_t j = 0; j < size_L; ++j) {
+            buff[i * size_B + j] = i;
+        }
+    }
 }
 
 void VariableStateKVcache::reset_impl() {
     // 1. reset internal state
-    auto new_desc = to_static(get_external_desc());
-    m_internal_mem->redefineDesc(new_desc);
+    auto internal_state_desc = to_static(get_external_desc());
+    m_internal_mem = std::make_shared<Memory>(get_engine(), internal_state_desc);
     m_internal_mem->nullify();
 
     // 2. reset hidden state
+    auto&& stateDims = internal_state_desc->getShape().getStaticDims();
+    const size_t size_B = stateDims[axis_B];
+    const size_t size_L = stateDims[axis_L];
+    auto hidden_state_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
+
+    m_hidden_state = std::make_shared<Memory>(get_engine(), hidden_state_desc);
+    m_hidden_state->nullify();
 }
 
 void VariableStateKVcache::commit_impl() {

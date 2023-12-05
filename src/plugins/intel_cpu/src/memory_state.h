@@ -122,9 +122,7 @@ private:
 
 class VariableStateKVcache : public VariableStateBase {
 public:
-    VariableStateKVcache(const std::string& name,
-                         const MemoryPtr& buffer,
-                         const MemoryDescPtr& external_desc);
+    VariableStateKVcache(const std::string& name, const MemoryDescPtr& external_desc);
 
     //ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
@@ -149,6 +147,10 @@ private:
 private:
     MemoryPtr m_internal_mem; // kv cache
     MemoryPtr m_hidden_state; // beam access table
+
+    //TODO: how is it better to pass these values to the state object?
+    size_t axis_B = 0;
+    size_t axis_L = 2;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

@@ -97,7 +97,7 @@ public:
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 
-    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
+    virtual void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
 
 protected:
     MemoryInputBase& getInputNode();
@@ -120,7 +120,7 @@ public:
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
 
 private:
     MemoryPtr assignedMem = nullptr;
@@ -138,7 +138,7 @@ public:
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
     bool isExecutable() const override;
 };
 
