@@ -8,6 +8,7 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
@@ -332,5 +333,70 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     };
 
     auto m = std::make_shared<pattern::Matcher>(final_reshape, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ov::pass::DeReshapeFullyConnected::DeReshapeFullyConnected() {
+    MATCHER_SCOPE(DeReshapeFullyConnected);
+
+    auto reshaped_input = pattern::wrap_type<op::v1::Reshape>([](Output<Node> out) -> bool {
+        const auto& input_shape = out.get_node_shared_ptr()->get_input_partial_shape(0);
+        if (input_shape.rank().is_dynamic() || input_shape.size() < 3)
+            return false;
+        const auto& output_shape = out.get_partial_shape();
+        if (output_shape.rank().is_dynamic() || output_shape.size() < 2)
+            return false;
+        return dims_are_equal(input_shape[input_shape.size() - 1], output_shape[output_shape.size() - 1]);
+    });
+    auto converted =
+        pattern::wrap_type<op::v0::Convert>({reshaped_input}, pattern::consumers_count(1));  // optional convert
+
+    auto dynamic_input = std::make_shared<pattern::op::Or>(OutputVector{reshaped_input, converted});
+    auto static_input = pattern::any_input(pattern::rank_equals(2));
+    auto mm_label = pattern::wrap_type<op::v0::MatMul>({dynamic_input, static_input}, [](Output<Node> out) -> bool {
+        auto mm = ov::as_type_ptr<op::v0::MatMul>(out.get_node_shared_ptr());
+        return mm && !mm->get_transpose_a() && pattern::consumers_count(1)(out);
+    });
+
+    auto reshaped_output =
+        pattern::wrap_type<op::v1::Reshape>({mm_label, pattern::any_input()}, [](Output<Node> out) -> bool {
+            const auto& input_shape = out.get_node_shared_ptr()->get_input_partial_shape(0);
+            if (input_shape.rank().is_dynamic() || input_shape.size() < 2)
+                return false;
+            const auto& output_shape = out.get_partial_shape();
+            if (output_shape.rank().is_dynamic() || output_shape.size() < 3)
+                return false;
+            return dims_are_equal(input_shape[input_shape.size() - 1], output_shape[output_shape.size() - 1]);
+        });
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        const auto& pm = m.get_pattern_map();
+
+        const auto& in_reshape = pm.at(reshaped_input);
+        const auto& out_reshape = pm.at(reshaped_output);
+        const auto& matmul = pm.at(mm_label);
+
+        const auto& in_shape = in_reshape->get_input_partial_shape(0);
+        const auto& out_shape = out_reshape->get_output_partial_shape(0);
+
+        if (in_shape.size() != out_shape.size())
+            return false;
+
+        for (size_t i = 0; i < in_shape.size() - 1; ++i)
+            if (!dims_are_equal(in_shape[i], out_shape[i]))
+                return false;
+        if (pm.count(converted)) {
+            const auto& convert = pm.at(converted);
+            convert->input(0).replace_source_output(in_reshape->input_value(0));
+            convert->validate_and_infer_types();
+        } else {
+            matmul->input(0).replace_source_output(in_reshape->input_value(0));
+        }
+        ov::replace_output_update_name(out_reshape->output(0), matmul->output(0));
+        matmul->validate_and_infer_types();
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(reshaped_output, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
