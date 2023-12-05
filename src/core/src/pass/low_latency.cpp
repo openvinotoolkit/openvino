@@ -99,6 +99,9 @@ std::shared_ptr<ov::opset9::Assign> replace_with_memory(const ov::Input<ov::Node
     }
 
     VariableInfo var_info{read_value_in.get_partial_shape(), read_value_in.get_element_type(), variable_name};
+    if (!output.get_partial_shape().compatible(read_value_in.get_partial_shape())) {
+        var_info.data_shape = ov::PartialShape::dynamic();
+    }
     auto variable = std::make_shared<Variable>(var_info);
     auto read_value = to.make<ReadValue>(read_value_in, variable);
     input.replace_source_output(read_value->output(0));
