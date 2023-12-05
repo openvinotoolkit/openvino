@@ -1,7 +1,9 @@
 .. {#accuracy_aware_README}
 
-AccuracyAwareQuantization Parameters
-====================================
+[Deprecated] AccuracyAwareQuantization Parameters
+========================================================
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 
 Introduction

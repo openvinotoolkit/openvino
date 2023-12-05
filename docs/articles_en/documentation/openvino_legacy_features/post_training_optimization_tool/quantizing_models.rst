@@ -1,7 +1,7 @@
 .. {#pot_default_quantization_usage}
 
-Quantizing Models
-=================
+[Deprecated] Quantizing Models
+======================================
 
 
 
@@ -11,6 +11,8 @@ Quantizing Models
 
    DefaultQuantization Method <pot_compression_algorithms_quantization_default_README>
 
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 This guide describes how to apply model quantization with the Default Quantization method without accuracy control, using an unannotated dataset. 
 To use this method, create a Python script using an API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. 
