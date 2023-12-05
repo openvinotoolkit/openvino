@@ -32,9 +32,11 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
     auto output_logits = q_ps;
     NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == false);
     NODE_VALIDATION_CHECK(this, q_ps.size() >= 3);
-    const size_t length_index = this->m_config.is_lbhs_input ? 0 : q_ps.size() - 2;
-    const size_t head_num_index = this->m_config.is_lbhs_input ? 2 : q_ps.size() - 3;
+    // permute_axes from original to [B, H, L, S]
+    const auto& permute_axes = this->m_config.permute_axes;
     if (past_kv_ps.rank().is_static()) {
+        const size_t length_index = permute_axes.empty() ? q_ps.size() - 2 : permute_axes[permute_axes.size() - 2];
+        const size_t head_num_index = permute_axes.empty() ? q_ps.size() - 3 : permute_axes[permute_axes.size() - 3];
         NODE_VALIDATION_CHECK(this, q_ps.size() == past_kv_ps.size());
         for (size_t i = 0; i < q_ps.size(); i++) {
             if (i == head_num_index) {
@@ -53,18 +55,13 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
                 }
             }
         }
-        if (this->m_config.is_lbhs_input) {
-                past_kv_ps[0] += q_ps[0];
-        } else {
-                past_kv_ps[q_ps.size() - 2] += q_ps[q_ps.size() - 2];
-        }
+        past_kv_ps[length_index] += q_ps[length_index];
     }
-    if (this->m_config.is_lbhs_input) {
+    if (!permute_axes.empty()) {
         if (q_ps.rank().is_static()) {
-            if (q_ps.rank().get_length() == 4) {
-                output_logits = PartialShape{q_ps[1], q_ps[2], q_ps[0], q_ps[3]};
-            } else {
-                NODE_VALIDATION_CHECK(this, q_ps.size() == 4, "LBHS input must have rank 4");
+            // q_ps needs permute to BHLS
+            for (size_t i = 0; i < q_ps.size(); i++) {
+                output_logits[i] = q_ps[permute_axes[i]];
             }
         }
     }
@@ -80,8 +77,7 @@ bool ov::intel_cpu::ScaledDotProductAttentionWithKVCache::visit_attributes(ov::A
     visitor.on_attribute("fuse_causal_attn", m_config.fuse_causal_attn);
     visitor.on_attribute("is_causal", m_config.is_causal);
     visitor.on_attribute("fuse_concat", m_config.fuse_concat);
-    visitor.on_attribute("is_lbhs_input", m_config.is_lbhs_input);
-    visitor.on_attribute("is_multi_query", m_config.is_multi_query);
+    visitor.on_attribute("permute_axes", m_config.permute_axes);
     visitor.finish_structure();
     return true;
 }

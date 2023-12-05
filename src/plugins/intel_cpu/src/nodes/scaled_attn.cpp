@@ -512,15 +512,16 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             v_input.assert_dims({B, 0, L1, S}, true);
             auto past_k_idx = inputs.size() - 2;
             auto past_k_mem = inputs[past_k_idx + 0];
-            L0 = config.config.is_lbhs_input ? past_k_mem->getStaticDims()[0] : past_k_mem->getStaticDims()[2];
+            const auto& permute_axes = config.config.permute_axes;
+            L0 = permute_axes.empty() ? past_k_mem->getStaticDims()[2] : past_k_mem->getStaticDims()[permute_axes[2]];
             // k,v may support multiquery
-            auto Hk = config.config.is_lbhs_input ? past_k_mem->getStaticDims()[2] : past_k_mem->getStaticDims()[1];
+            auto Hk = permute_axes.empty() ? past_k_mem->getStaticDims()[1] : past_k_mem->getStaticDims()[permute_axes[1]];
             past_k_output.reset(outputs[1]);
             past_v_output.reset(outputs[2]);
-            if (config.config.is_lbhs_input) {
+            if (!permute_axes.empty()) {
                 // [L, B, H, S] -> [B, H, L, S]
-                past_k_output = past_k_output.permute({1, 2, 0, 3});
-                past_v_output = past_v_output.permute({1, 2, 0, 3});
+                past_k_output = past_k_output.permute(permute_axes);
+                past_v_output = past_v_output.permute(permute_axes);
             }
             attn_memcpy(k_input, v_input, past_k_output.slice(2, L0, L0 + L1), past_v_output.slice(2, L0, L0 + L1));
             if (!config.is_concat_inplaced) {
@@ -566,16 +567,17 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         }
 
         // q: [B, H, L1, S]
-        B = config.config.is_lbhs_input ? q_input.size(1) : q_input.size(0);
-        H = config.config.is_lbhs_input ? q_input.size(2) : q_input.size(1);
-        L1 = config.config.is_lbhs_input ? q_input.size(0) : q_input.size(2);
+        const auto & permute_axes = config.config.permute_axes;
+        B = permute_axes.empty() ? q_input.size(0) : q_input.size(permute_axes[0]);
+        H = permute_axes.empty() ? q_input.size(1) : q_input.size(permute_axes[1]);
+        L1 = permute_axes.empty() ? q_input.size(2) : q_input.size(permute_axes[2]);
         S = q_input.size(-1);
 
         PlainTensor present_key, present_value;
-        if (config.config.is_lbhs_input) {
-            q_input = q_input.permute({1, 2, 0, 3});
-            k_input = k_input.permute({1, 2, 0, 3});
-            v_input = v_input.permute({1, 2, 0, 3});
+        if (!permute_axes.empty()) {
+            q_input = q_input.permute(permute_axes);
+            k_input = k_input.permute(permute_axes);
+            v_input = v_input.permute(permute_axes);
         }
 
         concat_pastkv(inputs, outputs, k_input, v_input, present_key, present_value);
@@ -712,8 +714,15 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
 
     if (m_config.config.fuse_concat) {
         ArbitraryOrderDescCreator fuseConcatDescCreator({2, 0, 1, 3});
-        if (m_config.config.is_lbhs_input)
-            fuseConcatDescCreator = ArbitraryOrderDescCreator({0, 1, 2, 3});
+        const auto& permute_axes = m_config.config.permute_axes;
+        if (!permute_axes.empty()) {
+            // [L,B,H,S]->permute[1,2,0,3] ->[B,H,L,S]
+            // The actual index of B is permute[0], H is permute[1], L is permute[2], S is permute[3]
+            fuseConcatDescCreator = ArbitraryOrderDescCreator({static_cast<size_t>(permute_axes[2]),
+                static_cast<size_t>(permute_axes[0]),
+                static_cast<size_t>(permute_axes[1]),
+                static_cast<size_t>(permute_axes[3])});
+        }
 
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(fuseConcatDescCreator.createSharedDesc(
             kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));

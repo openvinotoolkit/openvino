@@ -58,8 +58,6 @@ StatefulMultiQuerySDPAFusion::StatefulMultiQuerySDPAFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        // const auto sdp_node = ov::as_type_ptr<opset13::ScaledDotProductAttention>(root);
-        std::cout << "1Match Multi Query|" << root->get_friendly_name() << std::endl;
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
             if (present_to.size() != 2)
@@ -102,13 +100,10 @@ StatefulMultiQuerySDPAFusion::StatefulMultiQuerySDPAFusion() {
             return false;
         if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
             return false;
-        std::cout << "2Match Multi Query|Find Assign|" << root->get_friendly_name() << std::endl;
         auto args = sdp_node->input_values();
-        std::cout << "args0 shape|" << pattern_map.at(q_input).get_node_shared_ptr()->output(0).get_partial_shape() << std::endl;
         args[0] = pattern_map.at(q_input).get_node_shared_ptr()->output(0);
         args[1] = concat_k_node->input_value(1);
         args[2] = concat_v_node->input_value(1);
-        std::cout << "-2|" << past_k_node->output(0).get_partial_shape() << std::endl;
         args.push_back(read_cvt_k_node ? read_cvt_k_node->output(0) : past_k_node->output(0));
         args.push_back(read_cvt_v_node ? read_cvt_v_node->output(0) : past_v_node->output(0));
         ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
@@ -129,12 +124,13 @@ StatefulMultiQuerySDPAFusion::StatefulMultiQuerySDPAFusion() {
 
         if (!(check_lbhs_input(order_k_node) && check_lbhs_input(order_v_node)))
             return false;
-        std::cout << "3Match Multi Query|check_lbhs_input|" << root->get_friendly_name() << std::endl;;
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
-        config.is_lbhs_input = true;
-        config.is_multi_query = true;
-
+        const auto& permute_axes = order_k_node->get_vector<int32_t>();
+        config.permute_axes.resize(permute_axes.size());
+        for (size_t i = 0; i < permute_axes.size(); i++) {
+            config.permute_axes[i] = static_cast<size_t>(permute_axes[i]);
+        }
         auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());

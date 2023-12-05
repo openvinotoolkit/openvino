@@ -662,11 +662,9 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
-    // CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::VisualizeTree, "pre.svg");
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
-    if (getenv("FUSE_MQ"))
+    if (inferencePrecision != ov::element::bf16)
         CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulMultiQuerySDPAFusion);
-    // CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::VisualizeTree, "after.svg");
     postLPTPassManager.run_passes(model);
 }
 
