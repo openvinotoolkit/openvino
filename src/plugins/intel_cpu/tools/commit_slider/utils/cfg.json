@@ -2,7 +2,8 @@
     "modeMap" : {
         "checkOutput" : "CheckOutputMode",
         "bmPerf" : "BenchmarkAppPerformanceMode",
-        "compareBlobs" : "CompareBlobsMode"
+        "compareBlobs" : "CompareBlobsMode",
+        "nop" : "NopMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",

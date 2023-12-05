@@ -8,6 +8,25 @@ import shutil
 from utils.common_mode import Mode
 
 
+class NopMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+    def checkCfg(self, cfg):
+        super().checkCfg(cfg)
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, commit)
+        self.commonLogger.info("New commit: {commit}".format(
+            commit=commit)
+        )
+        handleCommit(commit, cfg)
+        checkOut = fetchAppOutput(cfg, commit)
+        commitLogger.info(checkOut)
+        return
+
+
 class CheckOutputMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
