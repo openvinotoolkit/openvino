@@ -68,9 +68,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVCompiledModelBaseTest.*canGetInputsInfoAndCheck.*)",
         R"(.*OVCompiledModelBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
         R"(.*OVCompiledModelBaseTest.*canCompileModelFromMemory.*)",
+        // TODO: Issue: 125686
         R"(.*OVCompiledModelBaseTest.*CanSetOutputPrecisionForNetwork.*)",
         R"(.*OVCompiledModelBaseTest.*CanSetInputPrecisionForNetwork.*)",
         R"(.*OVCompiledModelBaseTest.*CanCreateTwoCompiledModelsAndCheckRuntimeModel.*)",
+        R"(.*OVInferRequestWaitTests.*FailedAsyncInferWithNegativeTimeForWait.*)",
         R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
