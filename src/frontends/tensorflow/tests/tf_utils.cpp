@@ -18,9 +18,9 @@ namespace tests {
 
 const std::string TF_FE = "tf";
 
-shared_ptr<Model> convert_model(const string& model_path,
+shared_ptr<Model> convert_model(const std::string& model_path,
                                 const ConversionExtension::Ptr& conv_ext,
-                                const vector<string>& input_names,
+                                const vector<std::string>& input_names,
                                 const vector<element::Type>& input_types,
                                 const vector<PartialShape>& input_shapes,
                                 const std::vector<std::string>& input_names_to_freeze,
@@ -34,7 +34,7 @@ shared_ptr<Model> convert_model(const string& model_path,
     if (conv_ext) {
         front_end->add_extension(conv_ext);
     }
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
     ov::frontend::InputModel::Ptr input_model;
     if (!disable_mmap) {
         input_model = front_end->load(model_filename);

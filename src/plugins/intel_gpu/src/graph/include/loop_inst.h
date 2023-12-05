@@ -318,8 +318,6 @@ public:
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
 
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
     void validate_backedges(loop_node const & node) const;
 
     void update_shape() override { primitive_inst::update_shape(); }
@@ -327,8 +325,6 @@ public:
 
     // num_iteration is used for slicing input memory
     int64_t get_num_iterations();
-
-    void update_backedge_exec_deps(const cldnn::program_node& node, const cldnn::primitive_id& backedge_from_prim_id);
 
     std::vector<event::ptr> preprocess_memory_for_body_network(int64_t current_iteration_idx);
     std::vector<event::ptr> postprocess_memory_for_body_network(int64_t current_iteration_idx);
