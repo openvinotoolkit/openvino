@@ -5,7 +5,6 @@
 # pow paddle model generator
 #
 
-import paddle
 import numpy as np
 from save_model import saveModel
 import paddle

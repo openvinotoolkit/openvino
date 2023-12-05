@@ -52,18 +52,9 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
             vars_ = list(filter(condition, program.list_vars()))
             vars_name = [v.name for v in vars_]
             vars_name_file = os.path.join(sys.argv[1], "place_test_model", "vars_name.txt")
-            print(">>>>>>>>", vars_name_file)
-            # print the absolute path of vars_name_file
-            print(">>>>>>>>", os.path.abspath(vars_name_file))
             with open(vars_name_file, 'w') as f:
                 for name in vars_name:
                     f.writelines(f"{name}\n")
-                    print(">>>>>>>>", name)
-            # read vars_name_file
-            print(">>>>>>>> read")
-            with open(vars_name_file, 'r') as f:
-                for line in f.readlines():
-                    print(">>>>>>>>", line.strip())
 
             fetch_targets_name = [ft.name for ft in fetch_targets]
             outputs_name_file = os.path.join(sys.argv[1], "place_test_model", "outputs_name.txt")
