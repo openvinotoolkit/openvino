@@ -39,6 +39,7 @@ TEST_F(CompileModelsTests, NgramCompilation) {
     EXPECT_EQ(runtime_model->get_parameters().size(), 2);
     EXPECT_EQ(runtime_model->get_results().size(), 1);
 }
+#endif
 
 #ifdef OPENVINO_ARCH_ARM64
 // Ticket: CVS-122396
