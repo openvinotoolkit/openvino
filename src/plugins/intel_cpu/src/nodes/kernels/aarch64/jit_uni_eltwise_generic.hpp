@@ -8,6 +8,18 @@
 
 #include <onednn/dnnl.h>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
+
+// disable x64 macros
+#undef abi_param1
+#undef abi_param2
+#undef abi_param3
+#undef abi_param4
+#undef abi_param5
+#undef abi_param6
+#undef abi_param7
+#undef abi_param8
+#undef abi_not_param1
+
 #include <cpu/aarch64/jit_generator.hpp>
 
 #include "utils/general_utils.h"
