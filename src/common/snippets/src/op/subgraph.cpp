@@ -42,6 +42,7 @@
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
+#include "snippets/lowered/pass/insert_perf_count.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -349,7 +350,8 @@ VectorDims Subgraph::infer_master_shape() {
 std::shared_ptr<lowered::LinearIR>
 Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops ||
+        (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
@@ -487,6 +489,10 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+    if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
+        lowered::pass::InsertPerfCount perf_count_pass;
+        perf_count_pass.run(linear_ir);
+    }
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();
