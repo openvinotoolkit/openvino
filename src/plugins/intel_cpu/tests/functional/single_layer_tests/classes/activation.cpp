@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
+#include "shared_test_classes/single_op/activation.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -21,7 +22,7 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
 
     std::ostringstream result;
-    result << LayerTestsDefinitions::activationNames[activationTypeAndConstValue.first] << "_";
+    result << activationNames[activationTypeAndConstValue.first] << "_";
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
         for (const auto &shape : inputShapes) {

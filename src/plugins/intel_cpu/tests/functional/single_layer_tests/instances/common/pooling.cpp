@@ -22,8 +22,8 @@ static CPUSpecificParams expectedCpuConfig() {
 }
 const std::vector<CPUSpecificParams> vecCpuConfigs = {expectedCpuConfig()};
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg3D_RefOnly = {
-        LayerTestsDefinitions::poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2}, {2}, {2}, {2},
+const std::vector<poolSpecificParams> paramsAvg3D_RefOnly = {
+        poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2}, {2}, {2}, {2},
                             expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, false },
 };
 
@@ -57,8 +57,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_NotOptimized, PoolingLayerCPUTest,
                                  ::testing::Values(emptyFusingSpec)),
                          PoolingLayerCPUTest::getTestCaseName);
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_RefOnly = {
-        LayerTestsDefinitions::poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {2, 2}, {2, 2},
+const std::vector<poolSpecificParams> paramsAvg4D_RefOnly = {
+        poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {2, 2}, {2, 2},
                             expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, false },
 };
 
@@ -110,20 +110,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV85D_ref = {
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+const std::vector<maxPoolV8SpecificParams> paramsMaxV85D_ref = {
+        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::SAME_UPPER },
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
+        maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
 };
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg5D_RefOnly = {
-        LayerTestsDefinitions::poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
+const std::vector<poolSpecificParams> paramsAvg5D_RefOnly = {
+        poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
                             expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, false },
 };
 
