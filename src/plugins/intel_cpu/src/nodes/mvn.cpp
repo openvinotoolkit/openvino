@@ -624,7 +624,7 @@ private:
                 if (i > 0) {
                     // empty second half on sse
                     cmp(reg_rt_shape, 0);
-                    jbe(label_end);
+                    jbe(label_end, T_NEAR);
                 }
 
                 Xbyak::Label label_sse_full_size;
@@ -1117,7 +1117,7 @@ private:
                 if (i > 0) {
                     // empty second half on sse
                     cmp(reg_rt_shape, 0);
-                    jbe(label_end);
+                    jbe(label_end, T_NEAR);
                 }
 
                 Xbyak::Label label_sse_full_size;
