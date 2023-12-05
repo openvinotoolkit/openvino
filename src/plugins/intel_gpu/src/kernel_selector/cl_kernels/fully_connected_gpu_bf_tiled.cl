@@ -313,7 +313,7 @@ inline void FUNC(fc_bf_tiled_kernel_tile_b1)(
                         uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                                      ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                             ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                         #else
                             ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -324,7 +324,7 @@ inline void FUNC(fc_bf_tiled_kernel_tile_b1)(
                                 ACCUMULATOR_TYPE dzp = DECOMPRESSION_ZP_VALUE;
                             #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
                                 const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                    ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                                       ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
                                 ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
@@ -612,12 +612,16 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         const uint w_idx = kii * TILE_OFM + fi;
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         const uint offset_ifm = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
-                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                                                      (offset_ifm / DECOMPRESSION_SCALE_GROUP_SIZE) * DECOMPRESSION_SCALE_FEATURE_PITCH;
-                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #if !DECOMPRESSION_SCALE_POST_OP
+                            #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                                const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
+                                                          (offset_ifm / DECOMPRESSION_SCALE_GROUP_SIZE) * DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                            #else
+                                ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                            #endif
                         #else
-                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                            ACCUMULATOR_TYPE ds = ACCUMULATOR_VAL_ONE;
                         #endif
 
                         #if DECOMPRESSION_ZP_TERM
@@ -637,30 +641,30 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
 
-                #define SAVE_TO_SLM(vec2) slm_wei_vec[wei_local_idx] = vec2; wei_local_idx += SIMD;
+                #define STORE_TO_SLM(vec2) slm_wei_vec[wei_local_idx] = vec2; wei_local_idx += SIMD;
 
                 #if FILTER_LOAD_BLOCK_SIZE == 2
-                    SAVE_TO_SLM(wei_unpacked.s01);
-                    SAVE_TO_SLM(wei_unpacked.s23);
+                    STORE_TO_SLM(wei_unpacked.s01);
+                    STORE_TO_SLM(wei_unpacked.s23);
                 #elif FILTER_LOAD_BLOCK_SIZE == 4
-                    SAVE_TO_SLM(wei_unpacked.s01);
-                    SAVE_TO_SLM(wei_unpacked.s23);
-                    SAVE_TO_SLM(wei_unpacked.s45);
-                    SAVE_TO_SLM(wei_unpacked.s67);
+                    STORE_TO_SLM(wei_unpacked.s01);
+                    STORE_TO_SLM(wei_unpacked.s23);
+                    STORE_TO_SLM(wei_unpacked.s45);
+                    STORE_TO_SLM(wei_unpacked.s67);
                 #elif FILTER_LOAD_BLOCK_SIZE == 8
-                    SAVE_TO_SLM(wei_unpacked.s01);
-                    SAVE_TO_SLM(wei_unpacked.s23);
-                    SAVE_TO_SLM(wei_unpacked.s45);
-                    SAVE_TO_SLM(wei_unpacked.s67);
-                    SAVE_TO_SLM(wei_unpacked.s89);
-                    SAVE_TO_SLM(wei_unpacked.sab);
-                    SAVE_TO_SLM(wei_unpacked.scd);
-                    SAVE_TO_SLM(wei_unpacked.sef);
+                    STORE_TO_SLM(wei_unpacked.s01);
+                    STORE_TO_SLM(wei_unpacked.s23);
+                    STORE_TO_SLM(wei_unpacked.s45);
+                    STORE_TO_SLM(wei_unpacked.s67);
+                    STORE_TO_SLM(wei_unpacked.s89);
+                    STORE_TO_SLM(wei_unpacked.sab);
+                    STORE_TO_SLM(wei_unpacked.scd);
+                    STORE_TO_SLM(wei_unpacked.sef);
                 #else
                     #error "FC bf_tiled kernel: unsupported FILTER_LOAD_BLOCK_SIZE for SLM kernel"
                 #endif
 
-                #undef SAVE_TO_SLM
+                #undef STORE_TO_SLM
 
                 weights_idx += SIMD * FILTER_LOAD_BLOCK_SIZE;
             }
@@ -756,7 +760,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
                 #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                     const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                                ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                              ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                     ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -800,7 +804,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                                      ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                             ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                         #else
                             ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -811,7 +815,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                                 ACCUMULATOR_TYPE dzp = DECOMPRESSION_ZP_VALUE;
                             #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
                                 const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                    ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                                    ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
                                 ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];

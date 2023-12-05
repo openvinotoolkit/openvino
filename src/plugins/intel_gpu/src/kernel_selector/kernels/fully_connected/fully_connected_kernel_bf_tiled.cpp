@@ -384,7 +384,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-        // Do not use SCALE_POST_OP for SLM kernel
+        // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
@@ -509,7 +509,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                              tparams.exec_options,
                                              autoTuneIndex);
 
-    // In case of dynamic params try to compile optimized SLM kernel for large batches
+    // In case of dynamic params try to configure additional optimized SLM kernel for large batches
     if (params.is_shape_agnostic) {
         auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
         auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
@@ -541,22 +541,22 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                 output_batch *= prim_params.outputs[0].Feature().v;
 
             // Choose one of the two shape agnostic kernels:
-            // - kd.kernels[0] for batches < 256 (default version)
+            // - kd.kernels[0] for batches <= 240 (default version)
             // - kd.kernels[1] for batches >= 256 (slm version)
             const auto default_alignment = 16;
-            // We can use SLM version if `output_batch + default_alignment > 256` because memory is aligned (whether 16 or 64 elements)
+            // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
             const auto skip_kernel_idx = output_batch + default_alignment > 256 ? 0 : 1;
-            const auto selected_kernel_idx = 1 - skip_kernel_idx;
+            const auto execute_kernel_idx = 1 - skip_kernel_idx;
 
             kd.kernels[skip_kernel_idx].skip_execution = true;
 
-            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (selected_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
                                    << "will be used for batch size = " << output_batch << "\n";
 
-            auto dispatchData = SetDefault(prim_params, -1, selected_kernel_idx);
-            kd.kernels[selected_kernel_idx].params.workGroups.global = dispatchData.gws;
-            kd.kernels[selected_kernel_idx].params.workGroups.local = dispatchData.lws;
-            kd.kernels[selected_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
+            kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
+            kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
+            kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
         };
     }
 
