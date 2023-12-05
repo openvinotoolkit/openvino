@@ -166,6 +166,13 @@ cross_compiled_file(${TARGET_NAME}
         NAME        mha_single_token
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/attn_memcpy.cpp
+        API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
+        NAME        attn_memcpy
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})

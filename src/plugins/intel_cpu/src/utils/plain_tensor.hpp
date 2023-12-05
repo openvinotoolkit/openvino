@@ -135,6 +135,8 @@ struct PlainTensor {
         memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
         m_rank = other.m_rank;
         m_ptr = other.m_ptr;
+        m_dt = other.m_dt;
+        m_element_size = other.m_element_size;
         return *this;
     }
 
@@ -225,6 +227,8 @@ struct PlainTensor {
         }
         sub_tensor.m_rank = i_dst;  // index may imply squeeze
         sub_tensor.m_ptr = reinterpret_cast<void*>(reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size);
+        sub_tensor.m_dt = m_dt;
+        sub_tensor.m_element_size = m_element_size;
         return sub_tensor;
     }
 
@@ -257,6 +261,8 @@ struct PlainTensor {
         auto off = start * m_strides[axis];
         auto* data = reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size;
         sub_tensor.m_ptr = reinterpret_cast<void*>(data);
+        sub_tensor.m_dt = m_dt;
+        sub_tensor.m_element_size = m_element_size;
 
         return sub_tensor;
     }
@@ -302,6 +308,8 @@ struct PlainTensor {
         new_tensor_view.m_capacity = 0;
         new_tensor_view.m_ptr = m_ptr;
         new_tensor_view.m_rank = m_rank;
+        new_tensor_view.m_dt = m_dt;
+        new_tensor_view.m_element_size = m_element_size;
         auto it_order = order.begin();
         // also should check order has no repeat element
         for (size_t i = 0; i < m_rank; i++) {

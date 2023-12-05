@@ -522,19 +522,12 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                 past_k_output = past_k_output.permute({1, 2, 0, 3});
                 past_v_output = past_v_output.permute({1, 2, 0, 3});
             }
-            attn_memcpy(k_input, v_input, past_k_output, past_v_output, Hk, L0);
+            attn_memcpy(k_input, v_input, past_k_output.slice(2, L0, L0 + L1), past_v_output.slice(2, L0, L0 + L1));
             if (!config.is_concat_inplaced) {
                 PlainTensor past_k_input, past_v_input;
                 past_k_input.reset(past_k_mem);
                 past_v_input.reset(inputs[past_k_idx + 1]);
-                parallel_for3d(B, Hk, L0, [&](size_t b, size_t h, size_t m) {
-                    std::memcpy(&past_k_output.at<T2>({b, h, m, 0}),
-                                &past_k_input.at<T2>({b, h, m, 0}),
-                                S * sizeof(T2));
-                    std::memcpy(&past_v_output.at<T2>({b, h, m, 0}),
-                                &past_v_input.at<T2>({b, h, m, 0}),
-                                S * sizeof(T2));
-                });
+                attn_memcpy(past_k_input, past_v_input, past_k_output, past_v_output);
             }
         } else {
             // k,v inputs are already concatenated
@@ -689,7 +682,6 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     };
 
     auto kvCachePrecision = fp16_kvcache_applicable() ? ov::element::f16 : rtPrecision;
-    std::cout << "===================== kvPrecision = " << kvCachePrecision << ", rtPrecision = " << rtPrecision << std::endl;
 
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
