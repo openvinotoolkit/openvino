@@ -67,11 +67,9 @@ const std::vector<ov::Tensor> num_samples = {ov::Tensor(ov::element::i32, {}, nu
                                              ov::Tensor(ov::element::i64, {1}, num_samples_1x1_i64.data()),
                                              ov::Tensor(ov::element::i64, {}, num_samples_scalar_i64.data())};
 
-const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32};
+const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32, ov::test::ElementType::i64};
 
-const std::vector<bool> with_replacement = {
-    // true,
-    false};
+const std::vector<bool> with_replacement = {true, false};
 
 const auto params_static = ::testing::Combine(::testing::Values("static"),
                                               ::testing::ValuesIn(probs),

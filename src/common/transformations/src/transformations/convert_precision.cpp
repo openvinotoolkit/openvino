@@ -11,6 +11,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
@@ -58,6 +59,7 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
 bool fuse_type_to_nms_rotated(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_multinomial_v13(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_generate_proposals(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_topk(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -438,7 +440,9 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
         {opset9::Eye::get_type_info_static(), fuse_type_to_eye_v9},
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
-        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
+        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8},
+        {opset13::Multinomial::get_type_info_static(), fuse_type_to_multinomial_v13},
+    };
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
@@ -842,6 +846,25 @@ bool fuse_type_to_multiclass_nms(const std::shared_ptr<ov::Node>& node, const pr
     return update_type(1, node, precisions, [&](const element::Type& to) {
         nms->set_output_type(to);
     });
+}
+
+bool fuse_type_to_multinomial_v13(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto multinomial = ov::as_type_ptr<opset13::Multinomial>(node);
+    if (!multinomial) {
+        return false;
+    }
+
+    auto it_output_type = precisions.find(node->get_output_element_type(0));
+    if (it_output_type == precisions.end())
+        return false;
+
+    const auto& output_type = it_output_type->second;
+    if (output_type.is_integral_number() || output_type.is_real()) {
+        multinomial->set_convert_type(ov::element::i32);
+        multinomial->set_output_type(0, output_type, multinomial->get_output_partial_shape(0));
+        return true;
+    }
+    return false;
 }
 
 bool fuse_type_to_generate_proposals(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
