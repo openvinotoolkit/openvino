@@ -12,7 +12,7 @@
 
 - Make sure that all submodules are updated `git submodule update --init --recursive`
 - Build **openvino** with flag `-DENABLE_JS=ON`
-- From build directory run `cmake -DCOMPONENT=ov_node_addon -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/ -P cmake_install.cmake`
+- From build directory run `cmake -DCOMPONENT=ov_node_addon -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin/ -P cmake_install.cmake`
 - Copy openvino shared libraries into `src/bindings/js/node/bin`:
   `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2023.3.0 ../src/bindings/js/node/bin`
   `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2330 ../src/bindings/js/node/bin`
