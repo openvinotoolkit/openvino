@@ -547,8 +547,8 @@ void InputModel::InputModelImpl::set_element_type(Place::Ptr place, const ov::el
     castToTensorPlace(place)->set_element_type(type);
 }
 
-ov::element::Type get_element_type(const Place::Ptr& place) const {
-    return castToTensorPlace(place)->get_element_type(type);
+ov::element::Type InputModel::InputModelImpl::get_element_type(const Place::Ptr& place) const {
+    return castToTensorPlace(place)->get_element_type();
 }
 
 void InputModel::InputModelImpl::set_tensor_value(Place::Ptr place, const void* value) {
