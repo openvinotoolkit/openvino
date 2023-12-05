@@ -392,3 +392,15 @@ IE_CPU.onnx_model_top_k_repeating_unsorted
 
 # Accuracy regression - Ticket 105909
 IE_CPU.onnx_model_attention_qkv_hidden_sizes
+
+# Accuracy issues on ARM CPU - Ticket 122663
+IE_CPU.onnx_model_bias_gelu
+IE_CPU.onnx_model_embed_layer_normalization_diff_seq_len_pos_embed_len
+IE_CPU.onnx_model_embed_layer_normalization_with_position_ids
+IE_CPU.onnx_resize10_down_scales_const_linear
+IE_CPU.onnx_resize11_down_scales_linear_asymmetric
+IE_CPU.onnx_model_softplus
+IE_CPU.onnx_model_instance_normalization
+IE_CPU.quant_dequant_pattern_axis
+IE_CPU/GRUSequenceOp.onnx_model_gru_reverse_mixed_seq_len_const
+IE_CPU/RNNSequenceOp.onnx_model_rnn_fwd_bias_initial_h_const

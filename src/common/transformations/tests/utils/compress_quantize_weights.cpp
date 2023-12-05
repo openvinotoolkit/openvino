@@ -82,7 +82,12 @@ class CompressQuantizeWeightsTests
     }
 };
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: CVS-122397
+TEST_P(CompressQuantizeWeightsTests, DISABLED_FusionTest) {}
+#else
 TEST_P(CompressQuantizeWeightsTests, FusionTest) {}
+#endif
 
 static std::vector<CompressQuantizeWeightsParams> params = {
     {Shape{2, 3, 1, 1},
