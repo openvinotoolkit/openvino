@@ -1,15 +1,8 @@
-<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/fp16_compression.md
-# Compressing a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
+# [LEGACY] Compressing a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
 
 @sphinxdirective
-=======
-.. {#openvino_docs_MO_DG_FP16_Compression}
-
-[LEGACY] Compressing a Model to FP16
-=============================================
 
 .. danger::
->>>>>>> b9fc9dfdff (add legacy note to mo section):docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/fp16_compression.rst
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
