@@ -20,7 +20,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class MemoryOutput;
+class MemoryOutputBase;
 class MemoryInputBase;
 class ScaledDotProductAttention;
 
@@ -65,27 +65,31 @@ public:
         return nullptr;
     }
 
-    static Holder* registerOutput(MemoryOutput * node);
+    static Holder* registerOutput(MemoryOutputBase * node);
     static Holder* registerInput(MemoryInputBase * node);
     static void remove(MemoryNode * node, Holder* holder);
     static std::mutex holderMutex;
 };
 
-class MemoryOutput : public Node, public MemoryNode {
+class MemoryOutputBase : public Node, public MemoryNode {
 public:
-    MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
-    ~MemoryOutput() override;
+    MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    MemoryOutputBase(const std::string id,
+                     const std::string& name,
+                     const std::string& type,
+                     const Shape& input_shape,
+                     const ov::element::Type& input_prc,
+                     const GraphContext::CPtr context);
+
+    ~MemoryOutputBase() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override {}
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override {
         return getType() == Type::MemoryOutput;
     }
-    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -93,9 +97,9 @@ public:
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 
-    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
 
-private:
+protected:
     MemoryInputBase& getInputNode();
 
 private:
@@ -103,10 +107,39 @@ private:
      * @brief keeps reference to input sibling node
      */
     MemoryInputBase* inputNode = nullptr;
+    MemoryNodeVirtualEdge::Holder* holder = nullptr;
+};
+
+class MemoryOutput : public MemoryOutputBase {
+public:
+    using MemoryOutputBase::MemoryOutputBase;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
+
+private:
     MemoryPtr assignedMem = nullptr;
     MemoryDescPtr extMemDesc = nullptr; // used for resize
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
     ProxyMemoryMngrPtr memMngr = nullptr;
+};
+
+class MemoryOutputStub : public MemoryOutputBase {
+public:
+    using MemoryOutputBase::MemoryOutputBase;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
+    bool isExecutable() const override;
 };
 
 class MemoryInputBase : public Input, public MemoryStateNode {
@@ -135,17 +168,17 @@ public:
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void registerOutputNode(MemoryOutput* node);
-    void deregisterSibling(MemoryOutput* node);
+    void registerOutputNode(MemoryOutputBase* node);
+    void deregisterSibling(MemoryOutputBase* node);
 
     void assignState(MemStatePtr newState) override;
-    MemoryOutput& getOutputNode();
+    MemoryOutputBase& getOutputNode();
 
 private:
     /**
      * @brief keeps reference to output sibling node
      */
-    MemoryOutput* outputNode = nullptr;
+    MemoryOutputBase* outputNode = nullptr;
     MemoryPtr assignedMem = nullptr;
     MemoryNodeVirtualEdge::Holder* holder = nullptr;
     ProxyMemoryMngrPtr memMngr = nullptr;
@@ -176,7 +209,7 @@ public:
                     const std::shared_ptr<ScaledDotProductAttention>& sdpaNode);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
- 
+
     void createPrimitive() override;
 
     bool isExecutable() const override;

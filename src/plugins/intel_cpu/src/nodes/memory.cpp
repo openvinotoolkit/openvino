@@ -34,7 +34,7 @@ MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
     }
 }
 
-bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ov::op::v3::Assign::get_type_info_static(),
@@ -48,7 +48,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-MemoryOutput::MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -59,19 +59,34 @@ MemoryOutput::MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphConte
     }
 }
 
-MemoryOutput::~MemoryOutput() {
+MemoryOutputBase::MemoryOutputBase(const std::string id,
+                                   const std::string& name,
+                                   const std::string& type,
+                                   const Shape& input_shape,
+                                   const ov::element::Type& input_prc,
+                                   const GraphContext::CPtr context) :
+    Node(type, name, context), MemoryNode(id) {
+    isDynamic = input_shape.isDynamic();
+    if (isDynamic) {
+        shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
+    }
+    inputShapes.emplace_back(input_shape);
+    addOriginalInputPrecision(input_prc);
+}
+
+MemoryOutputBase::~MemoryOutputBase() {
     if (inputNode) { inputNode->deregisterSibling(this); }
     MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-MemoryInputBase& MemoryOutput::getInputNode() {
+MemoryInputBase& MemoryOutputBase::getInputNode() {
     OPENVINO_ASSERT(inputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
     return *inputNode;
 }
 
-void MemoryOutput::getSupportedDescriptors() {}
+void MemoryOutputBase::getSupportedDescriptors() {}
 
-void MemoryOutput::initSupportedPrimitiveDescriptors() {
+void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -91,7 +106,7 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void MemoryOutput::initOptimalPrimitiveDescriptor() {
+void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     // Mimic the parent node memory desc to avoid extra reorder
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
@@ -119,6 +134,21 @@ void MemoryOutput::initOptimalPrimitiveDescriptor() {
     config.inConfs.front().setMemDesc(mem_desc);
     //bypass any checks, we enforce the parent descriptor
     selected_pd->setConfig(config);
+}
+
+void MemoryOutputBase::registerInputNode(MemoryInputBase* node) {
+    if (inputNode == node) { return; }
+    if (inputNode) { inputNode->deregisterSibling(this); }
+    inputNode = node;
+    inputNode->registerOutputNode(this);
+}
+
+void MemoryOutputBase::deregisterSibling(MemoryInputBase* node) {
+    if (node == inputNode) { inputNode = nullptr; }
+}
+
+bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    return MemoryOutputBase::isSupportedOperation(op, errorMessage);
 }
 
 void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
@@ -199,17 +229,47 @@ void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MemoryOutput::registerInputNode(MemoryInputBase* node) {
-    if (inputNode == node) { return; }
-    if (inputNode) { inputNode->deregisterSibling(this); }
-    inputNode = node;
-    inputNode->registerOutputNode(this);
+bool MemoryOutputStub::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    return MemoryOutputBase::isSupportedOperation(op, errorMessage);
 }
 
-void MemoryOutput::deregisterSibling(MemoryInputBase* node) {
-    if (node == inputNode) { inputNode = nullptr; }
+void MemoryOutputStub::execute(dnnl::stream strm) {
+    //nothing to do
 }
 
+void MemoryOutputStub::executeDynamicImpl(dnnl::stream strm) {
+    //nothing to do
+}
+
+void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_DOWN)) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "MemoryOutput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto parentEdge = getParentEdgeAt(0); // always only one parent edge
+
+    OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+        " Unexpected inplace resolve call to an allocated edge: ", parentEdge->name());
+
+    auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
+    // make a fake memory
+    //parentEdge->reuse(edgeMem);
+}
+
+void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
+    //nothing to do
+}
+
+bool MemoryOutputStub::isExecutable() const {
+    return false;
+}
 
 bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -290,7 +350,7 @@ MemoryInputBase::~MemoryInputBase() {
     MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-MemoryOutput& MemoryInputBase::getOutputNode() {
+MemoryOutputBase& MemoryInputBase::getOutputNode() {
     OPENVINO_ASSERT(outputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
     return *outputNode;
 }
@@ -376,14 +436,14 @@ void MemoryInputBase::execute(dnnl::stream strm) {
     dst->load(src);
 }
 
-void MemoryInputBase::registerOutputNode(MemoryOutput* node) {
+void MemoryInputBase::registerOutputNode(MemoryOutputBase* node) {
     if (outputNode == node) { return; }
     if (outputNode) { outputNode->deregisterSibling(this); }
     outputNode = node;
     outputNode->registerInputNode(this);
 }
 
-void MemoryInputBase::deregisterSibling(MemoryOutput* node) {
+void MemoryInputBase::deregisterSibling(MemoryOutputBase* node) {
     if (node == outputNode) { outputNode = nullptr; }
 }
 
@@ -393,7 +453,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInputB
     auto& holder = MemoryNodeVirtualEdge::getExisted();
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
-        auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
+        auto outputNode = dynamic_cast<MemoryOutputBase*>(sibling);
         OPENVINO_ASSERT(outputNode != nullptr);
         node->registerOutputNode(outputNode);
     } else {
@@ -402,7 +462,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInputB
     return &holder;
 }
 
-MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutput * node) {
+MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutputBase * node) {
     std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     // in case of output layer
     auto& holder = MemoryNodeVirtualEdge::getExisted();
@@ -562,7 +622,6 @@ void MemoryInputSDPA::assignState(MemStatePtr newState) {
     auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(newState);
     OPENVINO_ASSERT(sdpaState);
     sdpaNode->assignState(sdpaState, child_port_idx);
-    //Should we assign memory to the adjacent MemoryOutput?
 }
 
 MemStatePtr MemoryInputSDPA::makeState() const {

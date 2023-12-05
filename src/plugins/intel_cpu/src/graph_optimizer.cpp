@@ -2846,7 +2846,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
                 if (sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child)) {
                     break;
                 } else {
-                    OPENVINO_THROW("Couldn't cast node", child->getName()," to ScaledDotProductAttention type");
+                    OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
                 }
             }
         }
@@ -2877,12 +2877,28 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             graph.RemoveEdge(edge);
         }
 
-        //link with memory output
+        //create a stub memory output
         auto& memOutput = memInputNode->getOutputNode();
-        memInputSdpa->registerOutputNode(&memOutput);
+
+        auto memOutputStub = std::make_shared<MemoryOutputStub>(
+            memOutput.getId(),
+            memOutput.getName(),
+            memOutput.getTypeStr(),
+            memOutput.getInputShapeAtPort(0),
+            memOutput.getOriginalInputPrecisionAtPort(0),
+            graph.getGraphContext());
+
+        auto memOutputEdge = memOutput.getParentEdgeAt(0);
+        auto newEdge =
+            std::make_shared<Edge>(memInputSdpa, memOutputStub, memOutputEdge->getInputNum(), 0);
+        memOutputStub->addEdge(newEdge);
+        graph.GetEdges().push_back(newEdge);
+        graph.RemoveEdge(memOutputEdge);
+
+        memInputSdpa->registerOutputNode(memOutputStub.get());
 
         graph.GetNodes().push_back(memInputSdpa);
-        graph.DropNode(memInputNode);
+        graph.GetNodes().push_back(memOutputStub);
     }
 }
 

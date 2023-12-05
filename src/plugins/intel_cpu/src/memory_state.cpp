@@ -206,6 +206,11 @@ VariableStateKVcache::VariableStateKVcache(const std::string& name,
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
 
+ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
+    //TBD
+    return {};
+}
+
 void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     //1. reset the memory object
     m_state = state; // simply to extend the lifetime
@@ -220,7 +225,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     }
 
     //2. Reset the beam search table
-    //m_hidden_state = 
+    //m_hidden_state =
 }
 
 void VariableStateKVcache::reset_impl() {
@@ -230,7 +235,6 @@ void VariableStateKVcache::reset_impl() {
     m_internal_mem->nullify();
 
     // 2. reset hidden state
-
 }
 
 void VariableStateKVcache::commit_impl() {
