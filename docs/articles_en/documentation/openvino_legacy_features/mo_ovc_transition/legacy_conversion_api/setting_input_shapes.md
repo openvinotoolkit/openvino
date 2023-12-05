@@ -1,5 +1,7 @@
 # [LEGACY] Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
+@sphinxdirective
+
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
@@ -8,7 +10,6 @@
 
 With model conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
 
-@sphinxdirective
 
 .. meta:: 
    :description: Learn how to increase the efficiency of a model with MO by providing an additional shape definition with the input_shape and static_shape parameters.
