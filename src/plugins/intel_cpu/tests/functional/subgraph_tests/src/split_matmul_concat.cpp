@@ -6,12 +6,10 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 /*
             ---------------
@@ -107,9 +105,9 @@ protected:
         const auto& inShapeB = inputDynamicShapes[1];
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inShapeA)};
-        std::shared_ptr<Node> inputB = builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
+        std::shared_ptr<Node> inputB = ngraph::builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
 
-        auto split = builder::makeVariadicSplit(params[0], {1, 1}, 0);
+        auto split = ngraph::builder::makeVariadicSplit(params[0], {1, 1}, 0);
 
         auto matMul = std::make_shared<ov::op::v0::MatMul>(split->output(0), inputB, transpA, transpB);
 
@@ -143,4 +141,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32, SplitMatMulConcatTest, testParams2D_F
 
 } // namespace
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

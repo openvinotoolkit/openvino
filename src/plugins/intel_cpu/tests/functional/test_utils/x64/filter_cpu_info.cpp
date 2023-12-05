@@ -4,7 +4,6 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/filter_cpu_info.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/general_utils.h"
