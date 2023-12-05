@@ -1,8 +1,8 @@
-# Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
+# [Deprecated]  Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
 
 @sphinxdirective
 
-.. note:: 
+.. danger:: 
 
    Post-training Optimization Tool has been deprecated since OpenVINO 2023.0. 
    :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for post-training quantization instead.

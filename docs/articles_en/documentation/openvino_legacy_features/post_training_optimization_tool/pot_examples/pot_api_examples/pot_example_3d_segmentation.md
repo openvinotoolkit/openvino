@@ -1,6 +1,8 @@
-# Quantizing 3D Segmentation Model {#pot_example_3d_segmentation_README}
+# [Deprecated] Quantizing 3D Segmentation Model {#pot_example_3d_segmentation_README}
 
 @sphinxdirective
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a 3D segmentation model.
 The `Brain Tumor Segmentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/brain-tumor-segmentation-0002>`__ model from PyTorch is used for this purpose. A custom ``DataLoader`` is created to load images in NIfTI format from the `Medical Segmentation Decathlon BRATS 2017 <http://medicaldecathlon.com/>`__ dataset for 3D semantic segmentation task and the implementation of the Dice Index metric is used for the model evaluation. In addition, this example demonstrates how one can use image metadata obtained during image reading and preprocessing to post-process the model raw output. The code of the example is available on `GitHub <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation>`__.

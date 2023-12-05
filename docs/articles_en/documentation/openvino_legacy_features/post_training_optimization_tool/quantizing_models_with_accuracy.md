@@ -1,4 +1,4 @@
-# Quantizing Models with Accuracy Control {#pot_accuracyaware_usage}
+# [Deprecated] Quantizing Models with Accuracy Control {#pot_accuracyaware_usage}
 
 @sphinxdirective
 
@@ -8,6 +8,7 @@
 
    AccuracyAwareQuantization Method <accuracy_aware_README>
 
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 The Accuracy-aware Quantization algorithm allows performing quantization while maintaining accuracy within a pre-defined range. Note that it should be used only if the :doc:`Default Quantization <pot_default_quantization_usage>` introduces a significant accuracy degradation. The reason for it not being the primary choice is its potential for performance degradation, due to some layers getting reverted to the original precision.
 

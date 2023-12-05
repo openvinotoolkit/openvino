@@ -1,6 +1,8 @@
-# API Reference  {#pot_compression_api_README}
+# [Deprecated] API Reference  {#pot_compression_api_README}
 
 @sphinxdirective
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 Post-training Optimization Tool API provides a full set of interfaces and helpers that allow users to implement a custom optimization pipeline for various types of DL models including cascaded or compound models. Below is a full specification of this API:
 

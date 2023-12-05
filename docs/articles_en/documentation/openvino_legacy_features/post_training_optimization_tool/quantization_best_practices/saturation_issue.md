@@ -1,6 +1,8 @@
-# Saturation (overflow) Issue Workaround {#pot_saturation_issue}
+# [Deprecated] Saturation (overflow) Issue Workaround {#pot_saturation_issue}
 
 @sphinxdirective
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 Introduction
 ####################

@@ -6,7 +6,12 @@
    :description: Learn how to convert a FaceNet model 
                  from TensorFlow to the OpenVINO Intermediate Representation.
 
+.. danger::
 
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <Supported_Model_Formats>` article. 
+   
 `Public pre-trained FaceNet models <https://github.com/davidsandberg/facenet#pre-trained-models>`__ contain both training
 and inference part of graph. Switch between this two states is manageable with placeholder value.
 Intermediate Representation (IR) models are intended for inference, which means that train part is redundant.

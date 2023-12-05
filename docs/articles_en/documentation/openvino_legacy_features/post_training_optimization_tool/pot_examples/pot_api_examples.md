@@ -1,4 +1,4 @@
-# Post-training Optimization Tool API Examples {#pot_example_README}
+# [Deprecated] Post-training Optimization Tool API Examples {#pot_example_README}
 
 @sphinxdirective
 
@@ -12,6 +12,8 @@
    Quantizing Semantic Segmentation Model <pot_example_segmentation_README>
    Quantizing 3D Segmentation Model <pot_example_3d_segmentation_README>
    Quantizing for GNA Device <pot_example_speech_README>
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 
 The Post-training Optimization Tool contains multiple examples that demonstrate how to use its :doc:`API <pot_compression_api_README>` 

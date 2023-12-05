@@ -1,6 +1,8 @@
-# Optimization with Simplified Mode {#pot_docs_simplified_mode}
+# [Deprecated] Optimization with Simplified Mode {#pot_docs_simplified_mode}
 
 @sphinxdirective
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 Introduction
 ####################

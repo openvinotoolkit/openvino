@@ -1,6 +1,8 @@
-# Quantizing Image Classification Model {#pot_example_classification_README}
+# [Deprecated] Quantizing Image Classification Model {#pot_example_classification_README}
 
 @sphinxdirective
+
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a classification model.
 The `MobilenetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-1.0-224>`__ model from TensorFlow is used for this purpose.
