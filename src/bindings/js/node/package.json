@@ -8,9 +8,9 @@
   "scripts": {
     "build": "npm run tsc",
     "prepare": "npm run build",
-    "postinstall": "npm run install_bins",
-    "download_bins": "node ./scripts/download_bins.js",
-    "install_bins": "npm run download_bins -- --ignore-if-exists",
+    "postinstall": "npm run install_binaries",
+    "download_binaries": "node ./scripts/download_binaries.js",
+    "install_binaries": "npm run download_binaries -- --ignore-if-exists",
     "lint": "eslint .",
     "test": "node --test ./tests/",
     "tsc": "tsc"
