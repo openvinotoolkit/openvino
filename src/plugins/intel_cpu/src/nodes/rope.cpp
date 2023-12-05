@@ -137,9 +137,9 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
                  const RoPENode::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
-        ov::intel_cpu::PlainTensor<T> t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor<float> t_cos_sin(inputs[1]);
-        ov::intel_cpu::PlainTensor<T> t_dst(outputs[0]);
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);
+        ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
         // [seq_len, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
         if (config.slice_stop - config.slice_start > 0) {
@@ -154,10 +154,10 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         auto rotary_dims = config.rotary_ndims;
 
         parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
-            auto* src = &t_src.at({p, b, h * head_size});
+            auto* src = &t_src.at<T>({p, b, h * head_size});
             // [length, batch_size, ndims//2, 2]
-            auto* cos_sin = &t_cos_sin.at({p, b, 0, 0}, true);
-            auto* dst = &t_dst.at({p, b, h, 0});
+            auto* cos_sin = &t_cos_sin.at<float>({p, b, 0, 0}, true);
+            auto* dst = &t_dst.at<T>({p, b, h, 0});
 
             size_t i = 0;
             for (; i < rotary_dims; i += 2) {
