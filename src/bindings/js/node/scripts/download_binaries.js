@@ -6,14 +6,22 @@ const decompress = require('decompress');
 const packageJson = require('../package.json');
 
 /**
+ * Object specifies archeive name and path to dependencies list in it.
+ * 
+ * @typedef {Object} OsSpecificFiles
+ * @property {string} archive
+ * @property {string[]} dependencies
+ */
+
+/**
  * Object contains path to binaries info.
  * 
  * @typedef {Object} OvBinariesInfo
  * @property {string} version
  * @property {string} url
- * @property {string} linux
- * @property {string} windows
- * @property {string} macos
+ * @property {OsSpecificFiles} linux
+ * @property {OsSpecificFiles} windows
+ * @property {OsSpecificFiles} macos
  */
 
 /**
@@ -79,13 +87,10 @@ async function main() {
   const ovRuntimeUrl = getOvRuntimeUrl(packageJson.binary, systemInfo);
   const bindingsUrl = getOvjsBindingsUrl(packageJson.binary, systemInfo);
 
-  await fetchFiles(ovRuntimeUrl, BIN_PATH, [
-    // TODO: detect these files based on platform
-    'libopenvino.so.2320', 'libopenvino.so.2023.2.0',
-    'libopenvino_ir_frontend.so.2320', 'libopenvino_ir_frontend.so.2023.2.0',
-  ], ['runtime', 'lib', 'intel64']);
+  const { dependencies } = packageJson.binary[systemInfo.os];
 
-  // await fetchFiles(bindingsUrl, BIN_PATH, 'ov_node_addon.node');
+  await fetchFiles(ovRuntimeUrl, BIN_PATH, dependencies);
+  await fetchFiles(bindingsUrl, BIN_PATH, 'ov_node_addon.node');
 }
 
 /**
@@ -95,12 +100,10 @@ async function main() {
  * @function fetchFiles
  * @param {string} url - URL to archive.
  * @param {string} destinationPath - Where put files.
- * @param {string[]|string} _files - Filenames to copy.
- * @param {string} [_from] - Relative path to files in archive.
+ * @param {string[]|string} _paths - File paths to copy.
  */
-async function fetchFiles(url, destinationPath, _files, _from) {
-  const files = typeof file === 'string' ? [_files] : _files;
-  const from = Array.isArray(_from) ? path.join(..._from) : '';
+async function fetchFiles(url, destinationPath, _paths) {
+  const paths = typeof _paths === 'string' ? [_paths] : _paths;
   const tmpDir = 
     path.join(os.tmpdir(), `ovjs-binaries-${(new Date()).getTime()}`);
   console.log(`Start downloading: ${url}`)
@@ -110,10 +113,11 @@ async function fetchFiles(url, destinationPath, _files, _from) {
   console.log('Downloaded');
   await decompress(buffer, tmpDir, { strip: 1 });
   
-  for (const file of files) {
-    const dest = path.join(destinationPath, file);
+  for (const filePath of paths) {
+    const filename = path.basename(filePath);
+    const dest = path.join(destinationPath, filename);
 
-    await fs.copyFile(path.join(tmpDir, from, file), dest);
+    await fs.copyFile(path.join(tmpDir, filePath), dest);
     console.log(`Copied: ${dest}`);
   }
   await removeDirectory(tmpDir);
@@ -188,7 +192,7 @@ async function checkIfDirectoryExists(directoryPath) {
 function getOvRuntimeUrl(binariesInfo, systemInfo) {
   const { url, version } = binariesInfo;
   const { os } = systemInfo;
-  const archiveName = binariesInfo[os];
+  const archiveName = binariesInfo[os].archive;
 
   return new URL(path.join(url, version, os, archiveName)).toString();
 }
@@ -201,8 +205,10 @@ function getOvRuntimeUrl(binariesInfo, systemInfo) {
  * @returns {string}
  */
 function getOvjsBindingsUrl(binariesInfo, systemInfo) {
-  // FIXME: Use real path to bindings
-  // return new URL('').toString();
+  const { artifactsUrl, version, bindings } = binariesInfo;
+  const { os } = systemInfo;
+
+  return new URL(path.join(artifactsUrl, version, os, bindings)).toString();
 }
 
 /**

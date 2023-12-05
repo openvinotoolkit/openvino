@@ -33,8 +33,25 @@
   "binary": {
     "version": "2023.2",
     "url": "https://storage.openvinotoolkit.org/repositories/openvino/packages/",
-    "linux": "l_openvino_toolkit_centos7_2023.2.0.13089.cfd42bd2cb0_x86_64.tgz",
-    "windows": "w_openvino_toolkit_windows_2023.2.0.13089.cfd42bd2cb0_x86_64.zip",
-    "macos": "m_openvino_toolkit_macos_10_15_2023.2.0.13089.cfd42bd2cb0_x86_64.tgz"
+    "artifactsUrl": "https://storage.openvinotoolkit.org/repositories/openvino/build_artifacts/",
+    "bindings": "nodejs_bindings_x86_64.tgz",
+    "linux": {
+      "archive": "l_openvino_toolkit_ubuntu20_2023.2.0.13089.cfd42bd2cb0_x86_64.tgz",
+      "dependencies": [
+        "runtime/lib/intel64/libopenvino.so.2320", 
+        "runtime/lib/intel64/libopenvino.so.2023.2.0",
+        "runtime/lib/intel64/libopenvino_intel_cpu_plugin.so",
+        "runtime/lib/intel64/libopenvino_ir_frontend.so.2320", 
+        "runtime/lib/intel64/libopenvino_ir_frontend.so.2023.2.0"
+      ]
+    },
+    "windows": {
+      "archive": "w_openvino_toolkit_windows_2023.2.0.13089.cfd42bd2cb0_x86_64.zip",
+      "dependencies": []
+    },
+    "macos": {
+      "archive": "m_openvino_toolkit_macos_10_15_2023.2.0.13089.cfd42bd2cb0_x86_64.tgz",
+      "dependencies": []
+    }
   }
 }
