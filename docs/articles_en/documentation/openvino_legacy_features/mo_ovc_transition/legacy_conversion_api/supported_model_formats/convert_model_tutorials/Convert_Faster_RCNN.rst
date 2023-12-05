@@ -8,7 +8,12 @@ Converting an ONNX Faster R-CNN Model
    :description: Learn how to convert a Faster R-CNN model 
                  from ONNX to the OpenVINO Intermediate Representation.
 
+.. danger::
 
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   
 The instructions below are applicable **only** to the Faster R-CNN model converted to the ONNX file format from the `maskrcnn-benchmark model <https://github.com/facebookresearch/maskrcnn-benchmark>`__:
 
 1. Download the pretrained model file from `onnx/models <https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/faster-rcnn>`__ (commit-SHA: 8883e49e68de7b43e263d56b9ed156dfa1e03117).
