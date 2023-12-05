@@ -58,6 +58,8 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
     return tensor;
 }
 
+// Legacy impl for contrig repo
+// todo: remove this after dependent repos clean up
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
                                   const uint32_t range,

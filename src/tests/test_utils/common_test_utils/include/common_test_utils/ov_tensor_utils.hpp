@@ -27,6 +27,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const InputGenerateData& inGenData = InputGenerateData(0, 10, 1, 1));
 
 // Legacy impl for contrig repo
+// todo: remove this after dependent repos clean up
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
                                   const uint32_t range,

@@ -178,7 +178,7 @@ void inline fill_data_random(T* pointer,
                              const double start_from = 0,
                              const int k = 1,
                              const int seed = 1) {
-    if (range == 0) {
+    if (std::fabs(range) <= std::numeric_limits<float>::epsilon()) {
         for (std::size_t i = 0; i < size; i++) {
             pointer[i] = static_cast<T>(start_from);
         }

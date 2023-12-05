@@ -562,7 +562,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         if (reportingLevel == REPORT_LVL_FAST) {
             pgresult = connectionKeeper->query(joinedQuery.str().c_str());
-            CHECK_PGRESULT(pgresult, "Cannot update test cases results", return );
+            CHECK_PGRESULT(pgresult, "Cannot update test cases results", return);
         }
     }
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
