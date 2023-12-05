@@ -80,7 +80,7 @@ jobs:
         with:
           version: '3.11'
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Build cpp samples - GCC
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
