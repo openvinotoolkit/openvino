@@ -59,7 +59,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ov::Model> mod
     auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto testCase = ov::test::TestCase(model, "TEMPLATE");
+    auto testCase = ov::test::TestCase(model, "CPU");
 
     const auto parameters = model->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++) {
