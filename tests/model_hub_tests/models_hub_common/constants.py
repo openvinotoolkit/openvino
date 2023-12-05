@@ -5,7 +5,15 @@
 import os
 import tempfile
 
-runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '60')
+'''
+@brief Time in seconds of measurement performance on each of the networks. This time doesn't include
+loading and heating and includes measurement only one of 2 models - got through convert and read_model.
+Both "converted" and "read_model" modes will be 2 * runtime_measure_duration 
+'''
+runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '5')
+'''
+@brief Time in seconds of heating before measurement
+'''
 runtime_heat_duration = os.environ.get('RUNTIME_HEAT_DURATION', '5')
 
 

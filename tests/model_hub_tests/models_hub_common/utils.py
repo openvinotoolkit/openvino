@@ -4,6 +4,7 @@
 import itertools
 import os
 import shutil
+import time
 
 import numpy as np
 from models_hub_common.constants import test_device
@@ -68,7 +69,42 @@ def cleanup_dir(dir: str):
 
 
 def round_num(n: float) -> str:
-    s = '{:.4E}'.format(n)
+    if 0.1 < n < 1:
+        return str(n)[:4]
+    s = '{:.2E}'.format(n)
     if s.endswith('E+00'):
         return s[:-4]
     return s
+
+
+def nano_secs(secs):
+    return float(secs) * (10 ** 9)
+
+
+def measure(max_time_nano_secs: float, func, args):
+    left_time_ns = float(max_time_nano_secs)
+    time_slices = []
+    n_repeats = 0
+    while left_time_ns > 0:
+        t0 = time.perf_counter_ns()
+        func(*args)
+        t1 = time.perf_counter_ns()
+        timedelta = t1 - t0
+        time_slices.append(timedelta)
+        left_time_ns -= timedelta
+        n_repeats += 1
+    real_runtime_nano_secs = max_time_nano_secs - left_time_ns
+    return time_slices, n_repeats, real_runtime_nano_secs
+
+
+def call_with_timer(timer_label: str, func, args):
+    print('{} ...'.format(timer_label))
+    t0 = time.time()
+    ret_value = func(*args)
+    t1 = time.time()
+    print('{} is done in {} secs'.format(timer_label, round_num(t1 - t0)))
+    return ret_value
+
+
+def print_stat(s: str, value: float):
+    print(s.format(round_num(value)))
