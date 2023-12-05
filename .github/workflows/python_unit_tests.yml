@@ -130,7 +130,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
-        if: fromJSON(inputs.affected-components).Python_API.test
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test && (runner.os != 'Linux' && runner.arch != 'ARM64') }} # Ticket: 126380
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -178,6 +178,11 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
+          
+          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
+            export LD_PRELOAD=${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
+          fi
+          
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -189,6 +194,11 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
+          
+          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
+            export LD_PRELOAD=${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
+          fi
+          
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -203,14 +213,14 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
-        if: fromJSON(inputs.affected-components).PyTorch_FE.test
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && (runner.os != 'Linux' && runner.arch != 'ARM64') }} # Ticket: 126287
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS'
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && (runner.os != 'macOS' || runner.arch != 'ARM64') }}
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -219,7 +229,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS'
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && (runner.os != 'macOS' || runner.arch != 'ARM64') }}
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -258,7 +268,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
-        if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS'
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && (runner.os != 'macOS' || runner.arch != 'ARM64') }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
