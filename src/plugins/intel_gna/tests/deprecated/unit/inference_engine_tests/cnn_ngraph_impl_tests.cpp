@@ -25,9 +25,9 @@
 #include <ngraph/op/prelu.hpp>
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/result.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node_vector.hpp>

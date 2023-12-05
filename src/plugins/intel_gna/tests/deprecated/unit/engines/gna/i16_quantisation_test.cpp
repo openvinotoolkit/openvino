@@ -14,6 +14,7 @@
 #include "frontend/model_quantizer.hpp"
 #include "gna_matcher.hpp"
 #include "ov_models/builders.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::intel_gna::limitations;
