@@ -342,27 +342,23 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     }
 
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-        if (*(loop_subtensor.rbegin() + dim_idx) == PortDescriptor::ServiceDimensions::FULL_DIM) {
+        OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
+        const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
+        if (subtensor_value == PortDescriptor::ServiceDimensions::FULL_DIM) {
             continue;
         }
 
         OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
-        const auto work_amount =
-                loop_tensor.size() > dim_idx ? *(loop_tensor.rbegin() + dim_idx)
-                                             : 0;
-        const auto work_amount_increment =
-                loop_subtensor.size() > dim_idx ? *(loop_subtensor.rbegin() + dim_idx)
-                                                : (dim_idx == 0 ? vector_size : 1);
-        const auto id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, work_amount_increment, dim_idx, loop_entry_points, loop_exit_points);
+        const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
+        const auto increment = subtensor_value <= work_amount ? subtensor_value : work_amount;
+        const auto id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_entry_points, loop_exit_points);
         const auto loop_info = get_loop_info(id);
 
-        const auto tail_size = work_amount % work_amount_increment;
+        const auto tail_size = work_amount % increment;
         if (tail_size != 0) {
             loop_info->handlers[LoopInfo::LAST_ITER].register_pass<lowered::pass::DefaultTailLoopHandler>(tail_size);
-            if (work_amount > work_amount_increment) {
-                loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ReduceWorkAmount>(tail_size);
-                loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ZeroFinalizationOffsets>();
-            }
+            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ReduceWorkAmount>(tail_size);
+            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ZeroFinalizationOffsets>();
         }
     }
 }
@@ -421,13 +417,14 @@ void LinearIR::LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, 
     loop_info->set_entry_points(new_entries);
     loop_info->set_exit_points(new_exits);
 
-    // WA: if one of the fused loops is broadcastable (wa = 1), its handlers have less priority.
-    // Need to fix it by avoiding handlers creation for the loops whose work amount less than increment
-    if (loop_info_upper->get_work_amount() > loop_info_lower->get_work_amount()) {
-        loop_info->handlers = fuse_loop_handlers(loop_info_upper->handlers, loop_info_lower->handlers);
-    } else {
-        loop_info->handlers = fuse_loop_handlers(loop_info_lower->handlers, loop_info_upper->handlers);
-    }
+    loop_info->handlers = fuse_loop_handlers(loop_info_upper->handlers, loop_info_lower->handlers);
+    // Since fusion can be called for broadcastable loops (one of the loops has work_amount = increment = 1),
+    // maximum value is set to the fused loop
+    loop_info->set_work_amount(std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount()));
+    loop_info->set_increment(std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment()));
+    // If one of the Loops is outer for nested loops that splits the same dimension,
+    // after fusion new common Loop saves this status
+    loop_info->set_outer_splited_loop(loop_info_upper->get_outer_splited_loop() || loop_info_lower->get_outer_splited_loop());
 
     const auto& from = fuse_into_upper ? loop_id_lower : loop_id_upper;
     const auto& to = fuse_into_upper ? loop_id_upper : loop_id_lower;

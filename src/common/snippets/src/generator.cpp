@@ -36,13 +36,10 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
+    lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
+    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     lowered_pipeline.run(linear_ir);
-
-    lowered::pass::PassPipeline target_pipeline;
-    target_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
-    target_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
-    target_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
-    target_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")

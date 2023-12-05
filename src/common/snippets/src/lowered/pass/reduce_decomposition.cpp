@@ -70,6 +70,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir) {
         const auto& reduce_type_info = reduce->get_type_info();
         const auto& input_shape = reduce_expr->get_input_port_descriptor(0)->get_shape();
         const auto work_amount = *(input_shape.rbegin());
+        const auto increment = m_vector_size <= work_amount ? m_vector_size : work_amount;
         const bool is_dynamic = reduce->is_dynamic();
 
         // We need an iterator to the inserted element
@@ -87,26 +88,24 @@ bool ReduceDecomposition::run(LinearIR& linear_ir) {
         const auto initial_fill = push_node(std::make_shared<op::Fill>(vector_buffer.second, 0, fill_value));
 
         // Reduce loop
-        const auto fill = push_node(std::make_shared<op::Fill>(reduce->get_input_source_output(0), m_vector_size, fill_value));
+        const auto fill = push_node(std::make_shared<op::Fill>(reduce->get_input_source_output(0), increment, fill_value));
         const auto accumulation = push_node(get_accumulation_node(fill.second, initial_fill.second, reduce_type_info));
 
         const auto reduce_loop_id = loop_manager->mark_loop(
             fill.first,
             expr_it,
             work_amount,
-            m_vector_size,
+            increment,
             0,
             std::vector<ExpressionPort>{(*fill.first)->get_input_port(0), (*accumulation.first)->get_input_port(1)},
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
         const auto reduce_loop_info = loop_manager->get_loop_info(reduce_loop_id);
-        const auto tail_size = work_amount % m_vector_size;
+        const auto tail_size = work_amount % increment;
         if (tail_size != 0) {
             reduce_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
             reduce_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
-            if (work_amount > m_vector_size) {
-                reduce_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-                reduce_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
-            }
+            reduce_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
+            reduce_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
         }
         const auto horizon = push_node(get_horizon_node(accumulation.second, reduce_type_info));
 

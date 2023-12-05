@@ -39,7 +39,7 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto in_shape0 = in_shapes[0].get_shape();
     const auto in_shape1 = in_shapes[1].get_shape();
     const auto inner_wa = std::max(*in_shape0.rbegin(), *in_shape1.rbegin());
-    const auto inner_inc = vector_size;
+    const auto inner_inc = std::min(vector_size, inner_wa);
     const auto blocked_wa = block_size;
     const auto blocked_inc = 1;
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));

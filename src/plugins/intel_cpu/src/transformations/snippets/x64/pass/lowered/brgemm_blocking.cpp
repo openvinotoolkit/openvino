@@ -172,6 +172,11 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                         loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmKBlockSize>(tail_size);
                         loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmBeta>(1.f);
                     }
+                } else {
+                    loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<SetSingleIterationWithWorkAmount>(block_size_k);
+                    loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<ZeroFinalizationOffsets>();
+                    loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(block_size_k);
+                    loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<SetBrgemmBeta>(1.f);
                 }
             }
         };
