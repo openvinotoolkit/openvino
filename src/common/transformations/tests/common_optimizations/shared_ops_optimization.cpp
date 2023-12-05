@@ -654,8 +654,10 @@ TEST_F(SharedTransformationTestsF, SharedMaxPool) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-        auto op_1 = std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
-        auto op_2 = std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+        auto op_1 =
+            std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+        auto op_2 =
+            std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_2}, 0);
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
@@ -664,7 +666,8 @@ TEST_F(SharedTransformationTestsF, SharedMaxPool) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-        auto op_1 = std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+        auto op_1 =
+            std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
