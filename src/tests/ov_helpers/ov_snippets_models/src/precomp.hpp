@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <openvino/openvino.hpp>
-#include <openvino/op/ops.hpp>
+#include "openvino/openvino.hpp"
+#include "openvino/op/ops.hpp"
 
 #include <algorithm>
 #include <functional>
