@@ -15,6 +15,7 @@
 #include "transformations/snippets/x64/op/store_convert.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
@@ -159,12 +160,16 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Subgraph, ov::snippets::op)
         NGRAPH_OP(VectorBuffer, ov::snippets::op)
         NGRAPH_OP(RankNormalization, ov::snippets::op)
+        NGRAPH_OP(PerfCountBegin, ov::snippets::op)
+        NGRAPH_OP(PerfCountEnd, ov::snippets::op)
         NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
+        NGRAPH_OP_X64(PerfCountRdtscBegin, ov::intel_cpu)
+        NGRAPH_OP_X64(PerfCountRdtscEnd, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;

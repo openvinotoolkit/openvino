@@ -116,6 +116,20 @@ struct ThreadLocal {
     auto end() const -> Iterator<decltype(_map.end())> const {
         return {_map.end()};
     }
+
+    // CombineFunc has signature T(T,T) or T(const T&, const T&)
+    template <typename CombineFunc>
+    T combine(CombineFunc f_combine) {
+        if (begin() != end()) {
+            auto ci = begin();
+            T my_result = *ci;
+            while (++ci != end())
+                my_result = f_combine(my_result, *ci);
+            return my_result;
+        } else {
+            return _create();
+        }
+    }
 };
 
 #endif
