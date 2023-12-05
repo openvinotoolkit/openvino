@@ -3,7 +3,6 @@
 #
 import numpy as np
 from save_model import saveModel
-import paddle
 import paddle as pdpd
 import sys
 
@@ -16,7 +15,7 @@ def greater_than(name: str, x, y, data_type, cast_to_fp32=False):
             name='input_x', shape=x.shape, dtype=data_type)
         node_y = pdpd.static.data(
             name='input_y', shape=y.shape, dtype=data_type)
-        if paddle.__version__ >= '2.0.0':
+        if pdpd.__version__ >= '2.0.0':
             out = pdpd.greater_than(
                 x=node_x, y=node_y, name='greater_than')
         else:

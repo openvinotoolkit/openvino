@@ -5,7 +5,6 @@
 # reduce_all paddle model generator
 #
 
-import paddle
 import numpy as np
 import sys
 from save_model import saveModel

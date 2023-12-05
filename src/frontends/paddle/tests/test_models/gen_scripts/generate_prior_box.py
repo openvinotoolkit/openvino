@@ -4,8 +4,6 @@
 #
 # prior_box paddle model generator
 #
-
-import paddle
 import numpy as np
 from save_model import saveModel
 import sys
