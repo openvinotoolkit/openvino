@@ -659,5 +659,22 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
     }
 }
 
+void IStreamsExecutor::Config::set_config_zero_stream() {
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+    int core_type = MAIN_CORE_PROC;
+    int numa_id = 0;
+    int socket_id = 0;
+
+    if (proc_type_table.size() > 0) {
+        core_type = proc_type_table[0][MAIN_CORE_PROC] > 0
+                        ? MAIN_CORE_PROC
+                        : (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 ? EFFICIENT_CORE_PROC : HYPER_THREADING_PROC);
+        numa_id = std::max(0, proc_type_table[0][PROC_NUMA_NODE_ID]);
+        socket_id = std::max(0, proc_type_table[0][PROC_SOCKET_ID]);
+    }
+    _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
+    _cpu_reservation = false;
+}
+
 }  // namespace threading
 }  // namespace ov
