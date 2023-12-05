@@ -43,7 +43,8 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
-    result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
+    auto boxEncodingStr = (boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER) ? "CENTER" : "CORNER";
+    result << "boxEncoding=" << boxEncodingStr << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -288,7 +289,7 @@ void NmsLayerTest::SetUp() {
     InputPrecisions inPrecisions;
     size_t maxOutBoxesPerClass;
     float iouThr, scoreThr, softNmsSigma;
-    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+    ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
     std::tie(inShapeParams,
