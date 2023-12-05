@@ -184,23 +184,26 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
 }
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
-    OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
+    OPENVINO_ASSERT(memory.get_engine() == this || memory.get_engine() == nullptr, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
                     "[GPU] trying to reinterpret between image and non-image layouts. Current: ",
                     memory.get_layout().format.to_string(), " Target: ", new_layout.format.to_string());
 
     try {
         if (new_layout.format.is_image_2d()) {
-           return std::make_shared<ocl::gpu_image2d>(this,
-                                     new_layout,
-                                     reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer());
+            return std::make_shared<ocl::gpu_image2d>(this,
+                                    new_layout,
+                                    reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer());
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             return std::make_shared<ocl::gpu_usm>(this,
-                                     new_layout,
-                                     reinterpret_cast<const ocl::gpu_usm&>(memory).get_buffer(),
-                                     memory.get_allocation_type());
+                                    new_layout,
+                                    reinterpret_cast<const ocl::gpu_usm&>(memory).get_buffer(),
+                                    memory.get_allocation_type());
+        } else if (memory.get_allocation_type() == allocation_type::unknown) {
+            return std::make_shared<simple_attached_memory>(new_layout,
+                                    dynamic_cast<const simple_attached_memory&>(memory).get_buffer());
         } else {
-           return std::make_shared<ocl::gpu_buffer>(this,
+            return std::make_shared<ocl::gpu_buffer>(this,
                                     new_layout,
                                     reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer());
         }

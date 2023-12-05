@@ -38,6 +38,12 @@ memory::~memory() {
     }
 }
 
+event::ptr simple_attached_memory::copy_to(stream& /* stream */, void* host_ptr, bool /* blocking */) {
+    host_ptr = malloc(size());
+    memcpy(host_ptr, _pointer, size());
+    return nullptr;
+}
+
 std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream) {
     switch (engine_type) {
     case engine_types::ocl: return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, stream));

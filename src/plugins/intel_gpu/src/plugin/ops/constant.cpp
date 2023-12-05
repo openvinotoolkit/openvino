@@ -99,9 +99,14 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        bool allocate_mem = constLayout.count() <= cldnn::layout::max_rank();
         cldnn::memory::ptr mem = nullptr;
         if (constLayout.bytes_count() > 0) {
-            mem = p.get_engine().allocate_memory(constLayout, false);
+            if (allocate_mem) {
+                mem = p.get_engine().allocate_memory(constLayout, false);
+            } else {
+                mem = p.get_engine().attach_memory(constLayout, static_cast<void*>(const_cast<char*>(data)));
+            }
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
@@ -112,12 +117,15 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
-        auto& stream = p.get_engine().get_service_stream();
-        cldnn::mem_lock<char> lock{mem, stream};
-        auto buf = lock.data();
-        auto bufSize = constLayout.bytes_count();
 
-        std::memcpy(&buf[0], &data[0], bufSize);
+        if (allocate_mem) {
+            auto& stream = p.get_engine().get_service_stream();
+            cldnn::mem_lock<char> lock{mem, stream};
+            auto buf = lock.data();
+            auto bufSize = constLayout.bytes_count();
+            std::memcpy(&buf[0], &data[0], bufSize);
+        }
+
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

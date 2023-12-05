@@ -109,6 +109,8 @@ struct simple_attached_memory : memory {
 #endif
         0}; };
 
+    void* get_buffer() const { return _pointer; }
+
     event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override {
         OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
     }
@@ -118,9 +120,7 @@ struct simple_attached_memory : memory {
     event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override {
         OPENVINO_THROW("[GPU] copy_to is not implemented for simple_attached_memory");
     }
-    event::ptr copy_to(stream& /* stream */, void* /* host_ptr */, bool /* blocking */) override {
-        OPENVINO_THROW("[GPU] copy_to is not implemented for simple_attached_memory");
-    }
+    event::ptr copy_to(stream& /* stream */, void* host_ptr, bool /* blocking */) override;
 
 private:
     void* _pointer;
