@@ -204,7 +204,8 @@ bool max_pools_8_are_equal(const Node* lhs, const Node* rhs) {
            l_pool->get_auto_pad() == r_pool->get_auto_pad() && l_pool->get_strides() == r_pool->get_strides() &&
            l_pool->get_dilations() == r_pool->get_dilations() && l_pool->get_pads_begin() == r_pool->get_pads_begin() &&
            l_pool->get_pads_end() == r_pool->get_pads_end() && l_pool->get_kernel() == r_pool->get_kernel() &&
-           l_pool->get_rounding_type() == r_pool->get_rounding_type() && l_pool->get_index_element_type() == r_pool->get_index_element_type() &&
+           l_pool->get_rounding_type() == r_pool->get_rounding_type() &&
+           l_pool->get_index_element_type() == r_pool->get_index_element_type() &&
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
 
