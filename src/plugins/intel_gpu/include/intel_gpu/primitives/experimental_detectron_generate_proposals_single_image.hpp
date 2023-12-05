@@ -15,8 +15,6 @@ struct experimental_detectron_generate_proposals_single_image
 
     experimental_detectron_generate_proposals_single_image() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs experimental_detectron_generate_proposals_single_image primitive
     /// @param id This primitive id
     /// @param input_im_info image size info
@@ -47,10 +45,10 @@ struct experimental_detectron_generate_proposals_single_image
             post_nms_count{post_nms_count} {}
 
     primitive_id output_roi_scores;
-    float min_size;
-    float nms_threshold;
-    int64_t pre_nms_count;
-    int64_t post_nms_count;
+    float min_size = 0.0f;
+    float nms_threshold = 0.0f;
+    int64_t pre_nms_count = 0;
+    int64_t post_nms_count = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

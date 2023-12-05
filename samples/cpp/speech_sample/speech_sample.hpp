@@ -24,7 +24,7 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 
 /// @brief message for assigning calculation to device
 static const char target_device_message[] =
-    "Optional. Specify a target device to infer on. CPU, GPU, VPU, GNA_AUTO, GNA_HW, "
+    "Optional. Specify a target device to infer on. CPU, GPU, NPU, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
     "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
     " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
@@ -274,7 +274,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
-                                                 "VPU"};
+                                                 "NPU"};
 
     if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
         throw std::logic_error("Specified device is not supported.");

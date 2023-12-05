@@ -10,7 +10,7 @@
 #include <transformations/init_node_info.hpp>
 #include <tuple>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/convert_padded_to_valid_convolution.hpp"
 
 namespace testing {

@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvFqReluTest,
                                             convParams,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvFqReluTest::getTestCaseName);
 

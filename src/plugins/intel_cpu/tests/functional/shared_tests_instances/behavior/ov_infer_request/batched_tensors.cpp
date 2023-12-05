@@ -9,6 +9,6 @@ using namespace ov::test::behavior;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestBatchedTests,
-                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                          OVInferRequestBatchedTests::getTestCaseName);
 }  // namespace

@@ -79,7 +79,7 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
 
     auto& engine = get_test_engine();
     tensor input_tensor(input_b, input_f, input_x, input_y);
-    auto input = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
+    auto input = engine.allocate_memory({ ov::element::from<T>(), test_input_fmt, input_tensor });
     set_values(input, input_rnd_vec);
 
     topology topology;

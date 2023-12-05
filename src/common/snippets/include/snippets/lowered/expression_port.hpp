@@ -25,8 +25,13 @@ public:
 
     ExpressionPort() = default;
     explicit ExpressionPort(const std::shared_ptr<Expression>& expr, Type type, size_t port);
+    /**
+    * @interface clone_with_new_expr
+    * @brief Creates similar Expression port, but for new expression
+     */
+    std::shared_ptr<ExpressionPort> clone_with_new_expr(const std::shared_ptr<Expression>& new_expr) const;
 
-    const std::shared_ptr<Expression>& get_expr() const { return m_expr; }
+    std::shared_ptr<Expression> get_expr() const;
     Type get_type() const { return m_type; }
     size_t get_index() const { return m_port_index; }
 
@@ -42,7 +47,7 @@ public:
     friend bool operator<(const ExpressionPort& lhs, const ExpressionPort& rhs);
 
 private:
-    std::shared_ptr<Expression> m_expr;
+    std::weak_ptr<Expression> m_expr;
     Type m_type = Type::Output;
     size_t m_port_index = 0;
 };

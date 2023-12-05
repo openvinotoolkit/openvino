@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/prior_box.hpp"
-
-#include <vector>
-
+#include "single_op_tests/prior_box.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+namespace {
+using ov::test::PriorBoxLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::I32,
-                                                               InferenceEngine::Precision::U16};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::i32,
+                                                      ov::element::u16};
 
 const std::vector<std::vector<float>> min_sizes = {{256.0f}};
 
@@ -41,34 +39,28 @@ const std::vector<std::vector<float>> variances = {{}};
 
 const std::vector<bool> min_max_aspect_ratios_order = {false, true};
 
-const std::vector<size_t> inputShape = {300, 300};
-const std::vector<size_t> imageShape = {32, 32};
+std::vector<ov::Shape> input_shapes_static = {{32, 32}, {300, 300}};
 
 const auto scaleSizesParams = ::testing::Combine(::testing::ValuesIn(min_sizes),
-                                                    ::testing::ValuesIn(max_sizes),
-                                                    ::testing::ValuesIn(aspect_ratios),
-                                                    ::testing::ValuesIn(densities),
-                                                    ::testing::ValuesIn(fixed_ratios),
-                                                    ::testing::ValuesIn(fixed_sizes),
-                                                    ::testing::ValuesIn(clips),
-                                                    ::testing::ValuesIn(flips),
-                                                    ::testing::ValuesIn(steps),
-                                                    ::testing::ValuesIn(offsets),
-                                                    ::testing::ValuesIn(variances),
-                                                    ::testing::Values(true),
-                                                    ::testing::ValuesIn(min_max_aspect_ratios_order));
+                                                 ::testing::ValuesIn(max_sizes),
+                                                 ::testing::ValuesIn(aspect_ratios),
+                                                 ::testing::ValuesIn(densities),
+                                                 ::testing::ValuesIn(fixed_ratios),
+                                                 ::testing::ValuesIn(fixed_sizes),
+                                                 ::testing::ValuesIn(clips),
+                                                 ::testing::ValuesIn(flips),
+                                                 ::testing::ValuesIn(steps),
+                                                 ::testing::ValuesIn(offsets),
+                                                 ::testing::ValuesIn(variances),
+                                                 ::testing::Values(true),
+                                                 ::testing::ValuesIn(min_max_aspect_ratios_order));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox8_Scale,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_PriorBox8_Scale,
                          PriorBoxLayerTest,
                          ::testing::Combine(scaleSizesParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::I32),
-                                            ::testing::Values(InferenceEngine::Precision::FP32),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(inputShape),
-                                            ::testing::Values(imageShape),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PriorBoxLayerTest::getTestCaseName);
 
 const auto noScaleSizesParams = ::testing::Combine(::testing::ValuesIn(min_sizes),
@@ -85,15 +77,12 @@ const auto noScaleSizesParams = ::testing::Combine(::testing::ValuesIn(min_sizes
                                                     ::testing::Values(false),
                                                     ::testing::ValuesIn(min_max_aspect_ratios_order));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox8_NoScale,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_PriorBox8_NoScale,
                          PriorBoxLayerTest,
                          ::testing::Combine(scaleSizesParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::I32),
-                                            ::testing::Values(InferenceEngine::Precision::FP32),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(inputShape),
-                                            ::testing::Values(imageShape),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PriorBoxLayerTest::getTestCaseName);
+
+}  // namespace

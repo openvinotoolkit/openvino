@@ -13,7 +13,7 @@ namespace pass {
  * @brief Pooling can be reordered with activation, on GNA there is a strategy to have conv->maxpool->activation
  * it means maxpool receives 4 bytes, and produces 4 bytes
  */
-class ReorderActivationAndPooling : public ngraph::pass::MatcherPass {
+class ReorderActivationAndPooling : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReorderActivationAndPooling", "0");
     ReorderActivationAndPooling();

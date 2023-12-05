@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 

@@ -10,28 +10,28 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/mat_mul.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/mat_mul.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 class SeparateInStandaloneBranchTransformationTestValues {
 public:
     TestTransformationParams params;
-    ngraph::element::Type precisionBefore;
+    ov::element::Type precisionBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
 
@@ -40,7 +40,7 @@ inline std::ostream& operator << (std::ostream& out, const SeparateInStandaloneB
 }
 
 typedef std::tuple<
-    ngraph::Shape,
+    ov::Shape,
     SeparateInStandaloneBranchTransformationTestValues> SeparateInStandaloneBranchTransformationParams;
 
 class SeparateInStandaloneBranchTransformation :
@@ -48,30 +48,30 @@ class SeparateInStandaloneBranchTransformation :
     public testing::WithParamInterface<SeparateInStandaloneBranchTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::Shape shape = std::get<0>(GetParam());
+        const ov::Shape shape = std::get<0>(GetParam());
         const SeparateInStandaloneBranchTransformationTestValues testValues = std::get<1>(GetParam());
 
         const auto createActualFunction = [](
-            const ngraph::element::Type precision,
-            const ngraph::Shape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantizations) -> std::shared_ptr<ngraph::Function> {
+            const ov::element::Type precision,
+            const ov::Shape& inputShape,
+            const ngraph::builder::subgraph::DequantizationOperations& dequantizations) -> std::shared_ptr<ov::Model> {
             const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
             const auto dequantizationsNode = ngraph::builder::subgraph::makeDequantization(relu, dequantizations);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
-                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
-                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape2->set_friendly_name("reshape2");
 
-            return std::make_shared<ngraph::Function>(
+            return std::make_shared<ov::Model>(
                 ngraph::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
@@ -81,28 +81,28 @@ public:
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
         const auto result = actualFunction->get_results()[0];
-        ngraph::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
+        ov::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
 
         const auto createReferenceFunction = [](
-            const ngraph::element::Type precision,
-            const ngraph::Shape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ngraph::Function> {
+            const ov::element::Type precision,
+            const ov::Shape& inputShape,
+            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
             const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 ngraph::builder::subgraph::makeDequantization(relu, dequantization),
-                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 ngraph::builder::subgraph::makeDequantization(relu, dequantization),
-                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape2->set_friendly_name("reshape2");
 
-            return std::make_shared<ngraph::Function>(
+            return std::make_shared<ov::Model>(
                 ngraph::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
@@ -114,7 +114,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SeparateInStandaloneBranchTransformationParams> obj) {
-        ngraph::Shape shapes;
+        ov::Shape shapes;
         SeparateInStandaloneBranchTransformationTestValues testValues;
         std::tie(shapes, testValues) = obj.param;
 
@@ -132,7 +132,7 @@ TEST_P(SeparateInStandaloneBranchTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ov::Shape> shapes = {
     { 1, 3, 9, 9 },
     { 4, 3, 9, 9 }
 };
@@ -140,20 +140,20 @@ const std::vector<ngraph::Shape> shapes = {
 std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        ngraph::element::u8,
-        { ngraph::element::f32, { 127.f }, { 0.02f } }
+        ov::element::u8,
+        { ov::element::f32, { 127.f }, { 0.02f } }
     },
     {
         LayerTransformation::createParamsU8U8(),
-        ngraph::element::u8,
-        { ngraph::element::f32, { 127.f }, {} }
+        ov::element::u8,
+        { ov::element::f32, { 127.f }, {} }
     },
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        ngraph::element::u8,
+        ov::element::u8,
         {
-            ngraph::element::f32,
-            { {127.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::u8, true},
+            ov::element::f32,
+            { {127.f}, ov::element::f32, {}, true, 1ul, ov::element::u8, true},
             { 0.02f }
         }
     }

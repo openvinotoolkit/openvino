@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/einsum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,7 +18,7 @@ std::string EinsumLayerTest::getTestCaseName(const testing::TestParamInfo<Einsum
 
     std::ostringstream result;
     result << "PRC=" << precision.name() << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Eq=" << equation << "_";
     result << "trgDev=" << targetDevice;
     return result.str();
@@ -33,10 +33,15 @@ void EinsumLayerTest::SetUp() {
     std::tie(equation, inputShapes) = equationWithInput;
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
-    const auto params = ngraph::builder::makeParams(ngPrc, inputShapes);
-    const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params;
+    ov::OutputVector paramsOuts;
+    for (auto&& shape : inputShapes) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape));
+        params.push_back(param);
+        paramsOuts.push_back(param);
+    }
 
-    const std::shared_ptr<ngraph::Node> einsum = ngraph::builder::makeEinsum(paramOuts, equation);
+    const auto einsum = std::make_shared<ov::op::v7::Einsum>(paramsOuts, equation);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(einsum)};
     function = std::make_shared<ngraph::Function>(results, params, "einsum");
 }

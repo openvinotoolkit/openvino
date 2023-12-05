@@ -20,7 +20,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/core/model.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"
@@ -34,7 +34,10 @@ std::string OVInferenceChaining::getTestCaseName(const testing::TestParamInfo<In
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape &shape) {
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape});
+    ov::ParameterVector params;
+    for (auto&& sp : {shape, shape, shape}) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
+    }
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -50,7 +53,10 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov:
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape &shape) {
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape});
+    ov::ParameterVector params;
+    for (auto&& sp : {shape, shape}) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
+    }
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -63,7 +69,10 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape &shape) {
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape, shape});
+    ov::ParameterVector params;
+    for (auto&& sp : {shape, shape, shape, shape}) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
+    }
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});

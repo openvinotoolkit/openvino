@@ -12,12 +12,6 @@
 
 #include "openvino/core/any.hpp"
 
-namespace InferenceEngine {
-
-class CNNNetwork;
-
-}
-
 namespace ov {
 
 class Tensor;

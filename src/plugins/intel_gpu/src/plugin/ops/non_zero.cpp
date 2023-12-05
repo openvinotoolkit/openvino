@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/non_zero.hpp"
+#include "openvino/op/non_zero.hpp"
 
 #include "intel_gpu/primitives/non_zero.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateNonZeroOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
+static void CreateNonZeroOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layer_name = layer_type_name_ID(op);

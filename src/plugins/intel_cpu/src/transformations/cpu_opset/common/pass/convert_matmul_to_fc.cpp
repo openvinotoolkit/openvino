@@ -4,23 +4,29 @@
 
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "convert_matmul_to_fc.hpp"
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
-    auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
-    auto weights_m = ngraph::pattern::wrap_type<ngraph::opset1::Constant, ngraph::opset1::Convert>(ngraph::pattern::has_static_rank());
-    auto matmul_m = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
+    auto activations_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto weights_path = [](const ov::Output<ov::Node>& output) {
+        return ov::op::util::is_on_constant_path(output);
+    };
+    auto weights_m = ov::pass::pattern::any_input(weights_path);
+    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
+        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
@@ -30,7 +36,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
         bool is_convert = false;
-        if (auto convert_node = std::dynamic_pointer_cast<ngraph::opset1::Convert>(fc_input_b.get_node_shared_ptr())) {
+        if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
             if (is_decompression(convert_node)) {
                 is_convert = true;
                 fc_input_b = convert_node->get_input_node_shared_ptr(0);
@@ -54,7 +60,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
-        if (std::count_if(shape_b.begin(), shape_b.end(), [](ngraph::Dimension x) { return x != 1; }) > 2) {
+        if (std::count_if(shape_b.begin(), shape_b.end(), [](ov::Dimension x) { return x != 1; }) > 2) {
             return false;
         }
         /*
@@ -64,8 +70,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ngraph::PartialShape, ngraph::PartialShape> {
-            ngraph::PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
+        auto get_aligned_shapes = [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+            ov::PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
             for (size_t i = 0, cnt = max_size - rank_a; i < cnt; ++i) {
                 shape_a_aligned.insert(shape_a_aligned.begin(), 1);
@@ -74,7 +80,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 shape_b_aligned.insert(shape_b_aligned.begin(), 1);
             }
 
-            if (matmul->get_transpose_a() && rank_a != 1) {
+            if (matmul->get_transpose_a()) {
                 std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
             }
             if (matmul->get_transpose_b()) {
@@ -99,27 +105,27 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
          *  sequence starting from 0 and replace last two dimension. For example for length = 4  the
          *  order will be [0, 1, 3, 2] that emulates transpose_a or transpose_b attribute.
          */
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
-        auto create_transpose = [this, &new_ops ](const ngraph::Output<ngraph::Node>& node, const std::string& transpose_name) {
-            auto rank = node.get_partial_shape().rank();
-            std::vector<size_t> transpose_order(rank.get_length());
+        auto create_transpose = [this, &new_ops ](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
+            std::vector<size_t> transpose_order(node.get_partial_shape().size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ transpose_order.size() }, transpose_order);
-            auto transpose = ov::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
-            if (!ngraph::is_type<ngraph::opset1::Constant>(transpose)) {
+            auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order.size() }, transpose_order);
+            auto transpose = std::make_shared<ov::op::v1::Transpose>(node, transpose_const);
+            if (!ov::is_type<ov::op::v0::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
                 MatcherPass::register_new_node(transpose);
             }
             transpose->set_friendly_name(transpose_name);
+            ov::disable_constant_folding(transpose);
             new_ops.push_back(transpose);
             return transpose;
         };
 
         bool success = true;
-        ngraph::PartialShape shape_a_aligned, shape_b_aligned;
+        ov::PartialShape shape_a_aligned, shape_b_aligned;
         std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
         if (!success) {
             return false;
@@ -133,25 +139,26 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // Transferring from MatMul representation: [B, I, K] * [B, K, O] = [B, I, O]
         // to FullyConnected representation: [I, K] * [K, O] = [I, O]
 
-        // Weights normalization
-        if (!matmul->get_transpose_b()) {
-            fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
-        }
-
         if (rank_b != 2) {
-            ngraph::Dimension K = *(shape_b_aligned.rbegin() + 1);
+            ov::Dimension K = *(shape_b_aligned.rbegin() + 1);
             NGRAPH_CHECK(K.is_static());
-            std::vector<int64_t> reshape_shape_values = { -1ll, static_cast<int64_t>(K.get_length()) };
-            auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, reshape_shape_values);
-            fc_input_b = ov::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
-            if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
+            auto k_len = K.get_length();
+            auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
+            auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, reshape_shape_values);
+            fc_input_b = ov::op::util::make_try_fold<ov::op::v1::Reshape>(fc_input_b, reshape_shape, false);
+            if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
             }
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
+        // Weights normalization
+        if (!matmul->get_transpose_b()) {
+            fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+        }
+
         // Input normalization
-        if (matmul->get_transpose_a() && rank_a != 1) {
+        if (matmul->get_transpose_a()) {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
@@ -169,11 +176,11 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
-        ngraph::copy_runtime_info(matmul, new_ops);
-        ngraph::replace_node(matmul, fc);
+        ov::copy_runtime_info(matmul, new_ops);
+        ov::replace_node(matmul, fc);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_m, matcher_name);
     this->register_matcher(m, callback);
 }

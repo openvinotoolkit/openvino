@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "helpers/test_model_repo.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset10;
@@ -118,7 +118,7 @@ protected:
         size_t num_out_channels = 8;
         size_t kernel_size = 8;
         std::vector<float> filter_weights =
-            CommonTestUtils::generate_float_numbers(num_out_channels * reshape_pattern[1] * kernel_size, -0.1f, 0.1f);
+            ov::test::utils::generate_float_numbers(num_out_channels * reshape_pattern[1] * kernel_size, -0.1f, 0.1f);
         auto conv = ngraph::builder::makeConvolution(relu_1,
                                                      prc,
                                                      {1, kernel_size},
@@ -140,7 +140,7 @@ protected:
         vi.data_type = prc;
         const auto var = std::make_shared<ov::op::util::Variable>(vi);
         std::vector<float> initial_state =
-            CommonTestUtils::generate_float_numbers(ov::shape_size(conv_shape), -3.f, 3.f);
+            ov::test::utils::generate_float_numbers(ov::shape_size(conv_shape), -3.f, 3.f);
         auto initial_state_node = std::make_shared<Constant>(prc, conv_shape, initial_state);
         auto read = std::make_shared<ReadValue>(initial_state_node, var);
         auto mul = std::make_shared<Multiply>(split_1_reshape, read);
@@ -212,7 +212,7 @@ const std::vector<std::string> export_models = {"export2dot6.blob", "export2dot7
 INSTANTIATE_TEST_SUITE_P(OldVersion,
                          BackwardCompatibilityLegacy,
                          ::testing::Combine(::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(export_models_legacy),
                                             ::testing::ValuesIn(export_configs_legacy),
                                             ::testing::ValuesIn(import_configs_legacy)),
@@ -221,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(OldVersion,
 INSTANTIATE_TEST_SUITE_P(OldVersion,
                          BackwardCompatibility,
                          ::testing::Combine(::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(export_models),
                                             ::testing::ValuesIn(export_configs),
                                             ::testing::ValuesIn(import_configs)),

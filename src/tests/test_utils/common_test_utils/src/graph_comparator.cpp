@@ -7,13 +7,13 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_common.h"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "precomp.hpp"
 
 namespace {
@@ -337,7 +337,7 @@ public:
           m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
-        if (m_parameter->get_element_type() != m_result->output(0).get_element_type()) {
+        if (!m_parameter->get_element_type().compatible(m_result->output(0).get_element_type())) {
             return false;
         }
         const auto& param_shape = m_parameter->get_partial_shape();
@@ -470,6 +470,8 @@ public:
     using Result = Comparator::Result;
     using SubGraphOp = ov::op::util::SubGraphOp;
 
+    CompareSubGraphs(Comparator::CmpValues flags) : sub_comparator{flags} {};
+
     Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs, bool compare_in_outs) {
         const auto lhs_it_no = get_num_iterations(sub_lhs);
         const auto rhs_it_no = get_num_iterations(sub_rhs);
@@ -491,10 +493,22 @@ public:
             }
         }
 
+        const auto lhs_body = sub_lhs->get_function();
+        const auto rhs_body = sub_rhs->get_function();
+        if (lhs_body && rhs_body) {
+            const auto res = sub_comparator.compare(lhs_body, rhs_body);
+            if (!res.valid)
+                return res;
+        } else if (lhs_body || rhs_body) {
+            return Result::error("one subgraph's body is missing");
+        }
+
         return compare_backedges(sub_lhs, sub_rhs);
     }
 
 private:
+    Comparator sub_comparator;
+
     Result compare_inputs(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) const {
         const auto& lhs_sub_inputs = extract_inputs(sub_lhs);
         const auto& rhs_sub_inputs = extract_inputs(sub_rhs);
@@ -579,11 +593,6 @@ private:
 
 }  // namespace detail
 
-Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs,
-                              ov::op::util::SubGraphOp* sub_rhs,
-                              bool compare_in_outs) {
-    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs, compare_in_outs);
-}
 }  // namespace subgraph
 }  // namespace
 Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) {
@@ -710,7 +719,7 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+        return Result::error(name(node1) + " and " + name(node2) + " have different type info: " +
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
@@ -720,7 +729,10 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     const bool subgraph_nodes = subgraph1 && subgraph2;
 
     if (subgraph_nodes) {
-        const auto result = subgraph::compare_io(subgraph1, subgraph2, should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
+        const auto result = subgraph::detail::CompareSubGraphs{get_comparison_flags()}.compare(
+            subgraph1,
+            subgraph2,
+            should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
         if (!result.valid) {
             return result;
         }
@@ -891,7 +903,7 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
     } else if (ov::is_type<ov::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
         // drop comparison, no more info than port indexes which will be check in
         // subgraph::compare_io
-    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
         const auto end = beg + a->get()->size();
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
@@ -929,7 +941,7 @@ void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& 
 }
 
 void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
-                                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
+                                              const std::shared_ptr<ov::AlignedBuffer>& buffer) {
     if (should_return()) {
         return;
     }
@@ -972,7 +984,7 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueA
     } else if (ov::is_type<ov::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
         // drop comparison, no more info than port indexes which will be check in
         // subgraph::compare_io
-    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         verify_mem_buf(name, a->get());
     } else if (auto attrs = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         verify(name, attrs->get());
@@ -1024,7 +1036,6 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
 
         auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
         auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
-
         IE_ASSERT(ref_outputs.size() == outputs.size());
 
         for (int i = 0; i < ref_outputs.size(); i++) {

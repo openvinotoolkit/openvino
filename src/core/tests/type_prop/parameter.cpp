@@ -3,14 +3,12 @@
 //
 
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, param_partial_rank_dynamic) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     auto& pshape = a->get_output_partial_shape(0);
 
@@ -19,7 +17,7 @@ TEST(type_prop, param_partial_rank_dynamic) {
 }
 
 TEST(type_prop, param_partial_rank_static) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3, 4});
 
     auto& pshape = a->get_output_partial_shape(0);
 
@@ -32,7 +30,7 @@ TEST(type_prop, param_partial_rank_static) {
 }
 
 TEST(type_prop, param_layout) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     a->set_layout("NHWC");
     ASSERT_EQ(a->get_layout(), "NHWC");
     a->set_layout(ov::Layout());
@@ -41,12 +39,12 @@ TEST(type_prop, param_layout) {
 }
 
 TEST(type_prop, param_layout_empty) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     ASSERT_TRUE(a->get_layout().empty());
 }
 
 TEST(type_prop, param_layout_invalid) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     a->get_output_tensor(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = "NCHW";  // incorrect way
     ASSERT_THROW(a->get_layout(), ov::Exception);
 }

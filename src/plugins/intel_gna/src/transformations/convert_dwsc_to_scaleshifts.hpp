@@ -14,7 +14,7 @@ namespace pass {
  * @brief Convert a depthwise separable convolution (represented by a GroupConvolution) to a set of ScaleShift layers
  * (MatMul + Add) Additionally supported are bias and fake quantize layers.
  */
-class ConvertDWSCToScaleShifts : public ngraph::pass::MatcherPass {
+class ConvertDWSCToScaleShifts : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertDWSCToScaleShifts", "0");
     ConvertDWSCToScaleShifts();

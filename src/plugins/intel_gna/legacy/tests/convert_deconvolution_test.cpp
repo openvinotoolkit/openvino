@@ -10,74 +10,73 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 
-using InputShape = ngraph::PartialShape;
-using WeightsShape = ngraph::Shape;
+using InputShape = ov::PartialShape;
+using WeightsShape = ov::Shape;
 
 class ConvertDeconvolutionTest : public ov::test::TestsCommon,
                                  public testing::WithParamInterface<std::tuple<InputShape, WeightsShape>> {
 public:
-    std::shared_ptr<ngraph::Function> f, f_ref;
+    std::shared_ptr<ov::Model> f, f_ref;
 
     void SetUp() override {
         const auto& input_shape = std::get<0>(GetParam());
         const auto& weights_shape = std::get<1>(GetParam());
 
-        f = get_initial_function(input_shape, weights_shape);
+        f = get_initial_model(input_shape, weights_shape);
         f_ref = get_reference_function(input_shape, weights_shape);
     }
 
 private:
-    std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape& input_shape,
-                                                           const ngraph::Shape& weights_shape) {
+    std::shared_ptr<ov::Model> get_initial_model(const ov::PartialShape& input_shape, const ov::Shape& weights_shape) {
         auto spatial_dims = input_shape.rank().get_length() - 2;
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
-        auto conv = std::make_shared<ngraph::opset1::ConvolutionBackpropData>(input,
-                                                                              weights,
-                                                                              ngraph::Strides(spatial_dims, 1),
-                                                                              ngraph::CoordinateDiff(spatial_dims, 0),
-                                                                              ngraph::CoordinateDiff(spatial_dims, 0),
-                                                                              ngraph::Strides(spatial_dims, 1));
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, input_shape);
+        auto weights = ov::opset1::Constant::create(ov::element::f32, weights_shape, {1});
+        auto conv = std::make_shared<ov::opset1::ConvolutionBackpropData>(input,
+                                                                          weights,
+                                                                          ov::Strides(spatial_dims, 1),
+                                                                          ov::CoordinateDiff(spatial_dims, 0),
+                                                                          ov::CoordinateDiff(spatial_dims, 0),
+                                                                          ov::Strides(spatial_dims, 1));
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
+        return std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
 
-    std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape& input_shape,
-                                                             const ngraph::Shape& weights_shape) {
+    std::shared_ptr<ov::Model> get_reference_function(const ov::PartialShape& input_shape,
+                                                      const ov::Shape& weights_shape) {
         auto spatial_dims = input_shape.rank().get_length() - 2;
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, input_shape);
+        auto weights = ov::opset1::Constant::create(ov::element::f32, weights_shape, {1});
         auto conv = std::make_shared<ngraph::op::DeconvolutionIE>(input,
                                                                   weights,
-                                                                  ngraph::Strides(spatial_dims, 1),
-                                                                  ngraph::Strides(spatial_dims, 1),
-                                                                  ngraph::CoordinateDiff(spatial_dims, 0),
-                                                                  ngraph::CoordinateDiff(spatial_dims, 0),
-                                                                  ngraph::element::f32);
+                                                                  ov::Strides(spatial_dims, 1),
+                                                                  ov::Strides(spatial_dims, 1),
+                                                                  ov::CoordinateDiff(spatial_dims, 0),
+                                                                  ov::CoordinateDiff(spatial_dims, 0),
+                                                                  ov::element::f32);
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
+        return std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
 };
 
 TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
     const auto orig_shape = f->get_output_partial_shape(0);
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
     manager.run_passes(f);

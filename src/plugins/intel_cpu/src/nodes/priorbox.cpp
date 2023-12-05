@@ -9,62 +9,19 @@
 #include <memory>
 #include <vector>
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <dnnl_types.h>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include "shape_inference/custom/priorbox.hpp"
 
 using namespace InferenceEngine;
 
-#define THROW_ERROR IE_THROW() << "PriorBox layer with name '" << getName() << "': "
+#define THROW_ERROR(...) OPENVINO_THROW("PriorBox layer with name '", getName(), "': ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 namespace {
-class PriorBoxShapeInfer : public ShapeInferEmptyPads {
-/**
- * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
- * `number_of_priors` is an attribute of the operation. heigh and width are in the the first input parameter.
- *  
- */
-public:
-    explicit PriorBoxShapeInfer(int64_t number_of_priors) : m_number_of_priors(number_of_priors) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->getData());
-        const int H = in_data[0];
-        const int W = in_data[1];
-        const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
-        return {{{2, output}}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(0);
-    }
-
-private:
-    int64_t m_number_of_priors = 0;
-};
-
-class PriorBoxShapeInferFactory : public ShapeInferFactory {
-public:
-    explicit PriorBoxShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
-        if (!priorBox) {
-            IE_THROW() << "Unexpected op type in PriorBox shape inference factory: " << m_op->get_type_name();
-        }
-        const auto& attrs = priorBox->get_attrs();
-        auto number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
-        return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
 }
@@ -75,9 +32,9 @@ float clip_less(float x, float threshold) {
 
 }   // namespace
 
-bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
+        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
@@ -88,15 +45,15 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
-    const ngraph::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
+    const ov::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
     offset = attrs.offset;
     step = attrs.step;
     min_size = attrs.min_size;
@@ -114,7 +71,7 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
         exist = false;
 
         if (std::fabs(aspect_ratio_item) < std::numeric_limits<float>::epsilon()) {
-            THROW_ERROR << "Aspect_ratio param can't be equal to zero";
+            THROW_ERROR("Aspect_ratio param can't be equal to zero");
         }
 
         for (float _aspect_ratio : aspect_ratio) {
@@ -134,12 +91,12 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
         }
     }
 
-    number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
+    number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
 
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {
             if (i < 0) {
-                THROW_ERROR << "Variance must be > 0.";
+                THROW_ERROR("Variance must be > 0.");
             }
 
             variance.push_back(i);
@@ -147,7 +104,7 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
     } else if (attrs.variance.empty()) {
         variance.push_back(0.1f);
     } else {
-        THROW_ERROR << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
+        THROW_ERROR("Wrong number of variance values. Not less than 1 and more than 4 variance values.");
     }
 }
 
@@ -175,8 +132,8 @@ void PriorBox::initSupportedPrimitiveDescriptors() {
         return;
 
     addSupportedPrimDesc(
-        {{LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
-        {{LayoutType::ncsp, Precision::FP32}},
+        {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+        {{LayoutType::ncsp, ov::element::f32}},
         impl_desc_type::ref_any);
 }
 

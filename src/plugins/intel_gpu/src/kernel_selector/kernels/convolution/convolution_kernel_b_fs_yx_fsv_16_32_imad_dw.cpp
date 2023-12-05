@@ -213,6 +213,9 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
                                                                          const AutoTuneParams& tparams) const {
     bool valid_tune_params = true;
 
+    if (!IsSIMDSizeSupported(params.engineInfo, tparams.simd))
+        return false;
+
     auto total_lws = tparams.simd * tparams.lws0 * tparams.lws1;
     valid_tune_params &= total_lws <= params.engineInfo.maxWorkGroupSize;
 
@@ -281,12 +284,12 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convoluti
         + (params.filterSize.z - 1) * params.dilation.z + 1;
 
     bool has_pad = true;
-    has_pad &= params.padding.x <= params.inputs[0].X().pad.before;
-    has_pad &= params.padding.y <= params.inputs[0].Y().pad.before;
-    has_pad &= params.padding.z <= params.inputs[0].Z().pad.before;
-    has_pad &= inputLimitX <= params.padding.x + params.inputs[0].X().v + params.inputs[0].X().pad.after;
-    has_pad &= inputLimitY <= params.padding.y + params.inputs[0].Y().v + params.inputs[0].Y().pad.after;
-    has_pad &= inputLimitZ <= params.padding.z + params.inputs[0].Z().v + params.inputs[0].Z().pad.after;
+    has_pad &= params.padding_begin.x <= params.inputs[0].X().pad.before;
+    has_pad &= params.padding_begin.y <= params.inputs[0].Y().pad.before;
+    has_pad &= params.padding_begin.z <= params.inputs[0].Z().pad.before;
+    has_pad &= inputLimitX <= params.padding_begin.x + params.inputs[0].X().v + params.inputs[0].X().pad.after;
+    has_pad &= inputLimitY <= params.padding_begin.y + params.inputs[0].Y().v + params.inputs[0].Y().pad.after;
+    has_pad &= inputLimitZ <= params.padding_begin.z + params.inputs[0].Z().v + params.inputs[0].Z().pad.after;
 
     return has_pad;
 }
@@ -300,9 +303,9 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convol
         + (params.filterSize.z - 1) * params.dilation.z + 1;
 
     bool needs_pad = false;
-    needs_pad |= params.padding.x != 0;
-    needs_pad |= params.padding.y != 0;
-    needs_pad |= params.padding.z != 0;
+    needs_pad |= params.padding_begin.x != 0;
+    needs_pad |= params.padding_begin.y != 0;
+    needs_pad |= params.padding_begin.z != 0;
     needs_pad |= inputLimitX > params.inputs[0].X().v;
     needs_pad |= inputLimitY > params.inputs[0].Y().v;
     needs_pad |= inputLimitZ > params.inputs[0].Z().v;

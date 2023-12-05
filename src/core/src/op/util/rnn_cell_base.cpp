@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/rnn_cell_base.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 
 #include <algorithm>
 #include <iterator>
 #include <locale>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/clamp.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/util.hpp"
-
-using namespace std;
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/util/common_util.hpp"
 
 std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,
@@ -34,13 +33,13 @@ std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<No
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 4;
 
-    auto axis_const = std::make_shared<ngraph::opset4::Constant>(element::i64, ngraph::Shape{}, axis);
-    OutputVector splitted_node = std::make_shared<ngraph::opset4::Split>(node, axis_const, num_gates)->outputs();
+    auto axis_const = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{}, axis);
+    OutputVector splitted_node = std::make_shared<ov::op::v1::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
     for (size_t i = 0; i < num_gates; ++i) {
         nodes_in_new_format[to[from[i]]] = splitted_node[i];
     }
-    return std::make_shared<ngraph::opset4::Concat>(nodes_in_new_format, axis);
+    return std::make_shared<ov::op::v0::Concat>(nodes_in_new_format, axis);
 }
 
 std::shared_ptr<ov::Node> ov::op::util::convert_lstm_peepholes_format(const Output<Node>& node,
@@ -56,22 +55,20 @@ std::shared_ptr<ov::Node> ov::op::util::convert_lstm_peepholes_format(const Outp
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 3;
 
-    auto axis_const = std::make_shared<ngraph::opset4::Constant>(element::i64, ngraph::Shape{}, axis);
-    OutputVector splitted_node = std::make_shared<ngraph::opset4::Split>(node, axis_const, num_gates)->outputs();
+    auto axis_const = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{}, axis);
+    OutputVector splitted_node = std::make_shared<ov::op::v1::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
     for (size_t i = 0; i < num_gates; ++i) {
         nodes_in_new_format[to[from[i]]] = splitted_node[i];
     }
-    return std::make_shared<ngraph::opset4::Concat>(nodes_in_new_format, axis);
+    return std::make_shared<ov::op::v0::Concat>(nodes_in_new_format, axis);
 }
 
 // Modify input vector in-place and return reference to modified vector.
-static vector<string> to_lower_case(const vector<string>& vs) {
-    vector<string> res(vs);
-    transform(begin(res), end(res), begin(res), [](string& s) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return ngraph::to_lower(s);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+static std::vector<std::string> to_lower_case(const std::vector<std::string>& vs) {
+    std::vector<std::string> res(vs);
+    transform(begin(res), end(res), begin(res), [](std::string& s) {
+        return ov::util::to_lower(s);
     });
     return res;
 }
@@ -81,9 +78,9 @@ ov::op::util::RNNCellBase::RNNCellBase() : m_hidden_size(0), m_clip(0.f) {}
 ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
                                        size_t hidden_size,
                                        float clip,
-                                       const vector<string>& activations,
-                                       const vector<float>& activations_alpha,
-                                       const vector<float>& activations_beta)
+                                       const std::vector<std::string>& activations,
+                                       const std::vector<float>& activations_alpha,
+                                       const std::vector<float>& activations_beta)
     : Op(args),
       m_hidden_size(hidden_size),
       m_clip(clip),
@@ -91,7 +88,7 @@ ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta) {}
 
-bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_RNNCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
@@ -101,7 +98,7 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) 
     return true;
 }
 
-void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input) {
+void ov::op::util::RNNCellBase::validate_input_rank_dimension(const std::vector<ov::PartialShape>& input) {
     enum { X, initial_hidden_state, W, R, B };
 
     // Verify static ranks for all inputs
@@ -159,22 +156,22 @@ ov::op::util::ActivationFunction ov::op::util::RNNCellBase::get_activation_funct
     return afunc;
 }
 
-shared_ptr<ov::Node> ov::op::util::RNNCellBase::add(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<ngraph::op::v1::Add>(lhs, rhs)};
+std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::add(const Output<Node>& lhs, const Output<Node>& rhs) {
+    return {std::make_shared<ov::op::v1::Add>(lhs, rhs)};
 }
 
-shared_ptr<ov::Node> ov::op::util::RNNCellBase::sub(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<ngraph::op::v1::Subtract>(lhs, rhs)};
+std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::sub(const Output<Node>& lhs, const Output<Node>& rhs) {
+    return {std::make_shared<ov::op::v1::Subtract>(lhs, rhs)};
 }
 
-shared_ptr<ov::Node> ov::op::util::RNNCellBase::mul(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<ngraph::op::v1::Multiply>(lhs, rhs)};
+std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::mul(const Output<Node>& lhs, const Output<Node>& rhs) {
+    return {std::make_shared<ov::op::v1::Multiply>(lhs, rhs)};
 }
 
-shared_ptr<ov::Node> ov::op::util::RNNCellBase::clip(const Output<Node>& data) const {
+std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::clip(const Output<Node>& data) const {
     if (m_clip == 0.f) {
         return data.get_node_shared_ptr();
     }
 
-    return make_shared<ngraph::op::Clamp>(data, -m_clip, m_clip);
+    return std::make_shared<ov::op::v0::Clamp>(data, -m_clip, m_clip);
 }

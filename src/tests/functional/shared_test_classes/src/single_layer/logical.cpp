@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/logical.hpp"
 
 using namespace LayerTestsDefinitions::LogicalParams;
@@ -21,8 +21,8 @@ std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<Logic
         = obj.param;
     std::ostringstream results;
 
-    results << "IS0=" << CommonTestUtils::vec2str(inputShapes.first) << "_";
-    results << "IS1=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
+    results << "IS0=" << ov::test::utils::vec2str(inputShapes.first) << "_";
+    results << "IS1=" << ov::test::utils::vec2str(inputShapes.second) << "_";
     results << "comparisonOpType=" << comparisonOpType << "_";
     results << "secondInputType=" << secondInputType << "_";
     results << "netPRC=" << netPrecision.name() << "_";
@@ -64,11 +64,13 @@ void LogicalLayerTest::SetUp() {
     SetupParams();
 
     auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
+    ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
     std::shared_ptr<ngraph::Node> logicalNode;
     if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
         }

@@ -52,7 +52,8 @@ def arg_parse_helper(input_model,
         data_type=None,
         tensorflow_custom_operations_config_update=None,
         compress_to_fp16=compress_to_fp16,
-        extensions=None
+        extensions=None,
+        static_shape=False
     )
 
 

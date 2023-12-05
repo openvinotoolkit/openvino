@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.upsample import UpsampleOp
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
@@ -18,9 +17,8 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     }
 
 
-@generator
-class TestUpsampleOp(unittest.TestCase):
-    @generate(*[
+class TestUpsampleOp():
+    @pytest.mark.parametrize("scales, input_shape, expected_shape",[
         (np.array([1., 1., 2., 2.]), shape_array([1, 3, 227, 227]), shape_array([1, 3, 454, 454])),
         (np.array([1., 1., 2.5, 1.5]), shape_array([1, 5, 227, 227]), shape_array([1, 5, 567, 340])),
         (np.array([1., 1., 1.3, 0.7]), shape_array([1, 14, 1023, 713]), shape_array([1, 14, 1329, 499])),
@@ -46,9 +44,9 @@ class TestUpsampleOp(unittest.TestCase):
         upsample_node = Node(graph, 'upsample')
         UpsampleOp.upsample_infer(upsample_node)
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(strict_compare_tensors(expected_shape, res_shape))
+        assert strict_compare_tensors(expected_shape, res_shape)
 
-    @generate(*[
+    @pytest.mark.parametrize("scales, input_shape, expected_shape",[
         (np.array([1., 1., 2., 2.]), shape_array([1, 3, 227, 227]), shape_array([1, 3, 454, 454])),
         (np.array([1., 1., 2.5, 1.5]), shape_array([1, 5, 227, 227]), shape_array([1, 5, 567, 340])),
         (np.array([1., 1., 1.3, 0.7]), shape_array([1, 14, 1023, 713]), shape_array([1, 14, 1329, 499])),
@@ -76,4 +74,4 @@ class TestUpsampleOp(unittest.TestCase):
         upsample_node = Node(graph, 'upsample')
         UpsampleOp.upsample_infer(upsample_node)
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(strict_compare_tensors(expected_shape, res_shape))
+        assert strict_compare_tensors(expected_shape, res_shape)

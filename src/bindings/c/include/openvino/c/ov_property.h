@@ -220,3 +220,10 @@ ov_property_key_force_tbb_terminate;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_enable_mmap;
+
+/**
+ * @brief Read-write property
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_auto_batch_timeout;

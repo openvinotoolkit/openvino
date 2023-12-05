@@ -44,10 +44,19 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
     using kernel_selector_t = kernel_selector::permute_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::permute_params, kernel_selector::permute_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::permute_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<permute_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {

@@ -5,10 +5,6 @@
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-from openvino.utils import _add_openvino_libs_to_search_path
-
-_add_openvino_libs_to_search_path()
-
 from openvino._pyopenvino import get_version
 
 __version__ = get_version()
@@ -60,6 +56,7 @@ from openvino.runtime import opset9
 from openvino.runtime import opset10
 from openvino.runtime import opset11
 from openvino.runtime import opset12
+from openvino.runtime import opset13
 
 # Import properties API
 from openvino.runtime import properties
@@ -68,21 +65,20 @@ from openvino.runtime import properties
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
-
 # Extend Node class to support binary operators
-Node.__add__ = opset12.add
-Node.__sub__ = opset12.subtract
-Node.__mul__ = opset12.multiply
-Node.__div__ = opset12.divide
-Node.__truediv__ = opset12.divide
-Node.__radd__ = lambda left, right: opset12.add(right, left)
-Node.__rsub__ = lambda left, right: opset12.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset12.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset12.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset12.divide(right, left)
-Node.__eq__ = opset12.equal
-Node.__ne__ = opset12.not_equal
-Node.__lt__ = opset12.less
-Node.__le__ = opset12.less_equal
-Node.__gt__ = opset12.greater
-Node.__ge__ = opset12.greater_equal
+Node.__add__ = opset13.add
+Node.__sub__ = opset13.subtract
+Node.__mul__ = opset13.multiply
+Node.__div__ = opset13.divide
+Node.__truediv__ = opset13.divide
+Node.__radd__ = lambda left, right: opset13.add(right, left)
+Node.__rsub__ = lambda left, right: opset13.subtract(right, left)
+Node.__rmul__ = lambda left, right: opset13.multiply(right, left)
+Node.__rdiv__ = lambda left, right: opset13.divide(right, left)
+Node.__rtruediv__ = lambda left, right: opset13.divide(right, left)
+Node.__eq__ = opset13.equal
+Node.__ne__ = opset13.not_equal
+Node.__lt__ = opset13.less
+Node.__le__ = opset13.less_equal
+Node.__gt__ = opset13.greater
+Node.__ge__ = opset13.greater_equal

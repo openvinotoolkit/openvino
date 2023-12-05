@@ -118,6 +118,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& execution_mode)
 enum class HWGeneration {
     UNDEFINED = 0,  //!< GNA HW generation is undefined
     GNA_1_0 = 4,    //!< GNA HW generation 1.0
+    GNA_1_0_E = 9,  //!< GNA HW generation 1.0 embedded
     GNA_2_0 = 1,    //!< GNA HW generation 2.0
     GNA_3_0 = 2,    //!< GNA HW generation 3.0
     GNA_3_1 = 5,    //!< GNA HW generation 3.1
@@ -134,6 +135,8 @@ inline std::ostream& operator<<(std::ostream& os, const HWGeneration& hw_generat
         return os << "UNDEFINED";
     case HWGeneration::GNA_1_0:
         return os << "GNA_1_0";
+    case HWGeneration::GNA_1_0_E:
+        return os << "GNA_1_0_E";
     case HWGeneration::GNA_2_0:
         return os << "GNA_2_0";
     case HWGeneration::GNA_3_0:
@@ -160,6 +163,8 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
         hw_generation = HWGeneration::UNDEFINED;
     } else if (str == "GNA_1_0") {
         hw_generation = HWGeneration::GNA_1_0;
+    } else if (str == "GNA_1_0_E") {
+        hw_generation = HWGeneration::GNA_1_0_E;
     } else if (str == "GNA_2_0") {
         hw_generation = HWGeneration::GNA_2_0;
     } else if (str == "GNA_3_0") {

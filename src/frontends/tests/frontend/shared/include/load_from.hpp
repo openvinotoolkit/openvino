@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/manager.hpp>
+#include "openvino/frontend/manager.hpp"
 
 struct LoadFromFEParam {
     std::string m_frontEndName;

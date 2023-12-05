@@ -38,6 +38,8 @@ The tutorial consists of the following steps:
 -  Download and convert the model from a public source using the
    `OpenVINO integration with Hugging Face
    Optimum <https://huggingface.co/blog/openvino>`__.
+-  Compress model weights to INT8 with `OpenVINO
+   NNCF <https://github.com/openvinotoolkit/nncf>`__
 -  Create an instruction-following inference pipeline
 -  Run instruction-following pipeline
 
@@ -79,8 +81,34 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
+**Table of contents:**
+
+-  `Prerequisites <#prerequisites>`__
+
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Download and Convert Model <#download-and-convert-model>`__
+
+   -  `NNCF model weights
+      compression <#nncf-model-weights-compression>`__
+
+-  `Create an instruction-following inference
+   pipeline <#create-an-instruction-following-inference-pipeline>`__
+
+   -  `Setup imports <#setup-imports>`__
+   -  `Prepare template for user
+      prompt <#prepare-template-for-user-prompt>`__
+   -  `Helpers for output parsing <#helpers-for-output-parsing>`__
+   -  `Main generation function <#main-generation-function>`__
+   -  `Helpers for application <#helpers-for-application>`__
+
+-  `Run instruction-following
+   pipeline <#run-instruction-following-pipeline>`__
+
 Prerequisites
 -------------
+
+
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -92,18 +120,53 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.16.1" "transformers>=4.28.0"
-    !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime gradio
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino==2023.2.0.dev20230922" "nncf>=2.6.0" datasets onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git" 
+
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    import openvino as ov
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='CPU',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+
+
 
 Download and Convert Model
 --------------------------
+
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
 create pipelines to run an inference with OpenVINO Runtime using Hugging
 Face APIs. The Optimum Inference models are API compatible with Hugging
 Face Transformers models. This means we just need to replace
-AutoModelForXxx class with the corresponding OVModelForXxx class.
+``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
+class.
 
 Below is an example of the Dolly model
 
@@ -119,9 +182,10 @@ Below is an example of the Dolly model
 
 Model class initialization starts with calling ``from_pretrained``
 method. When downloading and converting Transformers model, the
-parameter ``from_transformers=True`` should be added. We can save the
-converted model for the next usage with the ``save_pretrained`` method.
-Tokenizer class and pipelines API are compatible with Optimum models.
+parameter ``export=True`` should be added. For models where size more We
+can save the converted model for the next usage with the
+``save_pretrained`` method. Tokenizer class and pipelines API are
+compatible with Optimum models.
 
 .. code:: ipython3
 
@@ -134,25 +198,16 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     
-    current_device = "CPU"
+    current_device = device.value
+    
+    ov_config = {'PERFORMANCE_HINT': 'LATENCY', 'NUM_STREAMS': '1', "CACHE_DIR": ""}
     
     if model_path.exists():
-        ov_model = OVModelForCausalLM.from_pretrained(model_path, device=current_device)
+        ov_model = OVModelForCausalLM.from_pretrained(model_path, device=current_device, ov_config=ov_config)
     else:
-        ov_model = OVModelForCausalLM.from_pretrained(model_id, device=current_device, from_transformers=True)
+        ov_model = OVModelForCausalLM.from_pretrained(model_id, device=current_device, export=True, ov_config=ov_config, load_in_8bit=False)
+        ov_model.half()
         ov_model.save_pretrained(model_path)
-
-
-.. parsed-literal::
-
-    2023-06-01 12:40:22.260551: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-01 12:40:22.297683: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-01 12:40:22.937097: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future.
-      warnings.warn(
-    Post-training Optimization Tool is deprecated and will be removed in the future. Please use Neural Network Compression Framework instead: https://github.com/openvinotoolkit/nncf
-    Nevergrad package could not be imported. If you are planning to use any hyperparameter optimization algo, consider installing it using pip. This implies advanced usage of the tool. Note that nevergrad is compatible only with Python 3.7+
 
 
 .. parsed-literal::
@@ -163,12 +218,96 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    comet_ml is installed but `COMET_API_KEY` is not set.
-    Compiling the model and creating the inference request ...
+    2023-10-09 11:07:22.234444: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-10-09 11:07:22.273745: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-10-09 11:07:22.903943: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    Compiling the model to CPU ...
+
+
+NNCF model weights compression
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+NNCF `Weights Compression
+algorithm <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/CompressWeights.md>`__
+compresses weights of a model to ``INT8``. This is an alternative to
+`Quantization
+algorithm <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/post_training/Quantization.md>`__
+that compresses both weights and activations. Weight compression is
+effective in optimizing footprint and performance of large models where
+the size of weights is significantly larger than the size of
+activations, for example, in Large Language Models (LLMs) such as Dolly
+2.0. Additionally, Weight Compression usually leads to almost no
+accuracy drop.
+
+.. code:: ipython3
+
+    to_compress = widgets.Checkbox(
+        value=True,
+        description='INT8 Compression',
+        disabled=False,
+    )
+    print("Click on checkbox for enabling / disabling weights compression")
+    to_compress
+
+
+.. parsed-literal::
+
+    Click on checkbox for enabling / disabling weights compression
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='INT8 Compression')
+
+
+
+.. code:: ipython3
+
+    import gc
+    from optimum.intel import OVQuantizer
+    
+    compressed_model_path = Path(f'{model_path}_compressed')
+    
+    def calculate_compression_rate(model_path_ov, model_path_ov_compressed):
+        model_size_original = model_path_ov.with_suffix(".bin").stat().st_size / 2 ** 20
+        model_size_compressed = model_path_ov_compressed.with_suffix(".bin").stat().st_size / 2 ** 20
+        print(f"* Original IR model size: {model_size_original:.2f} MB")
+        print(f"* Compressed IR model size: {model_size_compressed:.2f} MB")
+        print(f"* Model compression rate: {model_size_original / model_size_compressed:.3f}")
+    
+    if to_compress.value:
+        if not compressed_model_path.exists():
+            ov_model = OVModelForCausalLM.from_pretrained(model_id, device=current_device, export=True, ov_config=ov_config)       
+            quantizer = OVQuantizer.from_pretrained(ov_model)
+            quantizer.quantize(save_directory=compressed_model_path, weights_only=True)
+            del quantizer
+            gc.collect()
+        
+        calculate_compression_rate(model_path / 'openvino_model.xml', compressed_model_path / 'openvino_model.xml')
+        ov_model = OVModelForCausalLM.from_pretrained(compressed_model_path, device=current_device, ov_config=ov_config)
+
+
+.. parsed-literal::
+
+    * Original IR model size: 5297.21 MB
+    * Compressed IR model size: 2660.29 MB
+    * Model compression rate: 1.991
+
+
+.. parsed-literal::
+
+    Compiling the model to CPU ...
 
 
 Create an instruction-following inference pipeline
 --------------------------------------------------
+
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -198,22 +337,30 @@ find more information about the most popular decoding methods in this
 
 There are several parameters that can control text generation quality:
 
-- ``Temperature`` is a parameter used to control the level of creativity in AI-generated text. By adjusting the ``temperature``, you can influence the AI model’s probability distribution, making the text more focused or diverse.
+-  | ``Temperature`` is a parameter used to control the level of
+     creativity in AI-generated text. By adjusting the ``temperature``,
+     you can influence the AI model’s probability distribution, making
+     the text more focused or diverse.
+   | Consider the following example: The AI model has to complete the
+     sentence “The cat is \____.” with the following token
+     probabilities:
 
-  Consider the following example: The AI model has to complete the
-  sentence “The cat is \____.” with the following token probabilities:
+   | playing: 0.5
+   | sleeping: 0.25
+   | eating: 0.15
+   | driving: 0.05
+   | flying: 0.05
 
-  ::
-
-      playing: 0.5  
-      sleeping: 0.25  
-      eating: 0.15  
-      driving: 0.05  
-      flying: 0.05  
-
-      - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
-      - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as   "playing," "sleeping," or "eating."  
-      - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
+   -  **Low temperature** (e.g., 0.2): The AI model becomes more focused
+      and deterministic, choosing tokens with the highest probability,
+      such as “playing.”
+   -  **Medium temperature** (e.g., 1.0): The AI model maintains a
+      balance between creativity and focus, selecting tokens based on
+      their probabilities without significant bias, such as “playing,”
+      “sleeping,” or “eating.”
+   -  **High temperature** (e.g., 2.0): The AI model becomes more
+      adventurous, increasing the chances of selecting less likely
+      tokens, such as “driving” and “flying.”
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
    control the range of tokens considered by the AI model based on their
@@ -231,13 +378,13 @@ There are several parameters that can control text generation quality:
       including those with lower probabilities, such as “driving” and
       “flying.”
 
--  ``Top-k`` is an another popular sampling strategy. In comparision
-   with Top-P, which chooses from the smallest possible set of words
-   whose cumulative probability exceeds the probability P, in Top-K
-   sampling K most likely next words are filtered and the probability
-   mass is redistributed among only those K next words. In our example
-   with cat, if k=3, then only “playing”, “sleeping” and “eating” will
-   be taken into account as possible next word.
+-  ``Top-k`` is another popular sampling strategy. In comparison with
+   Top-P, which chooses from the smallest possible set of words whose
+   cumulative probability exceeds the probability P, in Top-K sampling K
+   most likely next words are filtered and the probability mass is
+   redistributed among only those K next words. In our example with cat,
+   if k=3, then only “playing”, “sleeping” and “eating” will be taken
+   into account as possible next word.
 
 To optimize the generation process and use memory more efficiently, the
 ``use_cache=True`` option is enabled. Since the output side is
@@ -266,6 +413,8 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
+
+
 .. code:: ipython3
 
     from threading import Thread
@@ -278,8 +427,10 @@ Setup imports
 Prepare template for user prompt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 For effective generation, model expects to have input in specific
-format. The code below prepare tamplate for passing user instruction
+format. The code below prepare template for passing user instruction
 into model with providing additional context.
 
 .. code:: ipython3
@@ -309,7 +460,9 @@ into model with providing additional context.
 Helpers for output parsing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Model was retrained to finish generaton using special token ``### End``
+
+
+Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
 
 .. code:: ipython3
@@ -348,6 +501,8 @@ the code below find its id for using it as generation stop-criteria.
 
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -409,6 +564,8 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
 elements.
@@ -435,7 +592,7 @@ elements.
         per_token_time.append(num_current_toks / current_time)
         if len(per_token_time) > 10 and len(per_token_time) % 4 == 0:
             current_bucket = per_token_time[:-10]
-            return f"Average generaton speed: {np.mean(current_bucket):.2f} tokens/s. Total generated tokens: {num_tokens}", num_tokens
+            return f"Average generation speed: {np.mean(current_bucket):.2f} tokens/s. Total generated tokens: {num_tokens}", num_tokens
         return current_perf_text, num_tokens
     
     def reset_textbox(instruction:str, response:str, perf:str):
@@ -475,6 +632,8 @@ elements.
 Run instruction-following pipeline
 ----------------------------------
 
+
+
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text
 instruction. Type your instruction into the ``User instruction`` field
@@ -495,10 +654,7 @@ generation parameters:
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    
-    core = Core()
-    available_devices = core.available_devices
+    available_devices = ov.Core().available_devices + ["AUTO"]
     
     examples = [
         "Give me recipe for pizza with pineapple",
@@ -554,9 +710,19 @@ generation parameters:
     
     if __name__ == "__main__":
         try:
-            demo.launch(enable_queue=True, share=False, height=800)
+            demo.queue().launch(debug=False, height=800)
         except Exception:
-            demo.launch(enable_queue=True, share=True, height=800)
+            demo.queue().launch(debug=False, share=True, height=800)
+    
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_709262/2332051390.py:57: GradioDeprecationWarning: The `enable_queue` parameter has been deprecated. Please use the `.queue()` method instead.
+      demo.launch(enable_queue=True, share=False, height=800)
 
 
 .. parsed-literal::
@@ -567,7 +733,7 @@ generation parameters:
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

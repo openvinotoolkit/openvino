@@ -5,25 +5,28 @@
 #include "low_precision/gather.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
+namespace {
+
 std::shared_ptr<opset1::Constant> gatherDeqConstant(
-    const std::shared_ptr<ngraph::Node> &gather,
-    const std::shared_ptr<ngraph::Node> &dequantizationConstant) {
-    auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizationConstant);
+    const std::shared_ptr<ov::Node> &gather,
+    const std::shared_ptr<ov::Node> &dequantizationConstant) {
+    auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizationConstant);
     auto constantShape = constant->get_shape();
     if (shape_size(constantShape) == 1ul) {
         return NetworkHelper::toScalar(constant);
@@ -35,31 +38,31 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
         while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
             constantShape.insert(constantShape.begin(), 1);
         }
-        const auto newConstant = fold<ngraph::opset1::Broadcast>(
+        const auto newConstant = fold<ov::opset1::Broadcast>(
             constant,
-            ngraph::opset1::Constant::create(ngraph::element::i32, { constantShape.size() }, constantShape));
-        constant = ov::as_type_ptr<ngraph::opset1::Constant>(newConstant);
+            ov::opset1::Constant::create(ov::element::i32, { constantShape.size() }, constantShape));
+        constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
     }
 
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const size_t normalizedAxis = normalize_axis(gather->get_friendly_name(), axis, gather->get_input_partial_shape(0).rank());
+    const size_t normalizedAxis = ov::normalize_axis(gather->get_friendly_name(), axis, gather->get_input_partial_shape(0).rank());
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Dequantization channel matches with gather axis
     if (constantShape[normalizedAxis] != 1ul) {
-        const auto gather1 = ov::as_type_ptr<ngraph::opset1::Gather>(gather);
+        const auto gather1 = ov::as_type_ptr<ov::opset1::Gather>(gather);
         if (gather1) {
-            const auto output = fold<ngraph::opset1::Gather>(
+            const auto output = fold<ov::opset1::Gather>(
                 constant,
                 gather1->input_value(1),
                 gather1->input_value(2));
             constant = ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(output));
         }
 
-        const auto gather7 = ov::as_type_ptr<ngraph::opset7::Gather>(gather);
+        const auto gather7 = ov::as_type_ptr<ov::opset7::Gather>(gather);
         if (gather7) {
-            const auto output = fold<ngraph::opset7::Gather>(
+            const auto output = fold<ov::opset7::Gather>(
                 constant,
                 gather7->input_value(1),
                 gather7->input_value(2),
@@ -67,9 +70,9 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
             constant = ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(output));
         }
 
-        const auto gather8 = ov::as_type_ptr<ngraph::opset8::Gather>(gather);
+        const auto gather8 = ov::as_type_ptr<ov::opset8::Gather>(gather);
         if (gather8) {
-            const auto output = fold<ngraph::opset8::Gather>(
+            const auto output = fold<ov::opset8::Gather>(
                 constant,
                 gather8->input_value(1),
                 gather8->input_value(2),
@@ -80,13 +83,15 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     return constant;
 }
 
+}  // namespace
+
 GatherTransformation::GatherTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(GatherTransformation);
     auto gather = pattern::wrap_type<opset1::Gather, opset7::Gather, opset8::Gather>({ pattern::wrap_type<opset1::Multiply>(),
                                                         pattern::any_input(),
                                                         pattern::any_input() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -94,11 +99,11 @@ GatherTransformation::GatherTransformation(const Params& params) : LayerTransfor
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool GatherTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool GatherTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     auto node = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
@@ -158,7 +163,7 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
     if (operation->get_input_partial_shape(0).rank().is_dynamic()) {
         return false;
     }
-    const auto canBeFolded = [&](const std::shared_ptr<ngraph::Node> dequantizationConstant) {
+    const auto canBeFolded = [&](const std::shared_ptr<ov::Node> dequantizationConstant) {
         auto constantShape = dequantizationConstant->get_shape();
         const auto rank = operation->get_input_partial_shape(0).size();
         if (rank != constantShape.size()) {
@@ -168,7 +173,7 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
         }
         const int64_t axis = axisConstant->cast_vector<int64_t>()[0];
         OPENVINO_SUPPRESS_DEPRECATED_START
-        const size_t normalizedAxis = normalize_axis(operation->get_friendly_name(), axis, operation->get_input_partial_shape(0).rank());
+        const size_t normalizedAxis = ov::normalize_axis(operation->get_friendly_name(), axis, operation->get_input_partial_shape(0).rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (constantShape[normalizedAxis] != 1ul) {
@@ -196,4 +201,4 @@ bool GatherTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

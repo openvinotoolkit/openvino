@@ -11,7 +11,7 @@
 
 #include "backend/gna_limitations.hpp"
 #include "common/gna_target.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 
 using namespace ov::intel_gna::limitations;
@@ -270,6 +270,7 @@ class SplitConvolutionFixture : public ov::test::TestsCommon,
                                 public ::testing::WithParamInterface<std::tuple<DeviceVersion, TestParams>> {
 public:
     void SetUp() override;
+    void TearDown() override;
 
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
@@ -288,6 +289,10 @@ void SplitConvolutionFixture::SetUp() {
     Limitations::init(device_version);
     function = transformed_graph.createFunction();
     reference_function = reference_graph.createFunction();
+}
+
+void SplitConvolutionFixture::TearDown() {
+    Limitations::deinit();
 }
 
 void execute_test(std::shared_ptr<ngraph::Function> function,

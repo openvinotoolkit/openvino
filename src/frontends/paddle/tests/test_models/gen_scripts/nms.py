@@ -87,7 +87,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
 
         # There is a bug in paddledet that dtype of model var mismatch its output LodTensor.
         # Specifically, it is 'Index' is 'int64', while its LodTensor of 'int32'.
-        # This will lead to a failure in ngraph frontend op fuzzy test.
+        # This will lead to a failure in OpenVINO frontend op fuzzy test.
         # So here is an workaround to align the dtypes.
         out = np.array(output_lod.pop(0))
         nms_rois_num = np.array(
@@ -95,7 +95,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         index = np.array(output_lod.pop(0)).astype(pdpd.fluid.data_feeder.convert_dtype(
             output[2].dtype)) if output[2] is not None else None
 
-        # Save inputs in order of ngraph function, to facilite Fuzzy test,
+        # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         output_np = [out, nms_rois_num, index]
         saveModel(name,

@@ -25,13 +25,13 @@ const std::vector<std::map<std::string, std::string>> inconfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          IncorrectConfigTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(inconfigs)),
                          IncorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          IncorrectConfigAPITests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(inconfigs)),
                          IncorrectConfigAPITests::getTestCaseName);
 }  // namespace

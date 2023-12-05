@@ -22,37 +22,11 @@ namespace {
         };
     };
 
-    auto multiConfigs = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}};
-    };
-
-    auto autoConfigs = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}}};
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU),
                                     ::testing::ValuesIn(configs())),
-                            InferRequestPreprocessTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessTest,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiConfigs())),
-                            InferRequestPreprocessTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessTest,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs())),
                             InferRequestPreprocessTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> ioPrecisions = {
@@ -79,7 +53,7 @@ namespace {
                                         ::testing::ValuesIn(ioLayouts),
                                         ::testing::Bool(),
                                         ::testing::Bool(),
-                                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                         ::testing::ValuesIn(configs())),
                                 InferRequestPreprocessConversionTest::getTestCaseName);
 
@@ -93,7 +67,7 @@ namespace {
                                 ::testing::Bool(),
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(true), // only SetBlob
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 

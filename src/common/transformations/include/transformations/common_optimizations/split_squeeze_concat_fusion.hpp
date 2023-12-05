@@ -5,10 +5,11 @@
 #pragma once
 
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,5 +27,5 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
 class ov::pass::SplitSqueezeConcatFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitSqueezeConcatFusion", "0");
-    SplitSqueezeConcatFusion();
+    SplitSqueezeConcatFusion(bool use_shapes);
 };

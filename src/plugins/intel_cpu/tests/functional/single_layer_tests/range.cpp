@@ -4,8 +4,8 @@
 //
 //#include "test_utils/cpu_test_utils.hpp"
 //
-//#include "ngraph_functions/builders.hpp"
-//#include "ngraph_functions/utils/ngraph_helpers.hpp"
+//#include "ov_models/builders.hpp"
+//#include "ov_models/utils/ov_helpers.hpp"
 //
 //using namespace InferenceEngine;
 //using namespace CPUTestUtils;
@@ -58,7 +58,7 @@
 //        result << "Stop_" << stop << "_";
 //        result << "Step_" << step << "_";
 //        result << CPUTestsBase::getTestCaseName(cpuParams);
-//        result << CommonTestUtils::vec2str(shapes.second[0]) << "_";
+//        result << ov::test::utils::vec2str(shapes.second[0]) << "_";
 //        return result.str();
 //    }
 //protected:
@@ -181,13 +181,13 @@
 //        ::testing::Combine(
 //                rangeParDynamic,
 //                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //        ::testing::ValuesIn(filterCPUInfoForDevice()));
 //const auto params3dPseudoStatic = ::testing::Combine(
 //        ::testing::Combine(
 //                rangeParStatic,
 //                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //        ::testing::ValuesIn(filterCPUInfoForDevice()));
 //// We don't check static case, because of constant folding, but we can use static shape for test infrastructure,
 //// however Range node will be dynamic, since inputs are parameters, not a constants

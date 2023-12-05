@@ -14,7 +14,7 @@ std::string ReluSplitReshape::getTestCaseName(const testing::TestParamInfo<ReluS
     std::tie(inputShape, splitAxis, splitNum, netPrecision, targetName, config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "axis=" << splitAxis << "_";
     results << "num=" << splitNum << "_";
     results << "netPRC=" << netPrecision.name() << "_";
@@ -34,9 +34,11 @@ void ReluSplitReshape::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split = ngraph::builder::makeSplit(relu, ngPrc, splitNum, splitAxis);
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{static_cast<int64_t>(splitAxis)});
+    auto split = std::make_shared<ov::op::v1::Split>(relu, split_axis_op, splitNum);
 
     auto shape = split->get_output_shape(0);
     shape[shape.size() - 2] *= 2;

@@ -34,7 +34,7 @@ TEST_F(SliceStaticShapeInferenceTest, reverse_steps_start_stop_outside_dimension
     input_shapes.push_back({3, 4, 5, max_d, max_d});
     input_shapes.resize(4, start->get_shape());
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
     EXPECT_EQ(output_shapes.front(), StaticShape({3, 2, 5, max_d, 3}));
@@ -53,19 +53,19 @@ TEST_F(SliceStaticShapeInferenceTest, reverse_step_on_signle_axis_but_start_stop
     auto stop_buff = std::vector<int64_t>{2};
     auto steps_buff = std::vector<int64_t>{-2};
 
-    const auto start_tensor = std::make_shared<HostTensor>(et, Shape{1}, static_cast<void*>(start_buff.data()));
-    const auto stop_tensor = std::make_shared<HostTensor>(et, Shape{1}, static_cast<void*>(stop_buff.data()));
-    const auto steps_tensor = std::make_shared<HostTensor>(et, Shape{1}, static_cast<void*>(steps_buff.data()));
+    const auto start_tensor = ov::Tensor(element::i64, Shape{1}, static_cast<void*>(start_buff.data()));
+    const auto stop_tensor = ov::Tensor(element::i64, Shape{1}, static_cast<void*>(stop_buff.data()));
+    const auto steps_tensor = ov::Tensor(element::i64, Shape{1}, static_cast<void*>(steps_buff.data()));
 
     const auto op = make_op(data, start, stop, steps, axes);
 
     input_shapes = ShapeVector{{3, 4, 10}, {1}, {1}, {1}, axes->get_shape()};
 
-    const std::map<size_t, std::shared_ptr<HostTensor>>& constant_data = {{1, start_tensor},
-                                                                          {2, stop_tensor},
-                                                                          {3, steps_tensor}};
+    const std::unordered_map<size_t, ov::Tensor>& constant_data = {{1, start_tensor},
+                                                                   {2, stop_tensor},
+                                                                   {3, steps_tensor}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
 
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
     EXPECT_EQ(output_shapes.front(), StaticShape({3, 4, 4}));
@@ -86,22 +86,22 @@ TEST_F(SliceStaticShapeInferenceTest, forward_step_all_data_in_const_map) {
 
     const auto common_shape = Shape{start_buff.size()};
 
-    const auto start_tensor = std::make_shared<HostTensor>(et, common_shape, static_cast<void*>(start_buff.data()));
-    const auto stop_tensor = std::make_shared<HostTensor>(et, common_shape, static_cast<void*>(stop_buff.data()));
-    const auto steps_tensor = std::make_shared<HostTensor>(et, common_shape, static_cast<void*>(steps_buff.data()));
-    const auto axes_tensor = std::make_shared<HostTensor>(et, common_shape, static_cast<void*>(axes_buff.data()));
+    const auto start_tensor = ov::Tensor(element::i64, common_shape, static_cast<void*>(start_buff.data()));
+    const auto stop_tensor = ov::Tensor(element::i64, common_shape, static_cast<void*>(stop_buff.data()));
+    const auto steps_tensor = ov::Tensor(element::i64, common_shape, static_cast<void*>(steps_buff.data()));
+    const auto axes_tensor = ov::Tensor(element::i64, common_shape, static_cast<void*>(axes_buff.data()));
 
     const auto op = make_op(data, start, stop, steps);
 
     input_shapes.push_back({10, 10, 8, max_d, max_d, max_d, 10});
     input_shapes.resize(5, common_shape);
 
-    const std::map<size_t, std::shared_ptr<HostTensor>>& constant_data = {{1, start_tensor},
-                                                                          {2, stop_tensor},
-                                                                          {3, steps_tensor},
-                                                                          {4, axes_tensor}};
+    const std::unordered_map<size_t, ov::Tensor>& constant_data = {{1, start_tensor},
+                                                                   {2, stop_tensor},
+                                                                   {3, steps_tensor},
+                                                                   {4, axes_tensor}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
 
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 0, 4, max_d, max_d, 3}));

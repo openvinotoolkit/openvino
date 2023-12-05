@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/binarize_weights.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/binarize_weights.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowZero) {
     {
@@ -47,7 +48,7 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowZero) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
         manager.register_pass<ov::pass::BinarizeWeights>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -72,7 +73,7 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowZero) {
         auto mul2 =
             std::make_shared<opset5::Multiply>(mul, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.2f}));
 
-        function_ref = std::make_shared<Function>(NodeVector{mul2}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{mul2}, ParameterVector{data});
     }
 }
 
@@ -103,7 +104,7 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowNegative) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
         manager.register_pass<ov::pass::BinarizeWeights>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -128,7 +129,7 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowNegative) {
         auto mul2 =
             std::make_shared<opset5::Multiply>(mul, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.2f}));
 
-        function_ref = std::make_shared<Function>(NodeVector{mul2}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{mul2}, ParameterVector{data});
     }
 }
 
@@ -159,7 +160,7 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidLevels) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
         manager.register_pass<ov::pass::BinarizeWeights>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -190,7 +191,7 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidLevels) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
     }
 }
 
@@ -221,7 +222,7 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidActivationsOutputLowH
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
         manager.register_pass<ov::pass::BinarizeWeights>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -252,7 +253,7 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidActivationsOutputLowH
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
     }
 }
 
@@ -283,7 +284,7 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidOutputLowHigh) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
         manager.register_pass<ov::pass::BinarizeWeights>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -314,6 +315,6 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidOutputLowHigh) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
     }
 }

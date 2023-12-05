@@ -12,18 +12,20 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/reference/convert.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -50,14 +52,17 @@ struct Edge {
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (OpenVINO Model name) and Const (IR name). If there will be more
 // discrepancies discovered, translations needs to be added here.
-const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
-                                                                                     {"PRelu", "PReLU"},
-                                                                                     {"Relu", "ReLU"},
-                                                                                     {"Softmax", "SoftMax"}};
+const std::unordered_map<std::string, std::string>& get_translate_type_name_translator() {
+    static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
+                                                                                                {"PRelu", "PReLU"},
+                                                                                                {"Relu", "ReLU"},
+                                                                                                {"Softmax", "SoftMax"}};
+    return translate_type_name_translator;
+}
 
 std::string translate_type_name(const std::string& name) {
-    auto found = translate_type_name_translator.find(name);
-    if (found != end(translate_type_name_translator)) {
+    auto found = get_translate_type_name_translator().find(name);
+    if (found != end(get_translate_type_name_translator())) {
         return found->second;
     }
     return name;
@@ -84,38 +89,101 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::unordered_map<HashValue, std::pair<FilePosition, void const*>>;
+    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, void const*>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data),
           m_enable_compression(enable_compression),
           m_blob_offset(bin_data.tellp()) {}
 
-    FilePosition write(const char* ptr, size_t size) {
+    FilePosition write(const char* ptr,
+                       size_t size,
+                       size_t* new_size,
+                       bool compress_to_fp16 = false,
+                       ov::element::Type src_type = ov::element::dynamic) {
         const FilePosition write_pos = m_binary_output.tellp();
         const auto offset = write_pos - m_blob_offset;
+        *new_size = size;
+
         if (!m_enable_compression) {
-            m_binary_output.write(ptr, size);
+            if (!compress_to_fp16) {
+                m_binary_output.write(ptr, size);
+            } else {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+                m_binary_output.write(fp16_buffer.get(), *new_size);
+            }
             return offset;
-        }
-        // This hash is weak (but efficient) and must be replace with some other
-        // more stable hash algorithm. For example current hash algorithms gives
-        // the same hash for {2, 2} and {0, 128} arrays. So we have to compare
-        // values when finding a match in hash map.
-        const HashValue hash = hash_combine(ptr, size);
-        const auto found = m_hash_to_file_positions.find(hash);
-        if (found != end(m_hash_to_file_positions) &&
-            memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
-            return found->second.first;
-        }
+        } else {
+            std::unique_ptr<char[]> fp16_buffer = nullptr;
+            if (compress_to_fp16) {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+            }
+            const char* ptr_to_write;
+            if (fp16_buffer) {
+                ptr_to_write = fp16_buffer.get();
+            } else {
+                ptr_to_write = ptr;
+            }
 
-        m_binary_output.write(ptr, size);
-        m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
-
+            // This hash is weak (but efficient). For example current hash algorithms gives
+            // the same hash for {2, 2} and {0, 128} arrays.
+            // But even strong hashing algorithms sometimes give collisions.
+            // Therefore we always have to compare values when finding a match in the hash multimap.
+            const HashValue hash = hash_combine(ptr_to_write, *new_size);
+            auto found = m_hash_to_file_positions.find(hash);
+            // iterate over all matches of the key in the multimap
+            while (found != m_hash_to_file_positions.end()) {
+                if (memcmp(ptr, found->second.second, size) == 0)
+                    return found->second.first;
+                found++;
+            }
+            // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
+            // we store pointer to the original uncompressed blob.
+            m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
+            m_binary_output.write(ptr_to_write, *new_size);
+        }
         return offset;
     }
 
 private:
+    static std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
+                                                         size_t size,
+                                                         ov::element::Type src_type,
+                                                         size_t* compressed_size) {
+        auto num_src_elements = size / src_type.size();
+        *compressed_size = num_src_elements * ov::element::f16.size();
+        if (src_type == ov::element::f32) {
+            auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
+            auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
+            auto src_data = reinterpret_cast<const float*>(ptr);
+            ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
+            return new_ptr;
+        } else if (src_type == ov::element::f64) {
+            auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
+            auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
+            auto src_data = reinterpret_cast<const double*>(ptr);
+
+            // Reference implementation for fp64 to fp16 conversoin
+            for (size_t i = 0; i < num_src_elements; ++i) {
+                // if abs value is smaller than the smallest positive fp16, but not zero
+                if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
+                    dst_data[i] = 0;
+                } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
+                    dst_data[i] = std::numeric_limits<ov::float16>::max();
+                } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
+                    dst_data[i] = std::numeric_limits<ov::float16>::lowest();
+                } else {
+                    dst_data[i] = static_cast<ov::float16>(src_data[i]);
+                }
+            }
+            return new_ptr;
+        } else {
+            OPENVINO_THROW("[ INTERNAL ERROR ] Not supported source type for weights compression: ", src_type);
+        }
+    }
+
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
     bool m_enable_compression;
@@ -130,7 +198,7 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      bool deterministic);
 
 namespace rt_info {
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -239,6 +307,8 @@ class XmlSerializer : public ov::AttributeVisitor {
     ConstantWriter& m_constant_write_handler;
     int64_t m_version;
     bool m_deterministic;
+    bool m_compress_to_fp16;
+    ov::element::Type m_output_element_type;
 
     template <typename T>
     std::string create_atribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
@@ -356,13 +426,17 @@ public:
                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler,
                   int64_t version,
-                  bool deterministic = false)
+                  bool deterministic = false,
+                  bool compress_to_fp16 = false,
+                  ov::element::Type output_element_type = ov::element::dynamic)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
           m_custom_opsets(custom_opsets),
           m_constant_write_handler(constant_write_handler),
           m_version(version),
-          m_deterministic(deterministic) {}
+          m_deterministic(deterministic),
+          m_compress_to_fp16(compress_to_fp16),
+          m_output_element_type(output_element_type) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
@@ -439,16 +513,35 @@ public:
                            ov::as_type<ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
                 special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
-        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        } else if (const auto& a =
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
-                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()), size);
+                size_t new_size;
+                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                size,
+                                                                &new_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type);
 
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(size));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+            if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
+                const int64_t size = a->get()->size();
+                size_t new_size;
+                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                size,
+                                                                &new_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type);
+
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a->get();
@@ -497,7 +590,13 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
-        m_xml_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
+        std::string value;
+        if (m_compress_to_fp16 && name == "element_type") {
+            value = ov::as_string(static_cast<ov::element::Type_t>(ov::element::f16));
+        } else {
+            value = adapter.get();
+        }
+        m_xml_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
@@ -653,6 +752,10 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BIN";
     case ::ov::element::Type_t::boolean:
         return "BOOL";
+    case ::ov::element::Type_t::nf4:
+        return "NF4";
+    case ::ov::element::Type_t::string:
+        return "STRING";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }
@@ -914,7 +1017,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
-                port.append_attribute("precision").set_value(get_precision_name(i.get_element_type()).c_str());
+
+                auto rt_info = i.get_tensor().get_rt_info();
+                auto port_element_type =
+                    is_fp16_compression_postponed(rt_info) ? ov::element::f16 : i.get_element_type();
+
+                port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
                 for (auto d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     if (d.is_dynamic()) {
@@ -938,7 +1046,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             for (auto& o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
-                port.append_attribute("precision").set_value(get_precision_name(o.get_element_type()).c_str());
+
+                auto rt_info = o.get_tensor().get_rt_info();
+                auto port_element_type =
+                    is_fp16_compression_postponed(rt_info) ? ov::element::f16 : o.get_element_type();
+
+                port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
 
                 // Sort tensor names
                 const auto& tensor_names = o.get_tensor().get_names();
@@ -974,6 +1087,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
         // fill <data> general attributes
         {
+            bool compress_to_fp16 = false;
+            ov::element::Type output_element_type = ov::element::dynamic;
+            if (is_fp16_compression_postponed(node->get_rt_info())) {
+                compress_to_fp16 = true;
+                output_element_type = node->get_output_element_type(0);
+            }
             // Backward compatibility: clear padding values for nodes with auto_pad
             PaddingsFixer fixed_node(node);
             XmlSerializer visitor(data,
@@ -981,7 +1100,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                                   custom_opsets,
                                   constant_node_write_handler,
                                   version,
-                                  deterministic);
+                                  deterministic,
+                                  compress_to_fp16,
+                                  output_element_type);
             OPENVINO_ASSERT(fixed_node.get_node()->visit_attributes(visitor), "Visitor API is not supported in ", node);
         }
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
@@ -1086,6 +1207,14 @@ void serializeFunc(std::ostream& xml_file,
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
+
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
+    for (auto& node : model->get_ops())
+        if (fp16_compression_is_disabled(node))
+            disable_fp16_compression(node);
+
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version, m_custom_opsets);
     } else {

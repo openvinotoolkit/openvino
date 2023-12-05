@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, OutputLayersConcatMultiChannel,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
     OutputLayersConcatMultiChannel::getTestCaseName);
 }  // namespace

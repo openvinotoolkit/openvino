@@ -54,7 +54,6 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_bilinear)
     @pytest.mark.nightly
-    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 113362")
     def test_keras_upsampling2d_bilinear(self, params, ie_device, precision, ir_version, temp_dir,
                                          use_old_api, use_new_frontend):
         self._test(*self.create_keras_upsampling2d_net(**params, ir_version=ir_version),

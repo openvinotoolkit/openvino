@@ -18,7 +18,7 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, appHeader) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     for (auto const& configItem : exportConfiguration) {

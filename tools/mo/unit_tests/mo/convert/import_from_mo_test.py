@@ -5,18 +5,16 @@ import os
 import tempfile
 from pathlib import Path
 
-from generator import generator, generate
+import pytest
 from openvino.runtime import serialize
 
 from openvino.tools.mo import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
-from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph
 from utils import create_onnx_model, save_to_onnx
 
 
-@generator
-class ConvertImportMOTest(UnitTestWithMockedTelemetry):
+class TestConvertImportMOTest():
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
     @staticmethod
@@ -79,7 +77,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
                                  ])
         return ref_graph
 
-    @generate(*[
+    @pytest.mark.parametrize("params",[
         ({}),
         ({'input': InputCutInfo(name='LeakyRelu_out', shape=None, type=None, value=None)}),
         ({'layout': {'input': LayoutMap(source_layout='NCHW', target_layout='NHWC')}}),
@@ -103,9 +101,9 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
-            out_xml = os.path.join(tmpdir, Path("model.xml"))
+            out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert_model(input_model=model_path)
+            ov_model = convert_model(Path(model_path))
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
             ir = IREngine(out_xml, out_xml.replace('.xml', '.bin'))

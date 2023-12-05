@@ -4,11 +4,10 @@
 
 #include "convert_model.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 std::string FrontEndConvertModelTest::getTestCaseName(const testing::TestParamInfo<ConvertParam>& obj) {
@@ -38,37 +37,37 @@ void FrontEndConvertModelTest::doLoadFromFile() {
 
 TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
     ASSERT_NO_THROW(doLoadFromFile());
-    std::shared_ptr<ngraph::Function> function_ref;
-    ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function_ref, nullptr);
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert_partially(m_inputModel));
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model_ref;
+    ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model_ref, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert_partially(m_inputModel));
+    ASSERT_NE(model, nullptr);
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
     // TODO: enable name comparison for tf when TransposeSinking is fixed, ticket 68960
     if (m_frontEnd->get_name() != "tf" && m_frontEnd->get_name() != "tflite") {
         func_comparator.enable(FunctionsComparator::NAMES);
     }
-    const FunctionsComparator::Result res = func_comparator(function, function_ref);
+    const FunctionsComparator::Result res = func_comparator(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
     ASSERT_NO_THROW(doLoadFromFile());
-    std::shared_ptr<ngraph::Function> function_ref;
-    ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function_ref, nullptr);
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->decode(m_inputModel));
-    ASSERT_NO_THROW(m_frontEnd->convert(function));
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model_ref;
+    ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model_ref, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->decode(m_inputModel));
+    ASSERT_NO_THROW(m_frontEnd->convert(model));
+    ASSERT_NE(model, nullptr);
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
     // TODO: enable name comparison for tf when TransposeSinking is fixed, ticket 68960
     if (m_frontEnd->get_name() != "tf" && m_frontEnd->get_name() != "tflite") {
         func_comparator.enable(FunctionsComparator::NAMES);
     }
-    const FunctionsComparator::Result res = func_comparator(function, function_ref);
+    const FunctionsComparator::Result res = func_comparator(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

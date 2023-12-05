@@ -29,7 +29,7 @@ TEST_F(CTCLossV4StaticShapeInferenceTest, correct_input_shapes) {
     auto op = make_op(logits, logit_length, labels, label_length, blank_index);
 
     input_shapes = ShapeVector{{10, 120, 28}, {10}, {10, 120}, {10}, {}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10}));
@@ -39,7 +39,7 @@ TEST_F(CTCLossV4StaticShapeInferenceTest, default_ctor) {
     auto op = make_op();
 
     input_shapes = ShapeVector{{12, 120, 28}, {12}, {12, 120}, {12}, {}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({12}));

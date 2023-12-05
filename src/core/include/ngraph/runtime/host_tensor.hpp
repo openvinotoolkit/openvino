@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory>
 
 #include "ngraph/descriptor/output.hpp"
@@ -12,6 +22,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ov {
 class Node;
 namespace op {
@@ -21,13 +32,19 @@ class Constant;
 }  // namespace op
 }  // namespace ov
 namespace ngraph {
+
+namespace runtime {
+class HostTensor;
+}
+
+using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 namespace op {
 namespace v0 {
 using ov::op::v0::Constant;
 }
 }  // namespace op
 namespace runtime {
-class NGRAPH_API HostTensor : public ngraph::runtime::Tensor {
+class NGRAPH_API NGRAPH_API_DEPRECATED HostTensor : public ngraph::runtime::Tensor {
 public:
     HostTensor(const element::Type& element_type, const Shape& shape, void* memory_pointer);
     HostTensor(const element::Type& element_type, const Shape& shape);
@@ -112,3 +129,4 @@ protected:
 };
 }  // namespace runtime
 }  // namespace ngraph
+NGRAPH_SUPPRESS_DEPRECATED_END

@@ -56,28 +56,30 @@ protected:
              {num_directions, 4 * hidden_size}},
         };
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1])),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
+
         std::vector<ngraph::Shape> WRB = {inputShapes[4], inputShapes[5], inputShapes[6], inputShapes[3]};
-        auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
 
         std::vector<float> weights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
         std::vector<float> bias_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
 
         auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
         auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
-        std::vector<float> lengths(in[0].get_partial_shape()[0].get_min_length(),
-                                   in[0].get_partial_shape()[1].get_min_length());
+        std::vector<float> lengths(params[0]->get_partial_shape()[0].get_min_length(),
+                                   params[0]->get_partial_shape()[1].get_min_length());
         std::shared_ptr<ngraph::Node> seq_length =
             ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
-        auto lstm_sequence = std::make_shared<ngraph::opset8::LSTMSequence>(in[0],
-                                                                            in[1],
-                                                                            in[2],
+        auto lstm_sequence = std::make_shared<ngraph::opset8::LSTMSequence>(params[0],
+                                                                            params[1],
+                                                                            params[2],
                                                                             seq_length,
                                                                             weightsNode,
                                                                             reccurrenceWeightsNode,
@@ -113,7 +115,7 @@ protected:
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -164,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonZeroClip,
                                             ::testing::ValuesIn(direction),
                                             ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          LSTMSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip,
@@ -179,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip,
                                             ::testing::ValuesIn(direction),
                                             ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          LSTMSequenceTest::getTestCaseName);
 
 }  // namespace

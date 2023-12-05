@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var PYTHON_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE CMAKE_SHARED_LIBRARY_SUFFIX)
+foreach(var Python3_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE CMAKE_SHARED_LIBRARY_SUFFIX)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
@@ -20,7 +20,7 @@ endif()
 
 get_filename_component(wheel_name "${PACKAGE_FILE}" NAME)
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -m wheel unpack ${PACKAGE_FILE}
+execute_process(COMMAND ${Python3_EXECUTABLE} -m wheel unpack ${PACKAGE_FILE}
                 WORKING_DIRECTORY ${WORKING_DIRECTORY}
                 OUTPUT_VARIABLE output_message
                 ERROR_VARIABLE error_message

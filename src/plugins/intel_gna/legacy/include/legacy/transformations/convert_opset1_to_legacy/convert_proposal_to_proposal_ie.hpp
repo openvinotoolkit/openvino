@@ -19,13 +19,13 @@ class ConvertProposal4ToLegacyMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertProposal4ToLegacyMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertProposal4ToLegacyMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertProposal4ToLegacyMatcher", "0");
     ConvertProposal4ToLegacyMatcher();
 };
 
-class ngraph::pass::ConvertProposalToLegacyMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertProposalToLegacyMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertProposalToLegacyMatcher", "0");
     ConvertProposalToLegacyMatcher();

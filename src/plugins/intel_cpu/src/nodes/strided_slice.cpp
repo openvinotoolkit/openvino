@@ -4,12 +4,13 @@
 
 #include "strided_slice.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "input.h"
-#include <ngraph/opsets/opset1.hpp>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 #include "slice_shape_inference_utils.hpp"
+#include "shape_inference/custom/strided_slice.hpp"
 
 #include <string>
 
@@ -34,116 +35,11 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-namespace {
-
-constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/1, /*END_ID*/2, /*STRIDE_ID*/3, /*AXES_ID*/4);
-
-class StridedSliceShapeInfer : public ShapeInferEmptyPads {
-public:
-    StridedSliceShapeInfer(size_t output_size,
-                           std::unordered_set<int64_t> begin_mask,
-                           std::unordered_set<int64_t> end_mask,
-                           std::unordered_set<int64_t> new_axis_mask,
-                           std::unordered_set<int64_t> shrink_axis_mask)
-    : m_outputShape(output_size, 1),
-      m_begin_mask_set(std::move(begin_mask)),
-      m_end_mask_set(std::move(end_mask)),
-      m_new_axis_mask_set(std::move(new_axis_mask)),
-      m_shrink_axis_mask_set(std::move(shrink_axis_mask)) {}
-
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        // align with intel_cpu::node::StridedSlice
-        static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
-        const VectorDims& shapeIn = input_shapes[DATA_ID].get();
-        const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
-        if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != Precision::I32 ||
-            data_dependency.at(END_ID)->getDesc().getPrecision() != Precision::I32 ||
-            data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
-            IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT I32, which is unexpected!";
-        }
-        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->getData());
-        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->getData());
-        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->getData());
-
-        for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
-            if (m_new_axis_mask_set.count(i)) {
-                // deal with new_axis_mask
-                m_outputShape[new_idx] = 1;
-                m_outputShape[new_idx+1] = shapeIn[i];
-                new_idx+=2;
-            } else if (!m_shrink_axis_mask_set.count(i)) {
-                // deal with begin_mask and end_mask
-                if ((i >= shapeBegin[0]) || (shapeIn[i] == 0)) {
-                    m_outputShape[new_idx] = shapeIn[i];
-                } else {
-                    auto begin = m_begin_mask_set.count(i) ? 0 : beginPtr[i];
-                    auto end  = m_end_mask_set.count(i) ? shapeIn[i] : endPtr[i];
-                    m_outputShape[new_idx] = ov::op::slice::get_sliced_value(shapeIn[i], begin, end, stridePtr[i]);
-                }
-                new_idx += 1;
-            }
-        }
-        return {{m_outputShape}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return port_mask;
-    }
-
-private:
-    VectorDims m_outputShape;
-    const std::unordered_set<int64_t> m_begin_mask_set;
-    const std::unordered_set<int64_t> m_end_mask_set;
-    const std::unordered_set<int64_t> m_new_axis_mask_set;
-    const std::unordered_set<int64_t> m_shrink_axis_mask_set;
-};
-
-class StridedSliceShapeInferFactory : public ShapeInferFactory {
-public:
-    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op)
-    : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
-            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
-        } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
-            const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-            if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
-                return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
-            } else {
-                auto vec_to_set = [](const std::vector<int64_t>& vec){
-                    std::unordered_set<int64_t> to_set;
-                    for (size_t i = 0; i < vec.size(); ++i) {
-                        if (vec[i] == 1) {
-                            to_set.emplace(i);
-                        }
-                    }
-                    return to_set;
-                };
-                return std::make_shared<StridedSliceShapeInfer>(
-                    m_op->get_output_partial_shape(0).rank().get_length(),
-                    vec_to_set(StridedSlice_op->get_begin_mask()),
-                    vec_to_set(StridedSlice_op->get_end_mask()),
-                    vec_to_set(StridedSlice_op->get_new_axis_mask()),
-                    vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
-            }
-        } else {
-            IE_THROW(NotImplemented) << "not Slice or StridedSlice";
-        }
-    }
-
-private:
-    const std::shared_ptr<ov::Node> m_op;
-};
-
-}  // namespace
-
 StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, StridedSliceShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix = NameFromType(getType()) + " node with name '" + getName() + "' ";
 
@@ -151,10 +47,10 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     if ((attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
             (!attrs.isStridedSliceOp && (inputShapes.size() < 4 || inputShapes.size() > 5))) {
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
     }
     if (outputShapes.size() != 1) {
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
     }
 
     if (inputShapes.size() > STRIDE_ID) {
@@ -229,7 +125,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             attrs.ellipsisPos1 = attrs.ellipsisMask[i] == 1 && attrs.ellipsisPos1 == -1 ? i : attrs.ellipsisPos1;
         }
         if (attrs.ellipsisMaskCounter > 1)
-            IE_THROW() << errorPrefix << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
+            OPENVINO_THROW(errorPrefix, "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
@@ -242,7 +138,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         if (!isConstantInput[type])
             return;
 
-        const auto constNode = ov::as_type_ptr<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(type));
+        const auto constNode = ov::as_type_ptr<const ov::opset1::Constant>(op->get_input_node_shared_ptr(type));
         parameter = constNode->cast_vector<int>();
 
         auto size = constNode->get_shape()[0];
@@ -314,8 +210,8 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    const InferenceEngine::Precision iPrecision = Precision::I32;
+    const ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    const ov::element::Type iPrecision = ov::element::i32;
     attrs.dataSize = dataPrecision.size();
 
     const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
@@ -420,7 +316,7 @@ bool StridedSlice::needShapeInfer() const {
 
 void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
-        IE_THROW() << errorPrefix << "doesn't have compiled executor!";
+        OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
 }
@@ -516,11 +412,11 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     params.attrs.beginDims = srcMemory[BEGIN_ID]->getShape().getStaticDims();
     params.attrs.endDims = srcMemory[END_ID]->getShape().getStaticDims();
     if (params.attrs.beginDims.size() != 1)
-        IE_THROW() << errorPrefix << "should have begin vector with 1 dimension";
+        OPENVINO_THROW(errorPrefix, "should have begin vector with 1 dimension");
     if (params.attrs.endDims.size() != 1)
-        IE_THROW() << errorPrefix << "should have end vector with 1 dimension";
+        OPENVINO_THROW(errorPrefix, "should have end vector with 1 dimension");
     if (params.attrs.beginDims[0] != params.attrs.endDims[0])
-        IE_THROW() << errorPrefix << "should have begin vector with size equal to end vector size";
+        OPENVINO_THROW(errorPrefix, "should have begin vector with size equal to end vector size");
 
     if (params.attrs.begin.empty())
         fillingInParameters(params.attrs.begin, BEGIN_ID, params.attrs.beginDims[0], 0);
@@ -530,9 +426,9 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > STRIDE_ID) {
         params.attrs.strideDims = srcMemory[STRIDE_ID]->getShape().getStaticDims();
         if (params.attrs.strideDims.size() > 1)
-            IE_THROW() << errorPrefix << "should have stride vector with 1 dimension";
+            OPENVINO_THROW(errorPrefix, "should have stride vector with 1 dimension");
         if (params.attrs.beginDims[0] != params.attrs.strideDims[0])
-            IE_THROW() << errorPrefix << "should have stride vector with size equal to begin vector size";
+            OPENVINO_THROW(errorPrefix, "should have stride vector with size equal to begin vector size");
 
         if (params.attrs.stride.empty())
             fillingInParameters(params.attrs.stride, STRIDE_ID, params.attrs.strideDims[0], 1);
@@ -541,9 +437,9 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > AXES_ID) {
         params.attrs.axesDims = srcMemory[AXES_ID]->getShape().getStaticDims();
         if (params.attrs.axesDims.size() != 1)
-            IE_THROW() << errorPrefix << "should have axes vector with 1 dimension.";
+            OPENVINO_THROW(errorPrefix, "should have axes vector with 1 dimension.");
         if (params.attrs.beginDims[0] != params.attrs.axesDims[0])
-            IE_THROW() << errorPrefix << "should have axes vector with size equal to begin vector size.";
+            OPENVINO_THROW(errorPrefix, "should have axes vector with size equal to begin vector size.");
 
         if (params.attrs.axes.empty())
             fillingInParameters(params.attrs.axes, AXES_ID, params.attrs.axesDims[0], 0);

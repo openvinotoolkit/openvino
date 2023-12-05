@@ -64,6 +64,8 @@ public:
         return m_attrs;
     }
 
+    void set_attrs(Attributes attrs);
+
     void set_output_type(const element::Type& output_type) {
         m_attrs.output_type = output_type;
     }

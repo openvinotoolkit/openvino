@@ -17,24 +17,19 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-const std::set<std::vector<int>> FuseTransposeBrgemm::supported_cases = {{0, 2, 1, 3}};
-
-bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_port) {
-    const auto transpose_node = transpose_port.get_node_shared_ptr();
-    // it's safe to do so because of the patterns we used. alternatively we can do it through pattern_values_map
-    const auto& constant = as_type_ptr<ov::opset1::Constant>(transpose_node->get_input_node_shared_ptr(1));
-    // if Transpose in and out layout is not empty => something was already fused on this port
-    auto default_layout = std::vector<size_t>(transpose_port.get_shape().size());
-    std::iota(default_layout.begin(), default_layout.end(), 0);// NCHW layout by default
-    if (lowered::PortDescriptorUtils::get_port_descriptor_ptr(transpose_port)->get_layout() != default_layout ||
-        lowered::PortDescriptorUtils::get_port_descriptor_ptr(transpose_node->input_value(0))->get_layout() != default_layout)
+bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_out) {
+    const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
+    if (!transpose)
         return false;
-    const auto& transpose_order = constant->cast_vector<int>();
-    // todo: this limitation is due to the fact that offsets are calculated in Kernel, and the only way
-    //  to calc them non-default way is to set Parameter rt_info field. This limitation can be removed if
-    //  the rt_info is properly propagated to the corresponding parameter
-    return is_type<ov::opset1::Parameter>(transpose_node->get_input_node_shared_ptr(0)) &&
-           supported_cases.count(transpose_order) != 0;
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    if (!order)
+        return false;
+    return is_supported_transpose_order(order->cast_vector<int32_t>());
+}
+
+bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t>& order) {
+    const auto size = order.size();
+    return order.size() > 0 && order.back() == (static_cast<int32_t>(size) - 1);
 }
 
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
@@ -51,7 +46,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
 
     // Pattern 2: Transpose on output of MatMul
     auto brgemm_out = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto transpose2 = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({brgemm_out, constant});
+    auto transpose2 = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({brgemm_out, constant}, is_supported_transpose);
 
     auto brgemm_or_transpose = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{brgemm_in0, brgemm_in1, transpose2});
 

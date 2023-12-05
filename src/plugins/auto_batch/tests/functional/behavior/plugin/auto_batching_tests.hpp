@@ -11,7 +11,7 @@
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -72,7 +72,7 @@ protected:
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
             auto exec_net_ref = ie.LoadNetwork(net,
-                                               std::string(CommonTestUtils::DEVICE_BATCH) + ":" + target_device + "(" +
+                                               std::string(ov::test::utils::DEVICE_BATCH) + ":" + target_device + "(" +
                                                    std::to_string(num_batch) + ")",
                                                config);
 

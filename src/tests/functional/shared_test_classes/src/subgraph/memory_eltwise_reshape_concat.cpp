@@ -4,7 +4,7 @@
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_eltwise_reshape_concat.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -51,7 +51,7 @@ void MemoryEltwiseReshapeConcatTest::SetUp() {
 
 void MemoryEltwiseReshapeConcatTest::initTestModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
@@ -72,7 +72,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
-    auto concat = ngraph::builder::makeConcat({concat_constant, reshape_1}, 0);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_constant, reshape_1}, 0);
 
     memory_write->add_control_dependency(memory_read);
     concat->add_control_dependency(memory_write);
@@ -86,7 +86,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
 
 void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
@@ -107,7 +107,7 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
-    auto concat = ngraph::builder::makeConcat({concat_constant, squeeze}, 0);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_constant, squeeze}, 0);
 
     function = std::make_shared<ngraph::Function>(concat, input_parameter, "memory_multiply_reshape_concat");
 }

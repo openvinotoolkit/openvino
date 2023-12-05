@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <openvino/core/partial_shape.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -52,8 +52,8 @@ public:
 
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
-        result << "I" << CommonTestUtils::vec2str(indices) << "_";
-        result << "O" << CommonTestUtils::vec2str(offsets) << "_";
+        result << "I" << ov::test::utils::vec2str(indices) << "_";
+        result << "O" << ov::test::utils::vec2str(offsets) << "_";
         result << "DI" << defaultIndex << "_";
         result << "WW" << withWeights << "_";
         result << "WDI" << withDefIndex << "_";
@@ -75,7 +75,7 @@ public:
         std::tie(inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex) = embParams;
 
         selectedType = makeSelectedTypeStr("ref", inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes });
 
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingBagOffsetsSumLayerCPUTest,
                 embBagOffsetSumArgSet,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::ValuesIn(indPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         EmbeddingBagOffsetsSumLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace CPULayerTestsDefinitions

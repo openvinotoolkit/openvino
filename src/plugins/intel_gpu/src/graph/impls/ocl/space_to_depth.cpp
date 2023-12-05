@@ -16,7 +16,7 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
     using kernel_selector_t = kernel_selector::space_to_depth_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::space_to_depth_params, kernel_selector::space_to_depth_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::space_to_depth_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<space_to_depth_impl>(*this);
@@ -27,7 +27,7 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
         auto params = get_default_params<kernel_selector::space_to_depth_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::space_to_depth_optional_params>(impl_param.get_program());
 
-        params.depth_mode = (primitive->mode == space_to_depth::blocks_first) ?
+        params.depth_mode = (primitive->mode == SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) ?
                                kernel_selector::SpaceToDepthMode::BLOCKS_FIRST :
                                kernel_selector::SpaceToDepthMode::DEPTH_FIRST;
 

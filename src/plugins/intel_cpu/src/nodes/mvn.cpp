@@ -13,7 +13,7 @@
 #include "eltwise.h"
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 #include "emitters/x64/jit_bf16_emitters.hpp"
 
@@ -23,7 +23,7 @@
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
-#include <ngraph/opsets/opset6.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
@@ -59,8 +59,8 @@ size_t MVNKey::hash() const {
     seed = hash_combine(seed, mvnAttrs.normalizeVariance_);
     seed = hash_combine(seed, mvnAttrs.epsValue_);
     seed = hash_combine(seed, mvnAttrs.epsMode_);
-    seed = hash_combine(seed, mvnAttrs.src_prc.getPrecVal());
-    seed = hash_combine(seed, mvnAttrs.dst_prc.getPrecVal());
+    seed = hash_combine(seed, mvnAttrs.src_prc.hash());
+    seed = hash_combine(seed, mvnAttrs.dst_prc.hash());
     seed = hash_combine(seed, mvnAttrs.layout);
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     return seed;
@@ -85,11 +85,25 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 #if defined(OPENVINO_ARCH_X86_64)
 
 // some utility functions
-static inline bool isFloatCompatible(Precision prc) {
-    return one_of(prc, Precision::FP32, Precision::BF16, Precision::FP16);
+static inline bool isFloatCompatible(ov::element::Type prc) {
+    return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16);
 }
 
-static const int kTileNum = 3;
+// 8/4/2/1 tile
+static const int kTileNum = 4;
+
+// 4-7 for src, 8-11 for sum, 12-15 for mean. 4 vector for 8/4/2/1 tiles
+static inline int get_tile_vr_id(const int& step) {
+    int vec_reg_id = 3;
+    if (step == 8) {
+        vec_reg_id = 0;
+    } else if (step == 4) {
+        vec_reg_id = 1;
+    } else if (step == 2) {
+        vec_reg_id = 2;
+    }
+    return vec_reg_id;
+}
 
 // normalize_variance = false : src->mean
 // normalize_variance = true : src+mean->variance:sqr(x-mean)
@@ -105,15 +119,16 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
     void generate() override {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
+        ov::element::Type dst_prc = isFloatCompatible(jcp_.src_prc) ? ov::element::f32 : ov::element::i32;
         load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
         load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
         load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
         load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
         load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
-        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, Precision::FP32, true, "zero"));
-        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, Precision::FP32, true, "zero"));
-        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, Precision::FP32, true, "zero"));
+        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, ov::element::f32, true, "zero"));
+        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, ov::element::f32, true, "zero"));
+        load_emitter[TAIL2_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, ov::element::f32, true, "zero"));
+        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, ov::element::f32, true, "zero"));
 
         this->preamble();
         mov(reg_table, l_table);
@@ -207,14 +222,11 @@ private:
 
     size_t src_stride = 0;
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, TAIL8_FILL, TAIL4_FILL, TAIL1_FILL, LOAD_EMITTERS_NUM };
+    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, TAIL8_FILL, TAIL4_FILL, TAIL2_FILL, TAIL1_FILL, LOAD_EMITTERS_NUM };
     std::unique_ptr<jit_load_emitter> load_emitter[LOAD_EMITTERS_NUM];
     std::vector<size_t> load_pool_gpr_idxs;
 
-    // used for tails process(except nspc&&per_channel)
-    Label tail_start[kTileNum];
-    Label tail_exit[kTileNum];
-    const int tile_size[kTileNum] = {8, 4, 1};
+    const int tile_size[kTileNum] = {8, 4, 2, 1};
 
     // nspc across channel
     inline void nspc_ac_ker() {
@@ -431,15 +443,16 @@ private:
         mov(reg_src_aux, reg_src);
         mov(reg_work_amount, reg_work_amount_bk);
 
-        // 4-7 for src, 8-11 for sum, 12-15 for mean. 4 vector for 8/4/2/1 tiles
-        auto init_tails = [&](int vmm_id, int step) {
+        auto init_tails = [&](int step) {
+            int vmm_id = get_tile_vr_id(step);
             uni_vpxor(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
             if (jcp_.normalize_variance) {
                 uni_vmovups(Vmm(ur_base + 8 + vmm_id), ptr[reg_mean]);
                 add(reg_mean, step * sizeof(float));
             }
         };
-        auto load_src_tails = [&](int vmm_id, int step) {
+        auto load_src_tails = [&](int step) {
+            int vmm_id = get_tile_vr_id(step);
             int emitter_id = 4;
             if (step == 8) {
                 emitter_id = 1;
@@ -452,7 +465,8 @@ private:
                                                 {}, {load_pool_gpr_idxs});
             add(reg_src_aux, step * jcp_.src_data_size);
         };
-        auto mv_tails = [&](int vmm_id, int step) {
+        auto mv_tails = [&](int step) {
+            int vmm_id = get_tile_vr_id(step);
             if (jcp_.normalize_variance) {
                 if (!isFloatCompatible(jcp_.src_prc)) {
                     uni_vcvtdq2ps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
@@ -466,7 +480,8 @@ private:
                     uni_vaddps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
             }
         };
-        auto store_tails = [&](int vmm_id, size_t step) {
+        auto store_tails = [&](size_t step) {
+            int vmm_id = get_tile_vr_id(step);
             if (jcp_.normalize_variance) {
                 uni_vmovups(ptr[reg_variance], Vmm(ur_base + 4 + vmm_id));
                 add(reg_variance, step * sizeof(float));
@@ -478,36 +493,9 @@ private:
             }
         };
 
-        auto tails_worker = [&](std::function<void(int, int)> func) {
-            Label tail_blk8_exit_label;
-            Label tail_blk4_exit_label;
-            Label tail_blk2_exit_label;
-            Label tail_blk1_exit_label;
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_exit_label, T_NEAR);
-            func(0, 8);
-            sub(reg_tails_num_active, 8);
-            L(tail_blk8_exit_label);
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_exit_label, T_NEAR);
-            func(1, 4);
-            sub(reg_tails_num_active, 4);
-            L(tail_blk4_exit_label);
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_exit_label, T_NEAR);
-            func(2, 2);
-            sub(reg_tails_num_active, 2);
-            L(tail_blk2_exit_label);
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_exit_label, T_NEAR);
-            func(3, 1);
-            sub(reg_tails_num_active, 1);
-            L(tail_blk1_exit_label);
-        };
-
         // init
         mov(reg_tails_num_active, reg_tail_num);
-        tails_worker(init_tails);
+        worker_tails(reg_tails_num_active, init_tails);
 
         Xbyak::Label loop_tail_label;
         Xbyak::Label label_tails_end;
@@ -519,11 +507,11 @@ private:
 
             // load src
             mov(reg_tails_num_active, reg_tail_num);
-            tails_worker(load_src_tails);
+            worker_tails(reg_tails_num_active, load_src_tails);
 
             // m/v compute
             mov(reg_tails_num_active, reg_tail_num);
-            tails_worker(mv_tails);
+            worker_tails(reg_tails_num_active, mv_tails);
 
             mov(rdi, reg_vector_num);
             imul(rdi, rdi, vector_step * jcp_.src_data_size);
@@ -535,7 +523,7 @@ private:
 
         // store tails
         mov(reg_tails_num_active, reg_tail_num);
-        tails_worker(store_tails);
+        worker_tails(reg_tails_num_active, store_tails);
 
         L(label_exit);
     }
@@ -674,7 +662,7 @@ private:
                     cmp(reg_work_amount, 4);
                     jl(loop_8bit_end_label, T_NEAR);
 
-                    if (jcp_.src_prc == Precision::I8) {
+                    if (jcp_.src_prc == ov::element::i8) {
                         vpdpbusd(vmm_sum, vmm_one, ptr[reg_src]);
                     } else {
                         uni_vmovdqu(vmm_val, ptr[reg_src]);
@@ -689,7 +677,7 @@ private:
                 L(loop_8bit_end_label);
             }
             // bf16 fast path
-            if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
+            if (mayiuse(avx512_core_bf16) && jcp_.src_prc == ov::element::bf16) {
                 uni_vmovups(vmm_one, ptr[reg_table]);
                 Xbyak::Label loop_bf16_label;
                 Xbyak::Label loop_bf16_end_label;
@@ -747,22 +735,19 @@ private:
     }
 
     inline void worker_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
-        for (int i = 0; i < kTileNum; i++) {
-            L(tail_start[i]);
-            {
-                cmp(reg_tail_num, tile_size[i]);
-                jl(tail_exit[i], T_NEAR);
+        int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
+        Label tile_exit[kTileNum];
+        for (int i = tile_start_idx; i < kTileNum; i++) {
+            cmp(reg_tail_num, tile_size[i]);
+            jl(tile_exit[i], T_NEAR);
 
-                func(tile_size[i]);
+            func(tile_size[i]);
+            sub(reg_tail_num, tile_size[i]);
 
-                sub(reg_tail_num, tile_size[i]);
-                jmp(tail_start[i], T_NEAR);
-            }
-            L(tail_exit[i]);
+            L(tile_exit[i]);
         }
     }
 
-    // needed and supported case: 1. scalar with zero pad. 2. tails w/ or w/o zero pad
     inline void worker_block(int block_num, bool is_zero_pad) {
         if (is_zero_pad) {
             switch (block_num) {
@@ -774,12 +759,16 @@ private:
                 load_emitter[TAIL4_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
+            case 2:
+                load_emitter[TAIL2_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
             case 1:
                 load_emitter[TAIL1_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             default:
-                assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+                assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
                 break;
             }
         } else {
@@ -792,12 +781,16 @@ private:
                 load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
+            case 2:
+                load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
             case 1:
                 load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             default:
-                assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+                assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
                 break;
             }
         }
@@ -876,12 +869,12 @@ private:
         align(64);
         L(l_table);
 
-        if (mayiuse(avx512_core_vnni) && (jcp_.src_prc == Precision::U8 || jcp_.src_prc == Precision::I8)) {
+        if (mayiuse(avx512_core_vnni) && (jcp_.src_prc == ov::element::u8 || jcp_.src_prc == ov::element::i8)) {
             for (int d = 0; d < vector_step; ++d) {
                 dd(cvals[0]);
             }
         }
-        if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
+        if (mayiuse(avx512_core_bf16) && jcp_.src_prc == ov::element::bf16) {
             for (int d = 0; d < vector_step; ++d) {
                 dd(cvals[1]);
             }
@@ -932,16 +925,16 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             }
         }
 
-        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, vector_step));
-        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 8));
-        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 4));
-        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 2));
-        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 1));
-        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, vector_step));
-        store_emitter[TAIL8] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 8));
-        store_emitter[TAIL4] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 4));
-        store_emitter[TAIL2] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 2));
-        store_emitter[TAIL1] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 1));
+        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, vector_step));
+        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 8));
+        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 4));
+        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 2));
+        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 1));
+        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, vector_step));
+        store_emitter[TAIL8] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 8));
+        store_emitter[TAIL4] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 4));
+        store_emitter[TAIL2] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 2));
+        store_emitter[TAIL1] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 1));
 
         this->preamble();
 
@@ -1045,10 +1038,7 @@ private:
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
 
-    // used for tails process(except nspc&&per_channel)
-    Label tail_start[kTileNum];
-    Label tail_exit[kTileNum];
-    const int tile_size[kTileNum] = {8, 4, 1};
+    const int tile_size[kTileNum] = {8, 4, 2, 1};
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -1415,47 +1405,38 @@ private:
             }
             return emitter_id;
         };
-        auto load_src_tails = [&](int vmm_id, int step) {
+        auto load_mv_tails = [&](int step) {
+            load_mv(get_tile_vr_id(step), step);
+        };
+        auto load_weight_bias_tails = [&](int step) {
+            load_weight_bias(get_tile_vr_id(step), step);
+        };
+        auto norm_tails = [&](int step) {
+            norm(get_tile_vr_id(step), step);
+        };
+        auto optimized_ss_tails = [&](int step) {
+            optimized_ss(get_tile_vr_id(step), step);
+        };
+        auto post_ops_tails = [&](int step) {
+            post_ops(get_tile_vr_id(step), step);
+        };
+        auto load_src_tails = [&](int step) {
+            int vmm_id = get_tile_vr_id(step);
             int emitter_id = get_tile_emitter_id(step);
             load_emitter[emitter_id]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
                                                 {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
             add(reg_src_aux, step * jcp_.src_data_size);
         };
-        auto store_tails = [&](int vmm_id, int step) {
+        auto store_tails = [&](int step) {
+            int vmm_id = get_tile_vr_id(step);
             int emitter_id = get_tile_emitter_id(step);
             store_emitter[emitter_id]->emit_code({static_cast<size_t>(ur_base + vmm_id)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                                        {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             add(reg_dst_aux, step * jcp_.dst_data_size);
         };
-        auto tails_worker = [&](std::function<void(int, int)> func) {
-            Label tail_blk8_exit_label;
-            Label tail_blk4_exit_label;
-            Label tail_blk2_exit_label;
-            Label tail_blk1_exit_label;
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_exit_label, T_NEAR);
-            func(0, 8);
-            sub(reg_tails_num_active, 8);
-            L(tail_blk8_exit_label);
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_exit_label, T_NEAR);
-            func(1, 4);
-            sub(reg_tails_num_active, 4);
-            L(tail_blk4_exit_label);
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_exit_label, T_NEAR);
-            func(2, 2);
-            sub(reg_tails_num_active, 2);
-            L(tail_blk2_exit_label);
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_exit_label, T_NEAR);
-            func(3, 1);
-            sub(reg_tails_num_active, 1);
-            L(tail_blk1_exit_label);
-        };
 
         // load m/v m:8-11, v:12-15
-        tails_worker(load_mv);
+        worker_mvn_tails(reg_tails_num_active, load_mv_tails);
 
         // optimized scaleshift. 16-23 for weight, 24-31 for bias.
         // reg_post_ops_data[0]:----w0---- ----b0---- reg_post_ops_data[1]:----w1---- ----b1----
@@ -1472,7 +1453,7 @@ private:
             imul(rax, rax, sizeof(float));
             add(reg_d_bias, rax);
 
-            tails_worker(load_weight_bias);
+            worker_mvn_tails(reg_tails_num_active, load_weight_bias_tails);
 
             post_ops_data_offset += sizeof(float*);
             ss_repeat_id++;
@@ -1486,7 +1467,7 @@ private:
             jle(loop_tails_end_label, T_NEAR);
             mov(reg_tails_num_active, addr_tail_num);
 
-            tails_worker(load_src_tails);
+            worker_mvn_tails(reg_tails_num_active, load_src_tails);
 
             // to next iteration(next work_amount)
             mov(rax, addr_vector_num);
@@ -1495,25 +1476,25 @@ private:
 
             // norm
             mov(reg_tails_num_active, addr_tail_num);
-            tails_worker(norm);
+            worker_mvn_tails(reg_tails_num_active, norm_tails);
 
             // optimized scaleShift
             ss_repeat_id = 0;
             for (int i = 0; i < optimized_scaleshift_num; i++) {
                 mov(reg_tails_num_active, addr_tail_num);
-                tails_worker(optimized_ss);
+                worker_mvn_tails(reg_tails_num_active, optimized_ss_tails);
                 ss_repeat_id++;
             }
 
             // post-ops
             if (attr_.post_ops_.len() != 0) {
                 mov(reg_tails_num_active, addr_tail_num);
-                tails_worker(post_ops);
+                worker_mvn_tails(reg_tails_num_active, post_ops_tails);
             }
 
             // store
             mov(reg_tails_num_active, addr_tail_num);
-            tails_worker(store_tails);
+            worker_mvn_tails(reg_tails_num_active, store_tails);
 
             // dst advance
             mov(rax, reg_rt_shape);
@@ -1575,7 +1556,7 @@ private:
         Xbyak::Label mvn_loop_end_label;
 
         int step_sub = jcp_.layout == MVNLayoutType::mvn_by_channel ? vector_step : 1;
-        int step_left = jcp_.layout == MVNLayoutType::mvn_by_channel ? vector_step : 0;
+        int step_left = jcp_.layout == MVNLayoutType::mvn_by_channel ? vector_step - 1 : 0;
 
         L(mvn_loop_label);
         {
@@ -1611,18 +1592,16 @@ private:
     }
 
     inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
-        for (int i = 0; i < kTileNum; i++) {
-            L(tail_start[i]);
-            {
-                cmp(reg_tail_num, tile_size[i]);
-                jl(tail_exit[i], T_NEAR);
+        int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
+        Label tile_exit[kTileNum];
+        for (int i = tile_start_idx; i < kTileNum; i++) {
+            cmp(reg_tail_num, tile_size[i]);
+            jl(tile_exit[i], T_NEAR);
 
-                func(tile_size[i]);
+            func(tile_size[i]);
+            sub(reg_tail_num, tile_size[i]);
 
-                sub(reg_tail_num, tile_size[i]);
-                jmp(tail_start[i], T_NEAR);
-            }
-            L(tail_exit[i]);
+            L(tile_exit[i]);
         }
     }
 
@@ -1636,12 +1615,16 @@ private:
             load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                 {}, {load_pool_gpr_idxs});
             break;
+        case 2:
+            load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                {}, {load_pool_gpr_idxs});
+            break;
         case 1:
             load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                 {}, {load_pool_gpr_idxs});
             break;
         default:
-            assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+            assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
             break;
         }
 
@@ -1660,17 +1643,21 @@ private:
             store_emitter[TAIL4]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                 {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             break;
+        case 2:
+            store_emitter[TAIL2]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            break;
         case 1:
             store_emitter[TAIL1]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                 {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             break;
         default:
-            assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+            assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
             break;
         }
     }
 
-    void apply_post_ops(InferenceEngine::Precision dst_prc, size_t vmm_idx, bool is_broadcast) {
+    void apply_post_ops(ov::element::Type dst_prc, size_t vmm_idx, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
@@ -1719,7 +1706,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////////
 
-bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_output_partial_shape(0).rank().is_dynamic()) {
             errorMessage = "Unsupported dynamic input rank.";
@@ -1731,16 +1718,16 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             return false;
         }
 
-        if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
-            auto axesOp = ngraph::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
+        if (auto mvnOp = ov::as_type_ptr<const ov::op::v6::MVN>(op)) {
+            auto axesOp = ov::as_type_ptr<ov::op::v0::Constant>(mvnOp->get_input_node_shared_ptr(1));
             if (!axesOp) {
                 errorMessage = "Constant expected as the second input.";
                 return false;
             }
 
             auto epsMode = mvnOp->get_eps_mode();
-            if (epsMode != ngraph::op::MVNEpsMode::INSIDE_SQRT &&
-                    epsMode != ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+            if (epsMode != ov::op::MVNEpsMode::INSIDE_SQRT &&
+                    epsMode != ov::op::MVNEpsMode::OUTSIDE_SQRT) {
                 errorMessage = std::string("Just INSIDE_SQRT and OUTSIDE_SQRT epsilon mods are supported. Actual: ") +
                         std::to_string(static_cast<int>(epsMode));
                 return false;
@@ -1775,7 +1762,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
                     }
                 }
             }
-        } else if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v0::MVN>(op)) {
+        } else if (auto mvnOp = ov::as_type_ptr<const ov::op::v0::MVN>(op)) {
         } else {
             errorMessage = "Node is not an instance of the MVN operation.";
             return false;
@@ -1786,18 +1773,18 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     mvnAttrs.epsMode_ = INSIDE_SQRT;
-    if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
+    if (auto mvnOp = ov::as_type_ptr<ov::op::v6::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
-        if (mvnOp->get_eps_mode() == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+        if (mvnOp->get_eps_mode() == ov::op::MVNEpsMode::OUTSIDE_SQRT) {
             mvnAttrs.epsMode_ = OUTSIDE_SQRT;
         }
 
@@ -1805,12 +1792,12 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         const auto& inDataShapeSize = getInputShapeAtPort(0).getRank();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
             mvnAttrs.initAcrossChannels_ = true;
-    } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
+    } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     } else {
-        IE_THROW(NotImplemented) << "Node is not an instance of MVN from the operation set v0 or v6";
+        OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
     }
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
 }
@@ -1840,11 +1827,11 @@ void MVN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
-        if (outputPrecision == Precision::BF16)
-            outputPrecision = Precision::FP32;
+        if (outputPrecision == ov::element::bf16)
+            outputPrecision = ov::element::f32;
     }
 
     if (!fusedWith.empty()) {
@@ -1859,12 +1846,16 @@ void MVN::initSupportedPrimitiveDescriptors() {
             }
         }
     }
-
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // ref with float planar and no fusion
     if (!mayiuse(cpu::x64::sse41)) {
-        inputPrecision = outputPrecision = Precision::FP32;
+        inputPrecision = outputPrecision = ov::element::f32;
     }
-
+#endif
+//Output precision has to be equal to input precision in ACL MVN
+#if defined(OV_CPU_WITH_ACL)
+    outputPrecision = inputPrecision;
+#endif
     // TODO [DS]: inplace
     bool canBeInplace = !isDynamicNode() && (inputPrecision.size() == outputPrecision.size()) &&
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
@@ -1879,7 +1870,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace(-1);
     config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
     if (inputsNum == 2) {
-        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1)));
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, getInputShapeAtPort(1)));
         config.inConfs[1].constant(true);
     }
 
@@ -1914,6 +1905,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        else
+            // Reference MVN implementation does not support fp16, so set fp32 explicitly
+            inputPrecision = outputPrecision = ov::element::f32;
 #endif // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type;
@@ -1992,7 +1986,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         }
     } else {
-        IE_THROW() << "Can't create jit MVN kernel";
+        OPENVINO_THROW("Can't create jit MVN kernel");
     }
 #endif // OPENVINO_ARCH_X86_64
     if (mvn_kernel)
@@ -2005,7 +1999,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
 
 void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
-        IE_THROW() << "MVN layer doesn't create kernel to execute on sse41 above platform.";
+        OPENVINO_THROW("MVN layer doesn't create kernel to execute on sse41 above platform.");
     }
     if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
         mvn_pln(src_data, dst_data, post_ops_data_, shape5d);
@@ -2026,11 +2020,11 @@ void MVN::prepareParams() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        OPENVINO_THROW("Destination memory didn't allocate.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory didn't allocate.";
+        OPENVINO_THROW("Input memory didn't allocate.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const VectorDims in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
@@ -2116,7 +2110,12 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         case 3 : { shape5D = {shape[0], shape[1], 1, shape[2], 1}; break; }
         case 4 : { shape5D = {shape[0], shape[1], 1, shape[2], shape[3]}; break; }
         case 5 : { shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]}; break; }
-        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
+        default: {
+            OPENVINO_THROW("MVN layer with name '",
+                           getName(),
+                           "' doesn't support planar layout with rank: ",
+                           shape.size());
+        }
     }
 }
 
@@ -2135,7 +2134,11 @@ void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
             eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
             continue;
         }
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
     attr.set_post_ops(ops);
 }
@@ -2155,7 +2158,7 @@ void MVN::execute(dnnl::stream strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
+        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
     }
 }
 

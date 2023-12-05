@@ -98,7 +98,7 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     variables = list()
     outputs = list()
     graph = load_graph(model_path, output_nodes_for_freeze)
-    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f']
+    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f', 'TensorArrayCloseV3']
     control_dependents_map = collect_control_dependencies(graph)
     for node in graph.as_graph_def().node:
         if node.op == 'Placeholder':
@@ -174,8 +174,8 @@ def transpose_nhwc_to_nchw(data, use_new_frontend, use_old_api):
         return data
 
 
-def save_to_pb(tf_model, path_to_saved_tf_model):
-    tf.io.write_graph(tf_model, path_to_saved_tf_model, 'model.pb', False)
-    assert os.path.isfile(os.path.join(path_to_saved_tf_model, 'model.pb')), "model.pb haven't been saved " \
+def save_to_pb(tf_model, path_to_saved_tf_model, model_name = 'model.pb'):
+    tf.io.write_graph(tf_model, path_to_saved_tf_model, model_name, False)
+    assert os.path.isfile(os.path.join(path_to_saved_tf_model, model_name)), "model.pb haven't been saved " \
                                                                              "here: {}".format(path_to_saved_tf_model)
-    return os.path.join(path_to_saved_tf_model, 'model.pb')
+    return os.path.join(path_to_saved_tf_model, model_name)

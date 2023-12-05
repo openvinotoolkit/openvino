@@ -14,23 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/dft.hpp"
+#include "openvino/op/dft.hpp"
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v7::DFT::DFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }
@@ -38,11 +29,6 @@ op::v7::DFT::DFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(d
 op::v7::DFT::DFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
     : FFTBase(data, axes, signal_size) {
     constructor_validate_and_infer_types();
-}
-
-bool op::v7::DFT::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v7_DFT_visit_attributes);
-    return true;
 }
 
 std::shared_ptr<Node> op::v7::DFT::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -56,3 +42,4 @@ std::shared_ptr<Node> op::v7::DFT::clone_with_new_inputs(const OutputVector& new
 
     return std::make_shared<op::v7::DFT>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
+}  // namespace ov

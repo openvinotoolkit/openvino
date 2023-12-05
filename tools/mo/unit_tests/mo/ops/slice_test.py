@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array, \
     strict_compare_tensors
@@ -14,9 +13,8 @@ from unit_tests.utils.graph import build_graph, valued_const_with_data, valued_d
     connect, shaped_data, shaped_const_with_data
 
 
-@generator
-class TestSliceOp(unittest.TestCase):
-    @generate(*[
+class TestSliceOp():
+    @pytest.mark.parametrize("inp_value, inp_shape, starts, ends, axes, steps, expected_value, expected_shape",[
         # standard case
         ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [4, 4], [0, 1], [3, 2], [0, 1], [1, 1],
          [[5], [3], [6]], [3, 1]),
@@ -107,13 +105,12 @@ class TestSliceOp(unittest.TestCase):
 
         Slice.infer(slice_node)
         if expected_value is not None:
-            self.assertTrue(strict_compare_tensors(slice_node.out_node().value, expected_value))
-        self.assertTrue(strict_compare_tensors(slice_node.out_node().shape, expected_shape))
+            assert strict_compare_tensors(slice_node.out_node().value, expected_value)
+        assert strict_compare_tensors(slice_node.out_node().shape, expected_shape)
 
 
-@generator
-class TestOvSliceOp(unittest.TestCase):
-    @generate(*[
+class TestOvSliceOp():
+    @pytest.mark.parametrize("inp_value, inp_shape, starts, ends, axes, steps, expected_value, expected_shape",[
         # standard case
         ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [4, 4], [0, 1], [3, 2], [0, 1], [1, 1],
          [[5], [3], [6]], [3, 1]),
@@ -204,5 +201,5 @@ class TestOvSliceOp(unittest.TestCase):
 
         OvSlice.infer(slice_node)
         if expected_value is not None:
-            self.assertTrue(strict_compare_tensors(slice_node.out_node().value, expected_value))
-        self.assertTrue(strict_compare_tensors(slice_node.out_node().shape, expected_shape))
+            assert strict_compare_tensors(slice_node.out_node().value, expected_value)
+        assert strict_compare_tensors(slice_node.out_node().shape, expected_shape)

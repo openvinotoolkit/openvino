@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_xor_to_logical_xor.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -32,7 +33,7 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
         auto xor_op =
             std::make_shared<opset1::Xor>(input1, input2, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        function = std::make_shared<ngraph::Function>(NodeVector{xor_op}, ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(NodeVector{xor_op}, ParameterVector{input1, input2});
         manager.register_pass<ov::pass::ConvertXorToLogicalXor>();
     }
 
@@ -51,6 +52,6 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
                                                   input2,
                                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        function_ref = std::make_shared<ngraph::Function>(NodeVector{logical_xor}, ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(NodeVector{logical_xor}, ParameterVector{input1, input2});
     }
 }

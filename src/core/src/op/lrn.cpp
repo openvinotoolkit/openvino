@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/lrn.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/lrn.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/multiply.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
+namespace ov {
+op::v0::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
     : LRN(arg, op::v0::Constant::create(element::i64, ov::Shape{1}, {1}), alpha, beta, bias, size) {}
 
-op::LRN::LRN(const Output<Node>& arg, const Output<Node>& axes, double alpha, double beta, double bias, size_t size)
+op::v0::LRN::LRN(const Output<Node>& arg, const Output<Node>& axes, double alpha, double beta, double bias, size_t size)
     : Op({arg, axes}),
       m_alpha(alpha),
       m_beta(beta),
@@ -26,7 +23,7 @@ op::LRN::LRN(const Output<Node>& arg, const Output<Node>& axes, double alpha, do
     constructor_validate_and_infer_types();
 }
 
-AxisSet op::LRN::get_reduction_axes() const {
+AxisSet op::v0::LRN::get_reduction_axes() const {
     AxisSet axes{1};  // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -37,7 +34,7 @@ AxisSet op::LRN::get_reduction_axes() const {
     return axes;
 }
 
-void op::LRN::validate_and_infer_types() {
+void op::v0::LRN::validate_and_infer_types() {
     OV_OP_SCOPE(v0_LRN_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
     ov::PartialShape arg_shape = get_input_partial_shape(0);
@@ -89,7 +86,7 @@ void op::LRN::validate_and_infer_types() {
                           ").");
 }
 
-bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor) {
+bool op::v0::LRN::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_LRN_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     visitor.on_attribute("beta", m_beta);
@@ -98,8 +95,9 @@ bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::LRN::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_LRN_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v0::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
+    return std::make_shared<op::v0::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
 }
+}  // namespace ov

@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/gather.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/gather.hpp"
 
 #include "itt.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v1::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axes)
     : GatherBase(params, indices, axes) {
     constructor_validate_and_infer_types();
 }
 
-int64_t ngraph::op::v1::Gather::get_axis() const {
+int64_t op::v1::Gather::get_axis() const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (!get_constant_from_source(input_value(2))) {
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -26,15 +23,10 @@ int64_t ngraph::op::v1::Gather::get_axis() const {
     return GatherBase::get_axis();
 }
 
-bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_Gather_visit_attributes);
-    return true;
-}
-
-shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Gather_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::Gather>(new_args.at(0), new_args.at(1), new_args.at(2));
+    return std::make_shared<v1::Gather>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
 op::v7::Gather::Gather(const Output<Node>& data,
@@ -65,16 +57,16 @@ int64_t op::v7::Gather::get_batch_dims() const {
         return m_batch_dims;
 }
 
-bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor) {
+bool op::v7::Gather::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v7_Gather_visit_attributes);
     visitor.on_attribute("batch_dims", m_batch_dims);
     return true;
 }
 
-shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v7_Gather_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
+    return std::make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
 
 op::v8::Gather::Gather(const Output<Node>& data,
@@ -105,14 +97,15 @@ int64_t op::v8::Gather::get_batch_dims() const {
         return m_batch_dims;
 }
 
-bool ngraph::op::v8::Gather::visit_attributes(AttributeVisitor& visitor) {
+bool op::v8::Gather::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v8_Gather_visit_attributes);
     visitor.on_attribute("batch_dims", m_batch_dims);
     return true;
 }
 
-shared_ptr<Node> op::v8::Gather::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v8::Gather::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v8_Gather_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
+    return std::make_shared<v8::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
+}  // namespace ov

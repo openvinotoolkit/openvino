@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/tile.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -42,15 +42,15 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "Repeats=" << CommonTestUtils::vec2str(repeats)  << "_";
+        result << "Repeats=" << ov::test::utils::vec2str(repeats)  << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constRepeats=" << (isRepeatsConst ? "True" : "False") << "_";
         result << "trgDev=" << deviceName;
@@ -93,13 +93,12 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
         std::shared_ptr<ov::Node> tileNode;
         if (isRepeatsConst) {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0],
+            tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0],
                     ov::op::v0::Constant::create(ov::element::i64, { repeatsData.size() }, repeatsData));
         } else {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0], paramOuts[1]);
+            tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
 
         ngraph::ResultVector results;
@@ -217,7 +216,7 @@ INSTANTIATE_TEST_CASE_P(DynamicShape4D, TileLayerGPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(DynamicShape5D, TileLayerGPUTest,
@@ -226,7 +225,7 @@ INSTANTIATE_TEST_CASE_P(DynamicShape5D, TileLayerGPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
 } // namespace

@@ -4,13 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
 #include "base_reference_test.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 struct EmbeddingBagPackedSumParams {
     template <class IT>
@@ -20,8 +18,8 @@ struct EmbeddingBagPackedSumParams {
                                 const ov::PartialShape& oShape,
                                 const ov::element::Type& oType,
                                 const std::vector<IT>& oValues,
-                                const std::shared_ptr<ngraph::opset1::Constant>& indices,
-                                const std::shared_ptr<ngraph::opset1::Constant>& per_sample_weights = nullptr)
+                                const std::shared_ptr<ov::op::v0::Constant>& indices,
+                                const std::shared_ptr<ov::op::v0::Constant>& per_sample_weights = nullptr)
         : _iShape(iShape),
           _iType(iType),
           _iData(CreateTensor(iType, iValues)),
@@ -39,8 +37,8 @@ struct EmbeddingBagPackedSumParams {
     ov::element::Type _refType;
     ov::Tensor _refData;
 
-    std::shared_ptr<ngraph::opset1::Constant> _indices;
-    std::shared_ptr<ngraph::opset1::Constant> _perSampleWeights;  // Optional, default is tensor of ones.
+    std::shared_ptr<ov::op::v0::Constant> _indices;
+    std::shared_ptr<ov::op::v0::Constant> _perSampleWeights;  // Optional, default is tensor of ones.
 };
 
 class ReferenceEmbeddingBagPackedSumLayerTest : public testing::TestWithParam<EmbeddingBagPackedSumParams>,
@@ -63,11 +61,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(
-        const PartialShape& input_shape,
-        const element::Type& input_type,
-        const std::shared_ptr<ngraph::opset1::Constant> indices,
-        const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const std::shared_ptr<ov::op::v0::Constant> indices,
+                                                 const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (per_sample_weights) {
@@ -85,8 +82,8 @@ TEST_P(ReferenceEmbeddingBagPackedSumLayerTest, CompareWithRefs) {
 }
 
 template <class T>
-inline std::shared_ptr<ngraph::opset1::Constant> CreateConstant(const std::vector<std::vector<T>>& val,
-                                                                  const ov::element::Type& element_type) {
+inline std::shared_ptr<ov::op::v0::Constant> CreateConstant(const std::vector<std::vector<T>>& val,
+                                                            const ov::element::Type& element_type) {
     if (val.size() > 0) {
         ov::Shape i_shape({val.size(), val[0].size()});
 
@@ -99,9 +96,9 @@ inline std::shared_ptr<ngraph::opset1::Constant> CreateConstant(const std::vecto
             }
         }
 
-        return std::make_shared<ngraph::opset1::Constant>(element_type, i_shape, i_values);
+        return std::make_shared<ov::op::v0::Constant>(element_type, i_shape, i_values);
     } else {
-        return std::make_shared<ngraph::opset1::Constant>(element_type, ov::Shape(), std::vector<T>());
+        return std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape(), std::vector<T>());
     }
 }
 

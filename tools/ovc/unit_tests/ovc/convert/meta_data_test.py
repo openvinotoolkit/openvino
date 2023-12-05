@@ -71,7 +71,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                 if key == 'conversion_parameters':
                     for param_name, param_value in value.items():
                         val = ov_model.get_rt_info([key, param_name]).astype(str)
-                        if param_name in ['extensions', 'caffe_parser_path', 'input_model', 'k', 'output_dir']:
+                        if param_name in ['extension', 'input_model']:
                             val = Path(val)
                         assert val == param_value, \
                             "Runtime info attribute with name {} does not match. Expected: {}, " \

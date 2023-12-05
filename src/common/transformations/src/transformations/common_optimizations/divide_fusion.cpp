@@ -5,14 +5,14 @@
 #include "transformations/common_optimizations/divide_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::DivideFusion::DivideFusion() {
@@ -21,7 +21,7 @@ ov::pass::DivideFusion::DivideFusion() {
     auto p_pow_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto p_pow = pattern::wrap_type<ov::op::v1::Power>({p_pow_input, p_pow_const});
     auto p_mul_input = pattern::any_input();
-    auto p_mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({p_mul_input, p_pow});
+    auto p_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({p_mul_input, p_pow});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -43,6 +43,6 @@ ov::pass::DivideFusion::DivideFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(p_mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(p_mul, matcher_name);
     register_matcher(m, callback);
 }

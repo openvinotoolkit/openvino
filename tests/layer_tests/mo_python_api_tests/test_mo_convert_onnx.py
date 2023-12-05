@@ -78,5 +78,6 @@ class TestMoConvertONNX(CommonMOConvertTest):
         test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
+        test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 

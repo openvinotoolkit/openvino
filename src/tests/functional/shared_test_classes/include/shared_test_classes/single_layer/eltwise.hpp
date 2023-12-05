@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -17,12 +17,12 @@ typedef std::tuple<
     std::vector<InputShape>,           // input shapes
     ngraph::helpers::EltwiseTypes,     // eltwise op type
     ngraph::helpers::InputLayerType,   // secondary input type
-    CommonTestUtils::OpType,           // op type
+    ov::test::utils::OpType,           // op type
     ElementType,                       // Net precision
     ElementType,                       // In precision
     ElementType,                       // Out precision
     TargetDevice,                      // Device name
-    ov::AnyMap                  // Additional network configuration
+    ov::AnyMap                         // Additional network configuration
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,

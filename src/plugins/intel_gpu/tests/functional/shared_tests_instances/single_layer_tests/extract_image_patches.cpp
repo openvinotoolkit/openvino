@@ -4,16 +4,16 @@
 
 #include <vector>
 
-#include "single_layer_tests/extract_image_patches.hpp"
+#include "single_op_tests/extract_image_patches.hpp"
 
-using namespace LayerTestsDefinitions;
-using ngraph::op::PadType;
 
 namespace {
+using ov::test::ExtractImagePatchesTest;
+using ov::op::PadType;
 
-const std::vector<std::vector<size_t>> inDataShape = {
-    {1, 1, 10, 10},
-    {1, 3, 10, 10}
+const std::vector<std::vector<ov::Shape>> inDataShape = {
+    {{1, 1, 10, 10}},
+    {{1, 3, 10, 10}}
 };
 const std::vector<std::vector<size_t>> kernels = {
     {2, 2},
@@ -40,34 +40,34 @@ const std::vector<PadType> autoPads = {
     PadType::SAME_UPPER,
     PadType::SAME_LOWER
 };
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    //InferenceEngine::Precision::I8,
-    InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::I32,
-    InferenceEngine::Precision::FP32
+const std::vector<ov::element::Type> netPrecisions = {
+    //ov::element::i8,
+    ov::element::u8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::f32
 };
 
-const auto extractImagePatchesParamsSet = ::testing::Combine(
-        ::testing::ValuesIn(inDataShape),
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(rates),
-        ::testing::ValuesIn(autoPads)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU, ExtractImagePatchesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU1, ExtractImagePatchesTest,
         ::testing::Combine(
-            ::testing::ValuesIn(inDataShape),
-            ::testing::ValuesIn(kernels),
-            ::testing::ValuesIn(strides),
+            ::testing::Values(ov::test::static_shapes_to_test_representation(inDataShape)[0]),
+            ::testing::Values(kernels[0]),
+            ::testing::Values(strides[0]),
             ::testing::ValuesIn(rates),
             ::testing::ValuesIn(autoPads),
             ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+        ExtractImagePatchesTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU2, ExtractImagePatchesTest,
+        ::testing::Combine(
+            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inDataShape)),
+            ::testing::ValuesIn(kernels),
+            ::testing::ValuesIn(strides),
+            ::testing::Values(rates[0]),
+            ::testing::Values(autoPads[0]),
+            ::testing::Values(netPrecisions[0]),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
         ExtractImagePatchesTest::getTestCaseName);
 
 }  // namespace

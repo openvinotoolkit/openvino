@@ -4,37 +4,39 @@
 
 #include <vector>
 
-#include "single_layer_tests/normalize_l2.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/normalize_l2.hpp"
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+using ov::test::NormalizeL2LayerTest;
+
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::f16
 };
 
 const std::vector<float> eps = {1e-12f, 1e-6f, 1e-3f, 0.1f, 100};
 
-const std::vector<ngraph::op::EpsMode> epsMode = {
-        ngraph::op::EpsMode::ADD,
-        ngraph::op::EpsMode::MAX,
+const std::vector<ov::op::EpsMode> eps_modes = {
+        ov::op::EpsMode::ADD,
+        ov::op::EpsMode::MAX,
 };
 
 /* ============= 1D ============= */
 // [SKIPPED][CPU] Unsupported rank, Issue: 35627
-const std::vector<std::vector<int64_t>> axes_1D = {
+const std::vector<std::vector<int64_t>> axes_1d = {
         {},
         {0}
 };
 
+std::vector<ov::Shape> input_shape_1d_static = {{5}};
+
 const auto normL2params_1D = testing::Combine(
-        testing::ValuesIn(axes_1D),
+        testing::ValuesIn(axes_1d),
         testing::ValuesIn(eps),
-        testing::ValuesIn(epsMode),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{5}})),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(eps_modes),
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shape_1d_static)),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -54,13 +56,15 @@ const std::vector<std::vector<int64_t>> axes_2D = {
         // {0, 1},
 };
 
+std::vector<ov::Shape> input_shape_2d_static = {{5, 3}};
+
 const auto normL2params_2D = testing::Combine(
         testing::ValuesIn(axes_2D),
         testing::ValuesIn(eps),
-        testing::ValuesIn(epsMode),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 3}})),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(eps_modes),
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shape_2d_static)),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -84,13 +88,15 @@ const std::vector<std::vector<int64_t>> axes_3D = {
         // {0, 1, 2}
 };
 
+std::vector<ov::Shape> input_shape_3d_static = {{2, 5, 3}};
+
 const auto normL2params_3D = testing::Combine(
         testing::ValuesIn(axes_3D),
         testing::ValuesIn(eps),
-        testing::ValuesIn(epsMode),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 5, 3}})),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(eps_modes),
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shape_3d_static)),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -117,13 +123,15 @@ const std::vector<std::vector<int64_t>> axes_4D = {
         // {0, 1, 2, 3}
 };
 
+std::vector<ov::Shape> input_shape_4d_static = {{2, 3, 10, 5}};
+
 const auto normL2params_4D = testing::Combine(
         testing::ValuesIn(axes_4D),
         testing::ValuesIn(eps),
-        testing::ValuesIn(epsMode),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 3, 10, 5}})),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(eps_modes),
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shape_4d_static)),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -153,13 +161,15 @@ const std::vector<std::vector<int64_t>> axes_5D = {
         {0, 1, 2, 3}
 };
 
+std::vector<ov::Shape> input_shape_5d_static = {{2, 2, 3, 10, 5}};
+
 const auto normL2params_5D = testing::Combine(
         testing::ValuesIn(axes_5D),
         testing::ValuesIn(eps),
-        testing::ValuesIn(epsMode),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 2, 3, 10, 5}})),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(eps_modes),
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shape_5d_static)),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

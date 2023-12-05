@@ -81,6 +81,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo mkdir -p $(MODELS_DIR)
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
@@ -102,7 +103,7 @@ jobs:
     displayName: 'Install dependencies'
 
   - script:
-      src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh -d $(MODELS_DIR)/models_data -o -s "$(ONNX_MODEL_ZOO_SHA)"
+      src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d $(MODELS_DIR)/models_data -o -s "$(ONNX_MODEL_ZOO_SHA)"
     displayName: 'Update models'
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 

@@ -5,6 +5,15 @@
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(space_to_batch_ref)(const __global INPUT0_TYPE* input,
+#ifdef BLOCK_TYPE
+                          const __global BLOCK_TYPE* block,
+#endif
+#ifdef BEGIN_TYPE
+                          const __global BEGIN_TYPE* begin,
+#endif
+#ifdef END_TYPE
+                          const __global END_TYPE* end,
+#endif
                                  __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
                            , FUSED_OPS_DECLS
@@ -37,20 +46,64 @@ KERNEL(space_to_batch_ref)(const __global INPUT0_TYPE* input,
     const uint input_batch = batch % INPUT0_BATCH_NUM;
     const uint offset_batch =  batch / INPUT0_BATCH_NUM;
 
-    const int input_feature = feature * BLOCK_SHAPE_FEATURE - PADS_BEGIN_FEATURE +
-                              offset_batch / (BLOCK_SHAPE_W * BLOCK_SHAPE_Z * BLOCK_SHAPE_Y * BLOCK_SHAPE_X);
-    const uint offset_feature = offset_batch % (BLOCK_SHAPE_W * BLOCK_SHAPE_Z * BLOCK_SHAPE_Y * BLOCK_SHAPE_X);
 
-    const int input_w = w * BLOCK_SHAPE_W - PADS_BEGIN_W + offset_feature / (BLOCK_SHAPE_Z * BLOCK_SHAPE_Y * BLOCK_SHAPE_X);
-    const uint offset_w = offset_feature % (BLOCK_SHAPE_Z * BLOCK_SHAPE_Y * BLOCK_SHAPE_X);
+#ifdef BLOCK_TYPE
+    const uint block_f = block[1];
+    #if BLOCK_DIMS == 3
+    const uint block_x = 1;
+    const uint block_y = block[BLOCK_DIMS-1];
+    const uint block_z = 1;
+    const uint block_w = 1;
+    #else
+    const uint block_x = BLOCK_DIMS > 2 ? block[BLOCK_DIMS-1] : 1;
+    const uint block_y = BLOCK_DIMS > 3 ? block[BLOCK_DIMS-2] : 1;
+    const uint block_z = BLOCK_DIMS > 4 ? block[BLOCK_DIMS-3] : 1;
+    const uint block_w = BLOCK_DIMS > 5 ? block[BLOCK_DIMS-4] : 1;
+    #endif
+#else
+    const uint block_f = BLOCK_SHAPE_FEATURE;
+    const uint block_x = BLOCK_SHAPE_X;
+    const uint block_y = BLOCK_SHAPE_Y;
+    const uint block_z = BLOCK_SHAPE_Z;
+    const uint block_w = BLOCK_SHAPE_W;
+#endif
 
-    const int input_z = z * BLOCK_SHAPE_Z - PADS_BEGIN_Z + offset_w / (BLOCK_SHAPE_Y * BLOCK_SHAPE_X);
-    const uint offset_z = offset_w % (BLOCK_SHAPE_Y * BLOCK_SHAPE_X);
 
-    const int input_y = y * BLOCK_SHAPE_Y - PADS_BEGIN_Y + offset_z / BLOCK_SHAPE_X;
-    const uint offset_y = offset_z % BLOCK_SHAPE_X;
+#ifdef BEGIN_TYPE
+    const uint begin_f = begin[1];
+    #if BEGIN_DIMS == 3
+    const uint begin_x = 0;
+    const uint begin_y = begin[BEGIN_DIMS-1];
+    const uint begin_z = 0;
+    const uint begin_w = 0;
+    #else
+    const uint begin_x = BEGIN_DIMS > 2 ? begin[BEGIN_DIMS-1] : 0;
+    const uint begin_y = BEGIN_DIMS > 3 ? begin[BEGIN_DIMS-2] : 0;
+    const uint begin_z = BEGIN_DIMS > 4 ? begin[BEGIN_DIMS-3] : 0;
+    const uint begin_w = BEGIN_DIMS > 5 ? begin[BEGIN_DIMS-4] : 0;
+    #endif
+#else
+    const uint begin_f = PADS_BEGIN_FEATURE;
+    const uint begin_x = PADS_BEGIN_X;
+    const uint begin_y = PADS_BEGIN_Y;
+    const uint begin_z = PADS_BEGIN_Z;
+    const uint begin_w = PADS_BEGIN_W;
+#endif
 
-    const int input_x = x * BLOCK_SHAPE_X - PADS_BEGIN_X + offset_y;
+    const int input_feature = feature * block_f - begin_f +
+                              offset_batch / (block_w * block_z * block_y * block_x);
+    const uint offset_feature = offset_batch % (block_w * block_z * block_y * block_x);
+
+    const int input_w = w * block_w - begin_w + offset_feature / (block_z * block_y * block_x);
+    const uint offset_w = offset_feature % (block_z * block_y * block_x);
+
+    const int input_z = z * block_z - begin_z + offset_w / (block_y * block_x);
+    const uint offset_z = offset_w % (block_y * block_x);
+
+    const int input_y = y * block_y - begin_y + offset_z / block_x;
+    const uint offset_y = offset_z % block_x;
+
+    const int input_x = x * block_x - begin_x + offset_y;
 
 #if OUTPUT_DIMS == 4
     const int input_index = INPUT0_GET_INDEX(input_batch, input_feature, input_y, input_x);

@@ -7,8 +7,55 @@ identify, extract, quantify, and study affective states and subjective
 information. This notebook demonstrates how to convert and run a
 sequence classification model using OpenVINO.
 
-Imports
--------
+**Table of contents:**
+
+
+-  `Imports <#imports>`__
+-  `Initializing the Model <#initializing-the-model>`__
+-  `Initializing the Tokenizer <#initializing-the-tokenizer>`__
+-  `Convert Model to OpenVINO Intermediate Representation
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
+
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Inference <#inference>`__
+
+   -  `For a single input
+      sentence <#for-a-single-input-sentence>`__
+   -  `Read from a text file <#read-from-a-text-file>`__
+
+Imports 
+-------------------------------------------------
+
+.. code:: ipython3
+
+    %pip install "openvino>=2023.1.0" transformers
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: openvino>=2023.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2023.1.0)
+    Requirement already satisfied: transformers in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.34.1)
+    Requirement already satisfied: numpy>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.1.0) (1.24.3)
+    Requirement already satisfied: openvino-telemetry>=2023.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.1.0) (2023.2.1)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (3.13.1)
+    Requirement already satisfied: huggingface-hub<1.0,>=0.16.4 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (0.17.3)
+    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (23.2)
+    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (6.0.1)
+    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (2023.10.3)
+    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (2.31.0)
+    Requirement already satisfied: tokenizers<0.15,>=0.14 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (0.14.1)
+    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (0.4.0)
+    Requirement already satisfied: tqdm>=4.27 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers) (4.66.1)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.16.4->transformers) (2023.10.0)
+    Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.16.4->transformers) (4.8.0)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers) (3.3.1)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers) (2.0.7)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers) (2023.7.22)
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -17,14 +64,13 @@ Imports
     import time
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
     import numpy as np
-    from openvino.tools import mo
-    from openvino.runtime import PartialShape, Type, serialize, Core
+    import openvino as ov
 
-Initializing the Model
-----------------------
+Initializing the Model 
+----------------------------------------------------------------
 
-We will use the transformer-based
-`distilbert-base-uncased-finetuned-sst-2-english <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
+We will use the transformer-based `DistilBERT base uncased finetuned
+SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
 model from Hugging Face.
 
 .. code:: ipython3
@@ -34,8 +80,8 @@ model from Hugging Face.
         pretrained_model_name_or_path=checkpoint
     )
 
-Initializing the Tokenizer
---------------------------
+Initializing the Tokenizer 
+--------------------------------------------------------------------
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model.
@@ -46,7 +92,7 @@ tokens or IDs to the words, so they are represented in a vector space
 where similar words have similar vectors. This helps the model
 understand the context of a sentence. Here, we will use
 `AutoTokenizer <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
-- a pre-trained tokenizer from Hugging Face: .
+- a pre-trained tokenizer from Hugging Face:
 
 .. code:: ipython3
 
@@ -54,28 +100,38 @@ understand the context of a sentence. Here, we will use
         pretrained_model_name_or_path=checkpoint
     )
 
-Convert Model to OpenVINO Intermediate Representation format
-------------------------------------------------------------
+Convert Model to OpenVINO Intermediate Representation format 
+------------------------------------------------------------------------------------------------------
 
-`Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-is a cross-platform command-line tool that facilitates the transition
-between training and deployment environments, performs static model
-analysis, and adjusts deep learning models for optimal execution on
-end-point target devices.
+`Model conversion
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+facilitates the transition between training and deployment environments,
+performs static model analysis, and adjusts deep learning models for
+optimal execution on end-point target devices.
 
 .. code:: ipython3
 
+    import torch
+    
     ir_xml_name = checkpoint + ".xml"
     MODEL_DIR = "model/"
     ir_xml_path = Path(MODEL_DIR) / ir_xml_name
-    ov_model = mo.convert_model(model, input=[mo.InputCutInfo(shape=PartialShape([1, -1]), type=Type.i64), mo.InputCutInfo(shape=PartialShape([1, -1]), type=Type.i64)])
-    serialize(ov_model, ir_xml_path)
+    
+    MAX_SEQ_LENGTH = 128
+    input_info = [(ov.PartialShape([1, -1]), ov.Type.i64), (ov.PartialShape([1, -1]), ov.Type.i64)]
+    default_input = torch.ones(1, MAX_SEQ_LENGTH, dtype=torch.int64)
+    inputs = {
+        "input_ids": default_input,
+        "attention_mask": default_input,
+    }
+    
+    ov_model = ov.convert_model(model, input=input_info, example_input=inputs)
+    ov.save_model(ov_model, ir_xml_path)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:223: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:223: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -91,9 +147,39 @@ documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_
 
 .. code:: ipython3
 
+    core = ov.Core()
+
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     warnings.filterwarnings("ignore")
-    core = Core()
-    compiled_model = core.compile_model(ov_model)
+    compiled_model = core.compile_model(ov_model, device.value)
     infer_request = compiled_model.create_infer_request()
 
 .. code:: ipython3
@@ -109,8 +195,8 @@ documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
-Inference
----------
+Inference 
+---------------------------------------------------
 
 .. code:: ipython3
 
@@ -135,8 +221,8 @@ Inference
             probability = np.argmax(softmax(i))
         return label[probability]
 
-For a single input sentence
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For a single input sentence 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -152,16 +238,39 @@ For a single input sentence
 .. parsed-literal::
 
     Label:  POSITIVE
-    Total Time:  0.04  seconds
+    Total Time:  0.03  seconds
 
 
-Read from a text file
-~~~~~~~~~~~~~~~~~~~~~
+Read from a text file 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    from notebook_utils import download_file
+    
+    # Download the text from the openvino_notebooks storage
+    vocab_file_path = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/food_reviews.txt",
+        directory="data"
+    )
+
+
+
+.. parsed-literal::
+
+    data/food_reviews.txt:   0%|          | 0.00/71.0 [00:00<?, ?B/s]
+
 
 .. code:: ipython3
 
     start_time = time.perf_counter()
-    with open("../data/text/food_reviews.txt", "r") as f:
+    with vocab_file_path.open(mode='r') as f:
         input_text = f.readlines()
         for lines in input_text:
             print("User Input: ", lines)
@@ -181,5 +290,5 @@ Read from a text file
     User Input:  We went because the restaurant had good reviews.
     Label:  POSITIVE 
     
-    Total Time:  0.02  seconds
+    Total Time:  0.03  seconds
 

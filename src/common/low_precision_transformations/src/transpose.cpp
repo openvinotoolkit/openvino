@@ -5,15 +5,14 @@
 #include "low_precision/transpose.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,7 +20,7 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
     MATCHER_SCOPE(TransposeTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Transpose>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,13 +28,13 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
 namespace {
 
-void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std::vector<ov::element::Type>& defaultPrecisions) {
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose, defaultPrecisions);
 
     const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
@@ -83,7 +82,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
 
 } // namespace
 
-bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool TransposeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();
     if (!canBeTransformed(context, transpose)) {
         return false;
@@ -117,7 +116,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
             }
         }
         if (dequantization.multiply != nullptr) {
-            const auto mulConst = ov::as_type_ptr<ngraph::op::v0::Constant>(dequantization.multiplyConstant);
+            const auto mulConst = ov::as_type_ptr<ov::op::v0::Constant>(dequantization.multiplyConstant);
             if (!NetworkHelper::isScalarLike(mulConst)) {
                 return false;
             }
@@ -160,4 +159,4 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

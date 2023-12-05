@@ -7,6 +7,7 @@
 #include <arm_compute/runtime/Scheduler.h>
 #include <arm_compute/core/CPP/ICPPKernel.h>
 #include <arm_compute/core/ITensorPack.h>
+#include "support/Mutex.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,6 +24,8 @@ public:
     void schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) override;
 protected:
     void run_workloads(std::vector<Workload> &workloads) override;
+private:
+    void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
 };
 }  //  namespace intel_cpu
 }  //  namespace ov

@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/parameter.hpp>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {
@@ -177,9 +179,6 @@ public:
     }
 };
 
-// TODO: remove once FusedOp is removed
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 /// Relaxes tensor element type requirements for BaseOp inputs and outputs
 /// This class template should be used with Node descendant class. Defines a new operation by extending the
 /// original BaseOp operation with ability to accept inputs and provide outputs with element type that is
@@ -220,9 +219,7 @@ public:
     }
 
     void validate_and_infer_types() override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
 
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
@@ -240,15 +237,14 @@ private:
     init_rt_result init_rt = init_rt_info(*this);
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
-bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     std::shared_ptr<ov::op::v0::Convert> convert;
-    HostTensorVector casted_inputs(BaseOp::get_input_size());
+    ov::TensorVector casted_inputs(BaseOp::get_input_size());
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         const auto expected_input_type = get_origin_input_type(i);
 
-        if (inputs[i]->get_element_type() == expected_input_type || expected_input_type == element::undefined) {
+        if (inputs[i].get_element_type() == expected_input_type || expected_input_type == element::undefined) {
             casted_inputs[i] = inputs[i];
         } else {
             if (convert == nullptr) {
@@ -256,21 +252,25 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
             }
 
             convert->set_destination_type(expected_input_type);
-            casted_inputs[i] = std::make_shared<HostTensor>(expected_input_type, inputs[i]->get_shape());
-            if (!convert->evaluate({casted_inputs[i]}, {inputs[i]})) {
+            casted_inputs[i] = ov::Tensor(expected_input_type, inputs[i].get_shape());
+            ov::TensorVector outs = {casted_inputs[i]};
+            ov::TensorVector ins = {inputs[i]};
+
+            if (!convert->evaluate(outs, ins)) {
                 return false;
             }
         }
     }
 
-    HostTensorVector original_outputs(BaseOp::get_output_size());
+    ov::TensorVector original_outputs(BaseOp::get_output_size());
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         const auto expected_output_type = get_overridden_output_type(i);
         if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
             original_outputs[i] = outputs[i];
         } else {
-            original_outputs[i] =
-                std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
+            auto partial_shape = BaseOp::get_output_partial_shape(i);
+            auto shape = partial_shape.is_dynamic() ? ov::Shape{0} : partial_shape.to_shape();
+            original_outputs[i] = ov::Tensor(m_original_output_data_types[i], shape);
         }
     }
 
@@ -282,15 +282,16 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
         const auto expected_output_type = get_overridden_output_type(i);
 
         if (expected_output_type != element::undefined &&
-            original_outputs[i]->get_element_type() != expected_output_type) {
+            original_outputs[i].get_element_type() != expected_output_type) {
             if (convert == nullptr) {
                 convert = std::make_shared<ov::op::v0::Convert>();
             }
 
             convert->set_destination_type(expected_output_type);
-            const auto casted_output =
-                std::make_shared<HostTensor>(expected_output_type, original_outputs[i]->get_shape());
-            if (!convert->evaluate({outputs[i]}, {original_outputs[i]})) {
+            const auto casted_output = ov::Tensor(expected_output_type, original_outputs[i].get_shape());
+            ov::TensorVector outs = {outputs[i]};
+            ov::TensorVector ins = {original_outputs[i]};
+            if (!convert->evaluate(outs, ins)) {
                 return false;
             }
         }
@@ -298,7 +299,6 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
     return true;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> OPENVINO_API
 convert_input_types(OutputVector& inputs, const element::TypeVector& types);
@@ -382,8 +382,6 @@ bool TypeRelaxed<BaseOp>::visit_attributes(AttributeVisitor& visitor) {
     BaseOp::visit_attributes(visitor);
     return true;
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace op
 }  // namespace ov

@@ -13,8 +13,6 @@ struct grn : public primitive_base<grn> {
 
     grn() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs grn primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -29,7 +27,7 @@ struct grn : public primitive_base<grn> {
     {}
 
     /// @brief Bias value for whole output tensor.
-    float bias;
+    float bias = 0.0f;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

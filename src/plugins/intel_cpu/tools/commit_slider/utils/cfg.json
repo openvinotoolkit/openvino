@@ -11,6 +11,7 @@
         "checkCommitSet" : "IterateOverSuspiciousCommits",
         "bruteForce" : "BruteForce"
     },
+    "extendBuildCommand" : false,
     "commandList" : [
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
         {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
@@ -19,9 +20,43 @@
         {"cmd" : "git submodule init", "path" : "{gitPath}"},
         {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
         {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "Error", "path" : "{buildPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+    ],
+    "extendedCommandList" : [
+        {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
+        {"cmd" : "git reset --hard", "path" : "{gitPath}"},
+        {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
+        {"cmd" : "git reset .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
+        {"cmd" : "git reset --hard", "path" : "{gitPath}"},
+        {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
+        {"cmd" : "git reset .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
         {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
+    "skipMode" : {
+        "modeName" : "rebuild",
+        "flagSet" : {
+            "comment_1" : "\"flagSet\" ignored if modeName is defined",
+            "enforceSkips" : "enabled automatically when double-build failed",
+            "enableRebuild" : false,
+            "switchOnExtendedBuild" : false,
+            "switchOnSimpleBuild" : false,
+            "comment_2" : "additional params, to-be considered in complex modes",
+            "buildTryCount" : 0,
+            "failedCommand" : "checkout | make"
+        },
+        "comment" : "modes: {skip (for developer purpose) | rebuild (simple user mode)}"
+    },
     "makeCmd" : "cmake ..",
     "returnCmd" : "git checkout master",
     "gitPath" : "../../../../../",

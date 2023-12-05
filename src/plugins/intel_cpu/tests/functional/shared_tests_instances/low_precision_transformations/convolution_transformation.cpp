@@ -16,7 +16,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16,
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
@@ -27,7 +27,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         {},
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         {},
@@ -35,7 +35,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -43,7 +43,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -51,7 +51,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -59,7 +59,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -67,7 +67,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -75,7 +75,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.7f }, { 12.8f } },
@@ -83,7 +83,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -91,7 +91,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -102,7 +102,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -114,8 +114,35 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
+    // not supported quantization level on data
+    {
+        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "f32"
+    },
+    // not supported quantization level on data & weights
+    {
+        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "f32"
+    },
+    // not supported quantization level on weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "f32"
+    }
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -127,7 +154,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
@@ -151,7 +178,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformatio
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(incorrectWeightsParams)),
     ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
@@ -164,7 +191,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
@@ -177,7 +204,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
      ::testing::Combine(
              ::testing::ValuesIn(netPrecisions),
              ::testing::ValuesIn(shapes),
-             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+             ::testing::Values(ov::test::utils::DEVICE_CPU),
              ::testing::ValuesIn(trasformationParamValues),
              ::testing::ValuesIn(params)),
              ConvolutionTransformation::getTestCaseName);

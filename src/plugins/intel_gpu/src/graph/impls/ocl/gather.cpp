@@ -61,10 +61,19 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     using kernel_selector_t = kernel_selector::gather_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::gather_params, kernel_selector::gather_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 public:
@@ -116,7 +125,12 @@ public:
             out_layout.format = format::adjust_to_rank(out_layout.format, output_pshape.size());
         }
 
-        return primitive_impl::static_canonicalize_shapes(updated_impl_params);
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+        }
+        out_layout.set_partial_shape(extend_shape_to_rank_from_end(out_layout.get_partial_shape()));
+
+        return updated_impl_params;
     }
 
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {

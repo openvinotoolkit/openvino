@@ -1,6 +1,47 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
+**Table of contents:**
+
+
+-  `Background <#background>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Convert model to OpenVINO Intermediate
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
+
+   -  `Download model checkpoint and create PyTorch
+      model <#download-model-checkpoint-and-create-pytorch-model>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `Mask predictor <#mask-predictor>`__
+
+-  `Run OpenVINO model in interactive segmentation
+   mode <#run-openvino-model-in-interactive-segmentation-mode>`__
+
+   -  `Example Image <#example-image>`__
+   -  `Preprocessing and visualization
+      utilities <#preprocessing-and-visualization-utilities>`__
+   -  `Image encoding <#image-encoding>`__
+   -  `Example point input <#example-point-input>`__
+   -  `Example with multiple
+      points <#example-with-multiple-points>`__
+   -  `Example box and point input with negative
+      label <#example-box-and-point-input-with-negative-label>`__
+
+-  `Interactive segmentation <#interactive-segmentation>`__
+-  `Run OpenVINO model in automatic mask generation
+   mode <#run-openvino-model-in-automatic-mask-generation-mode>`__
+-  `Optimize encoder using NNCF Post-training Quantization
+   API <#optimize-encoder-using-nncf-post-training-quantization-api>`__
+
+   -  `Prepare a calibration
+      dataset <#prepare-a-calibration-dataset>`__
+   -  `Run quantization and serialize OpenVINO IR
+      model <#run-quantization-and-serialize-openvino-ir-model>`__
+   -  `Validate Quantized Model
+      Inference <#validate-quantized-model-inference>`__
+   -  `Compare Performance of the Original and Quantized
+      Models <#compare-performance-of-the-original-and-quantized-models>`__
+
 Segmentation - identifying which image pixels belong to an object - is a
 core task in computer vision and is used in a broad array of
 applications, from analyzing scientific imagery to editing photos. But
@@ -25,8 +66,8 @@ zero-shot transfer). This notebook shows an example of how to convert
 and use Segment Anything Model in OpenVINO format, allowing it to run on
 a variety of platforms that support an OpenVINO.
 
-Background
-----------
+Background 
+----------------------------------------------------
 
 Previously, to solve any kind of segmentation problem, there were two
 classes of approaches. The first, interactive segmentation, allowed for
@@ -93,24 +134,24 @@ post <https://ai.facebook.com/blog/segment-anything-foundation-model-image-segme
 
 .. |model_diagram| image:: https://raw.githubusercontent.com/facebookresearch/segment-anything/main/assets/model_diagram.png
 
-Prerequisites
--------------
+Prerequisites 
+-------------------------------------------------------
 
 .. code:: ipython3
 
-    !pip install -q "segment_anything" "gradio>=3.25"
+    %pip install -q "segment_anything" "gradio>=3.25" "openvino>=2023.1.0" "nncf>=2.5.0"
 
-Convert model to OpenVINO Intermediate Representation
------------------------------------------------------
+Convert model to OpenVINO Intermediate Representation 
+-----------------------------------------------------------------------------------------------
 
-Download model checkpoint and create PyTorch model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download model checkpoint and create PyTorch model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are several Segment Anything Model
 `checkpoints <https://github.com/facebookresearch/segment-anything#model-checkpoints>`__
 available for downloading In this tutorial we will use model based on
 ``vit_b``, but the demonstrated approach is very general and applicable
-to other SAM models. Set the model url, path for saving checkpoint and
+to other SAM models. Set the model URL, path for saving checkpoint and
 model type below to a SAM model checkpoint, then load the model using
 ``sam_model_registry``.
 
@@ -154,8 +195,8 @@ into account this fact, we split model on 2 independent parts:
 image_encoder and mask_predictor (combination of Prompt Encoder and Mask
 Decoder).
 
-Image Encoder
-~~~~~~~~~~~~~
+Image Encoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Image Encoder input is tensor with shape ``1x3x1024x1024`` in ``NCHW``
 format, contains image for segmentation. Image Encoder output is image
@@ -166,29 +207,49 @@ embeddings, tensor with shape ``1x256x64x64``
     import warnings
     from pathlib import Path
     import torch
-    from openvino.tools import mo
-    from openvino.runtime import serialize, Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     
     ov_encoder_path = Path("sam_image_encoder.xml")
-    onnx_encoder_path = ov_encoder_path.with_suffix(".onnx")
     if not ov_encoder_path.exists():
-        if not onnx_encoder_path.exists():
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
-                warnings.filterwarnings("ignore", category=UserWarning)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
     
-                torch.onnx.export(sam.image_encoder, torch.zeros(1,3,1024,1024), onnx_encoder_path)
-    
-        ov_encoder_model = mo.convert_model(onnx_encoder_path, compress_to_fp16=True)
-        serialize(ov_encoder_model, str(ov_encoder_path))
+            ov_encoder_model = ov.convert_model(sam.image_encoder, example_input=torch.zeros(1,3,1024,1024), input=([1,3,1024,1024],))
+        ov.save_model(ov_encoder_model, ov_encoder_path)
     else:
         ov_encoder_model = core.read_model(ov_encoder_path)
-    ov_encoder = core.compile_model(ov_encoder_model)
 
-Mask predictor
-~~~~~~~~~~~~~~
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    ov_encoder = core.compile_model(ov_encoder_model, device.value)
+
+Mask predictor 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This notebook expects the model was exported with the parameter
 ``return_single_mask=True``. It means that model will only return the
@@ -198,22 +259,33 @@ images this can improve runtime when upscaling masks is expensive.
 Combined prompt encoder and mask decoder model has following list of
 inputs:
 
-* ``image_embeddings``: The image embedding from ``image_encoder``. Has a batch index of length 1.
-* ``point_coords``: Coordinates of sparse input prompts, corresponding to both point inputs and box inputs. Boxes are encoded using two points, one for the top-left corner and one for the bottom-right corner. *Coordinates must already be transformed to long-side 1024.* Has a batch index of length 1.
-* ``point_labels``: Labels for the sparse input prompts. 0 is a negative input point, 1 is a positive input point, 2 is a top-left box corner, 3 is a bottom-right box corner, and -1 is a padding point.
-* If there is no box input, a single padding point with label -1 and coordinates (0.0,0.0) should be concatenated.
+-  ``image_embeddings``: The image embedding from ``image_encoder``. Has
+   a batch index of length 1.
+-  ``point_coords``: Coordinates of sparse input prompts, corresponding
+   to both point inputs and box inputs. Boxes are encoded using two
+   points, one for the top-left corner and one for the bottom-right
+   corner. *Coordinates must already be transformed to long-side 1024.*
+   Has a batch index of length 1.
+-  ``point_labels``: Labels for the sparse input prompts. 0 is a
+   negative input point, 1 is a positive input point, 2 is a top-left
+   box corner, 3 is a bottom-right box corner, and -1 is a padding
+   point. \*If there is no box input, a single padding point with label
+   -1 and coordinates (0.0, 0.0) should be concatenated.
 
-Model outputs: 
+Model outputs:
 
-* ``masks`` - predicted masks resized to original image size, to obtain a binary mask, should be compared with ``threshold`` (usually equal 0.0).
-* ``iou_predictions`` - intersection over union predictions
-* ``low_res_masks`` - predicted masks before postprocessing, can be used as mask input for model.
+-  ``masks`` - predicted masks resized to original image size, to obtain
+   a binary mask, should be compared with ``threshold`` (usually equal
+   0.0).
+-  ``iou_predictions`` - intersection over union predictions
+-  ``low_res_masks`` - predicted masks before postprocessing, can be
+   used as mask input for model.
 
 .. code:: ipython3
 
     from typing import Tuple
     
-    class SamONNXModel(torch.nn.Module):
+    class SamExportableModel(torch.nn.Module):
         def __init__(
             self,
             model,
@@ -236,15 +308,15 @@ Model outputs:
             point_embedding = self.model.prompt_encoder.pe_layer._pe_encoding(point_coords)
             point_labels = point_labels.unsqueeze(-1).expand_as(point_embedding)
     
-            point_embedding = point_embedding * (point_labels != -1)
+            point_embedding = point_embedding * (point_labels != -1).to(torch.float32)
             point_embedding = point_embedding + self.model.prompt_encoder.not_a_point_embed.weight * (
                 point_labels == -1
-            )
+            ).to(torch.float32)
     
             for i in range(self.model.prompt_encoder.num_point_embeddings):
                 point_embedding = point_embedding + self.model.prompt_encoder.point_embeddings[
                     i
-                ].weight * (point_labels == i)
+                ].weight * (point_labels == i).to(torch.float32)
     
             return point_embedding
     
@@ -320,46 +392,44 @@ Model outputs:
     
     ov_model_path = Path("sam_mask_predictor.xml")
     if not ov_model_path.exists():
-        onnx_model_path = ov_model_path.with_suffix('.onnx')
-        if not onnx_model_path.exists():
-            onnx_model = SamONNXModel(sam, return_single_mask=True)
-            dynamic_axes = {
-                "point_coords": {0: "batch_size", 1: "num_points"},
-                "point_labels": {0: "batch_size", 1: "num_points"},
-            }
-    
-            embed_dim = sam.prompt_encoder.embed_dim
-            embed_size = sam.prompt_encoder.image_embedding_size
-            dummy_inputs = {
-                "image_embeddings": torch.randn(1, embed_dim, *embed_size, dtype=torch.float),
-                "point_coords": torch.randint(low=0, high=1024, size=(1, 5, 2), dtype=torch.float),
-                "point_labels": torch.randint(low=0, high=4, size=(1, 5), dtype=torch.float),
-            }
-            output_names = ["masks", "iou_predictions"]
-    
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
-                warnings.filterwarnings("ignore", category=UserWarning)
-                torch.onnx.export(
-                    onnx_model,
-                    tuple(dummy_inputs.values()),
-                    onnx_model_path,
-                    input_names=list(dummy_inputs.keys()),
-                    output_names=output_names,
-                    dynamic_axes=dynamic_axes,
-                )
-    
-        ov_model = mo.convert_model(onnx_model_path, compress_to_fp16=True)
-        serialize(ov_model, str(ov_model_path))
+        exportable_model = SamExportableModel(sam, return_single_mask=True)
+        embed_dim = sam.prompt_encoder.embed_dim
+        embed_size = sam.prompt_encoder.image_embedding_size
+        dummy_inputs = {
+            "image_embeddings": torch.randn(1, embed_dim, *embed_size, dtype=torch.float),
+            "point_coords": torch.randint(low=0, high=1024, size=(1, 5, 2), dtype=torch.float),
+            "point_labels": torch.randint(low=0, high=4, size=(1, 5), dtype=torch.float),
+        }
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
+            ov_model = ov.convert_model(exportable_model, example_input=dummy_inputs)
+        ov.save_model(ov_model, ov_model_path)
     else:
         ov_model = core.read_model(ov_model_path)
-    ov_predictor = core.compile_model(ov_model)
 
-Run OpenVINO model in interactive segmentation mode
----------------------------------------------------
+.. code:: ipython3
 
-Example Image
-~~~~~~~~~~~~~
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    ov_predictor = core.compile_model(ov_model, device.value)
+
+Run OpenVINO model in interactive segmentation mode 
+---------------------------------------------------------------------------------------------
+
+Example Image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -386,21 +456,21 @@ Example Image
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_17_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_21_0.png
 
 
-Preprocessing and visualization utilities
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preprocessing and visualization utilities 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To prepare iinput for Image Encoder we should:
+To prepare input for Image Encoder we should:
 
 1. Convert BGR image to RGB
 2. Resize image saving aspect ratio where longest size equal to Image
    Encoder input size - 1024.
 3. Normalize image subtract mean values (123.675, 116.28, 103.53) and
    divide by std (58.395, 57.12, 57.375)
-4. transpose HWC data layout to CHW and add batch dimension.
-5. add zero padding to input tensor by height or width (depends on
+4. Transpose HWC data layout to CHW and add batch dimension.
+5. Add zero padding to input tensor by height or width (depends on
    aspect ratio) according Image Encoder expected input shape.
 
 These steps are applicable to all available models
@@ -505,8 +575,8 @@ These steps are applicable to all available models
         w, h = box[2] - box[0], box[3] - box[1]
         ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))  
 
-Image encoding
-~~~~~~~~~~~~~~
+Image encoding 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To start work with image, we should preprocess it and obtain image
 embeddings using ``ov_encoder``. We will use the same image for all
@@ -522,8 +592,8 @@ reuse them.
 
 Now, we can try to provide different prompts for mask generation
 
-Example point input
-~~~~~~~~~~~~~~~~~~~
+Example point input 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this example we select one point. The green star symbol show its
 location on the image below.
@@ -541,7 +611,7 @@ location on the image below.
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_24_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_28_0.png
 
 
 Add a batch index, concatenate a padding point, and transform it to
@@ -585,11 +655,11 @@ object).
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_31_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_35_0.png
 
 
-Example with multiple points
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example with multiple points 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 in this example, we provide additional point for cover larger object
 area.
@@ -611,7 +681,7 @@ Now, prompt for model looks like represented on this image:
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_35_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_39_0.png
 
 
 Transform the points as in the previous example.
@@ -650,13 +720,13 @@ Package inputs, then predict and threshold the mask.
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_40_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_44_0.png
 
 
 Great! Looks like now, predicted mask cover whole truck.
 
-Example box and point input with negative label
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example box and point input with negative label 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this example we define input prompt using bounding box and point
 inside it.The bounding box represented as set of points of its left
@@ -680,7 +750,7 @@ point should be excluded from mask.
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_44_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_48_0.png
 
 
 Add a batch index, concatenate a box and point inputs, add the
@@ -725,11 +795,11 @@ Package inputs, then predict and threshold the mask.
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_49_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_53_0.png
 
 
-Interactive segmentation
-------------------------
+Interactive segmentation 
+------------------------------------------------------------------
 
 Now, you can try SAM on own image. Upload image to input window and
 click on desired point, model predict segment based on your image and
@@ -817,19 +887,27 @@ point.
 
 .. parsed-literal::
 
+    /tmp/ipykernel_862585/1907223323.py:46: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
+      input_img = gr.Image(label="Input", type="numpy").style(height=480, width=480)
+    /tmp/ipykernel_862585/1907223323.py:47: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
+      output_img = gr.Image(label="Selected Segment", type="numpy").style(height=480, width=480)
+
+
+.. parsed-literal::
+
     Running on local URL:  http://127.0.0.1:7860
     
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-Run OpenVINO model in automatic mask generation mode
-----------------------------------------------------
+Run OpenVINO model in automatic mask generation mode 
+----------------------------------------------------------------------------------------------
 
 Since SAM can efficiently process prompts, masks for the entire image
 can be generated by sampling a large number of prompts over an image.
@@ -1136,13 +1214,15 @@ smaller objects, and post-processing can remove stray pixels and holes
 ``automatic_mask_generation`` returns a list over masks, where each mask
 is a dictionary containing various data about the mask. These keys are:
 
-* ``segmentation`` : the mask
-* ``area`` : the area of the mask in pixels
-* ``bbox`` : the boundary box of the mask in XYWH format
-* ``predicted_iou`` : the model’s own prediction for the quality of the mask
-* ``point_coords`` : the sampled input point that generated this mask
-* ``stability_score`` : an additional measure of mask quality
-* ``crop_box`` : the crop of the image used to generate this mask in XYWH format
+-  ``segmentation`` : the mask
+-  ``area`` : the area of the mask in pixels
+-  ``bbox`` : the boundary box of the mask in XYWH format
+-  ``predicted_iou`` : the model’s own prediction for the quality of the
+   mask
+-  ``point_coords`` : the sampled input point that generated this mask
+-  ``stability_score`` : an additional measure of mask quality
+-  ``crop_box`` : the crop of the image used to generate this mask in
+   XYWH format
 
 .. code:: ipython3
 
@@ -1189,12 +1269,12 @@ is a dictionary containing various data about the mask. These keys are:
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_64_1.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_68_1.png
 
 
 
-Optimize encoder using NNCF Post-training Quantization API
-----------------------------------------------------------
+Optimize encoder using NNCF Post-training Quantization API 
+----------------------------------------------------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -1208,11 +1288,11 @@ The optimization process contains the following steps:
 
 1. Create a Dataset for quantization.
 2. Run ``nncf.quantize`` for getting an optimized model.
-3. Serialize OpenVINO IR model, using the ``openvino.runtime.serialize``
+3. Serialize OpenVINO IR model, using the ``openvino.save_model``
    function.
 
-Prepare a calibration dataset
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare a calibration dataset 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Download COCO dataset. Since the dataset is used to calibrate the
 model’s parameter instead of fine-tuning it, we don’t need to download
@@ -1274,7 +1354,7 @@ dataset and returns data that can be passed to the model for inference.
         Parameters:
             image_data: image data produced by DataLoader during iteration
         Returns:
-            input_tensor: input data in Dict format for ONNX model quantization
+            input_tensor: input data in Dict format for model quantization
         """
         image = image_data.numpy()
         processed_image = preprocess_image(np.squeeze(image))
@@ -1285,19 +1365,11 @@ dataset and returns data that can be passed to the model for inference.
 
 .. parsed-literal::
 
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future.
-      warnings.warn(
-    Post-training Optimization Tool is deprecated and will be removed in the future. Please use Neural Network Compression Framework instead: https://github.com/openvinotoolkit/nncf
-    Nevergrad package could not be imported. If you are planning to use any hyperparameter optimization algo, consider installing it using pip. This implies advanced usage of the tool. Note that nevergrad is compatible only with Python 3.7+
-
-
-.. parsed-literal::
-
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Run quantization and serialize OpenVINO IR model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run quantization and serialize OpenVINO IR model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -1320,39 +1392,47 @@ activations.
 
 .. code:: ipython3
 
-    # Load FP32 ONNX model
-    model = core.read_model(onnx_encoder_path)
+    
+    model = core.read_model(ov_encoder_path)
     quantized_model = nncf.quantize(model,
                                     calibration_dataset,
                                     model_type=nncf.parameters.ModelType.TRANSFORMER,
-                                    preset=nncf.common.quantization.structs.QuantizationPreset.MIXED)
+                                    preset=nncf.common.quantization.structs.QuantizationPreset.MIXED, subset_size=128)
     print("model quantization finished")
 
 
 .. parsed-literal::
 
-    INFO:openvino.tools.pot.pipeline.pipeline:Inference Engine version:                2023.0.0-10862-40bf400b189
-    INFO:openvino.tools.pot.pipeline.pipeline:Model Optimizer version:                 2023.0.0-10862-40bf400b189
-    INFO:openvino.tools.pot.pipeline.pipeline:Post-Training Optimization Tool version: 2023.0.0-10862-40bf400b189
-    INFO:openvino.tools.pot.statistics.collector:Start computing statistics for algorithms : DefaultQuantization
-    INFO:openvino.tools.pot.statistics.collector:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Start algorithm: DefaultQuantization
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithm : ActivationChannelAlignment
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithms : MinMaxQuantization,FastBiasCorrection
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Finished: DefaultQuantization
-     ===========================================================================
+    2023-09-11 20:39:36.145499: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-11 20:39:36.181406: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-09-11 20:39:36.769588: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    Statistics collection: 100%|██████████████████| 128/128 [02:12<00:00,  1.03s/it]
+    Applying Smooth Quant: 100%|████████████████████| 48/48 [00:01<00:00, 32.29it/s]
+
+
+.. parsed-literal::
+
+    INFO:nncf:36 ignored nodes was found by name in the NNCFGraph
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|██████████████████| 128/128 [04:36<00:00,  2.16s/it]
+    Applying Fast Bias correction: 100%|████████████| 49/49 [00:28<00:00,  1.72it/s]
+
+.. parsed-literal::
+
     model quantization finished
 
 
 .. code:: ipython3
 
     ov_encoder_path_int8 = "sam_image_encoder_int8.xml"
-    serialize(quantized_model, ov_encoder_path_int8)
+    ov.save_model(quantized_model, ov_encoder_path_int8)
 
-Validate Quantized Model Inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Validate Quantized Model Inference 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We can reuse the previous code to validate the output of ``INT8`` model.
 
@@ -1360,7 +1440,7 @@ We can reuse the previous code to validate the output of ``INT8`` model.
 
     # Load INT8 model and run pipeline again
     ov_encoder_model_int8 = core.read_model(ov_encoder_path_int8)
-    ov_encoder_int8 = core.compile_model(ov_encoder_model_int8)
+    ov_encoder_int8 = core.compile_model(ov_encoder_model_int8, device.value)
     encoding_results = ov_encoder_int8(preprocessed_image)
     image_embeddings = encoding_results[ov_encoder_int8.output(0)]
     
@@ -1389,7 +1469,7 @@ We can reuse the previous code to validate the output of ``INT8`` model.
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_76_0.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_80_0.png
 
 
 Run ``INT8`` model in automatic mask generation mode
@@ -1406,17 +1486,17 @@ Run ``INT8`` model in automatic mask generation mode
 
 .. parsed-literal::
 
-      0%|          | 0/46 [00:00<?, ?it/s]
+      0%|          | 0/47 [00:00<?, ?it/s]
 
 
 
 
-.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_78_1.png
+.. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_82_1.png
 
 
 
-Compare Performance of the Original and Quantized Models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compare Performance of the Original and Quantized Models 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
@@ -1426,7 +1506,7 @@ models.
 .. code:: ipython3
 
     # Inference FP32 model (OpenVINO IR)
-    !benchmark_app -m $ov_encoder_path -d 'CPU'
+    !benchmark_app -m $ov_encoder_path -d $device.value
 
 
 .. parsed-literal::
@@ -1434,71 +1514,82 @@ models.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10862-40bf400b189
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.0.0-10862-40bf400b189
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 103.19 ms
+    [ INFO ] Read model took 31.21 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : f32 / [...] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : u8 / [N,C,H,W] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1085.86 ms
+    [ INFO ] Compile model took 956.62 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 36
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   NETWORK_NAME: Model474
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model474
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: False
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 60000 ms duration)
+    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
+    [ INFO ] Fill input 'x' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 4292.83 ms
+    [ INFO ] First inference took 3347.39 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            60 iterations
-    [ INFO ] Duration:         75716.93 ms
+    [ INFO ] Count:            132 iterations
+    [ INFO ] Duration:         135907.17 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        14832.33 ms
-    [ INFO ]    Average:       14780.77 ms
-    [ INFO ]    Min:           10398.47 ms
-    [ INFO ]    Max:           16725.65 ms
-    [ INFO ] Throughput:   0.79 FPS
+    [ INFO ]    Median:        12159.63 ms
+    [ INFO ]    Average:       12098.43 ms
+    [ INFO ]    Min:           7652.77 ms
+    [ INFO ]    Max:           13027.98 ms
+    [ INFO ] Throughput:   0.97 FPS
 
 
 .. code:: ipython3
 
     # Inference INT8 model (OpenVINO IR)
-    !benchmark_app -m $ov_encoder_path_int8 -d 'CPU'
+    !benchmark_app -m $ov_encoder_path_int8 -d $device.value
 
 
 .. parsed-literal::
@@ -1506,63 +1597,74 @@ models.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10862-40bf400b189
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.0.0-10862-40bf400b189
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 123.84 ms
+    [ INFO ] Read model took 40.67 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : f32 / [...] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : u8 / [N,C,H,W] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2132.36 ms
+    [ INFO ] Compile model took 1151.47 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 36
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   NETWORK_NAME: Model474
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model474
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: False
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 60000 ms duration)
+    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
+    [ INFO ] Fill input 'x' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3113.94 ms
+    [ INFO ] First inference took 1951.78 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            72 iterations
-    [ INFO ] Duration:         68936.14 ms
+    [ INFO ] Count:            216 iterations
+    [ INFO ] Duration:         130123.96 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        11281.87 ms
-    [ INFO ]    Average:       11162.87 ms
-    [ INFO ]    Min:           6736.09 ms
-    [ INFO ]    Max:           12547.48 ms
-    [ INFO ] Throughput:   1.04 FPS
+    [ INFO ]    Median:        7192.03 ms
+    [ INFO ]    Average:       7197.18 ms
+    [ INFO ]    Min:           6134.35 ms
+    [ INFO ]    Max:           7888.28 ms
+    [ INFO ] Throughput:   1.66 FPS
 

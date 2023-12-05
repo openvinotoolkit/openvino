@@ -77,15 +77,23 @@ ov::NodeVector InsertOutputTransposes(const std::shared_ptr<ov::Node>& main_node
                                       const TransposeInputsInfo& transpose_input_info);
 }  // namespace sink_forward
 
+/**
+ * Inserts Unsqueeze node as a child to @arg node with axes {0, 1, ... N - 1}, where N = @arg n_dims
+ */
+std::shared_ptr<ov::Node> InsertBroadcastUnsqueeze(const ov::Output<ov::Node>& node, size_t n_dims);
+
 namespace sink_backward {
 /**
  * @brief Inserts transposes on inputs of @arg main_node specified by @arg input_indexes
  * with the order specified in @arg transpose_const. If @arg input_indexes is empty, then it inserts
  * transposes for all inputs.
  */
-ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_node,
-                                         const std::shared_ptr<ov::opset10::Constant>& transpose_const,
-                                         std::vector<size_t> input_indexes = {});
+ov::NodeVector InsertTransposeBeforeNode(
+    const std::shared_ptr<ov::Node>& main_node,
+    const std::shared_ptr<ov::opset10::Constant>& transpose_const,
+    std::vector<size_t> input_indexes = {},
+    std::function<std::shared_ptr<ov::Node>(const ov::Output<ov::Node>& node, size_t n_dims)> InsertUnsqueeze =
+        InsertBroadcastUnsqueeze);
 }  // namespace sink_backward
 
 /**

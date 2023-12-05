@@ -4,35 +4,30 @@
 
 #include <vector>
 
-#include "single_layer_tests/concat.hpp"
+#include "single_op_tests/concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::ConcatLayerTest;
 
 std::vector<int> axes = {-3, -2, -1, 0, 1, 2, 3};
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
+std::vector<std::vector<ov::Shape>> inShapes = {
         {{10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}}
 };
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                         InferenceEngine::Precision::FP16,
-                                                         InferenceEngine::Precision::I64};
+std::vector<ov::element::Type> netPrecisions = {ov::element::f32,
+                                                ov::element::f16,
+                                                ov::element::i64};
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
-                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         ConcatLayerTest::getTestCaseName);
 }  // namespace

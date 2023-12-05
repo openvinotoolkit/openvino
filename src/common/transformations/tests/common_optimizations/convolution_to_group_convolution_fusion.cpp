@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -40,7 +40,7 @@ TEST_F(TransformationTestsF, ConvToGroupConvFusionSplit) {
                                                                            dilations));
         }
         const auto concat = std::make_shared<opset10::Concat>(concat_inputs, axis);
-        function = std::make_shared<Model>(concat, ParameterVector{data});
+        model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();
     }
 
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, ConvToGroupConvFusionSplit) {
         const auto concat = std::make_shared<opset10::Concat>(concat_inputs, 0);
         const auto conv =
             std::make_shared<opset10::GroupConvolution>(data, concat, strides, pads_begin, pads_end, dilations);
-        function_ref = std::make_shared<Model>(conv, ParameterVector{data});
+        model_ref = std::make_shared<Model>(conv, ParameterVector{data});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -93,7 +93,7 @@ TEST_F(TransformationTestsF, ConvToGroupConvFusionVariadicSplit) {
                                                                            dilations));
         }
         const auto concat = std::make_shared<opset10::Concat>(concat_inputs, axis);
-        function = std::make_shared<Model>(concat, ParameterVector{data});
+        model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();
     }
 
@@ -110,7 +110,7 @@ TEST_F(TransformationTestsF, ConvToGroupConvFusionVariadicSplit) {
         const auto concat = std::make_shared<opset10::Concat>(concat_inputs, 0);
         const auto conv =
             std::make_shared<opset10::GroupConvolution>(data, concat, strides, pads_begin, pads_end, dilations);
-        function_ref = std::make_shared<Model>(conv, ParameterVector{data});
+        model_ref = std::make_shared<Model>(conv, ParameterVector{data});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -144,7 +144,7 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionSplitInvalidAxis) {
                                                                            dilations));
         }
         const auto concat = std::make_shared<opset10::Concat>(concat_inputs, axis);
-        function = std::make_shared<Model>(concat, ParameterVector{data});
+        model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();
     }
 
@@ -187,7 +187,7 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionSplitNotMatchingConvAt
                                                                   pads_end2,
                                                                   dilations2);
         const auto concat = std::make_shared<opset10::Concat>(OutputVector{conv1, conv2}, axis);
-        function = std::make_shared<Model>(concat, ParameterVector{data});
+        model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();
     }
 
@@ -226,7 +226,7 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionVariadicSplitUnevenSpl
                                                                   pads_end,
                                                                   dilations);
         const auto concat = std::make_shared<opset10::Concat>(OutputVector{conv1, conv2}, axis);
-        function = std::make_shared<Model>(concat, ParameterVector{data});
+        model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();
     }
 

@@ -4,7 +4,6 @@
 
 #include "snippets/enforce_precision.hpp"
 #include <gtest/gtest.h>
-#include <ngraph/ngraph.hpp>
 
 namespace ov {
 namespace test {
@@ -24,7 +23,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_EnforcePrecision_bf16, EnforcePrecisionT
                             ::testing::ValuesIn(input_shapes),
                             ::testing::Values(7),   // 3 Roll + 3 Reorder + Subgraph
                             ::testing::Values(1),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EnforcePrecisionTest::getTestCaseName);
 } // namespace platform_bf16
 

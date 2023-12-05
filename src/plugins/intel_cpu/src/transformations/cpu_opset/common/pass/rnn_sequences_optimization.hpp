@@ -4,30 +4,30 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class OptimizeGRUSequenceTransposes : public ngraph::pass::MatcherPass {
+class OptimizeGRUSequenceTransposes : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("OptimizeGRUSequenceTransposes", "0");
     OptimizeGRUSequenceTransposes();
 };
 
-class OptimizeLSTMSequenceTransposes : public ngraph::pass::MatcherPass {
+class OptimizeLSTMSequenceTransposes : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("OptimizeLSTMSequenceTransposes", "0");
     OptimizeLSTMSequenceTransposes();
 };
 
-class OptimizeRNNSequenceTransposes : public ngraph::pass::MatcherPass {
+class OptimizeRNNSequenceTransposes : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("OptimizeRNNSequenceTransposes", "0");
     OptimizeRNNSequenceTransposes();
 };
 
-class OptimizeSequenceTransposes : public ngraph::pass::GraphRewrite {
+class OptimizeSequenceTransposes : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("OptimizeSequenceTransposes", "0");
     OptimizeSequenceTransposes();

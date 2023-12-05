@@ -11,8 +11,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -40,14 +38,14 @@ public:
     }
 
     void SetUp() override {
-        m_model_path = CommonTestUtils::getModelFromTestModelZoo(
+        m_model_path = ov::test::utils::getModelFromTestModelZoo(
             ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
         if (!std::get<1>(GetParam()).empty()) {
-            m_binary_path = CommonTestUtils::getModelFromTestModelZoo(
+            m_binary_path = ov::test::utils::getModelFromTestModelZoo(
                 ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
         }
 
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
@@ -100,7 +98,8 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
                     std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
                     std::make_tuple("if_diff_case.xml", "if_diff_case.bin"),
-                    std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin")));
+                    std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin"),
+                    std::make_tuple("string_parameter.xml", "string_parameter.bin")));
 
 #ifdef ENABLE_OV_ONNX_FRONTEND
 
@@ -288,7 +287,7 @@ public:
     std::string m_out_bin_path;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }

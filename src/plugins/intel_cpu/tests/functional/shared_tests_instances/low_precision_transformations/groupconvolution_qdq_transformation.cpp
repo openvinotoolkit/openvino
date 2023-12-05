@@ -18,7 +18,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
@@ -80,7 +80,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "f32",
         false,
     },
 
@@ -144,7 +144,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "f32",
         true,
     },
 
@@ -196,7 +196,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         false
     },
 
@@ -251,7 +251,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         true,
     },
 
@@ -308,7 +308,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "f32",
         false,
     },
 
@@ -368,7 +368,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "f32",
         true,
     },
 
@@ -428,7 +428,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         {},
         "output_original",
-        "FP32",
+        "f32",
         true,
     },
 
@@ -485,7 +485,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         false,
     },
 
@@ -542,7 +542,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         {},
         "output_original",
-        "U8",
+        "u8",
         false,
     },
 
@@ -602,7 +602,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         true,
     },
 };
@@ -615,7 +615,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionQDqTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     GroupConvolutionQDqTransformation::getTestCaseName);

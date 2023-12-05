@@ -18,6 +18,7 @@ namespace target {
 static constexpr const char* kGnaTargetUnspecified = "";
 static constexpr const char* kGnaTargetSoftwareEmulation = "GNA_SW_EMULATION";
 static constexpr const char* kGnaTarget1_0 = "GNA_TARGET_1_0";
+static constexpr const char* kGnaTarget1_0_e = "GNA_TARGET_1_0_E";
 static constexpr const char* kGnaTarget2_0 = "GNA_TARGET_2_0";
 static constexpr const char* kGnaTarget3_0 = "GNA_TARGET_3_0";
 static constexpr const char* kGnaTarget3_1 = "GNA_TARGET_3_1";
@@ -28,6 +29,7 @@ static constexpr const char* kGnaTarget4_0 = "GNA_TARGET_4_0";
 
 static const std::unordered_map<HWGeneration, DeviceVersion> HWGenerationDeviceMap{
     {HWGeneration::GNA_1_0, DeviceVersion::GNA1_0},
+    {HWGeneration::GNA_1_0_E, DeviceVersion::GNAEmbedded1_0},
     {HWGeneration::GNA_2_0, DeviceVersion::GNA2_0},
     {HWGeneration::GNA_3_0, DeviceVersion::GNA3_0},
     {HWGeneration::GNA_3_1, DeviceVersion::GNA3_1},
@@ -38,7 +40,8 @@ static const std::unordered_map<HWGeneration, DeviceVersion> HWGenerationDeviceM
     {HWGeneration::UNDEFINED, DeviceVersion::NotSet}};
 
 static const std::unordered_map<Gna2DeviceVersion, DeviceVersion> GnaDeviceMap{
-    {Gna2DeviceVersionEmbedded1_0, DeviceVersion::GNA1_0},
+    {Gna2DeviceVersion1_0, DeviceVersion::GNA1_0},
+    {Gna2DeviceVersionEmbedded1_0, DeviceVersion::GNAEmbedded1_0},
     {Gna2DeviceVersion2_0, DeviceVersion::GNA2_0},
     {Gna2DeviceVersion3_0, DeviceVersion::GNA3_0},
     {Gna2DeviceVersionEmbedded3_1, DeviceVersion::GNA3_1},
@@ -50,6 +53,7 @@ static const std::unordered_map<Gna2DeviceVersion, DeviceVersion> GnaDeviceMap{
 
 static const std::unordered_map<std::string, DeviceVersion> StringDeviceMap{
     {kGnaTarget1_0, DeviceVersion::GNA1_0},
+    {kGnaTarget1_0_e, DeviceVersion::GNAEmbedded1_0},
     {kGnaTarget2_0, DeviceVersion::GNA2_0},
     {kGnaTarget3_0, DeviceVersion::GNA3_0},
     {kGnaTarget3_1, DeviceVersion::GNA3_1},
@@ -60,7 +64,7 @@ static const std::unordered_map<std::string, DeviceVersion> StringDeviceMap{
     {kGnaTargetSoftwareEmulation, DeviceVersion::SoftwareEmulation},
     {kGnaTargetUnspecified, DeviceVersion::NotSet}};
 
-static const std::vector<DeviceVersion> EmbeddedDevices{DeviceVersion::GNA1_0,
+static const std::vector<DeviceVersion> EmbeddedDevices{DeviceVersion::GNAEmbedded1_0,
                                                         DeviceVersion::GNA3_1,
                                                         DeviceVersion::GNAEmbedded3_5,
                                                         DeviceVersion::GNA3_6,

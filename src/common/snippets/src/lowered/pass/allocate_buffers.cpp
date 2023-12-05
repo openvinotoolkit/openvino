@@ -2,9 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 
-#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/enumerate_expressions.hpp"
+#include "snippets/lowered/pass/solve_buffer_memory.hpp"
+#include "snippets/lowered/pass/init_buffers_default.hpp"
+#include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/define_buffer_clusters.hpp"
+#include "snippets/lowered/pass/normalize_buffer_ids.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -12,11 +19,16 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const ExpressionPtr& buffer_expr, const size_t offset) {
+AllocateBuffers::AllocateBuffers(size_t& buffer_scratchpad_size, bool is_optimized)
+    : m_buffer_scratchpad_size(buffer_scratchpad_size), m_is_optimized_mode(is_optimized) {}
+
+void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
-    // to correctly read and write data because all Buffers has the common data pointer on buffer scratchpad
+    // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 
     const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
+    OPENVINO_ASSERT(buffer, "Failed to set Buffer offset: AllocateBuffers expects Buffer op");
+    buffer->set_offset(static_cast<int64_t>(offset));
 
     // Propagate to up: in Store. Buffer can have only one Store
     {
@@ -54,88 +66,23 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
     }
 }
 
-
-bool AllocateBuffers::run(LinearIR& linear_ir) {
+bool AllocateBuffers::run(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
-
-    size_t offset = 0;
-    std::set<ExpressionPtr> allocated_buffers;
-
-    auto allocate = [&](const std::shared_ptr<op::Buffer>& buffer, const ExpressionPtr& expr, size_t buffer_size) {
-        offset = m_buffer_scratchpad_size;
-        buffer->set_offset(static_cast<int64_t>(offset));
-        propagate_offset(linear_ir, expr, offset);
-        m_buffer_scratchpad_size += buffer_size;
-        allocated_buffers.insert(expr);
-    };
-
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
-        const auto& expr = *expr_it;
-        if (auto buffer = as_type_ptr<op::Buffer>(expr->get_node())) {
-            const auto buffer_size = buffer->get_byte_size();
-            // If it's the first buffer, offsets are zero => nothing to propagate, can continue
-            if (m_buffer_scratchpad_size == 0) {
-                m_buffer_scratchpad_size += buffer_size;
-                allocated_buffers.insert(expr);
-                continue;
-            }
-
-            if (buffer->is_intermediate_memory()) {
-                const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
-                const auto& parent_node = parent_expr->get_node();
-                // Full MemoryAccess ops need new memory. Previous logic is to check for parent isn't Loop
-                // TODO: It should be unified in MemoryManager with memory reuse in the near future
-                const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent_node);
-                if (ma && ma->is_full_memory_access_op()) {
-                    allocate(buffer, *expr_it, buffer_size);
-                    continue;
-                }
-
-                // Loop       Full_MA
-                //  |           |
-                // Buffer_1  Buffer_0
-                //   \         /
-                //     Full_MA
-                // At the moment the pass support only sequentially implicit InPlace.
-                // If Buffer_0 is allocated firstly as Buffer after full memory access op,
-                // we cannot reuse this allocated memory for Buffer_1 - we must allocate new memory for it.
-                // TODO: It should be unified in MemoryManager with memory reuse in the near future
-                bool need_allocate = false;
-                const auto consumers = expr->get_output_port_connector(0)->get_consumers();
-                for (const auto& consumer : consumers) {
-                    const auto& consumer_expr = consumer.get_expr();
-                    const auto& child_node = consumer_expr->get_node();
-                    const auto ma = ov::as_type_ptr<op::MemoryAccess>(child_node);
-                    if (ma && ma->is_full_memory_access_op()) {
-                        for (size_t i = 0; i < consumer_expr->get_input_count() && !need_allocate; ++i) {
-                            if (i == consumer.get_index())
-                                continue;
-                            const auto buffer_sibling = consumer_expr->get_input_port_connector(i)->get_source().get_expr();
-                            need_allocate = ov::is_type<op::Buffer>(buffer_sibling->get_node()) && allocated_buffers.count(buffer_sibling) != 0;
-                        }
-                    }
-                    if (need_allocate)
-                        break;
-                }
-                if (need_allocate) {
-                    allocate(buffer, *expr_it, buffer_size);
-                    continue;
-                }
-
-                const auto current_allocated_memory_size = m_buffer_scratchpad_size - offset;
-                if (buffer_size > current_allocated_memory_size) {
-                    allocate(buffer, expr, buffer_size);
-                    continue;
-                }
-                propagate_offset(linear_ir, *expr_it, offset);
-                allocated_buffers.insert(expr);
-            } else {
-                // Single Buffer without input should allocate new memory
-                allocate(buffer, *expr_it, buffer_size);
-            }
-        }
+    m_buffer_scratchpad_size = 0;
+    PassPipeline pipeline;
+    if (m_is_optimized_mode) {
+        BufferClusters buffer_clusters;
+        pipeline.register_pass<EnumerateExpressions>();
+        pipeline.register_pass<IdentifyBuffers>();
+        pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
+        pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
+        pipeline.register_pass<NormalizeBufferIDs>();
+    } else {
+        pipeline.register_pass<InitBuffersDefault>(m_buffer_scratchpad_size);
     }
-    return !allocated_buffers.empty();
+    pipeline.run(linear_ir);
+
+    return m_buffer_scratchpad_size > 0;
 }
 
 } // namespace pass

@@ -14,8 +14,8 @@ std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<tra
     std::string targetDevice;
     std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "inputOrder=" << CommonTestUtils::vec2str(inputOrder) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "inputOrder=" << ov::test::utils::vec2str(inputOrder) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -31,15 +31,13 @@ void TransposeLayerTest::SetUp() {
     std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const auto inOrderShape = inputOrder.empty() ? ngraph::Shape({0}) : ngraph::Shape({inputShape.size()});
     const auto inputOrderOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
                                                                          inOrderShape,
                                                                          inputOrder);
-    const auto transpose = std::make_shared<ngraph::opset3::Transpose>(paramOuts.at(0), inputOrderOp);
+    const auto transpose = std::make_shared<ngraph::opset3::Transpose>(params.at(0), inputOrderOp);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(transpose)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose");
 }

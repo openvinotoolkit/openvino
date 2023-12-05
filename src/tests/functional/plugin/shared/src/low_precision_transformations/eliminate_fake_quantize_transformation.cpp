@@ -11,7 +11,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "openvino/util/common_util.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -73,7 +73,7 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
         if (type == "Convolution") {
             const auto& precision_it = it.second.find("runtimePrecision");
             const auto& precision = precision_it->second.as<std::string>();
-            if (precision == "U8") {
+            if (precision == "u8") {
                 int8_convolutions++;
             }
         }

@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -29,7 +29,7 @@ class QueryModelTest : public ::testing::TestWithParam<query_model_params> {
 public:
     ov::AnyMap m_properties;
     bool m_throw_exception;
-    std::shared_ptr<NiceMock<MockICore>> m_core;
+    std::shared_ptr<NiceMock<ov::MockICore>> m_core;
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_plugin;
     std::shared_ptr<ov::Model> m_model;
     ov::SupportedOpsMap m_supported_ops_map;
@@ -61,7 +61,7 @@ public:
     void SetUp() override {
         std::tie(m_properties, m_throw_exception) = this->GetParam();
         m_model = ngraph::builder::subgraph::makeMultiSingleConv();
-        m_core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
+        m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
         m_plugin->set_core(m_core);

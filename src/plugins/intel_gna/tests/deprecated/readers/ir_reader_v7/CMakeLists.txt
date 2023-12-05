@@ -23,7 +23,7 @@ endif()
 
 add_library(${TARGET_NAME} ${library_type} ${LIBRARY_SRC})
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 
@@ -46,11 +46,11 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # code style
 
-add_clang_format_target(${TARGET_NAME}_clang_format FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang_format FOR_TARGETS ${TARGET_NAME})
 
 # Install rules
 

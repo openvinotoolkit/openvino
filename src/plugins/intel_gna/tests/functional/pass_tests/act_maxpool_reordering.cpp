@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
@@ -56,7 +56,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_bias=" << addBiases;
         result << "_actType=" << activationNames[actType];
 
@@ -72,7 +72,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, addBiases, actType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         size_t num_out_channels = 12;
         size_t kernal_size = 8;
@@ -89,6 +89,7 @@ protected:
 
         auto activation = ngraph::builder::makeActivation(conv, ngPrc, actType);
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto maxpool = ngraph::builder::makePooling(activation,
                                                     {1, 2},
                                                     {0, 0},
@@ -98,6 +99,7 @@ protected:
                                                     ngraph::op::PadType::VALID,
                                                     false,
                                                     ngraph::helpers::PoolingTypes::MAX);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "ActMaxpoolReordering");
@@ -140,7 +142,7 @@ const std::vector<ngraph::helpers::ActivationTypes> gnaPwlUniformDesignActivatio
 INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering,
                          ActMaxpoolReordering,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(addBiases),
@@ -150,7 +152,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering,
 INSTANTIATE_TEST_SUITE_P(gna_pwl_uniform_design_smoke_act_maxpool_reordering,
                          ActMaxpoolReordering,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(gnaPwlUniformDesignConfigs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(addBiases),

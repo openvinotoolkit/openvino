@@ -3,8 +3,10 @@
 //
 
 #include "behavior/ov_executable_network/properties.hpp"
-#include "openvino/runtime/properties.hpp"
+
 #include <cstdint>
+
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -60,8 +62,18 @@ TEST_P(OVCompiledModelPropertiesTests, CanUseCache) {
     core->set_property(ov::cache_dir("./test_cache"));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
-    CommonTestUtils::removeDir("./test_cache");
+    ov::test::utils::removeDir("./test_cache");
 }
+
+TEST_P(OVCompiledModelPropertiesTests, IgnoreEnableMMap) {
+    if (target_device.find("HETERO:") == 0 || target_device.find("MULTI:") == 0 || target_device.find("AUTO:") == 0 ||
+        target_device.find("BATCH:") == 0)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // Load available plugins
+    core->get_available_devices();
+    OV_ASSERT_NO_THROW(core->set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, ov::enable_mmap(false)));
+}  // namespace behavior
 
 TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetProperty) {
     auto compiled_model = core->compile_model(model, target_device, properties);
@@ -115,7 +127,8 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property) << "For property: " << default_property.first
+        ASSERT_EQ(default_property.second, property)
+            << "For property: " << default_property.first
             << " expected value is: " << default_property.second.as<std::string>();
     }
 }

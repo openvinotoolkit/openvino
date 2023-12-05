@@ -30,7 +30,11 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream,
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto model = detail::import_onnx_model(model_proto, model_path, enable_mmap, std::move(extensions));
+    const auto model = detail::import_onnx_model(
+        model_proto,
+        model_path,
+        enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>() : nullptr,
+        std::move(extensions));
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto error_message = common::collect_translation_exceptions(model);
     NGRAPH_CHECK(error_message.empty(), error_message);

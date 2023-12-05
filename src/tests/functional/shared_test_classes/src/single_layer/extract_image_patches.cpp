@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/extract_image_patches.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -17,14 +17,14 @@ std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInf
     std::string targetName;
     std::tie(inputShape, kernel, strides, rates, pad_type, netPrc, inPrc, outPrc, inLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrc.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
-    result << "K=" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S=" << CommonTestUtils::vec2str(strides) << "_";
-    result << "R=" << CommonTestUtils::vec2str(rates) << "_";
+    result << "K=" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S=" << ov::test::utils::vec2str(strides) << "_";
+    result << "R=" << ov::test::utils::vec2str(rates) << "_";
     result << "P=" << pad_type << "_";
     result << "trgDev=" << targetName;
     return result.str();

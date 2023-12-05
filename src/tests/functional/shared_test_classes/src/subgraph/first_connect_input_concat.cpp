@@ -15,7 +15,7 @@ std::string ConcatFirstInputTest::getTestCaseName(const testing::TestParamInfo<c
     std::tie(inputShapes, netPrecision, targetDevice, additional_config) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : additional_config) {
@@ -30,7 +30,10 @@ void ConcatFirstInputTest::SetUp() {
     std::map<std::string, std::string> additional_config;
     std::tie(inputShapes, netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, inputShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+    }
     auto const_second_param = ngraph::builder::makeConstant(ngPrc, {1, 8}, std::vector<float>{-1.0f});
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{params[0], const_second_param}, 1);
     auto relu = std::make_shared<ngraph::opset1::Relu>(concat);

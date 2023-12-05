@@ -6,15 +6,15 @@
 
 #include <memory>
 
-#include "ngraph/node.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shape_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 class TensorWrapper : public ngraph::runtime::HostTensor {
@@ -35,13 +35,7 @@ public:
 
     HostTensorWrapper(const ngraph::HostTensorPtr& tensor) : tensor{tensor}, m_type(tensor->get_element_type()) {
         const auto& p_shape = tensor->get_partial_shape();
-        if (p_shape.is_static()) {
-            m_shape = p_shape.to_shape();
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            m_shape = ov::util::make_dynamic_shape();
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
+        m_shape = p_shape.is_static() ? p_shape.to_shape() : ov::Shape{0};
         update_strides();
     }
 

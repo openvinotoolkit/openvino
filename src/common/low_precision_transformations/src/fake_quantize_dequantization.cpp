@@ -5,13 +5,13 @@
 #include <cmath>
 #include <memory>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <low_precision/network_helper.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,10 +21,10 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     const Output<Node>& data,
     const std::shared_ptr<opset1::Convert>& convert,
     const std::shared_ptr<opset1::Subtract>& subtract,
-    const std::shared_ptr<ngraph::opset1::Convert>& subtractConvert,
-    const std::shared_ptr<ngraph::opset1::Constant>& subtractConstant,
+    const std::shared_ptr<ov::opset1::Convert>& subtractConvert,
+    const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
     const std::shared_ptr<opset1::Multiply>& multiply,
-    const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant) :
+    const std::shared_ptr<ov::opset1::Constant>& multiplyConstant) :
     data(data),
     convert(convert),
     subtract(subtract),
@@ -89,9 +89,29 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return DataPrecision::isSupported(data.get_element_type());
 }
 
-bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) {
-    std::shared_ptr<ngraph::opset1::Convert> convert;
-    std::shared_ptr<ngraph::opset1::Constant> constant;
+bool FakeQuantizeDequantization::isPerTensor() const {
+    if (multiplyConstant == nullptr) {
+        THROW_IE_LPT_EXCEPTION_BASE << "multiply constant can not be empty";
+    }
+
+    const std::vector<float>& scales = multiplyConstant->cast_vector<float>();
+    if (scales.size() != 1ull) {
+        return false;
+    }
+
+    if (subtractConstant != nullptr) {
+        const std::vector<float>& scales = subtractConstant->cast_vector<float>();
+        if (scales.size() != 1ull) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ov::Node>& elementwise) {
+    std::shared_ptr<ov::opset1::Convert> convert;
+    std::shared_ptr<ov::opset1::Constant> constant;
     const int branchIndex = FakeQuantizeDequantization::fillDequantizationParams(elementwise, convert, constant);
     if (branchIndex == -1) {
         return true;
@@ -115,22 +135,22 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
 }
 
 // check if elementwise operation inside dequantization subgraph satisfy per-tensor/per-OC broadcast requirement
-bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) const {
-    std::shared_ptr<ngraph::opset1::Convert> convert;
-    std::shared_ptr<ngraph::opset1::Constant> constant;
+bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ov::Node>& dequantizationElementwise) const {
+    std::shared_ptr<ov::opset1::Convert> convert;
+    std::shared_ptr<ov::opset1::Constant> constant;
     FakeQuantizeDequantization::fillDequantizationParams(dequantizationElementwise, convert, constant);
 
     if (constant == nullptr) {
         return false;
     }
 
-    const ngraph::Shape constShape = constant->get_shape();
+    const ov::Shape constShape = constant->get_shape();
     if ((constShape.size() > 5ul)) {
         return false;
     }
 
     // scalar-like const tensor is broadcastable to any shape of data
-    if (ngraph::shape_size(constShape) == 1) {
+    if (ov::shape_size(constShape) == 1) {
         return true;
     }
 
@@ -207,14 +227,14 @@ std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::sh
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
-    const std::shared_ptr<ngraph::Node>& elementwise,
-    std::shared_ptr<ngraph::opset1::Convert>& convert,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) {
+    const std::shared_ptr<ov::Node>& elementwise,
+    std::shared_ptr<ov::opset1::Convert>& convert,
+    std::shared_ptr<ov::opset1::Constant>& constant) {
     auto fill = [](
-        const std::shared_ptr<ngraph::Node>& elementwise,
+        const std::shared_ptr<ov::Node>& elementwise,
         const size_t branchIndex,
-        std::shared_ptr<ngraph::opset1::Convert>& convert,
-        std::shared_ptr<ngraph::opset1::Constant>& constant) {
+        std::shared_ptr<ov::opset1::Convert>& convert,
+        std::shared_ptr<ov::opset1::Constant>& constant) {
         convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
         if (convert != nullptr) {
             constant = convert->get_destination_type().is_real() ?
@@ -241,8 +261,8 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
-    const std::shared_ptr<ngraph::Node>& elementwise,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) {
+    const std::shared_ptr<ov::Node>& elementwise,
+    std::shared_ptr<ov::opset1::Constant>& constant) {
     constant = elementwise->get_input_element_type(1ul).is_real() ?
         ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
         nullptr;
@@ -264,4 +284,4 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

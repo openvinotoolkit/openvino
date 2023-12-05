@@ -7,13 +7,13 @@
 #include <memory>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
-
+using namespace ov;
 using namespace testing;
 
 /** Helper to get access EyeDecomposition protected methods. */

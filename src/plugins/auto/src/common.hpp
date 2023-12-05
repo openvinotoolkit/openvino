@@ -74,7 +74,9 @@ struct WorkerInferRequest {
 };
 
 struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
-    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr): m_workptrptr{ptr}, m_fallback_exec(executor) {}
+    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr):
+        m_workptrptr{ptr},
+        m_fallback_exec(std::move(executor)) {}
     void run(ov::threading::Task task) override {
         (*m_workptrptr)->m_task = std::move(task);
         (*m_workptrptr)->m_fallback_exec = m_fallback_exec;

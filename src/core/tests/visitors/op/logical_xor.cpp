@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "binary_ops.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/op/logical_xor.hpp"
 
-using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::LogicalXor, ngraph::element::boolean>>;
+#include "binary_ops.hpp"
+
+using Type = ::testing::Types<BinaryOperatorType<ov::op::v1::LogicalXor, ov::element::boolean>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);

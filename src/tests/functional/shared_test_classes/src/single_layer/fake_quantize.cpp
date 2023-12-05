@@ -24,8 +24,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::tie(levels, constShape, fqDirectArgs, inputArg, broadcast) = fqParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
     result << "LEVELS=" << levels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
@@ -68,8 +68,7 @@ void FakeQuantizeLayerTest::SetUp() {
         threshold = (fqDirectArg[3] - fqDirectArg[2]) / levels;
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     UpdateSeed();
 
@@ -81,10 +80,10 @@ void FakeQuantizeLayerTest::SetUp() {
         }
         std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                   << "ngraphSeed = " << ngraphSeed << std::endl;
-        fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
+        fakeQNode = ngraph::builder::makeFakeQuantize(params[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
         fakeQNode = ngraph::builder::makeFakeQuantize(
-            paramOuts[0],
+            params[0],
             ngPrc,
             levels,
             constShape,

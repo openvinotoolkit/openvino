@@ -2,35 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/nonzero.hpp"
+#include "single_op_tests/nonzero.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include <vector>
 
-using namespace ngraph::helpers;
-using namespace LayerTestsDefinitions;
-
 namespace {
-    std::vector<std::vector<size_t>> inShapes = {
-        {1000},
-        {4, 1000},
-        {2, 4, 1000},
-        {2, 4, 4, 1000},
-        {2, 4, 4, 2, 1000},
-    };
+using ov::test::NonZeroLayerTest;
 
-    const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U8,
-    };
+std::vector<std::vector<ov::Shape>> input_shapes_static = {
+    {{1000}},
+    {{4, 1000}},
+    {{2, 4, 1000}},
+    {{2, 4, 4, 1000}},
+    {{2, 4, 4, 2, 1000}},
+};
 
-    ConfigMap config;
+const std::vector<ov::element::Type> model_types = {
+    ov::element::i32,
+    ov::element::f16,
+    ov::element::u8,
+};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_nonzero, NonZeroLayerTest,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(inShapes),
-                                ::testing::ValuesIn(inputPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Values(config)),
-                            NonZeroLayerTest::getTestCaseName);
+std::map<std::string, std::string> config = {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_nonzero, NonZeroLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+                            ::testing::ValuesIn(model_types),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                            ::testing::Values(config)),
+                        NonZeroLayerTest::getTestCaseName);
 } // namespace

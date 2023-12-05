@@ -2,35 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 template <typename LowPrecision, typename T>
-std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape,
-                                               float in_low,
-                                               float in_high,
-                                               float out_low,
-                                               float out_high,
-                                               const Shape& zero_point_shape,
-                                               std::vector<T> zero_point_values, /*const bool zero_point_in_f32,*/
-                                               const Shape& scale_shape,
-                                               std::vector<float> scale_values,
-                                               size_t levels) {
+std::shared_ptr<Model> create_q_dq_function(const Shape& data_shape,
+                                            float in_low,
+                                            float in_high,
+                                            float out_low,
+                                            float out_high,
+                                            const Shape& zero_point_shape,
+                                            std::vector<T> zero_point_values, /*const bool zero_point_in_f32,*/
+                                            const Shape& scale_shape,
+                                            std::vector<float> scale_values,
+                                            size_t levels) {
     auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
     auto input_low = opset1::Constant::create(element::f32, Shape{}, {in_low});
     auto input_high = opset1::Constant::create(element::f32, Shape{}, {in_high});
@@ -49,7 +50,7 @@ std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape,
     auto scale = opset1::Constant::create(element::f32, scale_shape, scale_values);
     auto mul = std::make_shared<opset1::Multiply>(sub, scale);
 
-    return std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+    return std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 }
 
 template <typename LowPrecision, typename T>
@@ -63,7 +64,7 @@ void positive_test(const Shape& data_shape,
                    const Shape& scale_shape,
                    std::vector<float> scale_values,
                    size_t levels) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
         f = create_q_dq_function<LowPrecision>(data_shape,
                                                in_low,
@@ -94,7 +95,7 @@ void positive_test(const Shape& data_shape,
         auto output_high =
             opset1::Constant::create(element::f32, Shape{}, {(out_high - zero_point_values[0]) * scale_values[0]});
         auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
-        f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -102,7 +103,7 @@ void positive_test(const Shape& data_shape,
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithINT8ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -127,7 +128,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithINT8ZeroPoint) {
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -152,7 +153,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithFP32ZeroPoint) {
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithUINT8ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -177,7 +178,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithUINT8ZeroPoint) {
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -212,7 +213,7 @@ void negative_test(const Shape& data_shape,
                    const Shape& scale_shape,
                    std::vector<float> scale_values,
                    size_t levels) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
         f = create_q_dq_function<LowPrecision>(data_shape,
                                                in_low,
@@ -249,7 +250,7 @@ void negative_test(const Shape& data_shape,
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWithINT8ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -274,7 +275,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWith
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -299,7 +300,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWith
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithINT8ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -324,7 +325,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithINT8
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -349,7 +350,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithFP32
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithINT8ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -374,7 +375,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithINT8ZeroPoin
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -399,7 +400,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithFP32ZeroPoin
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithUINT8ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;
@@ -425,7 +426,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithUINT8
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
     float in_high = 5;

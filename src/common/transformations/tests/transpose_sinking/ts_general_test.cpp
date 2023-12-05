@@ -6,7 +6,7 @@
 
 #include <functional>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesForward) {
             in_op = std::make_shared<Transpose>(unary, ng_order1);
         }
 
-        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -53,7 +53,7 @@ TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesForward) {
             in_op = std::make_shared<Tanh>(in_op);
         }
 
-        function_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     manager.register_pass<TSGeneralForward>();
@@ -78,7 +78,7 @@ TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesBackward) {
             in_op = std::make_shared<Transpose>(unary, ng_order1);
         }
 
-        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesBackward) {
             in_op = std::make_shared<Tanh>(in_op);
         }
 
-        function_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
     manager.register_pass<TSGeneralBackward>();
 }
@@ -116,7 +116,7 @@ TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesGeneral) {
             in_op = std::make_shared<Transpose>(unary, ng_order1);
         }
 
-        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -130,7 +130,7 @@ TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesGeneral) {
         auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
-        function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+        model_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
     manager.register_pass<TSGeneral>();
@@ -156,7 +156,7 @@ TEST_F(TransformationTestsF, TSGeneralTestBinaryGeneral) {
             in_op = std::make_shared<Add>(in_op, transpose1);
         }
 
-        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, TSGeneralTestBinaryGeneral) {
         auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
-        function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+        model_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
     manager.register_pass<TSGeneral>();
@@ -202,7 +202,7 @@ TEST_F(TransformationTestsF, TSGeneralTestConcatGeneral) {
             in_op = std::make_shared<Concat>(concat_inputs, 1);
         }
 
-        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -224,7 +224,7 @@ TEST_F(TransformationTestsF, TSGeneralTestConcatGeneral) {
         auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
-        function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+        model_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
     manager.register_pass<TSGeneral>();
@@ -388,7 +388,7 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
 
         auto node1 = MakeAllNodesSubgraph(transpose1, 1, 1);
 
-        function = std::make_shared<ov::Model>(node1, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(node1, ov::ParameterVector{X});
     }
 
     {
@@ -407,7 +407,7 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
         auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
         auto transpose1 = std::make_shared<Transpose>(node1, ng_order1);
 
-        function_ref = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X});
+        model_ref = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X});
     }
 
     manager.register_pass<TSGeneral>();
@@ -431,7 +431,7 @@ TEST_F(TransformationTestsF, TSGeneralCheckShapeOfConstFoldingDisabled) {
         auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
         auto transpose1 = std::make_shared<Transpose>(reshape, ng_order1);
 
-        function = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X, Shape});
+        model = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X, Shape});
     }
     manager.register_pass<TSGeneral>();
 }
@@ -455,7 +455,7 @@ TEST_F(TransformationTestsF, TSGeneralBackwardSinkingNotAvailableForOneOfMultipl
         auto res = std::make_shared<Result>(relu2);
         auto res2 = std::make_shared<Result>(transpose2);
 
-        function = std::make_shared<ov::Model>(ov::ResultVector{res, res2}, ov::ParameterVector{X});
+        model = std::make_shared<ov::Model>(ov::ResultVector{res, res2}, ov::ParameterVector{X});
     }
     manager.register_pass<TSGeneralBackward>();
 }
@@ -501,6 +501,38 @@ TEST(TransformationTests, TSGeneralBackwardCheckFriendlyAndTensorNamesForMultipl
         EXPECT_NE(actual_names.find(name), actual_names.end());
     }
 }
+
+TEST_F(TransformationTestsF, TSGeneralDisableShapeOf) {
+    using namespace transpose_sinking::testing::general;
+    ov::Shape input_shape = {1};
+    ov::element::Type input_type = ov::element::f32;
+
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        auto ng_order = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, ov::Shape{0});
+        auto transpose = std::make_shared<Transpose>(X, ng_order);
+
+        auto shape_of = std::make_shared<ShapeOf>(transpose);
+
+        model = std::make_shared<ov::Model>(shape_of, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        auto shape_of = std::make_shared<ShapeOf>(X);
+
+        auto indices = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, ov::Shape{0});
+        auto axes = std::make_shared<Constant>(ov::element::i32, ov::Shape{1}, ov::Shape{0});
+        auto gather = std::make_shared<Gather>(shape_of, indices, axes);
+
+        model = std::make_shared<ov::Model>(gather, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSGeneral>();
+}
+
 }  // namespace general
 }  // namespace testing
 }  // namespace transpose_sinking

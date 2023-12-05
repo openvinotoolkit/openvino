@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/const_strided_slice_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -35,7 +35,7 @@ InferenceEngine::Blob::Ptr ConstStridedSliceConcatTest::GenerateInput(const Infe
     blob->allocate();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.5f, 0.5f);
+    std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.5f, 0.5f);
     for (size_t i = 0; i < blob->size(); i++) {
         rawBlobDataPtr[i] = values[i];
     }
@@ -46,8 +46,20 @@ namespace {
 template <class A, class B, class C>
 void appendSlices(A&& destVector, B&& src, const int64_t chunkSize, const int64_t totalSize, C precission) {
     for (int64_t start = 0; start < totalSize; start += chunkSize) {
-        using ngraph::builder::makeStridedSlice;
-        destVector.push_back(makeStridedSlice(src, { 0, start }, { 0, start + chunkSize }, { 1, 1 }, precission, { 1, 0 }, { 1, 0 }));
+        ov::Shape constShape = {2};
+        auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{ 0, start });
+        auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{ 0, start + chunkSize });
+        auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{ 1, 1 });
+        auto ssNode = std::make_shared<ov::op::v1::StridedSlice>(src,
+                                                                beginNode,
+                                                                endNode,
+                                                                strideNode,
+                                                                std::vector<int64_t>{ 1, 0 },
+                                                                std::vector<int64_t>{ 1, 0 },
+                                                                std::vector<int64_t>{},
+                                                                std::vector<int64_t>{},
+                                                                std::vector<int64_t>{});
+        destVector.push_back(ssNode);
     }
 }
 } // namespace
@@ -81,16 +93,16 @@ void ConstStridedSliceConcatTest::SetUp() {
     std::vector<size_t> inputShape;
     const size_t totalInputSize = static_cast<size_t>(inputSlices) * inputSliceSize;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { std::vector<size_t>{ 1, totalInputSize } });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, totalInputSize})};
 
     const auto totalConstantSize = constSlices * constSliceSize;
-    auto constantValues = CommonTestUtils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);
+    auto constantValues = ov::test::utils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);
     auto constant = ngraph::builder::makeConstant(ngPrc, { 1, totalConstantSize }, constantValues);
 
     std::vector<ngraph::Output<ngraph::Node>> allToConcat;
     appendSlices(allToConcat, params[0], inputSliceSize, totalInputSize, ngPrc);
     appendSlices(allToConcat, constant, constSliceSize, totalConstantSize, ngPrc);
-    auto concat = ngraph::builder::makeConcat(allToConcat, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(allToConcat, 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "ConstStridedSliceConcatTest");
 }

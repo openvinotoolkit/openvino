@@ -6,12 +6,10 @@
 
 #include <algorithm>
 
-#include "ngraph/node.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/node.hpp"
 
-using namespace std;
-
-ov::descriptor::Output::Output(ngraph::Node* node, size_t index, const shared_ptr<Tensor>& tensor)
+ov::descriptor::Output::Output(ov::Node* node, size_t index, const std::shared_ptr<Tensor>& tensor)
     : m_node(node),
       m_index(index),
       m_tensor(tensor) {}
@@ -31,11 +29,11 @@ void ov::descriptor::Output::remove_input(Input* input) {
     }
 }
 
-shared_ptr<ngraph::Node> ov::descriptor::Output::get_node() const {
+std::shared_ptr<ov::Node> ov::descriptor::Output::get_node() const {
     return m_node->shared_from_this();
 }
 
-ngraph::Output<ngraph::Node> ov::descriptor::Output::get_output() const {
+ov::Output<ov::Node> ov::descriptor::Output::get_output() const {
     return get_node()->output(m_index);
 }
 

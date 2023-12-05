@@ -12,9 +12,9 @@ namespace ov {
 namespace intel_cpu {
 
 struct ConvertParams {
-    InferenceEngine::Precision srcPrc;
-    InferenceEngine::Precision origPrc;
-    InferenceEngine::Precision dstPrc;
+    ov::element::Type srcPrc;
+    ov::element::Type origPrc;
+    ov::element::Type dstPrc;
     size_t size;
 };
 

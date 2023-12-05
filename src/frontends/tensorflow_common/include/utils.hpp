@@ -88,7 +88,10 @@ void fill_explicit_pads_vectors(const NodeContext& node,
                                 ov::CoordinateDiff& pads_begin,
                                 ov::CoordinateDiff& pads_end);
 
-void default_op_checks(const NodeContext& node, size_t min_input_size, const std::vector<std::string>& supported_ops);
+void default_op_checks(const NodeContext& node,
+                       size_t min_input_size,
+                       const std::vector<std::string>& supported_ops,
+                       bool supported_complex = false);
 
 ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
@@ -148,6 +151,14 @@ void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<siz
         convert_nchw_to_hw(src, dst);
     }
 }
+
+// retrieve data slices collected in a range [start; stop) by the first dimension
+ov::Output<ov::Node> get_data_slice(const ov::Output<ov::Node>& data,
+                                    const int64_t& start,
+                                    const int64_t& stop,
+                                    const int64_t& step);
+
+ov::Output<ov::Node> compute_broadcast_args(const ov::Output<ov::Node>& shape1, const ov::Output<ov::Node>& shape2);
 
 }  // namespace tensorflow
 }  // namespace frontend

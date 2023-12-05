@@ -14,6 +14,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 class FunctionsComparator {
 public:
@@ -308,8 +309,8 @@ public:
         return msg.empty() ? Result::ok() : Result::error(msg);
     }
 
-    Comparator recreate() const {
-        return Comparator(m_comparison_flags);
+    CmpValues get_comparison_flags() const {
+        return m_comparison_flags;
     }
 
     void compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
@@ -945,7 +946,7 @@ private:
     template <typename AttrValue>
     void verify(const std::string& name, const AttrValue& attr_value);
 
-    void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
+    void verify_mem_buf(const std::string& name, const std::shared_ptr<ov::AlignedBuffer>& buffer);
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 

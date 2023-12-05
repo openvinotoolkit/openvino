@@ -2,39 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::test;
-
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 class FuseNon0OuputPort : public SubgraphBaseTest {
     void SetUp() override {
         const ov::Shape x_shape = {1, 10};
         const ov::Shape y_shape = {1};
         const ov::Shape z_shape = {1};
-        ngraph::ParameterVector params(3);
+        ov::ParameterVector params(3);
         targetStaticShapes = {{x_shape, y_shape, z_shape}};
-        targetDevice = CommonTestUtils::DEVICE_CPU;
-        params[0] = ngraph::builder::makeParams(ov::element::f32, {x_shape})[0];
-        params[1] = ngraph::builder::makeParams(ov::element::i32, {y_shape})[0];
-        params[2] = ngraph::builder::makeParams(ov::element::i32, {z_shape})[0];
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        params[0] = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, x_shape);
+        params[1] = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, y_shape);
+        params[2] = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, z_shape);
 
         // make a sub function
         const auto cond = ov::op::v0::Constant::create(ov::element::boolean, {1}, {true});
-        ngraph::ParameterVector sub_params(3);
-        sub_params[0] = ngraph::builder::makeParams(ov::element::f32, {x_shape})[0];
-        sub_params[1] = ngraph::builder::makeParams(ov::element::i32, {y_shape})[0];
-        sub_params[2] = ngraph::builder::makeParams(ov::element::boolean, {y_shape})[0];
-        ngraph::ResultVector sub_results(3);
-        sub_results[0] = std::make_shared<ngraph::opset1::Result>(sub_params[0]);
-        sub_results[1] = std::make_shared<ngraph::opset1::Result>(sub_params[1]);
-        sub_results[2] = std::make_shared<ngraph::opset1::Result>(sub_params[2]);
+        ov::ParameterVector sub_params(3);
+        sub_params[0] = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, x_shape);
+        sub_params[1] = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, y_shape);
+        sub_params[2] = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, y_shape);
+        ov::ResultVector sub_results(3);
+        sub_results[0] = std::make_shared<ov::op::v0::Result>(sub_params[0]);
+        sub_results[1] = std::make_shared<ov::op::v0::Result>(sub_params[1]);
+        sub_results[2] = std::make_shared<ov::op::v0::Result>(sub_params[2]);
         const auto sub_model = std::make_shared<ov::Model>(sub_results, sub_params);
 
         // loop ops
@@ -61,4 +60,5 @@ TEST_F(FuseNon0OuputPort, smoke_FuseNon0OuputPort) {
     run();
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -73,7 +73,7 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, {10});
+    ov::test::utils::fill_data_with_broadcast(blob, 0, {10});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
@@ -117,7 +117,7 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, {10});
+    ov::test::utils::fill_data_with_broadcast(blob, 0, {10});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
@@ -144,11 +144,11 @@ TEST_P(TrivialLoopTest, AutoSlicingInput_CheckPredefinedValues) {
     blob->allocate();
     std::vector<float> seq_raw_data(batch_size);
     std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
+    ov::test::utils::fill_data_with_broadcast(blob, 0, seq_raw_data);
 
     auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob_ref->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
+    ov::test::utils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };
@@ -179,12 +179,12 @@ TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition_CheckPredefinedValues) 
     blob->allocate();
     std::vector<float> seq_raw_data(batch_size);
     std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
+    ov::test::utils::fill_data_with_broadcast(blob, 0, seq_raw_data);
 
     auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob_ref->allocate();
     const size_t real_iter = num_iteration + 1;
-    CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { real_iter * (real_iter + 1) / 2});
+    ov::test::utils::fill_data_with_broadcast(blob_ref, 0, { real_iter * (real_iter + 1) / 2});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };

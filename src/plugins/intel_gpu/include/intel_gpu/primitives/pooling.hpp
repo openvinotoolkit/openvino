@@ -34,8 +34,6 @@ struct pooling : public primitive_base<pooling> {
 
     pooling() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs pooling primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -138,7 +136,7 @@ struct pooling : public primitive_base<pooling> {
     /// @brief Primitive id which contains indices output.
     primitive_id indices_output;
     /// @brief Pooling mode.
-    pooling_mode mode;
+    pooling_mode mode = pooling_mode::max;
     /// @brief Pooling kernel size.
     ov::Shape size;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
@@ -150,13 +148,13 @@ struct pooling : public primitive_base<pooling> {
     /// @brief Defines a shift, relative to the end of padding shape.
     ov::Shape pads_end;
     /// @brief Defines how the padding is calculated.
-    ov::op::PadType auto_pad;
+    ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT;
     /// @brief Defines a type of rounding to be applied.
-    ov::op::RoundingType rounding_type;
+    ov::op::RoundingType rounding_type = ov::op::RoundingType::CEIL;
     /// @brief first dimension of input that should be used to calculate the upper bound of index output.
     int64_t axis = 0;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).
-    bool with_output_size;
+    bool with_output_size = true;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief type of index output

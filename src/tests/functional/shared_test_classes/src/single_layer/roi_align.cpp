@@ -7,7 +7,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset9.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
 
 using namespace InferenceEngine;
@@ -30,8 +30,8 @@ std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roia
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "coord_shape=" << CommonTestUtils::vec2str(coordsShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "coord_shape=" << ov::test::utils::vec2str(coordsShape) << "_";
     result << "pooled_h=" << pooledH << "_";
     result << "pooled_w=" << pooledW << "_";
     result << "spatial_scale=" << spatialScale << "_";
@@ -91,9 +91,7 @@ void ROIAlignLayerTest::SetUp() {
              targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::vector<float> proposalVector;
     std::vector<int> roiIdxVector;
     proposalVector.resize(coordsShape[0] * 4);
@@ -106,7 +104,7 @@ void ROIAlignLayerTest::SetUp() {
     auto coords = std::make_shared<ngraph::opset1::Constant>(ngPrc, coordsShape, proposalVector.data());
     auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
-    std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ngraph::opset3::ROIAlign>(paramOuts[0],
+    std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ngraph::opset3::ROIAlign>(params[0],
                                                                                         coords,
                                                                                         roisIdx,
                                                                                         pooledH,
@@ -143,8 +141,8 @@ std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<ro
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "coord_shape=" << CommonTestUtils::vec2str(coordsShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "coord_shape=" << ov::test::utils::vec2str(coordsShape) << "_";
     result << "pooled_h=" << pooledH << "_";
     result << "pooled_w=" << pooledW << "_";
     result << "spatial_scale=" << spatialScale << "_";
@@ -172,9 +170,7 @@ void ROIAlignV9LayerTest::SetUp() {
              targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::vector<float> proposalVector;
     std::vector<int> roiIdxVector;
     proposalVector.resize(coordsShape[0] * 4);
@@ -194,7 +190,7 @@ void ROIAlignV9LayerTest::SetUp() {
     auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ngraph::opset9::ROIAlign>(
-            paramOuts[0],
+            params[0],
             coords,
             roisIdx,
             pooledH,

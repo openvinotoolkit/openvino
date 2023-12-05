@@ -2,38 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/constant.hpp"
-
-#include <vector>
-
+#include "single_op_tests/constant.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::ConstantLayerTest;
 
-std::vector<std::vector<size_t>> shapes{
+std::vector<ov::Shape> shapes{
     {2, 2, 3},
     {3, 4, 1},
     {1, 1, 12},
 };
 
-std::vector<InferenceEngine::Precision> precisions{
-    InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP64,
-    InferenceEngine::Precision::U4,   InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::U16,  InferenceEngine::Precision::U32,
-    InferenceEngine::Precision::I4,   InferenceEngine::Precision::I8,
-    InferenceEngine::Precision::I16,  InferenceEngine::Precision::I32,
+std::vector<ov::element::Type> model_types{
+    ov::element::bf16, ov::element::f16,
+    ov::element::f32,  ov::element::f64,
+    ov::element::u4,   ov::element::u8,
+    ov::element::u16,  ov::element::u32,
+    ov::element::i4,   ov::element::i8,
+    ov::element::i16,  ov::element::i32,
 };
 
 std::vector<std::string> data{"0", "1", "2", "3", "4", "5", "6", "7", "0", "1", "2", "3"};
 
-std::vector<InferenceEngine::Precision> precisionsWithNegativeValues{
-    InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP64,
-    InferenceEngine::Precision::I4,   InferenceEngine::Precision::I8,
-    InferenceEngine::Precision::I16,  InferenceEngine::Precision::I32,
+std::vector<ov::element::Type> model_types_with_negative_values{
+    ov::element::bf16, ov::element::f16,
+    ov::element::f32,  ov::element::f64,
+    ov::element::i4,   ov::element::i8,
+    ov::element::i16,  ov::element::i32,
 };
 
 std::vector<std::string> dataWithNegativeValues{"1", "-2", "3", "-4", "5", "-6",
@@ -41,14 +37,14 @@ std::vector<std::string> dataWithNegativeValues{"1", "-2", "3", "-4", "5", "-6",
 
 INSTANTIATE_TEST_SUITE_P(smoke_Constant, ConstantLayerTest,
                         ::testing::Combine(::testing::ValuesIn(shapes),
-                                           ::testing::ValuesIn(precisions), ::testing::Values(data),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::ValuesIn(model_types), ::testing::Values(data),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConstantLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Constant_with_negative_values, ConstantLayerTest,
                         ::testing::Combine(::testing::ValuesIn(shapes),
-                                           ::testing::ValuesIn(precisionsWithNegativeValues),
+                                           ::testing::ValuesIn(model_types_with_negative_values),
                                            ::testing::Values(dataWithNegativeValues),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConstantLayerTest::getTestCaseName);
 }  // namespace

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 /*
  * Description:
@@ -74,7 +74,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertFqRnnToQuantizedRnn: public ngraph::pass::MatcherPass {
+class ConvertFqRnnToQuantizedRnn: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertFqRnnToQuantizedRnn", "0");
     ConvertFqRnnToQuantizedRnn();

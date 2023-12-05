@@ -7,18 +7,17 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/op/util/detection_output_base.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 namespace {
@@ -61,7 +60,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
     create_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
     ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size()) << "Sizes of attribute test vectors must be equal";
     for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
-        std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+        std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
         // this case covers deducing a number of classes value
         // since this value is not saved in attributes
         opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
@@ -80,31 +79,31 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
                                         num_prior_boxes * prior_box_size};
 
         {
-            auto box_logits = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, class_preds_shape);
-            auto proposals = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, proposals_shape);
+            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
 
             auto detection_output_v1 =
-                std::make_shared<ngraph::opset1::DetectionOutput>(box_logits, class_preds, proposals, attributes_v1);
+                std::make_shared<opset1::DetectionOutput>(box_logits, class_preds, proposals, attributes_v1);
 
-            f = std::make_shared<ngraph::Function>(ngraph::NodeVector{detection_output_v1},
-                                                   ngraph::ParameterVector{box_logits, class_preds, proposals});
+            f = std::make_shared<ov::Model>(NodeVector{detection_output_v1},
+                                            ParameterVector{box_logits, class_preds, proposals});
 
-            ngraph::pass::Manager manager;
+            pass::Manager manager;
             manager.register_pass<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
             manager.run_passes(f);
         }
 
         {
-            auto box_logits = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, class_preds_shape);
-            auto proposals = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, proposals_shape);
+            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
 
             auto detection_output_v8 =
-                std::make_shared<ngraph::opset8::DetectionOutput>(box_logits, class_preds, proposals, attributes_v8);
+                std::make_shared<opset8::DetectionOutput>(box_logits, class_preds, proposals, attributes_v8);
 
-            f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{detection_output_v8},
-                                                       ngraph::ParameterVector{box_logits, class_preds, proposals});
+            f_ref = std::make_shared<ov::Model>(NodeVector{detection_output_v8},
+                                                ParameterVector{box_logits, class_preds, proposals});
         }
         const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
         auto res = fc(f, f_ref);
@@ -124,7 +123,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
     create_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
     ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size()) << "Sizes of attribute test vectors must be equal";
     for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
-        std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+        std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
         opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
         opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
@@ -143,47 +142,45 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
         PartialShape ad_box_preds_shape = {N, num_prior_boxes * num_loc_classes * 4};
 
         {
-            auto box_logits = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, class_preds_shape);
-            auto proposals = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, proposals_shape);
-            auto ad_class_preds =
-                std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ad_class_preds_shape);
-            auto ad_box_preds = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ad_box_preds_shape);
+            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
+            auto ad_class_preds = std::make_shared<opset1::Parameter>(element::f32, ad_class_preds_shape);
+            auto ad_box_preds = std::make_shared<opset1::Parameter>(element::f32, ad_box_preds_shape);
 
-            auto detection_output_v1 = std::make_shared<ngraph::opset1::DetectionOutput>(box_logits,
-                                                                                         class_preds,
-                                                                                         proposals,
-                                                                                         ad_class_preds,
-                                                                                         ad_box_preds,
-                                                                                         attributes_v1);
+            auto detection_output_v1 = std::make_shared<opset1::DetectionOutput>(box_logits,
+                                                                                 class_preds,
+                                                                                 proposals,
+                                                                                 ad_class_preds,
+                                                                                 ad_box_preds,
+                                                                                 attributes_v1);
 
-            f = std::make_shared<ngraph::Function>(
-                ngraph::NodeVector{detection_output_v1},
-                ngraph::ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
+            f = std::make_shared<ov::Model>(
+                NodeVector{detection_output_v1},
+                ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
 
-            ngraph::pass::Manager manager;
+            pass::Manager manager;
             manager.register_pass<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
             manager.run_passes(f);
         }
 
         {
-            auto box_logits = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, class_preds_shape);
-            auto proposals = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, proposals_shape);
-            auto ad_class_preds =
-                std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ad_class_preds_shape);
-            auto ad_box_preds = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ad_box_preds_shape);
+            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
+            auto ad_class_preds = std::make_shared<opset1::Parameter>(element::f32, ad_class_preds_shape);
+            auto ad_box_preds = std::make_shared<opset1::Parameter>(element::f32, ad_box_preds_shape);
 
-            auto detection_output_v8 = std::make_shared<ngraph::opset8::DetectionOutput>(box_logits,
-                                                                                         class_preds,
-                                                                                         proposals,
-                                                                                         ad_class_preds,
-                                                                                         ad_box_preds,
-                                                                                         attributes_v8);
+            auto detection_output_v8 = std::make_shared<opset8::DetectionOutput>(box_logits,
+                                                                                 class_preds,
+                                                                                 proposals,
+                                                                                 ad_class_preds,
+                                                                                 ad_box_preds,
+                                                                                 attributes_v8);
 
-            f_ref = std::make_shared<ngraph::Function>(
-                ngraph::NodeVector{detection_output_v8},
-                ngraph::ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
+            f_ref = std::make_shared<ov::Model>(
+                NodeVector{detection_output_v8},
+                ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
         }
         const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
         auto res = fc(f, f_ref);

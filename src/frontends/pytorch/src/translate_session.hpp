@@ -30,15 +30,14 @@ public:
     /// context which is visible from nested model. Empty external_tensor_map is used as an indication that this is a
     /// main body conversion.
     /// \return fully converted OV Model
-    std::shared_ptr<Model> convert_pytorch_model(
-        std::shared_ptr<TorchDecoder> pytorch_model,
-        const TensorMap& external_tensor_map = {},
-        const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
+    std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
+                                                 const TensorMap& external_tensor_map = {},
+                                                 const std::shared_ptr<pytorch::InputModel>& input_model = nullptr);
 
-    /// \brief Returns backprop operations for direct operation
-    Output<Node> get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
-                                 const Output<Node>& direct_op_output,
-                                 const Output<Node>& value);
+    /// \brief Returns reverseprop operations for direct operation
+    Output<Node> get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                    const Output<Node>& direct_op_output,
+                                    const Output<Node>& value);
 
     /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,

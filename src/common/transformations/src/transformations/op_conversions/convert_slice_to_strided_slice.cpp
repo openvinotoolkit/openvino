@@ -5,30 +5,29 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
 namespace {
-Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
-                                   const Output<ngraph::Node>& slice_axes,
-                                   const Output<ngraph::Node>& scatter_axis,
-                                   size_t slice_indices_length,
-                                   int64_t fill_in_value,
-                                   NodeVector& new_ops) {
+Output<ov::Node> align_indices(const Output<ov::Node>& indices,
+                               const Output<ov::Node>& slice_axes,
+                               const Output<ov::Node>& scatter_axis,
+                               size_t slice_indices_length,
+                               int64_t fill_in_value,
+                               NodeVector& new_ops) {
     // Handle a case when starts/ends/steps lengths are less than provided axes
     // in order to ensure compatibility with `StridedSlice:v1` interface
     // Example:
@@ -41,13 +40,13 @@ Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
 
     const auto default_indices =
         ov::op::v0::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    std::shared_ptr<ngraph::Node> adjusted_indices =
+    std::shared_ptr<ov::Node> adjusted_indices =
         ov::op::util::make_try_fold<ov::op::v3::ScatterUpdate>(default_indices,
                                                                slice_axes,
                                                                indices,  // updates
                                                                scatter_axis);
 
-    if (!ngraph::op::is_constant(adjusted_indices)) {
+    if (!ov::op::util::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
     }
     return adjusted_indices;
@@ -156,8 +155,8 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         new_ops.push_back(strided_slice);
 
         strided_slice->set_friendly_name(slice_node->get_friendly_name());
-        ngraph::copy_runtime_info(slice_node, new_ops);
-        ngraph::replace_node(slice_node, strided_slice);
+        ov::copy_runtime_info(slice_node, new_ops);
+        ov::replace_node(slice_node, strided_slice);
         return true;
     };
 

@@ -13,10 +13,10 @@
 
 #include <functional>
 #include <memory>
-#include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
 
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations_visibility.hpp"
 

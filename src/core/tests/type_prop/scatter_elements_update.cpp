@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scatter_elements_update.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace std;
 using namespace ov;
@@ -191,11 +194,11 @@ TEST(type_prop, scatter_elements_update_mean_reduction_of_bool) {
     const auto axis = make_shared<op::v0::Constant>(element::i32, Shape{1}, std::vector<int>{0});
 
     OV_EXPECT_THROW(
-        std::ignore = make_shared<op::v12::ScatterElementsUpdate>(data,
-                                                                  indices,
-                                                                  updates,
-                                                                  axis,
-                                                                  op::v12::ScatterElementsUpdate::Reduction::MEAN),
+        std::ignore = make_shared<ov::op::v12::ScatterElementsUpdate>(data,
+                                                                      indices,
+                                                                      updates,
+                                                                      axis,
+                                                                      op::v12::ScatterElementsUpdate::Reduction::MEAN),
         NodeValidationFailure,
         HasSubstr("The 'mean' reduction type is not supported for boolean tensors"));
 }

@@ -10,9 +10,9 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <transformations_visibility.hpp>
 
 #include "openvino/pass/constant_folding.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 

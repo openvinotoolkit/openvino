@@ -19,16 +19,16 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelTestP,
                          OVClassModelTestP,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelOptionalTestP,
                          OVClassModelOptionalTestP,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 TEST(OVClassBasicPropsTest, smoke_TEMPLATEGetSetConfigNoThrow) {
     ov::Core core = createCoreWithTemplate();
 
-    auto device_name = CommonTestUtils::DEVICE_TEMPLATE;
+    auto device_name = ov::test::utils::DEVICE_TEMPLATE;
 
     for (auto&& property : core.get_property(device_name, ov::supported_properties)) {
         if (ov::device::id == property) {
@@ -52,6 +52,6 @@ TEST(OVClassBasicPropsTest, smoke_TEMPLATEGetSetConfigNoThrow) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest,
                          OVClassQueryModelTest,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 }  // namespace

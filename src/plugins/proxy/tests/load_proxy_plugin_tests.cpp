@@ -35,6 +35,34 @@ TEST_F(ProxyTests, alias_for_the_same_name) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
+TEST_F(ProxyTests, alias_for_the_same_name_with_custom_internal_name_inversed_order) {
+    register_plugin_support_subtract(core, "DEK", {{ov::proxy::configuration::alias.name(), "CBD"}});
+    register_plugin_support_reshape(core,
+                                    "CBD",
+                                    {{ov::proxy::configuration::alias.name(), "CBD"},
+                                     {ov::proxy::configuration::fallback.name(), "DEK"},
+                                     {ov::proxy::configuration::internal_name.name(), "CBD_INTERNAL"},
+                                     {ov::proxy::configuration::priority.name(), 0}});
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::unordered_map<std::string, std::string> mock_reference_dev = {{"CBD.0", "CBD_INTERNAL"},
+                                                                       {"CBD.1", "CBD_INTERNAL DEK"},
+                                                                       {"CBD.2", "CBD_INTERNAL"}};
+    for (const auto& it : mock_reference_dev) {
+        EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+    }
+    for (const auto& dev : available_devices) {
+        auto it = mock_reference_dev.find(dev);
+        if (it != mock_reference_dev.end()) {
+            mock_reference_dev.erase(it);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+}
+
 TEST_F(ProxyTests, alias_for_the_same_name_with_custom_internal_name) {
     register_plugin_support_reshape(core,
                                     "CBD",
@@ -80,6 +108,72 @@ TEST_F(ProxyTests, fallback_to_alias_name) {
     std::unordered_map<std::string, std::string> mock_reference_dev = {{"CBD.0", "CBD_ov_internal"},
                                                                        {"CBD.1", "DEK CBD_ov_internal"},
                                                                        {"CBD.2", "CBD_ov_internal"},
+                                                                       {"CBD.3", "DEK"},
+                                                                       {"CBD.4", "DEK"}};
+    for (const auto& it : mock_reference_dev) {
+        EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+    }
+    for (const auto& dev : available_devices) {
+        auto it = mock_reference_dev.find(dev);
+        if (it != mock_reference_dev.end()) {
+            mock_reference_dev.erase(it);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+}
+
+TEST_F(ProxyTests, fallback_to_alias_name_with_custom_internal_name) {
+    register_plugin_support_reshape(core,
+                                    "CBD",
+                                    {{ov::proxy::configuration::alias.name(), "CBD"},
+                                     {ov::proxy::configuration::internal_name.name(), "CBD_INTERNAL"},
+                                     {ov::proxy::configuration::priority.name(), 0}});
+    register_plugin_support_subtract(core,
+                                     "DEK",
+                                     {{ov::proxy::configuration::alias.name(), "CBD"},
+                                      {ov::proxy::configuration::fallback.name(), "CBD"},
+                                      {ov::proxy::configuration::priority.name(), 1}});
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::unordered_map<std::string, std::string> mock_reference_dev = {{"CBD.0", "CBD_INTERNAL"},
+                                                                       {"CBD.1", "DEK CBD_INTERNAL"},
+                                                                       {"CBD.2", "CBD_INTERNAL"},
+                                                                       {"CBD.3", "DEK"},
+                                                                       {"CBD.4", "DEK"}};
+    for (const auto& it : mock_reference_dev) {
+        EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+    }
+    for (const auto& dev : available_devices) {
+        auto it = mock_reference_dev.find(dev);
+        if (it != mock_reference_dev.end()) {
+            mock_reference_dev.erase(it);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+}
+
+TEST_F(ProxyTests, fallback_to_alias_name_with_custom_internal_name_inverted_order) {
+    register_plugin_support_subtract(core,
+                                     "DEK",
+                                     {{ov::proxy::configuration::alias.name(), "CBD"},
+                                      {ov::proxy::configuration::fallback.name(), "CBD"},
+                                      {ov::proxy::configuration::priority.name(), 1}});
+    register_plugin_support_reshape(core,
+                                    "CBD",
+                                    {{ov::proxy::configuration::alias.name(), "CBD"},
+                                     {ov::proxy::configuration::internal_name.name(), "CBD_INTERNAL"},
+                                     {ov::proxy::configuration::priority.name(), 0}});
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::unordered_map<std::string, std::string> mock_reference_dev = {{"CBD.0", "CBD_INTERNAL"},
+                                                                       {"CBD.1", "DEK CBD_INTERNAL"},
+                                                                       {"CBD.2", "CBD_INTERNAL"},
                                                                        {"CBD.3", "DEK"},
                                                                        {"CBD.4", "DEK"}};
     for (const auto& it : mock_reference_dev) {

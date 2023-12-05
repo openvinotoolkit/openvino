@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckGetSupportedROMetricsPropsTests,
     OVCheckGetSupportedROMetricsPropsTests,
-    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
                            {ov::device::full_name.name()}))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);

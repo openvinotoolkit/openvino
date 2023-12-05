@@ -22,7 +22,7 @@ std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<lo
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "axis=" << axis << "_";
     result << "trgDev=" << targetDevice;
 
@@ -39,12 +39,9 @@ void LogSoftmaxLayerTest::SetUp() {
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    const auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-    const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(paramOuts.at(0), axis);
+    const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(params.at(0), axis);
 
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(logSoftmax)};
 

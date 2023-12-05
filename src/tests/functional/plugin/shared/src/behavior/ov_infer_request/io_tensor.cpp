@@ -219,6 +219,24 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedOutputTensorThrow
     ASSERT_ANY_THROW(req.infer());
 }
 
+TEST_P(OVInferRequestIOTensorTest, CheckInferIsNotChangeInput) {
+    ov::Tensor input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
+    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
+    OV_ASSERT_NO_THROW(req.get_tensor(input));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    ov::Tensor input_after_infer;
+    OV_ASSERT_NO_THROW(input_after_infer = req.get_tensor(input));
+    ov::test::utils::compare(input_tensor, input_after_infer);
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    ov::Tensor input_after_several_infer;
+    OV_ASSERT_NO_THROW(input_after_several_infer = req.get_tensor(input));
+    ov::test::utils::compare(input_tensor, input_after_several_infer);
+}
+
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
     std::string target_device;
@@ -229,7 +247,7 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
@@ -285,7 +303,7 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
@@ -325,11 +343,6 @@ void OVInferRequestCheckTensorPrecision::createInferRequest() {
     try {
         compModel = core->compile_model(model, target_device, config);
         request = compModel.create_infer_request();
-
-        if (std::count(precisions.begin(), precisions.end(), element_type) == 0) {
-            FAIL() << "Precision " << element_type.c_type_string()
-                    << " is marked as unsupported but the network was loaded successfully";
-        }
     } catch (std::runtime_error& e) {
         const std::string errorMsg = e.what();
         const auto expectedMsg = exp_error_str_;

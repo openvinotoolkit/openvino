@@ -22,8 +22,8 @@ using ExtensionTests = ::testing::Test;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string getExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
-                                                  std::string("template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
+                                                  std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 
 TEST(ExtensionTests, testGetOpSets) {

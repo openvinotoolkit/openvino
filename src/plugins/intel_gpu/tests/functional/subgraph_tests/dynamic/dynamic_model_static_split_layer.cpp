@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/split.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -42,9 +42,9 @@ public:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
             for (const auto& actual_shape : shape.second) {
-                result << CommonTestUtils::partialShape2str({actual_shape}) << "_";
+                result << ov::test::utils::partialShape2str({actual_shape}) << "_";
             }
         }
         result << "NetType=" << netType << "_";
@@ -78,8 +78,9 @@ protected:
         init_input_shapes(inputShapes);
         const auto inShapSplit = inputDynamicShapes[0];
         const auto inShapeElt = inputDynamicShapes[1];
-        auto params = builder::makeDynamicParams(netType, {inShapSplit, inShapeElt});
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        ov::ParameterVector params;
+        for (auto&& shape : {inShapSplit, inShapeElt})
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
 
         auto axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         axis->set_friendly_name("axis");
@@ -87,10 +88,10 @@ protected:
         auto split_sizes = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
         split_sizes->set_friendly_name("split_sizes");
 
-        auto variadicSplitOp = std::make_shared<ngraph::opset1::VariadicSplit>(paramOuts[0], axis, split_sizes);
+        auto variadicSplitOp = std::make_shared<ngraph::opset1::VariadicSplit>(params[0], axis, split_sizes);
         variadicSplitOp->set_friendly_name("variadicSplit");
 
-        auto addOp = ngraph::builder::makeEltwise(paramOuts[1], variadicSplitOp->output(1), ngraph::helpers::EltwiseTypes::ADD);
+        auto addOp = ngraph::builder::makeEltwise(params[1], variadicSplitOp->output(1), ngraph::helpers::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(addOp)};
@@ -124,7 +125,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                    ::testing::ValuesIn(netPrecisions), // netprec
-                                                   ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                    ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_model_static_split, DynamicModelStaticSplitLayerGPUTest,

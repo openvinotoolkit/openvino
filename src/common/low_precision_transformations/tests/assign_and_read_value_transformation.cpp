@@ -8,20 +8,20 @@
 #include <sstream>
 #include <gtest/gtest.h>
 
-#include <transformations/init_node_info.hpp>
-#include <low_precision/assign_and_read_value.hpp>
+#include "transformations/init_node_info.hpp"
+#include "low_precision/assign_and_read_value.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/assign_and_read_value_function.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/assign_and_read_value.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "low_precision/layer_transformation.hpp"
 
 
 namespace {
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 
 class AssignTransformationTestValues {
 public:
@@ -45,7 +45,7 @@ public:
 };
 
 typedef std::tuple <
-    ngraph::PartialShape,          // input shape
+    ov::PartialShape,          // input shape
     element::Type,                 // input precision
     element::Type,                 // precision before dequantization
     size_t,                        // opset version
@@ -55,12 +55,12 @@ typedef std::tuple <
 class AssignTransformation : public LayerTransformation, public testing::WithParamInterface<AssignTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const element::Type precision = std::get<1>(GetParam());
         const element::Type precisionBeforeDequantization = std::get<2>(GetParam());
         const size_t opsetVersion = std::get<3>(GetParam());
         const AssignTransformationTestValues testValues = std::get<4>(GetParam());
-        const std::vector<ngraph::element::Type> defaultPrecisions = low_precision::precision_set::int8_int16_int32_support;
+        const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
         const auto params = TestTransformationParams(testValues.params)
             .setDefaultPrecisions(defaultPrecisions);
 
@@ -73,8 +73,8 @@ public:
             testValues.actual.constantValue,
             testValues.actual.dequantization);
 
-        SimpleLowPrecisionTransformer transformer({}, {}, { ngraph::element::f32, defaultPrecisions });
-        transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ov::op::v6::Assign>(actualFunction, params);
+        SimpleLowPrecisionTransformer transformer({}, {}, { ov::element::f32, defaultPrecisions });
+        transformer.add<ov::pass::low_precision::AssignAndReadValueTransformation, ov::op::v6::Assign>(actualFunction, params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getReference(
@@ -89,7 +89,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AssignTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const element::Type precision = std::get<1>(obj.param);
         const element::Type precisionBeforeDequantization = std::get<2>(obj.param);
         const size_t opsetVersion = std::get<3>(obj.param);
@@ -115,8 +115,8 @@ TEST_P(AssignTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
-    ngraph::PartialShape({ 1, 3, 224, 224 }),
+const std::vector<ov::PartialShape> inputShapes = {
+    ov::PartialShape({ 1, 3, 224, 224 }),
 };
 
 const element::TypeVector precisions = {
@@ -141,13 +141,13 @@ const std::vector<AssignTransformationTestValues> testValues = {
         // ActualValues
         {
             {0},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             {0},
             {{}, {}, {}},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         true
     },
@@ -157,13 +157,13 @@ const std::vector<AssignTransformationTestValues> testValues = {
         // ActualValues
         {
             {0},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             {0},
             {{}, {}, {}},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         false
     },
@@ -173,12 +173,12 @@ const std::vector<AssignTransformationTestValues> testValues = {
         // ActualValues
         {
             {5},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             {5},
-            {{ngraph::element::f32}, {}, {3.f}},
+            {{ov::element::f32}, {}, {3.f}},
             {}
         },
         false

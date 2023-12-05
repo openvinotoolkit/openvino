@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/flush_fp32_subnormals_to_zero.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/flush_fp32_subnormals_to_zero.hpp>
-#include <transformations/init_node_info.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -70,7 +70,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -118,7 +118,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -148,7 +148,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_subnorm) 
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -166,7 +166,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_subnorm) 
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -196,7 +196,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_neg_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -214,7 +214,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_neg_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -244,7 +244,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_neg_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -262,7 +262,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_neg_subnorm) {
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -292,7 +292,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_neg_subno
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -310,7 +310,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_neg_subno
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -341,7 +341,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_norm) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
     }
@@ -370,7 +370,7 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_norm) {
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

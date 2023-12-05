@@ -13,7 +13,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -128,7 +127,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devices_with_requests = m_plugin_config.parse_priorities_devices(priorities);
-
     auto set_default_hint = [&](const std::string& target_device,
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
@@ -172,6 +170,10 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     auto get_device_config = [&] (const DeviceName & device_with_id) {
         auto device_config = get_core()->get_supported_property(device_with_id, properties);
         set_default_hint(device_with_id, device_config, properties);
+        // only in case of cumulative, update to tput for hardware device
+        auto && iter = device_config.find(ov::hint::performance_mode.name());
+        if (iter != device_config.end() && iter->second.as<std::string>() == "CUMULATIVE_THROUGHPUT")
+            iter->second = ov::hint::PerformanceMode::THROUGHPUT;
         // validate the device validity
         get_core()->get_property(device_with_id, ov::supported_properties, device_config);
         return device_config;
@@ -412,8 +414,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     load_config.set_user_property(pre_process_config(properties));
     load_config.apply_user_properties();
     if (!work_mode_auto) {
-        if (iter_config != properties.end() && iter_config->second != ov::hint::PerformanceMode::THROUGHPUT) {
-            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", iter_config->second.as<std::string>().c_str());
+        if (iter_config != properties.end() && iter_config->second.as<std::string>() != "THROUGHPUT") {
+            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only",
+                            iter_config->second.as<std::string>().c_str());
         }
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }
@@ -446,7 +449,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_model_priority = map_priority_value(load_config.get_property(ov::hint::model_priority));
     auto_s_context->m_batching_disabled = load_config.is_batching_disabled();
     // set performanceHint for AutoCompiledModel
-    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode.name());
+    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode);
     // filter the device that supports filter configure
     meta_devices = parse_meta_devices(str_devices, full_property);
     auto support_devices_by_property = filter_device(meta_devices, filter_property);
@@ -461,7 +464,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
     std::shared_ptr<ov::Model> cloned_model, ppp_model;
     if (model_path.empty()) {
-        support_devices = filter_device_by_model(support_devices_by_property, model);
+        support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
         cloned_model = model->clone();
         ppp_model = cloned_model->clone();
 
@@ -474,7 +477,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                 auto& rt_info = input.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
                     if (element_type != input.get_element_type()) {
                         preproc.input(i).tensor().set_element_type(element_type);
@@ -496,7 +499,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                 auto& rt_info = output.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
                     if (element_type != output.get_element_type()) {
                         preproc.output(i).tensor().set_element_type(element_type);
@@ -542,8 +545,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_model = cloned_model;
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
-    auto_s_context->m_device_priorities_initial = support_devices;
-    auto_s_context->m_str_devices = str_devices;
+    auto_s_context->m_device_priorities_initial = std::move(support_devices);
+    auto_s_context->m_str_devices = std::move(str_devices);
     auto_s_context->m_plugin = shared_from_this();
     auto_s_context->m_ov_core = get_core();
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
@@ -599,7 +602,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                 device_supported_layers.emplace(layer_qm.first);
             }
             supported_layers = supported_layers.empty()
-                            ? device_supported_layers : (device_supported_layers.empty()
+                            ? std::move(device_supported_layers) : (device_supported_layers.empty()
                             ? supported_layers : inter_section(supported_layers, device_supported_layers));
         }
         for (auto&& iter : supported_layers) {
@@ -623,7 +626,12 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> Others;
     auto is_supported_model = [this, model_precision](const std::string& device_name) {
         // Check if candidate device supported the specified model precision.
-        auto capability = get_core()->get_property(device_name, ov::device::capabilities);
+        std::vector<std::string> capability;
+        try {
+            capability = get_core()->get_property(device_name, ov::device::capabilities);
+        } catch (std::exception&) {
+            LOG_DEBUG_TAG("cannot get device capabity from device: %s", device_name.c_str());
+        }
         auto support_model = std::find(capability.begin(), capability.end(), (model_precision));
         bool is_support_fp16 =
             model_precision == "FP32" && std::find(capability.begin(), capability.end(), ("FP16")) != capability.end();
@@ -902,39 +910,83 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
 }
 
 std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
-                                                                const std::shared_ptr<const ov::Model>& model) const {
+                                                              const std::shared_ptr<const ov::Model>& model,
+                                                              PluginConfig& load_config) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
 
-    std::vector<DeviceInformation> filter_device;
-    auto is_stateful = [&]() {
-        for (auto& op : model->get_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
-                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
-                    LOG_INFO_TAG("stateful mode, try deployed to CPU");
-                    return true;
-                }
+    auto disable_startup_runtime_fallback = [&]() {
+        if (load_config.get_property(ov::intel_auto::enable_startup_fallback)) {
+            LOG_WARNING_TAG("Setting property ov::intel_auto::enable_startup_fallback to false for stateful model.");
+            load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
         }
-        return false;
+        if (load_config.get_property(ov::intel_auto::enable_runtime_fallback)) {
+            LOG_WARNING_TAG("Setting property ov::intel_auto::enable_running_fallback to false for stateful model.");
+            load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
+        }
     };
+
+    if (meta_devices.size() == 1) {
+        return meta_devices;
+    }
+
+    std::vector<DeviceInformation> filter_device;
+    std::vector<std::string> stateful_node_names;
 
     // Check if CPU is in candidate list
     auto cpuiter = std::find_if(meta_devices.begin(), meta_devices.end(), [](const DeviceInformation& device_info) {
         return device_info.device_name.find("CPU") != std::string::npos;
     });
-
     // If CPU is in candidate list, load dynamic model to CPU first
     // For MULTI do not only load stateful model to CPU
     // For AUTO CTPUT only load stateful model to CPU
-    if (((model->is_dynamic()) || (is_stateful() && get_device_name() != "MULTI")) && cpuiter != meta_devices.end()) {
+    if (model->is_dynamic() && cpuiter != meta_devices.end()) {
         filter_device.push_back(*cpuiter);
         return filter_device;
     }
-
     // If CPU is not in candidate list, continue to run selection logic regardless of whether the input model is a
     // dynamic model or not
-    return meta_devices;
+
+    for (auto& op : model->get_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
+            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+            stateful_node_names.push_back(op->get_friendly_name());
+        }
+    }
+    if (stateful_node_names.empty()) {
+        // not stateful model
+        return meta_devices;
+    }
+
+    // disable CPU_HELP and runtime fallback if model is stateful
+    disable_startup_runtime_fallback();
+
+    auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
+        auto device_qm = get_core()->query_model(model, device_name, config);
+        for (auto&& node_name : stateful_node_names) {
+            if (device_qm.find(node_name) == device_qm.end())
+                return false;
+        }
+        return true;
+    };
+
+    for (auto& item : meta_devices) {
+        if (is_supported_stateful(item.device_name, item.config))
+            filter_device.push_back(item);
+    }
+    bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
+                                                           ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
+    if (isCumulative) {
+        if (filter_device.empty() || filter_device.size() > 1)
+            OPENVINO_THROW("AUTO cumulative model doesn't support stateful model.");
+        else
+            return filter_device;
+    }
+    if (filter_device.empty()) {
+        return meta_devices;
+    }
+    return filter_device;
 }
 
 std::string Plugin::get_log_tag() const noexcept {

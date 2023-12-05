@@ -5,11 +5,10 @@
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 
 #include <memory>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -25,6 +24,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
 ov::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
@@ -51,7 +51,7 @@ ov::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
 
     // concat
     auto concat = std::make_shared<ov::op::v0::Concat>(
-        ngraph::OutputVector({split->output(0), split->output(1), add_1->output(0), add_2->output(0)}),
+        ov::OutputVector({split->output(0), split->output(1), add_1->output(0), add_2->output(0)}),
         1);
 
     // second variadic split
@@ -78,18 +78,18 @@ ov::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
     auto not_2 = std::make_shared<ov::op::v1::LogicalNot>(less_2);
 
     // cast
-    auto cast_11 = std::make_shared<ov::op::v0::Convert>(not_1, ngraph::element::u8);
-    auto cast_12 = std::make_shared<ov::op::v0::Convert>(cast_11, ngraph::element::boolean);
+    auto cast_11 = std::make_shared<ov::op::v0::Convert>(not_1, ov::element::u8);
+    auto cast_12 = std::make_shared<ov::op::v0::Convert>(cast_11, ov::element::boolean);
 
-    auto cast_21 = std::make_shared<ov::op::v0::Convert>(not_2, ngraph::element::u8);
-    auto cast_22 = std::make_shared<ov::op::v0::Convert>(cast_21, ngraph::element::boolean);
+    auto cast_21 = std::make_shared<ov::op::v0::Convert>(not_2, ov::element::u8);
+    auto cast_22 = std::make_shared<ov::op::v0::Convert>(cast_21, ov::element::boolean);
 
     // logical and
     auto and_1 = std::make_shared<ov::op::v1::LogicalAnd>(cast_12, cast_22);
 
     // cast
-    auto cast_31 = std::make_shared<ov::op::v0::Convert>(and_1, ngraph::element::u8);
-    auto cast_32 = std::make_shared<ov::op::v0::Convert>(cast_31, ngraph::element::f32);
+    auto cast_31 = std::make_shared<ov::op::v0::Convert>(and_1, ov::element::u8);
+    auto cast_32 = std::make_shared<ov::op::v0::Convert>(cast_31, ov::element::f32);
 
     // nonzero
     auto non_zero = std::make_shared<ov::op::v3::NonZero>(cast_32);
@@ -100,7 +100,7 @@ ov::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
     auto squeeze_3_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({1}));
     auto squeeze_3 = std::make_shared<ov::op::v0::Squeeze>(transpose, squeeze_3_axis);
 
-    auto cast = std::make_shared<ov::op::v0::Convert>(squeeze_3, ngraph::element::i64);
+    auto cast = std::make_shared<ov::op::v0::Convert>(squeeze_3, ov::element::i64);
 
     ov::matcher_pass_callback callback = [data](pattern::Matcher& m) {
         auto start = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({0}));
@@ -121,7 +121,7 @@ ov::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
 
         range->set_friendly_name(output->get_friendly_name());
         // TODO: add copy_runtime_info
-        ngraph::replace_node(output, range);
+        ov::replace_node(output, range);
 
         return true;
     };

@@ -4,26 +4,27 @@
 
 set(TARGET_NAME ov_hetero_unit_tests)
 
+if(BUILD_SHARED_LIBS)
+    set (OBJ_LIB $<TARGET_OBJECTS:openvino_hetero_plugin_obj>)
+endif()
+
 ov_add_test_target(
-        NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-            openvino::runtime
-            mock_engine
-            openvino_hetero_plugin
+        NAME
+            ${TARGET_NAME}
+        ROOT
+            ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            PUBLIC
+                $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
+            ${CMAKE_CURRENT_SOURCE_DIR}
+        OBJECT_FILES
+            ${OBJ_LIB}
         LINK_LIBRARIES
-            openvino::runtime::dev
-            gtest
-            gtest_main
             unit_test_utils
+            ov_models
+        DEPENDENCIES
+            mock_engine
         ADD_CLANG_FORMAT
         LABELS
-            HETERO
+            OV UNIT HETERO
 )
-
-target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
-
-if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
-    target_compile_definitions(${TARGET_NAME} PRIVATE IR_FRONTEND_ENABLED)
-endif()

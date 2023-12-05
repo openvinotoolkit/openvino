@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <openvino/core/partial_shape.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -48,7 +48,7 @@ public:
 
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
-        result << "I" << CommonTestUtils::vec2str(indices) << "_";
+        result << "I" << ov::test::utils::vec2str(indices) << "_";
         result << "WW" << withWeights << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "indPRC=" << indPrecision << "_";
@@ -68,7 +68,7 @@ protected:
         std::tie(inputShapes, indices, withWeights) = embParams;
 
         selectedType = makeSelectedTypeStr("ref", inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes });
 
@@ -145,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingBagPackedSumLayerCPUTest,
                 embBagPackedSumArgSet,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::ValuesIn(indPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         EmbeddingBagPackedSumLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace CPULayerTestsDefinitions

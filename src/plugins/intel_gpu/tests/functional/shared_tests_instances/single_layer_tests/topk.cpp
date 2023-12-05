@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace GPULayerTestsDefinitions {
@@ -48,7 +48,7 @@ std::string TopKLayerTestGPU::getTestCaseName(const testing::TestParamInfo<TopKG
     std::tie(keepK, axis, mode, sort, stable, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) =
         obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "k=" << keepK << "_";
     result << "axis=" << axis << "_";
     result << "mode=" << mode << "_";
@@ -73,12 +73,11 @@ void TopKLayerTestGPU::SetUp() {
         this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramIn = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto k = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
     auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
-        std::make_shared<ov::op::v11::TopK>(paramIn[0], k, axis, mode, sort, ngraph::element::Type_t::i64, stable));
+        std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ngraph::element::Type_t::i64, stable));
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < topk->get_output_size(); i++) {
@@ -192,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          TopKLayerTestGPU::getTestCaseName);
 }  // namespace
 }  // namespace GPULayerTestsDefinitions

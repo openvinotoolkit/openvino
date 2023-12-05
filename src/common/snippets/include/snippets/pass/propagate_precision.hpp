@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/pass.hpp>
+#include "openvino/pass/pass.hpp"
 #include "snippets/generator.hpp"
 
 namespace ov {

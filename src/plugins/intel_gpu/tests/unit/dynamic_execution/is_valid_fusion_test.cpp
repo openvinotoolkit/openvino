@@ -21,9 +21,9 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
     // is_valid_fusion() should work properly when conv->add->prelu case
     auto& engine = get_test_engine();
 
-    layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f32, format::bfyx};
+    layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
     auto weights = engine.allocate_memory(weight_layout);
-    set_values<FLOAT16>(weights, {
+    set_values<ov::float16>(weights, {
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
@@ -42,11 +42,11 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
     set_values(input_mem, {11.0f,  11.0f, 11.0f, 11.0f,
                            11.0f,  11.0f, 11.0f, 11.0f,
                            11.0f,  11.0f, 11.0f, 11.0f});
-    std::vector<float> ref = { 33.0625f, 55.09375f, 55.09375f, 33.0625f,
-                               55.09375f, 99.1875f, 429.75f, 385.75f,
-                               385.75f, 760.5f, 1091.0f, 716.5f,
-                               363.75f, 716.5f, 716.5f, 363.75f};
-    
+    std::vector<float> ref = { 77.0f,  143.0f, 143.0f, 77.0f,
+                               143.0f, 275.0f, 275.0f, 143.0f,
+                               143.0f, 275.0f, 275.0f, 143.0f,
+                               77.0f,  143.0f, 143.0f, 77.0f };
+
     auto const1 = engine.allocate_memory(layout{ov::PartialShape({1, 1, 1, 1}), data_types::f32, format::bfyx});
     set_values(const1, {11.0f});
     auto const2 = engine.allocate_memory(layout{ov::PartialShape({1, 1, 1, 1}), data_types::f32, format::bfyx});

@@ -10,5 +10,5 @@ using namespace ov::preprocess;
 
 INSTANTIATE_TEST_SUITE_P(smoke_Preprocessing,
                          PreprocessingYUV2GreyTest,
-                         testing::Values(CommonTestUtils::DEVICE_GPU),
+                         testing::Values(ov::test::utils::DEVICE_GPU),
                          PreprocessingYUV2GreyTest::getTestCaseName);

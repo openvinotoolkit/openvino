@@ -25,7 +25,7 @@ namespace pass {
  *           |
  *     Any output layer
  */
-class RemoveSingleInputConcat : public ngraph::pass::MatcherPass {
+class RemoveSingleInputConcat : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RemoveSingleInputConcat", "0");
     RemoveSingleInputConcat();

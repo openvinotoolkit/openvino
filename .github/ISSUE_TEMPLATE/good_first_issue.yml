@@ -1,0 +1,68 @@
+name: Good First Issue
+description: Create a Good First Issue for new contributors.
+title: "[Good First Issue]: "
+labels: ["good first issue", "no_stale"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: |
+          Let the contributors know what your component is responsible for,
+          what's the importance of the change and why it's needed.
+          Keep in mind the Good First Issue is for new contributors.
+      placeholder: What is it and why is it important?
+    validations:
+      required: true
+
+  - type: textarea
+    id: todo_list
+    attributes:
+      label: What needs to be done?
+      description: |
+          Be as verbose as possible, provide a TODO list if viable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example_prs
+    attributes:
+      label: Example Pull Requests
+      description: |
+          Provide example Pull requests, if there are any.
+    validations:
+      required: false
+  
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources
+      description: |
+          Any materials related to the task, such as operator specifications,
+          discussions, guides.
+      value: |
+          - [What is OpenVINO?](https://github.com/openvinotoolkit/openvino#what-is-openvino-toolkit)
+          - [Contribution guide](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
+          - [Blog post on contributing to OpenVINO](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
+          - [User documentation](https://docs.openvino.ai/)
+    validations:
+      required: true
+
+  - type: textarea
+    id: contact_points
+    attributes:
+      label: Contact points
+      description: |
+          People who can be asked questions about the task.
+      placeholder: GitHub users
+    validations:
+      required: true
+
+  - type: textarea
+    id: ticket
+    attributes:
+      label: Ticket
+      description: |
+          Provide the ticket number, if available.
+    validations:
+      required: false

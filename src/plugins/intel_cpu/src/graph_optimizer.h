@@ -21,11 +21,13 @@ public:
 
 private:
     void FuseConvMatmulFCDeconvAndDQScales(Graph &graph);
+    void FuseFCAndWeightsDecompression(Graph &graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph &graph);
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);
     void MergeConvertAndScaleShift(Graph& graph);
     void FuseFCAndConvertOnWeights(Graph& graph);
+    void FuseFCAndTransposeOnWeights(Graph& graph);
     void FuseFullyConnectedAndSimpleOperation(Graph &graph);
     void FuseMatMulAndSimpleOperation(Graph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &graph);
@@ -47,6 +49,9 @@ private:
     void MergeTransposeAndReorder(Graph &graph);
     void reshapeRnnSeq(Graph &graph);
     void RemoveSameConvert(Graph &graph);
+    void RemoveMemoryInputConvert(Graph &graph);
+    void RemoveConvertMemoryOutput(Graph &graph);
+    void MatchSdpaKvCache(Graph &graph);
 };
 
 }   // namespace intel_cpu

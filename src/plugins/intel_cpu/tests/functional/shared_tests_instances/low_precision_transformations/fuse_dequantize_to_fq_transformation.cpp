@@ -108,7 +108,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseDequantizeToFakeQuantizeTransformation,
     ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     FuseDequantizeToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

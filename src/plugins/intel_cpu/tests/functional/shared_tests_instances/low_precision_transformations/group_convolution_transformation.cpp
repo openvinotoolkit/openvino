@@ -14,7 +14,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
@@ -34,7 +34,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution, tensor quantization
     {
@@ -44,7 +44,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution, tensor quantization
     {
@@ -54,7 +54,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution, per-channel quantization
     {
@@ -71,7 +71,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution without reshape, tensor quantization
     {
@@ -81,14 +81,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -109,7 +109,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 3, 8, 1, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution without reshape, per channel quantization with different values
     {
@@ -132,14 +132,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -161,7 +161,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 3, 8, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution without reshape, per channel quantization with different values
     {
@@ -184,14 +184,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -255,7 +255,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
@@ -278,7 +278,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         {255ul, ngraph::Shape { 1, 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f }},
         true,
         "Convolution",
-        "I8"
+        "i8"
     },
 };
 
@@ -287,7 +287,7 @@ const std::vector<bool> addPrecisionPreserved = {false};
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),

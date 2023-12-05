@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/log.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
-
 #include "mask_attribute.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace init_masks {
 
@@ -19,16 +18,16 @@ class InitMatMulMask;
 
 }  // namespace init_masks
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::init_masks::InitConvMask : public MatcherPass {
+class ov::pass::init_masks::InitConvMask : public MatcherPass {
 public:
     InitConvMask() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
         auto conv = pattern::wrap_type<opset6::Convolution, opset6::GroupConvolution>({input, weights});
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(conv);
 
@@ -37,11 +36,11 @@ public:
             NodeVector weights_calculation_nodes;
             auto cur_node = m_output.get_node()->get_input_node_shared_ptr(1);
 
-            while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
+            while (!ov::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
                 cur_node = cur_node->get_input_node_shared_ptr(0);
             }
-            if (!ngraph::is_type<opset6::Constant>(cur_node)) {
+            if (!ov::is_type<opset6::Constant>(cur_node)) {
                 OPENVINO_DEBUG << "Can't find Constant weights for Convolution: "
                                << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
@@ -52,19 +51,19 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvolutionInitMask");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(conv, "ConvolutionInitMask");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::init_masks::InitMatMulMask : public MatcherPass {
+class ov::pass::init_masks::InitMatMulMask : public MatcherPass {
 public:
     InitMatMulMask() {
         auto a = pattern::any_input();
         auto b = pattern::any_input();
         auto matmul_pattern = pattern::wrap_type<opset6::MatMul>({a, b});
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& matmul =
                 std::dynamic_pointer_cast<opset6::MatMul>(pattern_map.at(matmul_pattern).get_node_shared_ptr());
@@ -83,9 +82,9 @@ public:
             auto dim_order = std::vector<int64_t>(input_size);
             std::iota(dim_order.begin(), dim_order.end(), 0);
 
-            while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
+            while (!ov::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
-                if (ngraph::is_type<opset6::Transpose>(cur_node)) {
+                if (ov::is_type<opset6::Transpose>(cur_node)) {
                     OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto forward_order = get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
                     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -100,7 +99,7 @@ public:
                     }
                     dim_order = new_order;
                 } else {
-                    if (ngraph::is_type<opset6::Reshape>(cur_node) || ngraph::is_type<opset6::MatMul>(cur_node)) {
+                    if (ov::is_type<opset6::Reshape>(cur_node) || ov::is_type<opset6::MatMul>(cur_node)) {
                         OPENVINO_DEBUG << "Can't init mask for MatMul: " << matmul->get_friendly_name()
                                        << " because of node " << cur_node->get_friendly_name()
                                        << " in the way from weights to Matmul" << std::endl;
@@ -109,7 +108,7 @@ public:
                 }
                 cur_node = cur_node->get_input_node_shared_ptr(0);
             }
-            if (!ngraph::is_type<opset6::Constant>(cur_node)) {
+            if (!ov::is_type<opset6::Constant>(cur_node)) {
                 OPENVINO_DEBUG << "Can't find Constant weights for MatMul: " << matmul->get_friendly_name()
                                << std::endl;
                 return false;
@@ -129,12 +128,12 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_pattern, "MatMulInitMask");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_pattern, "MatMulInitMask");
         register_matcher(m, callback);
     }
 };
 
-ngraph::pass::InitMasks::InitMasks() {
+ov::pass::InitMasks::InitMasks() {
     add_matcher<init_masks::InitConvMask>();
     add_matcher<init_masks::InitMatMulMask>();
 }

@@ -119,6 +119,7 @@ struct perf_counter_key {
     std::vector<layout> output_layouts;
     std::string impl_name;
     pipeline_stage stage;
+    int64_t iteration_num;
     bool cache_hit;
 };
 
@@ -127,6 +128,7 @@ struct perf_counter_hash {
         size_t seed = 0;
         seed = hash_combine(seed, static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(k.stage));
         seed = hash_combine(seed, static_cast<int>(k.cache_hit));
+        seed = hash_combine(seed, k.iteration_num);
         for (auto& layout : k.network_input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
@@ -154,6 +156,7 @@ public:
         , _obj(obj)
         , _stage(stage) {
         GPU_DEBUG_IF(profiling_enabled) {
+            _per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
             _start = std::chrono::high_resolution_clock::now();
         }
     }
@@ -167,7 +170,7 @@ public:
             auto custom_stage_duration = std::chrono::duration_cast<us>(custom_duration).count();
             auto total_duration = custom_stage_duration == 0 ? stage_duration
                                                              : custom_stage_duration;
-            _obj.add_profiling_data(_stage, cache_hit, total_duration);
+            _obj.add_profiling_data(_stage, cache_hit, total_duration, _per_iter_mode);
         }
     }
     void set_cache_hit(bool val = true) { cache_hit = val; }
@@ -180,6 +183,7 @@ private:
     std::chrono::nanoseconds custom_duration = {};
     ProfiledObjectType& _obj;
     instrumentation::pipeline_stage _stage;
+    bool _per_iter_mode = false;
     bool cache_hit = false;
 };
 

@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/multiclass_nms.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertMulticlassNms8ToMulticlassNms9::ConvertMulticlassNms8ToMulticlassNms9() {
     MATCHER_SCOPE(ConvertMulticlassNms8ToMulticlassNms9);
@@ -21,7 +20,7 @@ ov::pass::ConvertMulticlassNms8ToMulticlassNms9::ConvertMulticlassNms8ToMulticla
             return false;
 
         const auto new_args = nms_v8_node->input_values();
-        // vector of new nGraph operations
+        // vector of new openvino operations
         NodeVector new_ops;
         auto attrs = nms_v8_node->get_attrs();
         auto nms_v9_node = std::make_shared<ov::op::v9::MulticlassNms>(new_args.at(0), new_args.at(1), attrs);

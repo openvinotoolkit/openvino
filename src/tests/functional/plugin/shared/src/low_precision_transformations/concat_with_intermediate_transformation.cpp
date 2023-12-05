@@ -11,8 +11,8 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_lpt_models/concat.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -23,7 +23,7 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(netPrecision, inputShapes, targetDevice, params, transparentIntermediate, multichannel) = obj.param;
@@ -41,7 +41,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
+    ov::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
@@ -61,7 +61,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 void ConcatWithIntermediateTransformation::SetUp() {
     ngraph::element::Type ngPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
+    ov::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();

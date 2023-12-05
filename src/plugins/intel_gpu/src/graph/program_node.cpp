@@ -7,6 +7,9 @@
 #include "primitive_inst.h"
 #include "loop_inst.h"
 #include "shape_of_inst.h"
+#include "activation_inst.h"
+#include "reorder_inst.h"
+#include "quantize_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -38,22 +41,23 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_paddings[i];
+            output_layout.data_padding = prim->get_output_padding(i);
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
+        add_memory_dependency(id());
     }
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx].first == &new_dep)
+    if (dependencies[idx].first == new_dep.first)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.first->id(), true);
     }
 
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
@@ -64,14 +68,23 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx].first = &new_dep;
-    new_dep.users.push_back(this);
+    dependencies[idx].first = new_dep.first;
+    dependencies[idx].second = new_dep.second;
+    new_dep.first->users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(old_dep, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -107,7 +120,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    node_info->add("output layout", output_layouts[0].to_short_string());
+    json_composite output_layouts_desc;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        output_layouts_desc.add(std::to_string(i), output_layouts[i].to_short_string());
+    }
+    node_info->add("output layouts", output_layouts_desc);
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -158,7 +175,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            auto ptr = std::to_string(reinterpret_cast<uintptr_t>(itr->first));
+            auto port = std::to_string(itr->second);
+            deps_ptrs.push_back(ptr + "(" + port + ")");
             itr++;
         }
         if (deps_ptrs.empty()) {
@@ -192,7 +211,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
         impls.push_back(selected_impl->get_kernel_name());
 
-        if (get_preferred_impl_type() == impl_types::ocl) {
+        auto preferred_impl_type = get_preferred_impl_type();
+        if (preferred_impl_type != impl_types::onednn && preferred_impl_type != impl_types::cpu) {
             json_composite cl_dump_info;
             cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
             cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
@@ -278,8 +298,8 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
-    auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
     return output_layouts[idx];
 }
 
@@ -315,6 +335,8 @@ layout program_node::get_non_padded_output_layout(bool invalidate_users_if_chang
 
 bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed, size_t idx) {
     merge_output_padding(new_layout.data_padding, idx);
+    OPENVINO_ASSERT(idx < output_layouts.size(), id(), " has invalid index : index is ", std::to_string(idx),
+                                        " but output_layouts length is ", std::to_string(output_layouts.size()));
     new_layout.data_padding = output_layouts[idx].data_padding;
     bool changed = (new_layout != output_layouts[idx]);
     if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users
@@ -349,7 +371,7 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 
 bool program_node::is_dynamic() const {
     for (const auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -362,7 +384,7 @@ bool program_node::is_dynamic() const {
 
 bool program_node::is_dynamic() {
     for (auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -471,7 +493,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     return true;
 }
 
- void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
+bool program_node::is_padded_spatial(size_t idx) const {
+    auto lower_size = get_output_layout(idx).data_padding.lower_size();
+    auto upper_size = get_output_layout(idx).data_padding.upper_size();
+    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
+        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+}
+
+void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
     selected_impl = std::move(impl);
 }
 
@@ -506,6 +535,356 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
 void program_node::add_dependant_shape_of_node(const program_node* node) {
     OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
+}
+
+void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << valid_output_layouts;
+    ob << output_layouts;
+
+    ob << preferred_input_fmts.size();
+    for (auto preferred_input_fmt : preferred_input_fmts) {
+        int32_t format_type_int = preferred_input_fmt;
+        ob << format_type_int;
+    }
+
+    ob << preferred_output_fmts.size();
+    for (auto preferred_output_fmt : preferred_output_fmts) {
+        int32_t format_type_int = preferred_output_fmt;
+        ob << format_type_int;
+    }
+
+    ob << dependencies.size();
+    for (const auto& dep_pair : dependencies) {
+        ob << dep_pair.first->id();
+        ob << dep_pair.second;
+    }
+
+    ob << users.size();
+    for (const auto& user_node : users) {
+        ob << user_node->id();
+    }
+
+    ob << memory_dependencies;
+
+    ob << make_data(&impl_type, sizeof(impl_type));
+    ob << constant;
+    ob << data_flow;
+    ob << in_shape_of_subgraph;
+
+    ob << output;
+    ob << user_mark;
+    ob << optimized;
+    ob << share_buffer;
+    for (const auto& _support_padding : _support_padding_in_axis) {
+        ob << _support_padding;
+    }
+
+    ob << has_reused_memory;
+    ob << reused_memory_color;
+
+    // fused_prims;
+    {
+        ob << fused_prims.size();
+        for (auto& f_desc : fused_prims) {
+            if (get_program().has_node(f_desc.desc->id)) {
+                ob << true;
+                ob << f_desc.desc->id;
+            } else {
+                ob << false;
+                ob << f_desc.desc;
+            }
+            ob << f_desc.input_layout;
+            ob << f_desc.output_layout;
+            ob << cldnn::prim_map_storage::instance().get_type_string(f_desc.f_param->type());
+            if (f_desc.f_param->type() == activation::type_id()) {
+                auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
+            } else if (f_desc.f_param->type() == reorder::type_id()) {
+                auto casted = std::dynamic_pointer_cast<ReorderFuseParams>(f_desc.f_param);
+                ob << casted->_in;
+                ob << casted->_out;
+            } else if (f_desc.f_param->type() == eltwise::type_id()) {
+                auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
+            } else if (f_desc.f_param->type() == quantize::type_id()) {
+                auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(f_desc.f_param);
+                ob << casted->_out_layout;
+                ob << casted->_scale_shift_opt;
+                ob << casted->_need_post_scale;
+                ob << casted->_need_post_shift;
+                ob << casted->_need_pre_shift;
+                ob << casted->_need_clamp;
+                ob << casted->_need_min_clamp;
+                ob << casted->_need_max_clamp;
+                ob << casted->_per_tensor_input_range;
+                ob << casted->_per_tensor_input_scale;
+                ob << casted->_per_tensor_input_shift;
+                ob << casted->_per_tensor_output_range;
+                ob << casted->_per_tensor_output_scale;
+                ob << casted->_per_tensor_output_shift;
+                ob << casted->_in_lo;
+                ob << casted->_in_hi;
+                ob << casted->_in_scale;
+                ob << casted->_in_shift;
+                ob << casted->_out_lo;
+                ob << casted->_out_hi;
+                ob << casted->_out_scale;
+                ob << casted->_out_shift;
+            }
+
+            ob << f_desc.deps.size();
+            for (auto& dep : f_desc.deps) {
+                ob << dep.first;
+                ob << dep.second;
+            }
+            ob << f_desc.fused_deps.size();
+            for (auto& f_dep : f_desc.fused_deps) {
+                ob << f_dep.first;
+                ob << f_dep.second;
+            }
+            ob << f_desc.outer_dep_start_idx;
+            ob << f_desc.total_num_deps;
+        }
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims = fused_prims_onednn.size();
+    ob << num_fused_prims;
+    for (auto fused_prim : fused_prims_onednn) {
+        ob << make_data(&fused_prim.op_type, sizeof(onednn_post_op_type));
+        ob << fused_prim.mem_offset;
+        ob << fused_prim.mem_dep;
+        ob << make_data(&fused_prim.tag, sizeof(dnnl::memory::format_tag));
+        ob << fused_prim.flatten;
+        ob << fused_prim.dims;
+        ob << make_data(&fused_prim.dt, sizeof(dnnl::memory::data_type));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+}
+
+void program_node::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> valid_output_layouts;
+    ib >> output_layouts;
+
+    {
+        // preferred_input_fmts
+        size_t preferred_input_fmts_size;
+        int32_t format_type_int;
+        ib >> preferred_input_fmts_size;
+        preferred_input_fmts.clear();
+        for (size_t i = 0; i < preferred_input_fmts_size; ++i) {
+            ib >> format_type_int;
+            preferred_input_fmts.push_back((format::type) format_type_int);
+        }
+    }
+
+    {
+        // preferred_input_fmts
+        size_t preferred_output_fmts_size;
+        int32_t format_type_int;
+        ib >> preferred_output_fmts_size;
+        preferred_output_fmts.clear();
+        for (size_t i = 0; i < preferred_output_fmts_size; ++i) {
+            ib >> format_type_int;
+            preferred_output_fmts.push_back((format::type) format_type_int);
+        }
+    }
+
+    {
+        // dependencies
+        size_t deps_size;
+        primitive_id dep_id;
+        int32_t dep_idx;
+        ib >> deps_size;
+        dependencies.clear();
+        for (size_t i = 0; i < deps_size; ++i) {
+            ib >> dep_id;
+            ib >> dep_idx;
+            dependencies.emplace_back(std::make_pair(get_program().get_node_ptr(dep_id).get(), dep_idx));
+        }
+    }
+
+    {
+        // users
+        size_t users_size;
+        primitive_id user_id;
+        ib >> users_size;
+        users.clear();
+        users.resize(0);
+        for (size_t i = 0; i < users_size; ++i) {
+            ib >> user_id;
+            users.push_back(get_program().get_node_ptr(user_id).get());
+        }
+    }
+
+    ib >> memory_dependencies;
+
+    ib >> make_data(&impl_type, sizeof(impl_type));
+    ib >> constant;
+    ib >> data_flow;
+    ib >> in_shape_of_subgraph;
+
+    ib >> output;
+    ib >> user_mark;
+    ib >> optimized;
+    ib >> share_buffer;
+    for (auto& _support_padding : _support_padding_in_axis) {
+        ib >> _support_padding;
+    }
+    ib >> has_reused_memory;
+    ib >> reused_memory_color;
+
+    // fused_prims;
+    {
+        size_t fused_desc_size;
+        ib >> fused_desc_size;
+        for (size_t i = 0; i < fused_desc_size; ++i) {
+            bool exist_prim;
+            ib >> exist_prim;
+            std::shared_ptr<const primitive> desc;
+            if (exist_prim) {
+                primitive_id desc_id;
+                ib >> desc_id;
+                desc = get_program().get_node_ptr(desc_id)->desc;
+            } else {
+                ib >> desc;
+            }
+            auto f_desc = fused_primitive_desc(desc);
+            ib >> f_desc.input_layout;
+            ib >> f_desc.output_layout;
+
+            std::string f_param_type_str;
+            ib >> f_param_type_str;
+            auto f_param_type = cldnn::prim_map_storage::instance().get_type_id(f_param_type_str);
+            if (f_param_type == activation::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<activation> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<activation>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<ActivationFuseParams>(param_desc);
+            } else if (f_param_type == reorder::type_id()) {
+                layout in, out;
+                ib >> in;
+                ib >> out;
+                f_desc.f_param = std::make_shared<ReorderFuseParams>(in, out);
+            } else if (f_param_type == eltwise::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<eltwise> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<eltwise>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<EltwiseFuseParams>(param_desc);
+            } else if (f_param_type == quantize::type_id()) {
+                layout out_layout;
+                bool scale_shift_opt;
+                bool need_post_scale;
+                bool need_post_shift;
+                bool need_pre_shift;
+                bool need_clamp;
+                bool need_min_clamp;
+                bool need_max_clamp;
+                bool per_tensor_input_range;
+                bool per_tensor_input_scale;
+                bool per_tensor_input_shift;
+                bool per_tensor_output_range;
+                bool per_tensor_output_scale;
+                bool per_tensor_output_shift;
+                float in_lo;
+                float in_hi;
+                float in_scale;
+                float in_shift;
+                float out_lo;
+                float out_hi;
+                float out_scale;
+                float out_shift;
+
+                ib >> out_layout;
+                ib >> scale_shift_opt;
+                ib >> need_post_scale;
+                ib >> need_post_shift;
+                ib >> need_pre_shift;
+                ib >> need_clamp;
+                ib >> need_min_clamp;
+                ib >> need_max_clamp;
+                ib >> per_tensor_input_range;
+                ib >> per_tensor_input_scale;
+                ib >> per_tensor_input_shift;
+                ib >> per_tensor_output_range;
+                ib >> per_tensor_output_scale;
+                ib >> per_tensor_output_shift;
+                ib >> in_lo;
+                ib >> in_hi;
+                ib >> in_scale;
+                ib >> in_shift;
+                ib >> out_lo;
+                ib >> out_hi;
+                ib >> out_scale;
+                ib >> out_shift;
+
+                f_desc.f_param = std::make_shared<QuantizeFuseParams>(out_layout, scale_shift_opt, need_post_scale, need_post_shift,
+                                    need_pre_shift, need_clamp, need_min_clamp, need_max_clamp, per_tensor_input_range,
+                                    per_tensor_input_scale, per_tensor_input_shift, per_tensor_output_range, per_tensor_output_scale,
+                                    per_tensor_output_shift, in_lo, in_hi, in_scale, in_shift, out_lo, out_hi, out_scale, out_shift);
+            } else {
+                f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
+            }
+
+            size_t num_deps;
+            primitive_id prim_id;
+            size_t idx;
+            ib >> num_deps;
+            f_desc.deps.clear();
+            for (size_t i = 0; i < num_deps; ++i) {
+                ib >> prim_id;
+                ib >> idx;
+                f_desc.deps.emplace_back(std::make_pair(prim_id, idx));
+            }
+            ib >> num_deps;
+            f_desc.fused_deps.clear();
+            for (size_t i = 0; i < num_deps; ++i) {
+                ib >> prim_id;
+                ib >> idx;
+                f_desc.fused_deps[prim_id] = idx;
+            }
+            ib >> f_desc.outer_dep_start_idx;
+            ib >> f_desc.total_num_deps;
+            fused_prims.emplace_back(f_desc);
+        }
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims;
+    ib >> num_fused_prims;
+    fused_prims_onednn.resize(num_fused_prims);
+    for (size_t idx = 0; idx < num_fused_prims; ++idx) {
+        ib >> make_data(&fused_prims_onednn[idx].op_type, sizeof(onednn_post_op_type));
+        ib >> fused_prims_onednn[idx].mem_offset;
+        ib >> fused_prims_onednn[idx].mem_dep;
+        ib >> make_data(&fused_prims_onednn[idx].tag, sizeof(dnnl::memory::format_tag));
+        ib >> fused_prims_onednn[idx].flatten;
+        ib >> fused_prims_onednn[idx].dims;
+        ib >> make_data(&fused_prims_onednn[idx].dt, sizeof(dnnl::memory::data_type));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
 }
 
     /* ----------------------------------------- */
@@ -934,6 +1313,10 @@ void program_node::init_onednn_primitive_attributes() {
 
     // Added this for debug purposes only
     size_t empty_mem = 0xff;
+
+    // Change scratchpad mode to user
+    if (attrs->get_scratchpad_mode() == dnnl::scratchpad_mode::library)
+        attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,

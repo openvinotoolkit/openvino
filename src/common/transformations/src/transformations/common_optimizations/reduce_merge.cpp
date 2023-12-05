@@ -5,12 +5,10 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
@@ -21,6 +19,8 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -77,7 +77,7 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
     new_reduce->set_friendly_name(bottom_reduce->get_friendly_name());
 
     copy_runtime_info({top_reduce, bottom_reduce}, {axes, new_reduce});
-    ngraph::replace_node(bottom_reduce, new_reduce);
+    ov::replace_node(bottom_reduce, new_reduce);
     return true;
 }
 
@@ -104,7 +104,7 @@ pass::ReduceMerge::ReduceMerge() {
                                                                   reduce_prod_pattern,
                                                                   reduce_sum_pattern});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto node = m.get_match_root();
         if (ov::is_type<op::util::ArithmeticReductionKeepDims>(node)) {
             return fuse_reduce_operations<op::util::ArithmeticReductionKeepDims>(node);

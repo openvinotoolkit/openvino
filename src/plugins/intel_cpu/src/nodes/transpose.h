@@ -18,9 +18,9 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -30,13 +30,17 @@ public:
         return false;
     }
 
-    const InferenceEngine::SizeVector& getOrder() const {
+    const VectorDims& getOrder() const {
         return order;
     }
 
     bool isExecutable() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
+
+    void setOptimized(bool isOptimized) {
+        this->isOptimized = isOptimized;
+    }
 
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -45,8 +49,8 @@ protected:
 private:
     TransposeExecutorPtr execPtr = nullptr;
     dnnl::primitive prim;
-    InferenceEngine::SizeVector order;
-    InferenceEngine::Precision prec;
+    VectorDims order;
+    ov::element::Type prec;
 
     TransposeParams transposeParams;
 
@@ -56,6 +60,7 @@ private:
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
 
     bool performAsReorder = false;
+    bool isOptimized = false;
 };
 
 }   // namespace node

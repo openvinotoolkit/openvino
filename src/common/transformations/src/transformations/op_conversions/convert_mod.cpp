@@ -5,11 +5,10 @@
 #include "transformations/op_conversions/convert_mod.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -17,10 +16,11 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sign.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
-    auto mod = ngraph::pattern::wrap_type<ov::op::v1::Mod>();
+    auto mod = ov::pass::pattern::wrap_type<ov::op::v1::Mod>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto mod = std::dynamic_pointer_cast<ov::op::v1::Mod>(m.get_match_root());
@@ -35,7 +35,7 @@ ov::pass::ConvertMod::ConvertMod() {
 
         // truncated(a / b)
         auto div = register_new_node<ov::op::v1::Divide>(dividend, divisor);
-        auto convert_to_i64 = std::make_shared<ov::op::v0::Convert>(div, ngraph::element::i64);
+        auto convert_to_i64 = std::make_shared<ov::op::v0::Convert>(div, ov::element::i64);
         auto convert = std::make_shared<ov::op::v0::Convert>(convert_to_i64, dividend_et);
         // truncated(a / b) * b
         auto multiplication = std::make_shared<ov::op::v1::Multiply>(convert, divisor);
@@ -46,13 +46,13 @@ ov::pass::ConvertMod::ConvertMod() {
         auto mul = std::make_shared<ov::op::v1::Multiply>(dividend_sign, sub);
 
         mul->set_friendly_name(mod->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             mod,
             {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
-        ngraph::replace_node(mod, mul);
+        ov::replace_node(mod, mul);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mod, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mod, matcher_name);
     this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

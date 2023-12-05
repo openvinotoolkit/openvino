@@ -27,7 +27,7 @@ std::string OVInferRequestPerfCountersTest::getTestCaseName(testing::TestParamIn
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);

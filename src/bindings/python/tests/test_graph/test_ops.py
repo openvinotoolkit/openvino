@@ -5,9 +5,11 @@
 
 import numpy as np
 import pytest
+from contextlib import nullcontext as does_not_raise
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import AxisSet, Shape, Type
+from openvino import Shape, Type
+from openvino.runtime import AxisSet
 from openvino.runtime.op import Constant, Parameter
 
 @pytest.mark.parametrize(("ov_op", "expected_ov_str", "expected_type"), [
@@ -114,16 +116,20 @@ def test_broadcast():
     assert node.get_output_element_type(0) == element_type
 
 
-@pytest.mark.parametrize("node", [
-    Constant(Type.f32, Shape([3, 3]), list(range(9))),
-    ov.constant(np.arange(9).reshape(3, 3), Type.f32),
-    ov.constant(np.arange(9).reshape(3, 3), np.float32)
+@pytest.mark.parametrize(("const", "args", "expectation"), [
+    (Constant, (Type.f32, Shape([3, 3]), list(range(9))), does_not_raise()),
+    (ov.constant, (np.arange(9).reshape(3, 3), Type.f32), does_not_raise()),
+    (ov.constant, (np.arange(9).reshape(3, 3), np.float32), does_not_raise()),
+    (ov.constant, [None], pytest.raises(ValueError)),
 ])
-def test_constant(node):
-    assert node.get_type_name() == "Constant"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == [3, 3]
-    assert node.get_output_element_type(0) == Type.f32
+def test_constant(const, args, expectation):
+    with expectation:
+        node = const(*args)
+        assert node.get_type_name() == "Constant"
+        assert node.get_output_size() == 1
+        assert list(node.get_output_shape(0)) == [3, 3]
+        assert node.get_output_element_type(0) == Type.f32
+        assert node.get_byte_size() == 36
 
 
 def test_concat():

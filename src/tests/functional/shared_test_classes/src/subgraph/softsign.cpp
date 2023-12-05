@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "shared_test_classes/subgraph/softsign.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -16,7 +16,7 @@ std::string SoftsignTest::getTestCaseName(const testing::TestParamInfo<softsignP
     std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -34,7 +34,7 @@ void SoftsignTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
 
@@ -65,7 +65,7 @@ std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign()
     std::vector<size_t> inputShape = std::get<3>(this->GetParam());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
     auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
     auto add = std::make_shared<ngraph::op::v1::Add>(abs, constant_0);

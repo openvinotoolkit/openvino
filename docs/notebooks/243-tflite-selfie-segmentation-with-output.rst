@@ -12,7 +12,7 @@ In this tutorial, we consider how to implement selfie segmentation using
 OpenVINO. We will use `Multiclass Selfie-segmentation
 model <https://developers.google.com/mediapipe/solutions/vision/image_segmenter/#multiclass-model>`__
 provided as part of `Google
-Mediapipe <https://developers.google.com/mediapipe>`__ solution.
+MediaPipe <https://developers.google.com/mediapipe>`__ solution.
 
 The Multiclass Selfie-segmentation model is a multiclass semantic
 segmentation model and classifies each pixel as background, hair, body,
@@ -34,15 +34,49 @@ The tutorial consists of following steps:
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
 
-Prerequisites
--------------
+**Table of contents:**
 
-Install required dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  `Prerequisites <#prerequisites>`__
+
+   -  `Install required
+      dependencies <#install-required-dependencies>`__
+   -  `Download pretrained model and test
+      image <#download-pretrained-model-and-test-image>`__
+
+-  `Convert Tensorflow Lite model to OpenVINO IR
+   format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+-  `Run OpenVINO model inference on
+   image <#run-openvino-model-inference-on-image>`__
+
+   -  `Load model <#load-model>`__
+   -  `Prepare input image <#prepare-input-image>`__
+   -  `Run model inference <#run-model-inference>`__
+   -  `Postprocess and visualize inference
+      results <#postprocess-and-visualize-inference-results>`__
+
+-  `Interactive background blurring demo on
+   video <#interactive-background-blurring-demo-on-video>`__
+
+   -  `Run Live Background
+      Blurring <#run-live-background-blurring>`__
+
+Prerequisites 
+-------------------------------------------------------
+
+Install required dependencies 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q "openvino-dev>=2023.0.0" "matplotlib" "opencv-python"
+    %pip install -q "openvino>=2023.1.0" "matplotlib" "opencv-python"
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -52,8 +86,8 @@ Install required dependencies
         filename='notebook_utils.py'
     );
 
-Download pretrained model and test image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download pretrained model and test image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -76,12 +110,12 @@ Download pretrained model and test image
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/243-tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/243-tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 
-Convert Tensorflow Lite model to OpenVINO IR format
----------------------------------------------------
+Convert Tensorflow Lite model to OpenVINO IR format 
+---------------------------------------------------------------------------------------------
 
 Starting from the 2023.0.0 release, OpenVINO supports TFLite model
 conversion. However TFLite model format can be directly passed in
@@ -92,31 +126,28 @@ tutorial with `basic OpenVINO API
 capabilities <002-openvino-api-with-output.html>`__), it is
 recommended to convert model to OpenVINO Intermediate Representation
 format to apply additional optimizations (e.g. weights compression to
-FP16 format). To convert the TFLite model to OpenVINO IR, OpenVINO Model
-Optimizer Python API can be used. ``mo.convert_model`` function accepts
-a path to the TFLite model and returns the OpenVINO Model class instance
-which represents this model. The obtained model is ready to use and
-loading on the device using ``compile_model`` or can be saved on disk
-using the ``serialize`` function reducing loading time for the next
-running. Optionally, we can apply compression to FP16 model weights
-using ``compress_to_fp16=True`` option and integrate preprocessing using
-this approach. See the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-for more information about Model Optimizer and TensorFlow Lite `models
-suport <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+FP16 format). To convert the TFLite model to OpenVINO IR, model
+conversion Python API can be used. The ``ov.convert_model`` function
+accepts a path to the TFLite model and returns the OpenVINO Model class
+instance which represents this model. The obtained model is ready to use
+and to be loaded on the device using ``compile_model`` or can be saved
+on a disk using the ``ov.save_model`` function reducing loading time for
+the next running. For more information about model conversion, see this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+For TensorFlow Lite, refer to the `models
+support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
 .. code:: ipython3
 
-    from openvino.tools import mo
-    from openvino.runtime import Core, serialize
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     
     ir_model_path = tflite_model_path.with_suffix(".xml")
     
     if not ir_model_path.exists():
-        ov_model = mo.convert_model(tflite_model_path, compress_to_fp16=True)
-        serialize(ov_model, ir_model_path)
+        ov_model = ov.convert_model(tflite_model_path)
+        ov.save_model(ov_model, ir_model_path)
     else:
         ov_model = core.read_model(ir_model_path)
 
@@ -152,21 +183,21 @@ division on 255.
 
 
 Model output is a floating point tensor with the similar format and
-shape, except number of channels - 6 that epresents number of supported
+shape, except number of channels - 6 that represents number of supported
 segmentation classes: background, hair, body skin, face skin, clothes,
 and others. Each value in the output tensor represents of probability
 that the pixel belongs to the specified class. We can use the ``argmax``
 operation to get the label with the highest probability for each pixel.
 
-Run OpenVINO model inference on image
--------------------------------------
+Run OpenVINO model inference on image 
+-------------------------------------------------------------------------------
 
 Let’s see the model in action. For running the inference model with
 OpenVINO we should load the model on the device first. Please use the
 next dropdown list for the selection inference device.
 
-Load model
-~~~~~~~~~~
+Load model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -194,8 +225,8 @@ Load model
 
     compiled_model = core.compile_model(ov_model, device.value)
 
-Prepare input image
-~~~~~~~~~~~~~~~~~~~
+Prepare input image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The model accepts an image with size 256x256, we need to resize our
 input image to fit it in the model input tensor. Usually, segmentation
@@ -249,15 +280,15 @@ Additionally, the input image is represented as an RGB image in UINT8
     # Convert input data from uint8 [0, 255] to float32 [0, 1] range and add batch dimension
     normalized_img = np.expand_dims(padded_img.astype(np.float32) / 255, 0)
 
-Run model inference
-~~~~~~~~~~~~~~~~~~~
+Run model inference 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
     out = compiled_model(normalized_img)[0]
 
-Posprocess and visualize inference results
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocess and visualize inference results 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The model predicts segmentation probabilities mask with the size 256 x
 256, we need to apply postprocessing to get labels with the highest
@@ -359,11 +390,11 @@ Visualize obtained result
 
 
 
-.. image:: 243-tflite-selfie-segmentation-with-output_files/243-tflite-selfie-segmentation-with-output_24_0.png
+.. image:: 243-tflite-selfie-segmentation-with-output_files/243-tflite-selfie-segmentation-with-output_25_0.png
 
 
-Interactive background blurring demo on video
----------------------------------------------
+Interactive background blurring demo on video 
+---------------------------------------------------------------------------------------
 
 The following code runs model inference on a video:
 
@@ -373,13 +404,12 @@ The following code runs model inference on a video:
     import time
     from IPython import display
     from typing import Union
-    from openvino.runtime import Model
     
     from notebook_utils import VideoPlayer
     
     
     # Main processing function to run background blurring
-    def run_background_blurring(source:Union[str, int] = 0, flip:bool = False, use_popup:bool = False, skip_first_frames:int = 0, model:Model = ov_model, device:str = "CPU"):
+    def run_background_blurring(source:Union[str, int] = 0, flip:bool = False, use_popup:bool = False, skip_first_frames:int = 0, model:ov.Model = ov_model, device:str = "CPU"):
         """
         Function for running background blurring inference on video
         Parameters:
@@ -387,7 +417,7 @@ The following code runs model inference on a video:
           flip (bool, *optional*, False): flip output video, used for front-camera video processing
           use_popup (bool, *optional*, False): use popup window for avoid flickering
           skip_first_frames (int, *optional*, 0): specified number of frames will be skipped in video processing
-          model (Model): OpenVINO model for inference
+          model (ov.Model): OpenVINO model for inference
           device (str): inference device
         Returns:
           None
@@ -485,8 +515,8 @@ The following code runs model inference on a video:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Live Background Blurring
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Background Blurring 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be
@@ -534,7 +564,7 @@ Run:
 
 
 
-.. image:: 243-tflite-selfie-segmentation-with-output_files/243-tflite-selfie-segmentation-with-output_32_0.png
+.. image:: 243-tflite-selfie-segmentation-with-output_files/243-tflite-selfie-segmentation-with-output_33_0.png
 
 
 .. parsed-literal::

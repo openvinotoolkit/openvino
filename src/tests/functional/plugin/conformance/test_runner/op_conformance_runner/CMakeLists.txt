@@ -2,22 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME conformanceTests)
+set(TARGET_NAME ov_op_conformance_tests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        ADDITIONAL_SOURCE_DIRS
-            "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
         INCLUDES
             PRIVATE
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADD_CPPLINT
         LINK_LIBRARIES
             PUBLIC
-                conformanceShared
+                conformance_shared
+                op_conformance_utils
         LABELS
-            OP_CONFORMANCE
+            OV OP_CONFORMANCE
 )
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

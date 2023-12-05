@@ -7,18 +7,16 @@
 #include <iostream>
 #include <list>
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "gtest/gtest.h"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pass/manager.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/runtime_attribute.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 class TestAttributeNoCopyable : public ov::RuntimeAttribute {
@@ -71,19 +69,19 @@ public:
         return rt_info.count(TestAttributeMergable::get_type_info_static());
     }
 
-    ov::Any merge(const ngraph::NodeVector& nodes) const override {
+    ov::Any merge(const ov::NodeVector& nodes) const override {
         return {TestAttributeMergable()};
     }
 };
 
 TEST(copy_runtime_info, node_to_node_1) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
 
     TestAttributeCopyable::set(a);
     TestAttributeNoCopyable::set(b);
 
-    copy_runtime_info(a, b);
+    ov::copy_runtime_info(a, b);
 
     ASSERT_TRUE(TestAttributeCopyable::exists_in(a));
     ASSERT_TRUE(TestAttributeCopyable::exists_in(b));
@@ -96,8 +94,8 @@ TEST(copy_runtime_info, node_to_node_1) {
 }
 
 TEST(copy_runtime_info, node_to_node_2) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});
 
     TestAttributeCopyable::set(a);
     TestAttributeNoCopyable::set(a);
@@ -112,9 +110,9 @@ TEST(copy_runtime_info, node_to_node_2) {
 }
 
 TEST(copy_runtime_info, node_to_nodes) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto c = make_shared<opset3::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto c = make_shared<op::v0::Parameter>(element::f32, Shape{1});
 
     TestAttributeCopyable::set(a);
     TestAttributeNoCopyable::set(b);
@@ -132,9 +130,9 @@ TEST(copy_runtime_info, node_to_nodes) {
 }
 
 TEST(copy_runtime_info, nodes_to_node_1) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto c = make_shared<opset3::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto c = make_shared<op::v0::Parameter>(element::f32, Shape{1});
 
     TestAttributeCopyable::set(a);
     TestAttributeNoCopyable::set(a);
@@ -149,9 +147,9 @@ TEST(copy_runtime_info, nodes_to_node_1) {
 }
 
 TEST(copy_runtime_info, nodes_to_node_2) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto c = make_shared<opset3::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto c = make_shared<op::v0::Parameter>(element::f32, Shape{1});
 
     TestAttributeMergable::set(a);
     TestAttributeMergable::set(b);
@@ -164,8 +162,8 @@ TEST(copy_runtime_info, nodes_to_node_2) {
 }
 
 TEST(copy_runtime_info, nodes_to_node_3) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});
 
     TestAttributeCopyable::set(a);
     TestAttributeNoCopyable::set(b);
@@ -177,10 +175,10 @@ TEST(copy_runtime_info, nodes_to_node_3) {
 }
 
 TEST(copy_runtime_info, replace_output_update_name) {
-    auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<opset3::Relu>(a);
-    auto c = make_shared<opset3::Relu>(b);
-    auto d = make_shared<opset3::Relu>(c);
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Relu>(a);
+    auto c = make_shared<op::v0::Relu>(b);
+    auto d = make_shared<op::v0::Relu>(c);
 
     TestAttributeMergable::set(b);
     TestAttributeMergable::set(c);

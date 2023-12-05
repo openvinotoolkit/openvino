@@ -44,7 +44,7 @@ const std::vector<CPUSpecificParams>& cpuParams3Dblocked() {
 const auto blockedCases3D = ::testing::Combine(
     ::testing::ValuesIn(static_shapes_to_test_representation(basic3D())),
     ::testing::Values(activationShapes()),
-    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesBlocked())),
+    ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesBlocked())),
     ::testing::ValuesIn(netPrc()),
     ::testing::Values(Precision::FP32),
     ::testing::Values(Precision::FP32),
@@ -65,7 +65,7 @@ const std::vector<CPUSpecificParams>& cpuParams4Dblocked() {
 const auto basicCases4D = ::testing::Combine(
     ::testing::ValuesIn(static_shapes_to_test_representation(basic4D())),
     ::testing::Values(activationShapes()),
-    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes())),
+    ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
     ::testing::Values(Precision::FP32),
     ::testing::Values(Precision::FP32),
@@ -86,7 +86,7 @@ const std::vector<CPUSpecificParams>& cpuParams5Dblocked() {
 const auto basicCases5D = ::testing::Combine(
     ::testing::ValuesIn(static_shapes_to_test_representation(basic5D())),
     ::testing::Values(activationShapes()),
-    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes())),
+    ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
     ::testing::Values(Precision::FP32),
     ::testing::Values(Precision::FP32),

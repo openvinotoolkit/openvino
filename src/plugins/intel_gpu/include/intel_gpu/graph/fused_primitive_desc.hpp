@@ -21,7 +21,7 @@ private:
 };
 
 struct fused_primitive_desc {
-    explicit fused_primitive_desc(std::shared_ptr<const primitive> prim) : desc(prim) {}
+    explicit fused_primitive_desc(const std::shared_ptr<const primitive>& prim) : desc(prim) {}
 
     template <class PType>
     bool is_type() const {

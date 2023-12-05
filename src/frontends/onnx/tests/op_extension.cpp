@@ -156,7 +156,7 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_wit
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
 
-    const auto input_model = fe->load(CommonTestUtils::getModelFromTestModelZoo(
+    const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
 
     std::shared_ptr<ov::Model> model;
@@ -170,7 +170,7 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_wit
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
 
-    const auto input_model = fe->load(CommonTestUtils::getModelFromTestModelZoo(
+    const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
 
     std::shared_ptr<ov::Model> model;
@@ -200,7 +200,7 @@ class OldApiNode : public InferenceEngine::IExtension {
 }  // namespace
 
 TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_mixed_legacy_and_new_api) {
-    const auto input_model_path = CommonTestUtils::getModelFromTestModelZoo(
+    const auto input_model_path = ov::test::utils::getModelFromTestModelZoo(
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}));
     ov::Core core;
     core.add_extension(std::make_shared<OldApiNode>());

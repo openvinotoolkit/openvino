@@ -9,13 +9,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-#include <openvino/core/type/element_type.hpp>
-#include <ngraph/runtime/shared_buffer.hpp>
 #include <string>
 #include <iterator>
 #include <climits>
 
 #include "Python.h"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"

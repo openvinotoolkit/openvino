@@ -18,12 +18,12 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     };
     if (!only_fp32) {
         // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
             prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
             prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
         }
         // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
 // TODO: FuseTransposeToBrgemm supports fusing only if Transpose is before Parameter in cases when Transpose is on input at the moment
@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
 //                                  ::testing::Values(ov::element::i8),
 //                                  ::testing::Values(1), // MatMul
 //                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-//                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //                          TransposeMatMulFQ::getTestCaseName);
 } // namespace transpose_zero_input
 
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMulFQ::getTestCaseName);
 } // namespace transpose_first_input
 
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
 // TODO: At the moment we doesn't support the branch MatMul[output]->Transpose->FQ.
@@ -104,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
 //                                  ::testing::Values(ov::element::i8),
 //                                  ::testing::Values(1), // MatMul
 //                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-//                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //                          TransposeMatMulFQ::getTestCaseName);
 } // namespace transpose_output
 
@@ -115,12 +115,12 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     };
     if (!only_fp32) {
         // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
             prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
             prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
         }
         // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
@@ -133,7 +133,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTranspo
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExplicitTransposeMatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMatMulBias,
@@ -143,7 +143,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMa
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExplicitTransposeMatMulBias::getTestCaseName);
 } // namespace explicit_transpose
 

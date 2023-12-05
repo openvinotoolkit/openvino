@@ -3,96 +3,97 @@
 //
 
 #include <vector>
-#include "single_layer_tests/one_hot.hpp"
 
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/one_hot.hpp"
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::I32,
+using ov::test::OneHotLayerTest;
+
+const std::vector<ov::element::Type> model_types = {
+        ov::element::i32,
 };
 
-const std::vector<ngraph::element::Type> argDepthType_IC = { ngraph::element::i32 };
-const std::vector<int64_t> argDepth_IC = { 1, 5, 1017 };
-const std::vector<ngraph::element::Type> argSetType_IC = { ngraph::element::i32 };
-const std::vector<float> argOnValue_IC = { 0, 1, -29 };
-const std::vector<float> argOffValue_IC = { 0, 1, -127 };
-const std::vector<int64_t> argAxis_IC = {0};
-const std::vector<std::vector<size_t>> inputShapes_IC = {{4, 5}, {3, 7}};
+const std::vector<ov::element::Type> arg_depth_type_ic = { ov::element::i32 };
+const std::vector<int64_t> arg_depth_ic = { 1, 5, 1017 };
+const std::vector<ov::element::Type> arg_set_type_ic = { ov::element::i32 };
+const std::vector<float> arg_on_value_ic = { 0, 1, -29 };
+const std::vector<float> arg_off_value_ic = { 0, 1, -127 };
+const std::vector<int64_t> arg_axis_ic = {0};
+const std::vector<std::vector<ov::Shape>> input_shapes_ic = {{{4, 5}}, {{3, 7}}};
 
-const auto oneHotParams_IC = testing::Combine(
-        testing::ValuesIn(argDepthType_IC),
-        testing::ValuesIn(argDepth_IC),
-        testing::ValuesIn(argSetType_IC),
-        testing::ValuesIn(argOnValue_IC),
-        testing::ValuesIn(argOffValue_IC),
-        testing::ValuesIn(argAxis_IC),
-        testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(inputShapes_IC),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto oneHotParams_ic = testing::Combine(
+        testing::ValuesIn(arg_depth_type_ic),
+        testing::ValuesIn(arg_depth_ic),
+        testing::ValuesIn(arg_set_type_ic),
+        testing::ValuesIn(arg_on_value_ic),
+        testing::ValuesIn(arg_off_value_ic),
+        testing::ValuesIn(arg_axis_ic),
+        testing::ValuesIn(model_types),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_ic)),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotIntConst,
         OneHotLayerTest,
-        oneHotParams_IC,
+        oneHotParams_ic,
         OneHotLayerTest::getTestCaseName
 );
 
 
-const std::vector<ngraph::element::Type> argDepthType_Ax = { ngraph::element::i32 };
-const std::vector<int64_t> argDepth_Ax = { 3 };
-const std::vector<ngraph::element::Type> argSetType_Ax = { ngraph::element::i32, ngraph::element::f32 };
-const std::vector<float> argOnValue_Ax = { 17 };
-const std::vector<float> argOffValue_Ax = { -3 };
-const std::vector<int64_t> argAxis_Ax = {0, 1, 3, 5, -4, -5};
-const std::vector<std::vector<size_t>> inputShapes_Ax = {{4, 8, 5, 3, 2, 9}};
+const std::vector<ov::element::Type> arg_depth_type_ax = { ov::element::i32 };
+const std::vector<int64_t> arg_depth_ax = { 3 };
+const std::vector<ov::element::Type> arg_set_type_ax = { ov::element::i32, ov::element::f32 };
+const std::vector<float> arg_on_value_ax = { 17 };
+const std::vector<float> arg_off_value_ax = { -3 };
+const std::vector<int64_t> arg_axis_ax = {0, 1, 3, 5, -4, -5};
+const std::vector<std::vector<ov::Shape>> input_shapes_ax = {{{4, 8, 5, 3, 2, 9}}};
 
-const auto oneHotParams_Ax = testing::Combine(
-        testing::ValuesIn(argDepthType_Ax),
-        testing::ValuesIn(argDepth_Ax),
-        testing::ValuesIn(argSetType_Ax),
-        testing::ValuesIn(argOnValue_Ax),
-        testing::ValuesIn(argOffValue_Ax),
-        testing::ValuesIn(argAxis_Ax),
-        testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(inputShapes_Ax),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto oneHotParams_ax = testing::Combine(
+        testing::ValuesIn(arg_depth_type_ax),
+        testing::ValuesIn(arg_depth_ax),
+        testing::ValuesIn(arg_set_type_ax),
+        testing::ValuesIn(arg_on_value_ax),
+        testing::ValuesIn(arg_off_value_ax),
+        testing::ValuesIn(arg_axis_ax),
+        testing::ValuesIn(model_types),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_ax)),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotAxrng,
         OneHotLayerTest,
-        oneHotParams_Ax,
+        oneHotParams_ax,
         OneHotLayerTest::getTestCaseName
 );
 
 
-const std::vector<ngraph::element::Type> argDepthType_T = { ngraph::element::i8, ngraph::element::u8 };
-const std::vector<int64_t> argDepth_T = { 1 };
-const std::vector<ngraph::element::Type> argSetType_T = { ngraph::element::i8, ngraph::element::u8,
-                                                          ngraph::element::bf16, ngraph::element::f32 };
-const std::vector<float> argOnValue_T = { 1 };
-const std::vector<float> argOffValue_T = { 1 };
-const std::vector<int64_t> argAxis_T = {-1};
-const std::vector<std::vector<size_t>> inputShapes_T = {{2, 2}};
+const std::vector<ov::element::Type> arg_depth_type_t = { ov::element::i8, ov::element::u8 };
+const std::vector<int64_t> arg_depth_t = { 1 };
+const std::vector<ov::element::Type> arg_set_type_t = { ov::element::i8, ov::element::u8,
+                                                          ov::element::bf16, ov::element::f32 };
+const std::vector<float> arg_on_value_t = { 1 };
+const std::vector<float> arg_off_value_t = { 1 };
+const std::vector<int64_t> arg_axis_t = {-1};
+const std::vector<std::vector<ov::Shape>> input_shapes_t = {{{2, 2}}};
 
-const auto oneHotParams_T = testing::Combine(
-        testing::ValuesIn(argDepthType_T),
-        testing::ValuesIn(argDepth_T),
-        testing::ValuesIn(argSetType_T),
-        testing::ValuesIn(argOnValue_T),
-        testing::ValuesIn(argOffValue_T),
-        testing::ValuesIn(argAxis_T),
-        testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(inputShapes_T),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto oneHotParams_t = testing::Combine(
+        testing::ValuesIn(arg_depth_type_t),
+        testing::ValuesIn(arg_depth_t),
+        testing::ValuesIn(arg_set_type_t),
+        testing::ValuesIn(arg_on_value_t),
+        testing::ValuesIn(arg_off_value_t),
+        testing::ValuesIn(arg_axis_t),
+        testing::ValuesIn(model_types),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_t)),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotArgType,
         OneHotLayerTest,
-        oneHotParams_T,
+        oneHotParams_t,
         OneHotLayerTest::getTestCaseName
 );
 }  // namespace

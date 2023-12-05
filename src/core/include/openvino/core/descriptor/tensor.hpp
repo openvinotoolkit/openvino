@@ -22,7 +22,6 @@ namespace ngraph {
 namespace runtime {
 class HostTensor;
 }
-using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 }  // namespace ngraph
 
 namespace ov {

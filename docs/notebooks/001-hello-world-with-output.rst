@@ -13,24 +13,50 @@ created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
-Imports
--------
+**Table of contents:**
+
+
+-  `Imports <#imports>`__
+-  `Download the Model and data samples <#download-the-model-and-data-samples>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Load an Image <#load-an-image>`__
+-  `Do Inference <#do-inference>`__
+
+.. code:: ipython3
+
+    # Install openvino package
+    %pip install -q "openvino>=2023.1.0"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
     from pathlib import Path
-    import sys
     
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     from notebook_utils import download_file
 
-Download the Model and data samples
------------------------------------
+Download the Model and data samples 
+-----------------------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -63,8 +89,8 @@ Download the Model and data samples
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device
------------------------
+Select inference device 
+-----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -72,7 +98,7 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -91,24 +117,30 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model
---------------
+Load the Model 
+--------------------------------------------------------
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
     
     output_layer = compiled_model.output(0)
 
-Load an Image
--------------
+Load an Image 
+-------------------------------------------------------
 
 .. code:: ipython3
 
+    # Download the image from the openvino_notebooks storage
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        directory="data"
+    )
+    
     # The MobileNet model expects images in RGB format.
-    image = cv2.cvtColor(cv2.imread(filename="../data/image/coco.jpg"), code=cv2.COLOR_BGR2RGB)
+    image = cv2.cvtColor(cv2.imread(filename=str(image_filename)), code=cv2.COLOR_BGR2RGB)
     
     # Resize to MobileNet image shape.
     input_image = cv2.resize(src=image, dsize=(224, 224))
@@ -119,11 +151,17 @@ Load an Image
 
 
 
-.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_10_0.png
+.. parsed-literal::
+
+    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
-Do Inference
-------------
+
+.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_1.png
+
+
+Do Inference 
+------------------------------------------------------
 
 .. code:: ipython3
 
@@ -132,9 +170,22 @@ Do Inference
 
 .. code:: ipython3
 
-    # Convert the inference result to a class name.
-    imagenet_classes = open("../data/datasets/imagenet/imagenet_2012.txt").read().splitlines()
+    imagenet_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
+        directory="data"
+    )
     
+    imagenet_classes = imagenet_filename.read_text().splitlines()
+
+
+
+.. parsed-literal::
+
+    data/imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
+
+
+.. code:: ipython3
+
     # The model description states that for this model, class 0 is a background.
     # Therefore, a background must be added at the beginning of imagenet_classes.
     imagenet_classes = ['background'] + imagenet_classes

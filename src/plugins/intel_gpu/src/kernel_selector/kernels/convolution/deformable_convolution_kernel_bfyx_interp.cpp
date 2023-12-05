@@ -68,7 +68,7 @@ JitConstants DeformableConvolutionKernel_bfyx_interp::GetJitConstants(const conv
     jit.AddConstant(MakeJitConstant("FILTER_SIZE_X", params.kernelSize.x));
     jit.AddConstant(MakeJitConstant("FILTER_SIZE_Y", params.kernelSize.y));
     jit.AddConstants({MakeJitConstant("STRIDE", params.stride),
-                      MakeJitConstant("PADDING", params.padding),
+                      MakeJitConstant("PADDING", params.padding_begin),
                       MakeJitConstant("DILATION", params.dilation)
                      });
     jit.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});

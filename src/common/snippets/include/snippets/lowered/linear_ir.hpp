@@ -7,10 +7,24 @@
 #include <list>
 
 #include "expression.hpp"
+#include "snippets/target_machine.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
+
+// Snippets performance count mode
+// Disabled - default, w/o perf count for snippets
+// Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf count data for each thread.
+// BackendSpecific - perf count provided by backend. This is for device specific requirment.
+// For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read RDTSC register is implemented,
+// which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and perf count end execution, on ICX. This mode only support single thread.
+enum PerfCountMode {
+    Disabled,
+    Chrono,
+    BackendSpecific,
+};
 
 class Config {
 public:
@@ -19,6 +33,18 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
+    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+    // Some Subgraphs doesn't support domain optimization due to operations' semantics
+    bool m_enable_domain_optimization = false;
+    // Minimal advised work amount for parallel execution.
+    // Set by a backend, typically equals to the number of threads available on the machine.
+    size_t m_min_parallel_work_amount = 8;
+    // Minimal advised work amount that should be processed during one call of the executable produced by Subgraph::generate
+    // Set by a backend, should be large enough to compensate for the kernel call overheads
+    size_t m_min_kernel_work_amount = 256;
+    // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
+    // False if all Buffers will have uniqie ID and offsets in the Linear IR
+    bool m_are_buffers_optimized = true;
 };
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
@@ -35,15 +61,19 @@ public:
     using constExprReverseIt = container::const_reverse_iterator;
 
     LinearIR() = default;
-    explicit LinearIR(const std::shared_ptr<ov::Model>& m, Config config = {});
+    LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
 
-    static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end);
+    std::shared_ptr<LinearIR> clone() const;
+    static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
+                                               LinearIR::container::const_iterator end,
+                                               ExressionMap& expression_map);
 
     const container& get_ops() const {return m_expressions; }
     const io_container& get_IO_ops() const {return m_io_expressions; }
     Config get_config() {return m_config; }
+    void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -95,14 +125,32 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin);
+    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 
+    IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
+    const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
+    VectorDims get_master_shape() const;
+
 private:
+    std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
+
+    class LIRShapeInfer : public ShapeInferSnippetsNode {
+    public:
+        using IOExpression = lowered::IOExpression;
+        explicit LIRShapeInfer(container& body_exprs, io_container& io_exprs);
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+
+    private:
+        const std::shared_ptr<container> m_exprs = nullptr;
+        std::vector<std::shared_ptr<IOExpression>> m_input_exprs {};
+        std::vector<std::shared_ptr<IOExpression>> m_output_exprs {};
+    };
+
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
     // Default ctor - can be called only from Linear IR initialization as default way
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ov::Model>& model = nullptr);
@@ -115,6 +163,7 @@ private:
     io_container m_io_expressions;
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
+    std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
 };
 
 template<typename iterator>

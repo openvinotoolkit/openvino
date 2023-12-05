@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <openvino/core/partial_shape.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -85,13 +85,13 @@ public:
         result << "outPRC="  << outPrc << separator;
         result << "inL="     << inLayout << separator;
         result << "outL="    << outLayout << separator;
-        result << "min_size=" << CommonTestUtils::vec2str(attributes.min_size) << separator;
-        result << "max_size=" << CommonTestUtils::vec2str(attributes.max_size)<< separator;
-        result << "aspect_ratio=" << CommonTestUtils::vec2str(attributes.aspect_ratio)<< separator;
-        result << "density=" << CommonTestUtils::vec2str(attributes.density)<< separator;
-        result << "fixed_ratio=" << CommonTestUtils::vec2str(attributes.fixed_ratio)<< separator;
-        result << "fixed_size=" << CommonTestUtils::vec2str(attributes.fixed_size)<< separator;
-        result << "variance=" << CommonTestUtils::vec2str(attributes.variance)<< separator;
+        result << "min_size=" << ov::test::utils::vec2str(attributes.min_size) << separator;
+        result << "max_size=" << ov::test::utils::vec2str(attributes.max_size)<< separator;
+        result << "aspect_ratio=" << ov::test::utils::vec2str(attributes.aspect_ratio)<< separator;
+        result << "density=" << ov::test::utils::vec2str(attributes.density)<< separator;
+        result << "fixed_ratio=" << ov::test::utils::vec2str(attributes.fixed_ratio)<< separator;
+        result << "fixed_size=" << ov::test::utils::vec2str(attributes.fixed_size)<< separator;
+        result << "variance=" << ov::test::utils::vec2str(attributes.variance)<< separator;
         result << "step=" << attributes.step << separator;
         result << "offset=" << attributes.offset << separator;
         result << "clip=" << attributes.clip << separator;
@@ -118,7 +118,7 @@ protected:
                  inputShapes, imageShapes, targetDevice) = GetParam();
 
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
 
@@ -137,8 +137,10 @@ protected:
             attributes.variance,
             attributes.scale_all_sizes) = specParams;
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
         auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
         auto priorBox = std::make_shared<ngraph::op::PriorBox>(
@@ -221,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(imageShape),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PriorBoxLayerCPUTest::getTestCaseName);
 
 } // namespace

@@ -7,7 +7,6 @@
 #include "intel_gpu/runtime/itt.hpp"
 
 #include "xml_parse_utils.h"
-#include <description_buffer.hpp>
 #include <map>
 #include <fstream>
 #include <streambuf>
@@ -20,7 +19,6 @@
 # include <windows.h>
 #endif
 
-using namespace InferenceEngine;
 using namespace pugixml::utils;
 
 #define CheckAndReturnError(cond, errorMsg) \
@@ -198,7 +196,7 @@ bool CustomLayer::IsLegalSizeRule(const std::string & rule) {
 
     try {
         expr.Evaluate();
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

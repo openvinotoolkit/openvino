@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/non_max_suppression.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -151,7 +151,10 @@ protected:
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
+        }
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
@@ -436,7 +439,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Nms_dynamic, NmsLayerGPUTest,
         ::testing::ValuesIn(encodType),
         ::testing::ValuesIn(sortResDesc),
         ::testing::ValuesIn(outType),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
     NmsLayerGPUTest::getTestCaseName);
 

@@ -4,13 +4,10 @@
 
 #include "behavior/compiled_model/properties.hpp"
 #include "behavior/compiled_model/properties_hetero.hpp"
-
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/core.hpp"
 
 using namespace ov::test::behavior;
-
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 
@@ -34,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          ::testing::Combine(::testing::Values("AUTO:TEMPLATE"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
-const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {{ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
+const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY,
@@ -51,11 +48,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetConfigTest,
                          OVClassCompiledModelGetConfigTest,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelSetIncorrectConfigTest,
                          OVClassCompiledModelSetIncorrectConfigTest,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 ////
 //// Hetero Executable Network GetMetric
@@ -64,11 +61,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelSetIncorrectConfigTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
                          OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
                          OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES,
                          ::testing::Values("TEMPLATE.0"));
 //////////////////////////////////////////////////////////////////////////////////////////
 
 }  // namespace
-

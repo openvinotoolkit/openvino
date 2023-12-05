@@ -16,7 +16,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
      LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
@@ -28,7 +28,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 2, 3 }, true},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -128.f }, { 1.27f }, { 0.f }, { 255.f }, ov::element::f32 },
@@ -41,7 +41,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 2, 3 }, true},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -128.f }, { 1.27f }, { 0.f }, { 255.f }, ov::element::f32 },
@@ -54,7 +54,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 2, 3 }, true},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
@@ -63,7 +63,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 2, 3 }, false},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 1 }, true},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
@@ -81,7 +81,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 1 }, false},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -96,7 +96,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{ 2, 3 }, true},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -111,7 +111,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{2, 3}, false},
         {},
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -126,7 +126,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{0, 1}, true},
         {},
         "Output",
-        "FP32"
+        "f32"
     },
     {
         {
@@ -141,7 +141,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {{0, 1}, false},
         {},
         "Output",
-        "FP32"
+        "f32"
     },
 };
 
@@ -149,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 10, 10 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReduceMeanTransformation::getTestCaseName);

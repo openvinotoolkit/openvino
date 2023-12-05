@@ -55,9 +55,9 @@ public:
         std::tie(pluginName, target_device) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         ov::test::behavior::APIBaseTest::SetUp();
-        pluginName += IE_BUILD_POSTFIX;
-        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
-            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+        pluginName += OV_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + OV_BUILD_POSTFIX)) {
+            pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }
 };
@@ -104,7 +104,7 @@ class IEClassSeveralDevicesTest : public BehaviorTestsUtils::IEPluginTestBase,
 public:
     std::vector<std::string> target_devices;
     void SetUp() override {
-        target_device = CommonTestUtils::DEVICE_MULTI;
+        target_device = ov::test::utils::DEVICE_MULTI;
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
@@ -145,42 +145,42 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
 
 inline std::string getPluginFile() {
     std::string filePostfix{"mock_engine_valid.xml"};
-    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
+    std::string filename = ov::test::utils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
-    stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-        std::string("mock_engine") + IE_BUILD_POSTFIX);
+    stream << ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+        std::string("mock_engine") + OV_BUILD_POSTFIX);
     stream << "\"></plugin></plugins></ie>";
-    CommonTestUtils::createFile(filename, stream.str());
+    ov::test::utils::createFile(filename, stream.str());
     return filename;
 }
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     const std::string filename = getPluginFile();
     ASSERT_NO_THROW(InferenceEngine::Core  ie(filename));
-    CommonTestUtils::removeFile(filename.c_str());
+    ov::test::utils::removeFile(filename.c_str());
 }
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
+    std::string filename = ov::test::utils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(filename, content);
+    ov::test::utils::createFile(filename, content);
     ASSERT_THROW(InferenceEngine::Core  ie(filename), InferenceEngine::Exception);
-    CommonTestUtils::removeFile(filename.c_str());
+    ov::test::utils::removeFile(filename.c_str());
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     const std::string pluginXML = getPluginFile();
 
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
         GTEST_COUT << testIndex;
-        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring pluginsXmlW = CommonTestUtils::addUnicodePostfixToPath(pluginXML, postfix);
+        std::wstring postfix  = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring pluginsXmlW = ov::test::utils::addUnicodePostfixToPath(pluginXML, postfix);
 
         try {
             bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
+            is_copy_successfully = ov::test::utils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ov::util::wstring_to_string(pluginsXmlW) << "'";
             }
@@ -190,7 +190,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
             ASSERT_NO_THROW(ie.RegisterPlugins(ov::util::wstring_to_string(pluginsXmlW)));
-            CommonTestUtils::removeFile(pluginsXmlW);
+            ov::test::utils::removeFile(pluginsXmlW);
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXM
             ASSERT_NO_THROW(ie.GetVersions(target_device));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
@@ -202,12 +202,12 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             GTEST_COUT << "OK" << std::endl;
         }
         catch (const InferenceEngine::Exception&e_next) {
-            CommonTestUtils::removeFile(pluginsXmlW);
+            ov::test::utils::removeFile(pluginsXmlW);
             std::remove(pluginXML.c_str());
             FAIL() << e_next.what();
         }
     }
-    CommonTestUtils::removeFile(pluginXML);
+    ov::test::utils::removeFile(pluginXML);
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -229,7 +229,7 @@ TEST_P(IEClassBasicTestP, getVersionsByDeviceClassNoThrow) {
 
 TEST_P(IEClassBasicTestP, getVersionsNonEmpty) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_EQ(2, ie.GetVersions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
+    ASSERT_EQ(2, ie.GetVersions(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 
 //
@@ -292,7 +292,7 @@ TEST_P(IEClassBasicTestP, SetConfigAllNoThrow) {
 TEST(IEClassBasicTest, smoke_SetConfigHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
-                                 CommonTestUtils::DEVICE_HETERO));
+                                 ov::test::utils::DEVICE_HETERO));
 }
 
 TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
@@ -309,7 +309,7 @@ TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
 
 TEST_P(IEClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", target_device}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", target_device}}, ov::test::utils::DEVICE_HETERO));
 }
 
 TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
@@ -317,12 +317,12 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     bool value = false;
 
     ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::YES}},
-                                 CommonTestUtils::DEVICE_HETERO));
+                                 ov::test::utils::DEVICE_HETERO));
     ASSERT_NO_THROW(value = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_TRUE(value);
 
     ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::NO}},
-                                 CommonTestUtils::DEVICE_HETERO));
+                                 ov::test::utils::DEVICE_HETERO));
     ASSERT_NO_THROW(value = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_FALSE(value);
 }
@@ -360,12 +360,12 @@ TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
 TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), InferenceEngine::NetworkNotRead);
+    ASSERT_THROW(ie.ImportNetwork("model", ov::test::utils::DEVICE_HETERO), InferenceEngine::NetworkNotRead);
 }
 
 TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), InferenceEngine::NetworkNotRead);
+    ASSERT_THROW(ie.ImportNetwork("model", ov::test::utils::DEVICE_MULTI), InferenceEngine::NetworkNotRead);
 }
 
 TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
@@ -381,7 +381,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
 
 TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
+    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
@@ -431,7 +431,7 @@ TEST_P(IEClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNo
     if (deviceIDs.size() < target_devices.size())
         GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
 
-    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    std::string multitarget_device = ov::test::utils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
         multitarget_device += dev_name;
         if (&dev_name != &(target_devices.back())) {
@@ -518,14 +518,14 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::QueryNetworkResult res;
-    ASSERT_NO_THROW(res = ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
+    ASSERT_NO_THROW(res = ie.QueryNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
     ASSERT_LT(0, res.supportedLayersMap.size());
 }
 
 TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     try {
-        ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI);
+        ie.QueryNetwork(actualCnnNetwork, ov::test::utils::DEVICE_MULTI);
     } catch (InferenceEngine::Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
@@ -538,7 +538,7 @@ TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
 TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
-    std::string  target_device = CommonTestUtils::DEVICE_HETERO;
+    std::string  target_device = ov::test::utils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)));
     auto t = p.as<std::vector<std::string>>();
@@ -554,7 +554,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
-    std::string  target_device = CommonTestUtils::DEVICE_HETERO;
+    std::string  target_device = ov::test::utils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto t = p.as<std::vector<std::string>>();
@@ -570,7 +570,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     // TODO: check
-    std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + CommonTestUtils::DEVICE_CPU;
+    std::string targetDevice = ov::test::utils::DEVICE_HETERO + std::string(":") + ov::test::utils::DEVICE_CPU;
     ASSERT_THROW(ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), InferenceEngine::Exception);
 }
 
@@ -774,14 +774,14 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), InferenceEngine::Exception);
+    ASSERT_THROW(p = ie.GetConfig(ov::test::utils::DEVICE_HETERO, "unsupported_config"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO + std::string(":") +  target_device, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
+    ASSERT_THROW(p = ie.GetConfig(ov::test::utils::DEVICE_HETERO + std::string(":") +  target_device, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
                  InferenceEngine::Exception);
 }
 
@@ -856,7 +856,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     if (deviceIDs.empty())
        GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
-    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
+    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO,
                                     {{"TARGET_FALLBACK",  target_device + "." + deviceIDs[0] + "," +  target_device}}));
 }
 
@@ -896,7 +896,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
     if (!supportsDeviceID(ie, target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
+    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO,
                                  {{"TARGET_FALLBACK",  target_device + ".100," +  target_device}}), InferenceEngine::Exception);
 }
 
@@ -921,7 +921,7 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
 TEST_P(IEClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     try {
-        ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI);
+        ie.LoadNetwork(actualCnnNetwork, ov::test::utils::DEVICE_MULTI);
     } catch (InferenceEngine::Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
@@ -933,12 +933,12 @@ TEST_P(IEClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") +  target_device));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") +  target_device));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
@@ -993,7 +993,7 @@ TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
     if (deviceIDs.size() < target_devices.size())
         GTEST_FAIL() << "Incorrect DeviceID num" << std::endl;
 
-    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    std::string multitarget_device = ov::test::utils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
         multitarget_device += dev_name;
         if (&dev_name != &(target_devices.back())) {
@@ -1016,7 +1016,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
     auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     if (deviceIDs.empty())
         GTEST_SKIP();
-    std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
+    std::string heteroDevice = ov::test::utils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, heteroDevice));
 }
 
@@ -1057,7 +1057,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
         GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
     ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, "HETERO",
-                                {{"TARGET_FALLBACK", target_device + ".100," + CommonTestUtils::DEVICE_CPU}}), InferenceEngine::Exception);
+                                {{"TARGET_FALLBACK", target_device + ".100," + ov::test::utils::DEVICE_CPU}}), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
@@ -1066,8 +1066,8 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
     if (!supportsDeviceID(ie, target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
-                                {{"TARGET_FALLBACK",     target_device + "," + CommonTestUtils::DEVICE_CPU},
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO,
+                                {{"TARGET_FALLBACK",     target_device + "," + ov::test::utils::DEVICE_CPU},
                                     {CONFIG_KEY(DEVICE_ID), "110"}}), InferenceEngine::Exception);
 }
 
@@ -1091,8 +1091,8 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
             devices += ',';
         }
     }
-    std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + target_device);
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {
+    std::string targetFallback(ov::test::utils::DEVICE_MULTI + std::string(",") + target_device);
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, ov::test::utils::DEVICE_HETERO, {
             {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
             {"TARGET_FALLBACK",                   targetFallback}}));
 }
@@ -1114,8 +1114,8 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
             devices += ',';
         }
     }
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
-            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_HETERO},
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, ov::test::utils::DEVICE_MULTI, {
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_HETERO},
             {"TARGET_FALLBACK",                   devices}}));
 }
 
@@ -1147,8 +1147,8 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         expectedLayers.emplace(node->get_friendly_name());
     }
     InferenceEngine::QueryNetworkResult result;
-    std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + target_device);
-    ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_HETERO, {
+    std::string targetFallback(ov::test::utils::DEVICE_MULTI + std::string(",") + target_device);
+    ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, ov::test::utils::DEVICE_HETERO, {
             {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
             {"TARGET_FALLBACK",                   targetFallback}}));
 
@@ -1183,8 +1183,8 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         expectedLayers.emplace(node->get_friendly_name());
     }
     InferenceEngine::QueryNetworkResult result;
-    ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
-            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_HETERO},
+    ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, ov::test::utils::DEVICE_MULTI, {
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_HETERO},
             {"TARGET_FALLBACK",                   devices}}));
 
     std::unordered_set<std::string> actualLayers;
@@ -1197,11 +1197,11 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
 TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     {
-        auto versions = ie.GetVersions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + target_device + "," + CommonTestUtils::DEVICE_CPU);
+        auto versions = ie.GetVersions(std::string(ov::test::utils::DEVICE_MULTI) + ":" + target_device + "," + ov::test::utils::DEVICE_CPU);
         ASSERT_EQ(3, versions.size());
     }
     std::map<std::string, std::string> config;
-    if (target_device == CommonTestUtils::DEVICE_CPU) {
+    if (target_device == ov::test::utils::DEVICE_CPU) {
         config.insert({"CPU_THREADS_NUM", "3"});
     }
     ASSERT_NO_THROW({

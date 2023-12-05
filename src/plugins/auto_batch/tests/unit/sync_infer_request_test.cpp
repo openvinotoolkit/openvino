@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <thread>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "transformations/utils/utils.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
@@ -31,7 +33,7 @@ using AutoBatchRequestTestParams = std::tuple<uint32_t,              // batch_si
 class AutoBatchRequestTest : public ::testing::TestWithParam<AutoBatchRequestTestParams> {
 public:
     std::shared_ptr<ov::Model> m_model;
-    std::shared_ptr<NiceMock<MockICore>> m_core;
+    std::shared_ptr<NiceMock<ov::MockICore>> m_core;
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_auto_batch_plugin;
 
     std::shared_ptr<NiceMock<MockICompiledModel>> m_i_compile_model_without_batch;
@@ -96,7 +98,7 @@ public:
         std::tie(m_batch_size, m_element_type) = this->GetParam();
         std::vector<size_t> inputShape = {1, 3, 24, 24};
         m_model = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, m_element_type);
-        m_core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
+        m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
 
         m_auto_batch_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());

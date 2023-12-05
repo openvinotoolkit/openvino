@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2023.0
+OpenVINO 2023.2
 ============================
 
 .. meta::
@@ -14,7 +14,7 @@ OpenVINO 2023.0
 .. container::
    :name: ov-homepage-banner
 
-   OpenVINO 2023.0
+   OpenVINO 2023.2
 
    .. raw:: html
 
@@ -23,9 +23,15 @@ OpenVINO 2023.0
            <div class="splide__track">
          		<ul class="splide__list">
          			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
-			         <li class="splide__slide">Even more integrations in 2023.0!<br>Load TensorFlow, TensorFlow Lite, and PyTorch models directly, without manual conversion.<br><a href="https://docs.openvino.ai/2023.0/Supported_Model_Formats.html">See the supported model formats...</a></li>
-         			<li class="splide__slide">CPU inference has become even better. ARM processors are supported and thread scheduling is available on 12th gen Intel® Core and up.<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html">See how to run OpenVINO on various devices...</a></li>
-         			<li class="splide__slide">Post-training optimization and quantization-aware training now in one tool!<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_model_optimization_guide.html">See the new NNCF capabilities...</a></li>
+                  
+                  <li class="splide__slide"Better OpenVINO integration with PyTorch!<br>Use PyTorch models directly, without converting them first.<br>
+                     <a href="https://docs.openvino.ai/2023.2/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html">Learn more...</a>
+                  </li>
+                  <li class="splide__slide">OpenVINO via PyTorch 2.0 torch.compile()<br>Use OpenVINO directly in PyTorch-native applications!<br>
+                     <a href="https://docs.openvino.ai/2023.2/pytorch_2_0_torch_compile.html">Learn more...</a>
+                  </li>
+                  <li class="splide__slide">Do you like Generative AI? You will love how it performs with OpenVINO!<br>
+                     <a href="https://docs.openvino.ai/2023.2/tutorials.html">Check out our new notebooks...</a>
          		</ul>
            </div>
          </section>
@@ -62,13 +68,6 @@ OpenVINO 2023.0
 
       Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to the OpenVINO format.
 
-   .. grid-item-card:: Run Inference
-      :link: openvino_docs_OV_UG_Integrate_OV_with_your_application
-      :link-alt: integrating OpenVINO with your app     
-      :link-type: doc
-
-      Get results in just a few lines of code
-
    .. grid-item-card:: Deploy at Scale With OpenVINO Model Server
       :link: ovms_what_is_openvino_model_server
       :link-alt: model server    
@@ -82,6 +81,20 @@ OpenVINO 2023.0
       :link-type: doc
 
       Reach for performance with post-training and training-time compression with NNCF
+
+   .. grid-item-card:: PyTorch 2.0 - torch.compile() backend
+      :link: pytorch_2_0_torch_compile
+      :link-alt: torch.compile 
+      :link-type: doc
+
+      Optimize generation of the graph model with PyTorch 2.0 torch.compile() backend
+
+   .. grid-item-card:: Generative AI optimization and deployment
+      :link: gen_ai_guide
+      :link-alt: gen ai
+      :link-type: doc
+
+      Generative AI optimization and deployment
 
 
 Feature Overview
@@ -123,7 +136,4 @@ Feature Overview
    LEARN OPENVINO <learn_openvino>
    OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
-   MODEL ZOO <model_zoo>
-   RESOURCES <resources>
-   RELEASE NOTES <release_notes>
-
+   ABOUT OPENVINO <about_openvino>

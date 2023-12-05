@@ -5,7 +5,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -38,7 +38,7 @@ public:
        result << ")_TS=(";
        for (const auto& shape : shapes) {
            for (const auto& item : shape.second) {
-               result << CommonTestUtils::vec2str(item) << "_";
+               result << ov::test::utils::vec2str(item) << "_";
            }
        }
        result << "Broadcast=" << broadcast.m_type;
@@ -50,7 +50,7 @@ public:
 protected:
    void SetUp() override {
         abs_threshold = 0;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> shapes;
         ElementType precision;
         ngraph::op::AutoBroadcastSpec broadcast;
@@ -60,9 +60,13 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
 
-        auto parameters = ngraph::builder::makeDynamicParams(ov::element::TypeVector{ov::element::boolean, precision, precision}, inputDynamicShapes);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
-        auto select = ngraph::builder::makeSelect(paramOuts, broadcast);
+        ov::element::TypeVector types{ov::element::boolean, precision, precision};
+        ov::ParameterVector parameters;
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            parameters.push_back(param_node);
+        }
+        auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
 
         function = makeNgraphFunction(precision, parameters, select, "Eltwise");
    }
@@ -81,7 +85,7 @@ protected:
 
 TEST_P(SelectLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
 const std::vector<ElementType> precisions = {

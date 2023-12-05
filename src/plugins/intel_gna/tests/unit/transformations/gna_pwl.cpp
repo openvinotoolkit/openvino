@@ -10,7 +10,7 @@
 #include <type_traits>
 
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/pwl_approximation.hpp"
 
 using namespace ov::intel_gna::common;
@@ -209,7 +209,7 @@ inline void GnaPWlTestsFixture<T>::run() {
     auto shape = _function_under_test->input().get_node_shared_ptr()->get_output_shape(0);
     ov::runtime::TensorVector result(1);
     std::vector<float> data =
-        CommonTestUtils::generate_float_numbers(ov::shape_size(shape), _lower_bound, _upper_bound);
+        ov::test::utils::generate_float_numbers(ov::shape_size(shape), _lower_bound, _upper_bound);
     ov::runtime::Tensor input{ov::element::f32, shape, data.data()};
     ASSERT_TRUE(_function_under_test->evaluate(result, ov::runtime::TensorVector{input}));
 

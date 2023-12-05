@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
     const std::vector<ngraph::element::Type> netPrecisions = {
@@ -54,7 +54,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_LPT, UnsqueezeTransformation,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+            ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
         UnsqueezeTransformation::getTestCaseName);

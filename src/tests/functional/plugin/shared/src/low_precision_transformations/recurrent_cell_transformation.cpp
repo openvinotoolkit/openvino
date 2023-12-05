@@ -14,7 +14,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "lpt_ngraph_functions/recurrent_cell_function.hpp"
+#include "ov_lpt_models/recurrent_cell.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -24,7 +24,7 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
     std::vector<ngraph::Shape> weightsShape;
     std::string targetDevice;
     RecurrentCellTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, activationsShape, weightsShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
@@ -41,7 +41,7 @@ void RecurrentCellTransformation::SetUp() {
     std::vector<ngraph::PartialShape> activations_shapes;
     std::vector<ngraph::Shape> weights_shapes;
     RecurrentCellTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
 
     std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, param) = this->GetParam();
 

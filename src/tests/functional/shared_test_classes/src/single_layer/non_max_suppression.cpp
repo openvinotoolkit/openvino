@@ -58,9 +58,9 @@ void NmsLayerTest::GenerateInputs() {
             blob = make_blob_with_precision(info->getTensorDesc());
             blob->allocate();
             if (info->getTensorDesc().getPrecision() == Precision::FP32) {
-                CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 1000);
+                ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 1000);
             } else {
-                CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP16>(blob, 1, 0, 1000);
+                ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP16>(blob, 1, 0, 1000);
             }
         } else {
             blob = GenerateInput(*info);
@@ -310,9 +310,11 @@ void NmsLayerTest::SetUp() {
 
     const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
+                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],
                                 convertIE2nGraphPrc(maxBoxPrec),
@@ -324,7 +326,9 @@ void NmsLayerTest::SetUp() {
                                 boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                 sortResDescend,
                                 outType);
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    if (targetDevice == ov::test::utils::DEVICE_CPU) {
         function = std::make_shared<Function>(nms, params, "NMS");
     } else {
         auto nms_0_identity =
@@ -367,9 +371,11 @@ void Nms9LayerTest::SetUp() {
 
     const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
+                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],
                                 convertIE2nGraphPrc(maxBoxPrec),
@@ -382,6 +388,8 @@ void Nms9LayerTest::SetUp() {
                                 sortResDescend,
                                 outType,
                                 ngraph::builder::NmsVersion::NmsVersion9);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     function = std::make_shared<Function>(nms, params, "NMS");
 }
 

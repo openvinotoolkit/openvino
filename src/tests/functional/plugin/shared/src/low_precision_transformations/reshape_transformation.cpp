@@ -9,14 +9,14 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/reshape_function.hpp"
+#include "ov_lpt_models/reshape.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReshapeTransformationParam param;
     std::tie(netPrecision, targetDevice, params, param) = obj.param;
 
@@ -35,7 +35,7 @@ std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<
 
 void ReshapeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReshapeTransformationParam param;
     std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
 

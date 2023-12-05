@@ -17,12 +17,46 @@ As a result, you can get:
 
    result
 
+**Table of contents:**
+
+
+-  `Imports <#imports>`__
+-  `Download Models <#download-models>`__
+-  `Load Models <#load-models>`__
+
+   -  `Get attributes from model <#get-attributes-from-model>`__
+   -  `Helper function <#helper-function>`__
+   -  `Read and display a test
+      image <#read-and-display-a-test-image>`__
+
+-  `Use the Detection Model to Detect
+   Vehicles <#use-the-detection-model-to-detect-vehicles>`__
+
+   -  `Detection Processing <#detection-processing>`__
+   -  `Recognize vehicle
+      attributes <#recognize-vehicle-attributes>`__
+
+      -  `Recognition processing <#recognition-processing>`__
+
+   -  `Combine two models <#combine-two-models>`__
+
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 
-Imports
--------
+Imports 
+-------------------------------------------------
 
 Import the required modules.
+
+.. code:: ipython3
+
+    %pip install -q "openvino>=2023.1.0"
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -34,20 +68,17 @@ Import the required modules.
     import cv2
     import numpy as np
     import matplotlib.pyplot as plt
-    from openvino.runtime import Core
+    import openvino as ov
     
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download Models
----------------
+Download Models 
+---------------------------------------------------------
 
-Use ``omz_downloader`` - a command-line tool from the ``openvino-dev``
-package. The ``omz_downloader`` tool automatically creates a directory
-structure and downloads the selected model. This step is skipped if the
-model is already downloaded. The selected model comes from the public
-directory, which means it must be converted into OpenVINO Intermediate
-Representation (OpenVINO IR).
+Download pretrained models from
+https://storage.openvinotoolkit.org/repositories/open_model_zoo. If the
+model is already downloaded, this step is skipped.
 
    **Note**: To change the model, replace the name of the model in the
    code below, for example to ``"vehicle-detection-0201"`` or
@@ -63,59 +94,61 @@ Representation (OpenVINO IR).
 .. code:: ipython3
 
     # A directory where the model will be downloaded.
-    base_model_dir = "model"
+    base_model_dir = Path("model")
     # The name of the model from Open Model Zoo.
     detection_model_name = "vehicle-detection-0200"
     recognition_model_name = "vehicle-attributes-recognition-barrier-0039"
     # Selected precision (FP32, FP16, FP16-INT8)
     precision = "FP32"
     
+    base_model_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1"
+    
     # Check if the model exists.
-    detection_model_path = (
-        f"model/intel/{detection_model_name}/{precision}/{detection_model_name}.xml"
+    detection_model_url = (
+        f"{base_model_url}/{detection_model_name}/{precision}/{detection_model_name}.xml"
     )
-    recognition_model_path = (
-        f"model/intel/{recognition_model_name}/{precision}/{recognition_model_name}.xml"
+    recognition_model_url = (
+        f"{base_model_url}/{recognition_model_name}/{precision}/{recognition_model_name}.xml"
     )
+    detection_model_path = (base_model_dir / detection_model_name).with_suffix('.xml')
+    recognition_model_path = (base_model_dir / recognition_model_name).with_suffix('.xml')
     
     # Download the detection model.
-    if not os.path.exists(detection_model_path):
-        download_command = f"omz_downloader " \
-                           f"--name {detection_model_name} " \
-                           f"--precision {precision} " \
-                           f"--output_dir {base_model_dir}"
-        ! $download_command
+    if not detection_model_path.exists():
+        utils.download_file(detection_model_url, detection_model_name + '.xml', base_model_dir)
+        utils.download_file(detection_model_url.replace('.xml', '.bin'), detection_model_name + '.bin', base_model_dir)
     # Download the recognition model.
     if not os.path.exists(recognition_model_path):
-        download_command = f"omz_downloader " \
-                           f"--name {recognition_model_name} " \
-                           f"--precision {precision} " \
-                           f"--output_dir {base_model_dir}"
-        ! $download_command
+        utils.download_file(recognition_model_url, recognition_model_name + '.xml', base_model_dir)
+        utils.download_file(recognition_model_url.replace('.xml', '.bin'), recognition_model_name + '.bin', base_model_dir)
+
 
 
 .. parsed-literal::
 
-    ################|| Downloading vehicle-detection-0200 ||################
-    
-    ========== Downloading model/intel/vehicle-detection-0200/FP32/vehicle-detection-0200.xml
-    
-    
-    ========== Downloading model/intel/vehicle-detection-0200/FP32/vehicle-detection-0200.bin
-    
-    
-    ################|| Downloading vehicle-attributes-recognition-barrier-0039 ||################
-    
-    ========== Downloading model/intel/vehicle-attributes-recognition-barrier-0039/FP32/vehicle-attributes-recognition-barrier-0039.xml
-    
-    
-    ========== Downloading model/intel/vehicle-attributes-recognition-barrier-0039/FP32/vehicle-attributes-recognition-barrier-0039.bin
-    
-    
+    model/vehicle-detection-0200.xml:   0%|          | 0.00/181k [00:00<?, ?B/s]
 
 
-Load Models
------------
+
+.. parsed-literal::
+
+    model/vehicle-detection-0200.bin:   0%|          | 0.00/6.93M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model/vehicle-attributes-recognition-barrier-0039.xml:   0%|          | 0.00/33.7k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model/vehicle-attributes-recognition-barrier-0039.bin:   0%|          | 0.00/2.39M [00:00<?, ?B/s]
+
+
+Load Models 
+-----------------------------------------------------
 
 This tutorial requires a detection model and a recognition model. After
 downloading the models, initialize OpenVINO Runtime, and use
@@ -125,8 +158,32 @@ specified device.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # Initialize OpenVINO Runtime runtime.
-    ie_core = Core()
+    core = ov.Core()
     
     
     def model_init(model_path: str) -> Tuple:
@@ -143,16 +200,15 @@ specified device.
         """
     
         # Read the network and corresponding weights from a file.
-        model = ie_core.read_model(model=model_path)
-        # Compile the model for CPU (you can also use GPU).
-        compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+        model = core.read_model(model=model_path)
+        compiled_model = core.compile_model(model=model, device_name=device.value)
         # Get input and output names of nodes.
         input_keys = compiled_model.input(0)
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Get attributes from model
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Get attributes from model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``input_keys.shape`` to get data shapes.
 
@@ -170,8 +226,8 @@ Use ``input_keys.shape`` to get data shapes.
     # Get input size - Recognition.
     height_re, width_re = list(input_key_re.shape)[2:]
 
-Helper function
-~~~~~~~~~~~~~~~
+Helper function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``plt_show()`` function is used to show image.
 
@@ -188,8 +244,8 @@ The ``plt_show()`` function is used to show image.
         plt.axis("off")
         plt.imshow(raw_image)
 
-Read and display a test image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Read and display a test image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input shape of detection model is ``[1, 3, 256, 256]``. Therefore,
 you need to resize the image to ``256 x 256``, and expand the batch
@@ -217,11 +273,11 @@ channel with ``expand_dims`` function.
 
 
 
-.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_12_0.png
+.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_14_0.png
 
 
-Use the Detection Model to Detect Vehicles
-------------------------------------------
+Use the Detection Model to Detect Vehicles 
+------------------------------------------------------------------------------------
 
 .. figure:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
    :alt: pipline
@@ -231,14 +287,15 @@ Use the Detection Model to Detect Vehicles
 As shown in the flowchart, images of individual vehicles are sent to the
 recognition model. First, use ``infer`` function to get the result.
 
-The detection model output has the format [image_id, label, conf, x_min,
-y_min, x_max, y_max], where:
+The detection model output has the format
+``[image_id, label, conf, x_min, y_min, x_max, y_max]``, where:
 
--  image_id - ID of the image in the batch
--  label - predicted class ID (0 - vehicle)
--  conf - confidence for the predicted class
--  (x_min, y_min) - coordinates of the top left bounding box corner
--  (x_max, y_max) - coordinates of the bottom right bounding box corner
+-  ``image_id`` - ID of the image in the batch
+-  ``label`` - predicted class ID (0 - vehicle)
+-  ``conf`` - confidence for the predicted class
+-  ``(x_min, y_min)`` - coordinates of the top left bounding box corner
+-  ``(x_max, y_max)`` - coordinates of the bottom right bounding box
+   corner
 
 Delete unused dims and filter out results that are not used.
 
@@ -251,8 +308,8 @@ Delete unused dims and filter out results that are not used.
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Detection Processing
-~~~~~~~~~~~~~~~~~~~~
+Detection Processing 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With the function below, you change the ratio to the real position in
 the image and filter out low-confidence results.
@@ -300,8 +357,8 @@ the image and filter out low-confidence results.
     # Find the position of a car.
     car_position = crop_images(image_de, resized_image_de, boxes)
 
-Recognize vehicle attributes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Recognize vehicle attributes 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Select one of the detected boxes. Then, crop to an area containing a
 vehicle to test with the recognition model. Again, you need to resize
@@ -320,11 +377,11 @@ the input image and run inference.
 
 
 
-.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_19_0.png
+.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_21_0.png
 
 
-Recognition processing
-''''''''''''''''''''''
+Recognition processing 
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The result contains colors of the vehicles (white, gray, yellow, red,
 green, blue, black) and types of vehicles (car, bus, truck, van). Next,
@@ -372,8 +429,8 @@ determine the maximum probability as the result.
     Attributes:('Gray', 'Car')
 
 
-Combine two models
-~~~~~~~~~~~~~~~~~~
+Combine two models 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Congratulations! You successfully used a detection model to crop an
 image with a vehicle and recognize the attributes of a vehicle.
@@ -434,5 +491,5 @@ image with a vehicle and recognize the attributes of a vehicle.
 
 
 
-.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_25_0.png
+.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_27_0.png
 

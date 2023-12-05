@@ -1,11 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 import numpy.testing as npt
-from generator import generate, generator
 
 from openvino.tools.mo.ops.If import If
 from openvino.tools.mo.ops.elementwise import Add, Mul
@@ -22,9 +21,8 @@ from unit_tests.utils.graph import regular_op_with_empty_data, connect, result, 
     empty_data
 
 
-@generator
-class TestIf(unittest.TestCase):
-    @generate(*[
+class TestIf():
+    @pytest.mark.parametrize("cond, output_port_0_shape, output_port_1_shape",[
         (np.array([True], dtype=bool), shape_array([3]), shape_array([3])),
         (np.array([False], dtype=bool), shape_array([3]), shape_array([2])),
         (shape_array(dynamic_dimension_value), shape_array([3]), shape_array([dynamic_dimension_value])),
@@ -94,9 +92,9 @@ class TestIf(unittest.TestCase):
         graph.stage = 'middle'
         partial_infer(graph)
         if_node = Node(graph, 'if')
-        self.assertTrue(strict_compare_tensors(if_node.out_port(0).data.get_shape(), output_port_0_shape))
+        assert strict_compare_tensors(if_node.out_port(0).data.get_shape(), output_port_0_shape)
         # shape of the "then" branch is [3] and shape of the "else" branch is [2], so the output shape is "[dynamic]"
-        self.assertTrue(strict_compare_tensors(if_node.out_port(1).data.get_shape(), output_port_1_shape))
+        assert strict_compare_tensors(if_node.out_port(1).data.get_shape(), output_port_1_shape)
 
     def test_fake_results(self):
         then_graph_nodes = {**valued_const_with_data('fake_const', int64_array(0)),

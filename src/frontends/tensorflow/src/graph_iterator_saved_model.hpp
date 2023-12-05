@@ -8,7 +8,7 @@
 
 #include "graph_iterator_proto.hpp"
 #include "openvino/util/file_util.hpp"
-#include "saved_model.pb.h"
+#include "ov_tensorflow/saved_model.pb.h"
 #include "variables_index.hpp"
 
 namespace ov {
@@ -38,11 +38,13 @@ class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
+    bool m_mmap_enabled;
 
 public:
     template <typename T>
-    GraphIteratorSavedModel(const std::basic_string<T>& path, const std::string& tags)
-        : m_saved_model(std::make_shared<::tensorflow::SavedModel>()) {
+    GraphIteratorSavedModel(const std::basic_string<T>& path, const std::string& tags, const bool mmap_enabled)
+        : m_saved_model(std::make_shared<::tensorflow::SavedModel>()),
+          m_mmap_enabled(mmap_enabled) {
         this->read_saved_model(path, tags);
     }
 
@@ -74,7 +76,7 @@ private:
 
         std::basic_string<T> varIndexPath = path + get_variables_index_name<T>();
         if (ov::util::file_exists(varIndexPath)) {
-            m_variables_index = std::make_shared<VariablesIndex>();
+            m_variables_index = std::make_shared<VariablesIndex>(m_mmap_enabled);
             std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
                                     "[TensorFlow Frontend] Saved Model's variable index file does not exist");

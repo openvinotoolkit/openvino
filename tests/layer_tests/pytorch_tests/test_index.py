@@ -125,3 +125,29 @@ class TestIndexRange(PytorchLayerTest):
     def test_index_range_free_dims(self, input_shape, idx, ie_device, precision, ir_version):
         self._test(*self.create_model2(), ie_device, precision, ir_version, kwargs_to_prepare_input={
                    "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
+
+class TestIndexMask(PytorchLayerTest):
+    def _prepare_input(self, input_shape):
+        import numpy as np
+        return (np.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self):
+        import torch
+
+        class aten_index_mask(torch.nn.Module):
+            def forward(self, x):
+                return x[x > 0]
+
+        ref_net = None
+
+        return aten_index_mask(), ref_net, "aten::index"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize(("input_shape"), ((1, 1),
+                                               [2, 3],
+                                               [7, 8, 9],
+                                               [2, 2, 3, 4]))
+    def test_index_mask(self, input_shape, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
+                   "input_shape": input_shape}, trace_model=True, use_convert_model=True)

@@ -13,16 +13,18 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "dev/converter_utils.hpp"
 #include "file_utils.h"
 #include "ie_api.h"
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif
-#include "ie_itt.hpp"
+#include "itt.hpp"
 #include "legacy/ie_reader.hpp"
 #include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
@@ -35,46 +37,6 @@
 #include "so_ptr.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace ov {
-
-/*
- * @brief Wrapper for old IE extensions to new API
- */
-class ExtensionWrapper : public ov::LegacyOpExtension {
-public:
-    ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
-        : m_ext(ext),
-          m_opset_name(opset),
-          m_type(name),
-          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
-
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return m_ext_type;
-    }
-
-    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) const override {
-        std::shared_ptr<ngraph::Node> node(m_ext->getOpSets().at(m_opset_name).create_insensitive(m_ext_type.name));
-
-        node->set_arguments(inputs);
-        if (node->visit_attributes(visitor)) {
-            node->constructor_validate_and_infer_types();
-        }
-        return node->outputs();
-    }
-
-    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
-        return {};
-    }
-
-private:
-    InferenceEngine::IExtensionPtr m_ext;
-    std::string m_opset_name;
-    std::string m_type;
-    ov::DiscreteTypeInfo m_ext_type;
-};
-
-}  // namespace ov
 
 namespace InferenceEngine {
 
@@ -116,7 +78,7 @@ public:
     }
 
     bool supportModel(std::istream& model) const override {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Reader::supportModel");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Reader::supportModel");
         return ptr->supportModel(model);
     }
 
@@ -140,7 +102,7 @@ namespace {
 Reader::Ptr reader_irv7 = nullptr;
 
 void registerReaders() {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "registerReaders");
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
@@ -152,7 +114,7 @@ void registerReaders() {
     // try to load IR reader v7 if library exists
     try {
         reader_irv7 =
-            std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
+            std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(OV_BUILD_POSTFIX));
     } catch (const std::runtime_error&) {
         // runtime error is thrown in case of library cannot be loaded
     }
@@ -229,7 +191,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {fileSize}, C});
 
             {
-                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ReadNetworkWeights");
+                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ReadNetworkWeights");
                 weights->allocate();
                 binStream.read(weights->buffer(), fileSize);
                 binStream.close();
@@ -255,175 +217,86 @@ namespace {
 
 CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
-                                 bool newAPI,
+                                 bool is_new_api,
                                  bool frontendMode = false) {
-    auto& rt_info = function->get_rt_info();
-    const bool is_ir = function->has_rt_info("version");
-
     // only for IR cases we need preprocessing or postprocessing steps
-    if (is_ir) {
-        IR_READER_SCOPE(is_ir);
-        using namespace ov::preprocess;
-        PrePostProcessor prepost(function);
+    if (function->has_rt_info("version") && function->get_rt_info<int64_t>("version") == 11 && !is_new_api) {
+        IR_READER_SCOPE(ir11_old_api);
+        ov::preprocess::PrePostProcessor prepost(function);
 
-        const int64_t ir_version = function->get_rt_info<int64_t>("version");
+        const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
+        const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
-        if (ir_version == 10 && newAPI) {
-            IR_READER_SCOPE(ir10_new_api);
-            std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
-            const auto inputs = function->inputs();
-            for (size_t i = 0; i < inputs.size(); ++i) {
-                if (!frontendMode) {
-                    const auto ngraph_type = inputs[i].get_element_type();
-                    const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                    prepost.input(i).tensor().set_element_type(legacy_type);
+        bool need_validate_nodes_and_infer_types = false;
+        auto& parameters = function->get_parameters();
+        for (size_t i = 0; i < parameters.size(); ++i) {
+            const auto& parameter = parameters[i];
+            ov::RTMap& rtInfo = parameter->get_rt_info();
+            const auto it_type = rtInfo.find(old_api_map_key_type);
+            auto& pre_input = prepost.input(i);
+            if (it_type != rtInfo.end()) {
+                const auto old_api_map_type = it_type->second.as<ov::OldApiMapElementType>().value;
+                const auto param_type = parameter->get_element_type();
+
+                // In the following code we add Convert node from old_api_map_type to Parameter type
+                // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
+                // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
+                if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                    parameter->set_element_type(old_api_map_type);
+                    need_validate_nodes_and_infer_types = true;
+                } else {
+                    pre_input.tensor().set_element_type(old_api_map_type);
                 }
-                for (const auto& name : inputs[i].get_names()) {
-                    OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
-                                    "Model tensor names have collisions.",
-                                    " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.emplace(name, inputs[i].get_tensor_ptr());
-                }
+
+                OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
+                rtInfo.erase(it_type);
             }
-
-            const auto outputs = function->outputs();
-            for (size_t i = 0; i < outputs.size(); ++i) {
-                if (!frontendMode) {
-                    const auto ngraph_type = outputs[i].get_element_type();
-                    const auto legacy_type = details::toLegacyType(ngraph_type, false);
-                    prepost.output(i).tensor().set_element_type(legacy_type);
-                }
-                for (const auto& name : outputs[i].get_names()) {
-                    auto tensor_it = leaf_names.find(name);
-                    OPENVINO_ASSERT(tensor_it == leaf_names.end() || tensor_it->second == outputs[i].get_tensor_ptr(),
-                                    "Model tensor names have collisions.",
-                                    " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.emplace(name, outputs[i].get_tensor_ptr());
-                }
+            const auto it_order = rtInfo.find(old_api_map_key_order);
+            if (it_order != rtInfo.end()) {
+                const auto order = it_order->second.as<ov::OldApiMapOrder>().value;
+                pre_input.preprocess().convert_layout(order);
+                rtInfo.erase(it_order);
             }
-
-            // in order to support the following scenarios for IR v10 cases:
-            // ov::Model f = ie.read_model(..);
-            // f.input("input_operation_name");
-            // f.output("output_operation_name");
-            // f.add_output("operation_name[].port_index]");
-            // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
-            // we need to add operation names as tensor names for inputs and outputs
-            {
-                for (const auto& result : function->get_results()) {
-                    auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
-                    OPENVINO_ASSERT(
-                        leaf_names.find(res_name) == leaf_names.end() ||
-                            result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
-                        "Model operation names have collisions with tensor names.",
-                        " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.emplace(res_name, nullptr);
-                    result->output(0).get_tensor().add_names({res_name});
-                }
-                for (const auto& param : function->get_parameters()) {
-                    auto param_name = param->get_friendly_name();
-                    OPENVINO_ASSERT(
-                        leaf_names.find(param_name) == leaf_names.end() ||
-                            param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
-                        "Model operation names have collisions with tensor names.",
-                        " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.emplace(param_name, nullptr);
-                    param->output(0).get_tensor().add_names({param_name});
-                }
-            }
-
-            function = prepost.build();
-
-            // Set version to 10
-            rt_info["version"] = int64_t(10);
-        } else if (ir_version == 11 && !newAPI) {
-            IR_READER_SCOPE(ir11_old_api);
-            const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
-            const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
-
-            bool need_validate_nodes_and_infer_types = false;
-            auto& parameters = function->get_parameters();
-            for (size_t i = 0; i < parameters.size(); ++i) {
-                const auto& parameter = parameters[i];
-                ov::RTMap& rtInfo = parameter->get_rt_info();
-                const auto it_type = rtInfo.find(old_api_map_key_type);
-                auto& pre_input = prepost.input(i);
-                if (it_type != rtInfo.end()) {
-                    const auto old_api_map_type = it_type->second.as<ov::OldApiMapElementType>().value;
-                    const auto param_type = parameter->get_element_type();
-
-                    // In the following code we add Convert node from old_api_map_type to Parameter type
-                    // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
-                    // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
-                    if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
-                        parameter->set_element_type(old_api_map_type);
-                        need_validate_nodes_and_infer_types = true;
-                    } else {
-                        pre_input.tensor().set_element_type(old_api_map_type);
-                    }
-
-                    OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
-                    rtInfo.erase(it_type);
-                }
-                const auto it_order = rtInfo.find(old_api_map_key_order);
-                if (it_order != rtInfo.end()) {
-                    const auto order = it_order->second.as<ov::OldApiMapOrder>().value;
-                    pre_input.preprocess().convert_layout(order);
-                    rtInfo.erase(it_order);
-                }
-            }
-
-            auto& results = function->get_results();
-            for (size_t i = 0; i < results.size(); ++i) {
-                const auto& result = results[i];
-                ov::RTMap& rtInfo = result->get_rt_info();
-                const auto it = rtInfo.find(old_api_map_key_order);
-                if (it == rtInfo.end())
-                    continue;
-
-                const auto order = it->second.as<ov::OldApiMapOrder>().value;
-                auto& post_output = prepost.output(i);
-                post_output.postprocess().convert_layout(order);
-
-                // remove old api once we applied it
-                rtInfo.erase(it);
-            }
-
-            if (need_validate_nodes_and_infer_types)
-                function->validate_nodes_and_infer_types();
-
-            // Set version to 10
-            rt_info["version"] = int64_t(10);
-
-            function = prepost.build();
         }
+
+        auto& results = function->get_results();
+        for (size_t i = 0; i < results.size(); ++i) {
+            const auto& result = results[i];
+            ov::RTMap& rtInfo = result->get_rt_info();
+            const auto it = rtInfo.find(old_api_map_key_order);
+            if (it == rtInfo.end())
+                continue;
+
+            const auto order = it->second.as<ov::OldApiMapOrder>().value;
+            auto& post_output = prepost.output(i);
+            post_output.postprocess().convert_layout(order);
+
+            // remove old api once we applied it
+            rtInfo.erase(it);
+        }
+
+        if (need_validate_nodes_and_infer_types)
+            function->validate_nodes_and_infer_types();
+
+        // Set version to 10
+        function->set_rt_info<int64_t>(10, "version");
+
+        function = prepost.build();
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, newAPI));
+    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, is_new_api));
     OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-std::vector<ov::Extension::Ptr> wrap_old_extensions(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    std::vector<ov::Extension::Ptr> extensions;
-    for (const auto& ext : exts) {
-        for (const auto& item : ext->getOpSets()) {
-            for (const auto& type_info : item.second.get_types_info()) {
-                extensions.emplace_back(std::make_shared<ov::ExtensionWrapper>(ext, item.first, type_info.name));
-            }
-        }
-    }
-    return extensions;
 }
 
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
-                                const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI,
+                                bool is_new_api,
                                 bool enable_mmap) {
+    auto exts = ov::legacy_convert::convert_extension(ov_exts);
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -433,7 +306,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
-            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             return cnnnetwork;
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -467,14 +339,12 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
-        if (!exts.empty())
-            FE->add_extension(wrap_old_extensions(exts));
         inputModel = FE->load(params);
     }
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
+        return convert_to_cnnnetwork(ngFunc, exts, is_new_api);
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -489,12 +359,12 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
-                                const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI,
+                                bool is_new_api,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
+    auto exts = ov::legacy_convert::convert_extension(ov_exts);
 
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
@@ -504,7 +374,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         assertIfIRv7LikeModel(modelStream);
 
         if (reader_irv7 && reader_irv7->supportModel(modelStream)) {
-            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             if (weights)
                 return reader_irv7->read(modelStream, weights, exts);
             return reader_irv7->read(modelStream, exts);
@@ -520,21 +389,19 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::AnyVector params{&modelStream};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
-        std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
-            std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
+        std::shared_ptr<ov::AlignedBuffer> weights_buffer =
+            std::make_shared<ov::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
         params.emplace_back(weights_buffer);
     }
 
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
-        if (!exts.empty())
-            FE->add_extension(wrap_old_extensions(exts));
         inputModel = FE->load(params);
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
+        return convert_to_cnnnetwork(ngFunc, exts, is_new_api, frontendMode);
     }
 
     IE_THROW(NetworkNotRead)

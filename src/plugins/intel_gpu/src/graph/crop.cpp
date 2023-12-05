@@ -56,29 +56,36 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
     // TODO: calling shape_infer for all cropped outpus is redundant... Need to optimize.
     if (desc->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) {
-        std::map<size_t, ngraph::HostTensorPtr> const_data;
+        std::unordered_map<size_t, ov::Tensor> const_data;
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(1) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) axis values memory dependency");
         auto axis_values_mem = impl_param.memory_deps.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.get_stream());
-        const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
+        const_data.emplace(1, make_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
-        OPENVINO_ASSERT(impl_param.memory_deps.count(2) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) split length values memory dependency");
-        auto split_length_mem = impl_param.memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.get_stream());
-        const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
+        if (impl_param.memory_deps.count(2) > 0) {
+            auto split_length_mem = impl_param.memory_deps.at(2);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.get_stream());
+            const_data.emplace(2, make_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
-        ov::op::v1::VariadicSplit op;
-        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+            ov::op::v1::VariadicSplit op;
+            op.set_friendly_name(desc->id);
+            output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+        } else {
+            auto input0_layout = impl_param.get_input_layout(0);
+            auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
+            return { layout{out_shape, input0_layout.data_type, input0_layout.format } };
+        }
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::split) {
-        std::map<size_t, ngraph::HostTensorPtr> const_data;
+        std::unordered_map<size_t, ov::Tensor> const_data;
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(1) > 0, "[GPU] Can't find Crop(ngraph Split op mode) axis values memory dependency");
         auto axis_values_mem = impl_param.memory_deps.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.get_stream());
-        const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
+        const_data.emplace(1, make_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
         ov::op::v1::Split op;
+        op.set_friendly_name(desc->id);
         op.set_num_splits(desc->num_splits);
         output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::none) {
@@ -117,7 +124,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
     // update split offsets
     if (is_output_static) {
         auto p_param = const_cast<kernel_impl_params*>(&impl_param);
-        InferenceEngine::SizeVector startOffset(p_param->input_layouts[0].get_partial_shape().size());
+        ov::Shape startOffset(p_param->input_layouts[0].get_partial_shape().size());
         auto input_shape = p_param->input_layouts[0].get_partial_shape();
         auto dims = p_param->input_layouts[0].get_partial_shape().size();
         for (int32_t prev = 0; prev < desc->output_idx; prev++) {
@@ -235,21 +242,11 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 
     if (node.can_be_optimized()) {
         build_deps();
-        reuse_input();
+        update_output_memory();
     }
 }
 
 void crop_inst::on_execute() {
-    if (!can_be_optimized())
-        return;
-
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    reuse_input();
-}
-
-void crop_inst::reuse_input() {
     update_output_memory();
 }
 

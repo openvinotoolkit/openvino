@@ -15,7 +15,7 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
     std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "epsilon=" << epsilon << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
@@ -37,12 +37,25 @@ void BatchNormLayerTest::SetUp() {
     std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
 
-    auto batchNorm = ngraph::builder::makeBatchNormInference(paramOuts[0], epsilon);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(batchNorm)};
+    size_t C = inputShapes.at(1);
+    bool random = true;
+    std::vector<float> values(C);
+    auto gamma = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
+    auto beta = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
+    auto mean = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
+
+    // Fill the vector for variance with positive values
+    std::default_random_engine gen;
+    std::uniform_real_distribution<float> dis(0.0, 10.0);
+    std::generate(values.begin(), values.end(), [&dis, &gen]() {
+        return dis(gen);
+    });
+    auto variance = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, !random);
+    auto batchNorm = std::make_shared<ov::op::v5::BatchNormInference>(params[0], gamma, beta, mean, variance, epsilon);
+
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(batchNorm)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchNormInference");
 }
 

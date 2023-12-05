@@ -21,7 +21,7 @@ const auto testCase_values = ::testing::Combine(::testing::ValuesIn(inShapes_nhw
                                                 ::testing::ValuesIn(inTypes),
                                                 ::testing::Bool(),
                                                 ::testing::Bool(),
-                                                ::testing::Values(CommonTestUtils::DEVICE_GNA));
+                                                ::testing::Values(ov::test::utils::DEVICE_GNA));
 
 GNA_UNSUPPPORTED_LAYER_NEG_TEST(ConvertColorNV12LayerTest, "The plugin does not support layer", testCase_values)
 

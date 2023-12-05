@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/conversion.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,7 +18,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
         obj.param;
     std::ostringstream result;
     result << "conversionOpType=" << conversionNames[conversionOpType] << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "inputPRC=" << inputPrecision.name() << "_";
     result << "targetPRC=" << targetPrecision.name() << "_";
     result << "inL=" << inLayout << "_";
@@ -28,7 +28,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (ov::test::utils::current_test_is_disabled()) {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     }
     ngraph::helpers::ConversionTypes conversionOpType;
@@ -39,10 +39,18 @@ void ConversionLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, inputShape);
-    auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
-
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
+    ov::ParameterVector params;
+    for (auto&& shape : inputShape) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+    }
+    std::shared_ptr<ov::Node> conversion;
+    if (ov::test::utils::ConversionTypes::CONVERT == conversionOpType) {
+        conversion = std::make_shared<ov::op::v0::Convert>(params.front(), targetPrc);
+    } else {
+        const auto like = std::make_shared<ov::op::v0::Constant>(targetPrc, ov::Shape{1});
+        conversion = std::make_shared<ov::op::v1::ConvertLike>(params.front(), like);
+    }
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(conversion)};
     function = std::make_shared<ngraph::Function>(results, params, "Conversion");
 }
 }  // namespace LayerTestsDefinitions

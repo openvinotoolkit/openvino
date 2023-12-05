@@ -9,7 +9,7 @@
 #include <numeric>
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"

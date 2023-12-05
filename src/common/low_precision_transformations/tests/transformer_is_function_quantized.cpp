@@ -10,25 +10,25 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/low_precision.hpp>
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/low_precision.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 namespace {
 
 class TestValues {
 public:
-    builder::subgraph::FakeQuantizeOnData fqOnData;
-    builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ngraph:: builder::subgraph::FakeQuantizeOnData fqOnData;
+    ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const TestValues& testValue) {
@@ -56,7 +56,7 @@ public:
 
 TEST_P(TransformerIsFunctionQuantized, isFunctionQuantized) {
     actualFunction->validate_nodes_and_infer_types();
-    const bool isFunctionQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
+    const bool isFunctionQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
 
     const TestValues testValues = GetParam();
     const bool expected = !testValues.fqOnData.empty() || !testValues.fqOnWeights.empty();

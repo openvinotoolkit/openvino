@@ -13,14 +13,14 @@ void OVClassHeteroCompiledModelGetMetricTest::SetCpuAffinity(ov::Core& core, std
     auto layermap = core.query_model(actualNetwork, heteroDeviceName);
     for (auto &iter : layermap) {
         if (iter.first.find("Concat") != std::string::npos)
-            layermap[iter.first] = CommonTestUtils::DEVICE_CPU;
+            layermap[iter.first] = ov::test::utils::DEVICE_CPU;
     }
     for (auto& node : actualNetwork->get_ops()) {
         auto affinity = layermap[node->get_friendly_name()];
         node->get_rt_info()["affinity"] = affinity;
     }
-    if (target_device.find(CommonTestUtils::DEVICE_CPU) == std::string::npos)
-        expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
+    if (target_device.find(ov::test::utils::DEVICE_CPU) == std::string::npos)
+        expectedTargets = {target_device, ov::test::utils::DEVICE_CPU};
 #endif
 }
 

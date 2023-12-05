@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/embeddingbag_packedsum.hpp"
+#include "openvino/op/embeddingbag_packedsum.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table,
                                                      const Output<Node>& indices,
@@ -18,14 +16,15 @@ op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_tab
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table, const Output<Node>& indices)
     : util::EmbeddingBagPackedBase(emb_table, indices) {}
 
-shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1));
+        return std::make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1));
     } else if (new_args.size() == 3) {
-        return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1), new_args.at(2));
+        return std::make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1), new_args.at(2));
     } else {
         OPENVINO_THROW("Incorrect number of arguments");
     }
 }
+}  // namespace ov

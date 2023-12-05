@@ -191,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(pre_nms_count),
         ::testing::ValuesIn(getInputTensors<ov::float16>()),
         ::testing::ValuesIn({ov::element::Type_t::f16}),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -205,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(pre_nms_count),
                 ::testing::ValuesIn(getInputTensors<float>()),
                 ::testing::ValuesIn({ov::element::Type_t::f32}),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName);
 
 } // namespace

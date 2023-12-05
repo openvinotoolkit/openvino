@@ -41,7 +41,12 @@ SyncInferRequest::SyncInferRequest(
       m_batched_request_wrapper(worker_request),
       m_batch_id(batch_id),
       m_batch_size(num_batch) {
-    share_tensors_with_batched_req(batched_inputs, batched_outputs);
+    if (m_batched_request_wrapper)
+        share_tensors_with_batched_req(batched_inputs, batched_outputs);
+}
+
+size_t SyncInferRequest::get_batch_size() const {
+    return m_batch_size;
 }
 
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
@@ -52,7 +57,11 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
-        res = create_shared_tensor_on_batched_tensor(batched_tensor, name, batched_inputs, m_batch_id, m_batch_size);
+        res = create_shared_tensor_on_batched_tensor(batched_tensor,
+                                                     std::move(name),
+                                                     batched_inputs,
+                                                     m_batch_id,
+                                                     m_batch_size);
         set_tensor(it, res);
     }
 
@@ -62,7 +71,11 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
-        res = create_shared_tensor_on_batched_tensor(batched_tensor, name, batched_outputs, m_batch_id, m_batch_size);
+        res = create_shared_tensor_on_batched_tensor(batched_tensor,
+                                                     std::move(name),
+                                                     batched_outputs,
+                                                     m_batch_id,
+                                                     m_batch_size);
         set_tensor(it, res);
     }
 }
@@ -73,7 +86,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }
@@ -82,7 +97,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }

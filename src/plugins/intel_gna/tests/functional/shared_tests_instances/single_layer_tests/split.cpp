@@ -26,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_NumSplitsCheck,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({30, 30})),
                                             ::testing::Values(std::vector<size_t>({})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          SplitLayerTest::getTestCaseName);
 
 }  // namespace

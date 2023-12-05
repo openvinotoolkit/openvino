@@ -44,7 +44,8 @@ namespace util {
     }
 }// namespace util
 
-TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_pipeline, const int &n) {
+TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_pipeline, const int &n, const float& threshold_val) {
+    auto threshold = threshold_val > 0 ? threshold_val : THRESHOLD;
     if (AVERAGE_NUM > n)
         return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined AVERAGE_NUM");
 
@@ -52,9 +53,9 @@ TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_p
     std::array<long, MeasureValueMax> cur{};            // measured for current iteration
     std::array<long, MeasureValueMax> ref = {-1};       // recorded reference
     std::array<long, MeasureValueMax> diff{};           // difference between current and reference
-    std::array<bool, MeasureValueMax> outlier{};        // flag if current does not fit threshold
-    std::array<int, MeasureValueMax> outlier_count{};   // counter for how many times current does not fit threshold
-    std::array<float, MeasureValueMax> threshold{};     // ref * THRESHOLD
+    std::array<bool, MeasureValueMax> outlier{};        // flag if current does not fit upper_bound
+    std::array<int, MeasureValueMax> outlier_count{};   // counter for how many times current does not fit upper_bound
+    std::array<float, MeasureValueMax> upper_bound{};   // ref * threshold
     std::vector<std::array<long, MeasureValueMax>> past;// past measures
     std::array<long, MeasureValueMax> sliding_avg{};    // sliding average computed as avg of past AVERAGE_NUM values
     std::string progress_str;
@@ -102,11 +103,11 @@ TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_p
                     std::fill(outlier_count.begin(), outlier_count.end(), 0);
                     // set reference as current `sliding_avg`
                     ref = sliding_avg;
-                    // threshold = THRESHOLD * ref
-                    util::transform(ref, threshold, [](long ref_val) -> float { return THRESHOLD * ref_val; });
-                    log_info("Setting thresholds:"
-                                     << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(threshold[VMRSS]) << "),"
-                                     << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(threshold[VMHWM]) << ")");
+                    // upper_bound = threshold * ref
+                    util::transform(ref, upper_bound, [&](long ref_val) -> float { return threshold * ref_val; });
+                    log_info("Setting upper bounds:"
+                                     << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(upper_bound[VMRSS]) << "),"
+                                     << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(upper_bound[VMHWM]) << ")");
                 } else if (measure_count <= 0) {
                     // exit from main loop
                     break;
@@ -118,9 +119,9 @@ TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_p
                     // no labs() here - ignore cur smaller than ref
                     return sliding_avg_val - ref_val;
                 });
-                // outlier = diff > threshold
-                util::transform(diff, threshold, outlier,
-                                [](long diff_val, float threshold_val) -> bool { return diff_val > threshold_val; });
+                // outlier = diff > upper_bound
+                util::transform(diff, upper_bound, outlier,
+                                [](long diff_val, float upper_bound_val) -> bool { return diff_val > upper_bound_val; });
                 // outlier_count = outlier_count + (outlier ? 1 : 0)
                 util::transform(outlier, outlier_count, outlier_count,
                                 [](bool outlier_val, long outlier_count_val) -> long {

@@ -26,12 +26,9 @@ namespace pass {
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 /**
- * @brief Serialize transformation converts ngraph::Function into IR files
+ * @brief Serialize transformation converts ov::Model into IR files
  * @attention
  * - dynamic shapes are not supported
- * - order of generated layers in xml file is ngraph specific (given by
- * get_ordered_ops()); MO generates file with different order, but they are
- * logically equivalent
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
@@ -69,7 +66,7 @@ private:
 };
 
 /**
- * @brief StreamSerialize transformation converts ngraph::Function into single binary stream
+ * @brief StreamSerialize transformation converts ov::Model into single binary stream
  * @attention
  * - dynamic shapes are not supported
  * \ingroup ov_pass_cpp_api

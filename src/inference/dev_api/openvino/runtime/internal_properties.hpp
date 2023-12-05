@@ -10,6 +10,7 @@
 #pragma once
 
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
 
@@ -41,6 +42,30 @@ static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<std::string, PropertyMutability::WO> config_device_id{"CONFIG_DEVICE_ID"};
+
+/**
+ * @brief The name for setting CPU affinity per thread option.
+ *
+ * It is passed to Core::get_property()
+ *
+ * The following options are implemented only for the TBB as a threading option
+ * ov::threading::IStreamsExecutor::ThreadBindingType::NUMA (pinning threads to NUMA nodes, best for real-life,
+ * contented cases) on the Windows and MacOS* this option behaves as YES
+ * ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE (let the runtime to do pinning to the cores types,
+ * e.g. prefer the "big" cores for latency tasks) on the hybrid CPUs this option is default
+ *
+ * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
+ * environment variable is set (as affinity is configured explicitly)
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<ov::threading::IStreamsExecutor::ThreadBindingType, PropertyMutability::RW> cpu_bind_thread{
+    "CPU_BIND_THREAD"};
+
+/**
+ * @brief Limit \#threads that are used by IStreamsExecutor to execute `parallel_for` calls
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream{"THREADS_PER_STREAM"};
 
 }  // namespace internal
 OPENVINO_DEPRECATED(

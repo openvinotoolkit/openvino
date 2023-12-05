@@ -21,14 +21,6 @@ using namespace ov::op;
 OutputVector translate_flatten(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    int64_t start_dim = 0;
-    int64_t end_dim = -1;
-    if (!context.input_is_none(1)) {
-        start_dim = context.const_input<int64_t>(1);
-    }
-    if (!context.input_is_none(2)) {
-        end_dim = context.const_input<int64_t>(2);
-    }
     Output<Node> shape;
     Output<Node> rank;
     std::tie(shape, rank) = get_shape_rank(context, x, true);
@@ -38,20 +30,16 @@ OutputVector translate_flatten(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         start_dim_node = context.get_input(1);
     } else {
-        start_dim_node = v0::Constant::create(element::i32, Shape{}, {start_dim});
+        start_dim_node = v0::Constant::create(element::i32, Shape{}, {0});
     }
     if (!context.input_is_none(2)) {
         end_dim_node = context.get_input(2);
     } else {
-        end_dim_node = v0::Constant::create(element::i32, Shape{}, {end_dim});
+        end_dim_node = v0::Constant::create(element::i32, Shape{}, {-1});
     }
-    if (start_dim < 0) {
-        start_dim_node = context.mark_node(std::make_shared<v1::Add>(rank, start_dim_node));
-    }
-    if (end_dim < 0) {
-        end_dim_node = context.mark_node(std::make_shared<v1::Add>(rank, end_dim_node));
-    }
-    // Slice shape from begin and end, then concat with -1, if slice return empty tensor concat shuold still be able to
+    start_dim_node = normalize_axis(context, start_dim_node, rank);
+    end_dim_node = normalize_axis(context, end_dim_node, rank);
+    // Slice shape from begin and end, then concat with -1, if slice return empty tensor concat should still be able to
     // work with it
     auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
     auto one = v0::Constant::create(element::i32, Shape{1}, {1});

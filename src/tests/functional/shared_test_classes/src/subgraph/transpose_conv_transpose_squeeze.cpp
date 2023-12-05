@@ -22,14 +22,14 @@ std::string TransposeConvTest::getTestCaseName(const testing::TestParamInfo<Tran
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice;
     for (auto const& configItem : config) {
         result << "_configItem=" << configItem.first << "_" << configItem.second;
     }
-    result << "_KERNEL=" << CommonTestUtils::vec2str(kernelShape) << "_";
-    result << "STRIDES=" << CommonTestUtils::vec2str(strides) << "_";
+    result << "_KERNEL=" << ov::test::utils::vec2str(kernelShape) << "_";
+    result << "STRIDES=" << ov::test::utils::vec2str(strides) << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels;
     return result.str();
@@ -47,7 +47,7 @@ void TransposeConvTest::SetUp() {
     size_t input_channels, output_channels;
     std::tie(kernel_shape, strides, input_channels, output_channels) = conv_params;
     auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
-    auto params = ngraph::builder::makeParams(ng_prc, {input_shape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ng_prc, ov::Shape(input_shape))};
 
     std::vector<size_t> nchw_order = { 0, 3, 1, 2 };
     std::vector<size_t> nhwc_order = { 0, 2, 3, 1 };

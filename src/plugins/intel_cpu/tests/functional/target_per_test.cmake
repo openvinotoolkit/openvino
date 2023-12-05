@@ -17,6 +17,14 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/fusing_test_utils.cpp
   )
 
+if(X86_64)
+    list(APPEND REQUIRED_OBJECT_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/filter_cpu_info.cpp)
+elseif(ARM OR AARCH64)
+    list(APPEND REQUIRED_OBJECT_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/filter_cpu_info.cpp)
+endif()
+
   file(GLOB LIST_OF_TEST_FILES ${TEST_DIR}/*.cpp)
   # create targed for each test file in directory
   foreach(TEST_FILE ${LIST_OF_TEST_FILES})
@@ -25,7 +33,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_FILE_WE})
 
     # create target
-    addIeTargetTest(
+    ov_add_test_target(
       NAME ${TEST_TARGET_NAME}
       ROOT ${TEST_DIR}
       INCLUDES ${INCLUDES}
@@ -35,11 +43,10 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
       ADD_CPPLINT
-      LABELS
-      CPU
+      LABELS OV CPU
     )
 
-    set_ie_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)
@@ -65,7 +72,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_CLASS})
 
     # create target
-    addIeTargetTest(
+    ov_add_test_target(
       NAME ${TEST_TARGET_NAME}
       ROOT ${TEST_DIR}
       INCLUDES ${INCLUDES}
@@ -74,11 +81,10 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       DEFINES ${DEFINES}
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
-      LABELS
-      CPU
+      LABELS OV CPU
     )
 
-    set_ie_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)
@@ -87,7 +93,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
 endfunction()
 
 if(ENABLE_CPU_SPECIFIC_TARGET_PER_TEST)
-  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm ov_cpu_func_subgraph)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src ov_cpu_func_subgraph)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests ov_cpu_func_slt)
 endif()
 

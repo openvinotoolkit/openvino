@@ -177,6 +177,11 @@ protected:
      */
     static constexpr const char* device_name = "GPU";
 
+    /**
+     * @brief Default constructor which can be used in derived classes to avoid multiple create_context() calls
+     */
+    ClContext() = default;
+
 public:
     // Needed to make create_tensor overloads from base class visible for user
     using RemoteContext::create_tensor;
@@ -259,9 +264,9 @@ public:
         AnyMap tensor_params = {
             {ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::OCL_IMAGE2D},
             {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
-        auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
+        auto y_tensor = create_tensor(element::u8, {1, height, width, 1}, tensor_params);
         tensor_params[ov::intel_gpu::mem_handle.name()] = static_cast<gpu_handle_param>(nv12_image_plane_uv.get());
-        auto uv_tensor = create_tensor(element::u8, {1, 2, height / 2, width / 2}, tensor_params);
+        auto uv_tensor = create_tensor(element::u8, {1, height / 2, width / 2, 2}, tensor_params);
         return std::make_pair(y_tensor.as<ClImage2DTensor>(), uv_tensor.as<ClImage2DTensor>());
     }
 

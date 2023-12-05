@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -93,7 +93,7 @@ public:
         }
 
         std::ostringstream result;
-        result << "Shape=" << CommonTestUtils::vec2str(input_shape) << "_";
+        result << "Shape=" << ov::test::utils::vec2str(input_shape) << "_";
         result << "netPRC=" << net_type << "_";
         result << "trgDev=" << target_device;
         for (auto const& conf_i : conf) {
@@ -120,7 +120,7 @@ protected:
     }
 
     void init_test_model() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(m_input_shape))};
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::shared_ptr<ov::Node> pre_node = params[0];
@@ -137,12 +137,12 @@ protected:
 
         auto mul_input_const = Constant::create(m_net_type,
                                                 pre_node->get_shape(),
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+                                                ov::test::utils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(pre_node, mul_input_const);
 
         auto add_input_const = Constant::create(m_net_type,
                                                 pre_node->get_shape(),
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+                                                ov::test::utils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         std::shared_ptr<ov::Node> post_node = add_node;
@@ -199,6 +199,7 @@ TEST_P(PrePostProcessBaseTest, CompareWithRefs) {
 std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
 std::vector<std::map<std::string, std::string>> target_configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+                                                                  {{"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
@@ -213,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_preprocess_gather,
                          PrePostProcessBaseTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_gather),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs),
                                             ::testing::ValuesIn({PrePostLayer::NONE, PrePostLayer::GATHER}),
@@ -224,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_preprocess_transpose,
                          PrePostProcessBaseTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_transpose),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs),
                                             ::testing::ValuesIn({PrePostLayer::NONE, PrePostLayer::TRANSPOSE}),

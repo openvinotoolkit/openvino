@@ -3,12 +3,10 @@
 //
 #pragma once
 
-#include <ngraph/validation_util.hpp>
-#include <openvino/op/broadcast.hpp>
-#include <openvino/op/util/broadcast_base.hpp>
-
-#include "ngraph/op/concat.hpp"
 #include "openvino/core/axis_vector.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
 #include "utils.hpp"
 
 namespace ov {

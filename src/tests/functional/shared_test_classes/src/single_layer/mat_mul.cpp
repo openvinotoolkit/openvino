@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
@@ -32,8 +32,8 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
         obj.param;
 
     std::ostringstream result;
-    result << "IS0=" << CommonTestUtils::vec2str(shapeRelatedParams.input1.first) << "_";
-    result << "IS1=" << CommonTestUtils::vec2str(shapeRelatedParams.input2.first) << "_";
+    result << "IS0=" << ov::test::utils::vec2str(shapeRelatedParams.input1.first) << "_";
+    result << "IS1=" << ov::test::utils::vec2str(shapeRelatedParams.input2.first) << "_";
     result << "transpose_a=" << shapeRelatedParams.input1.second << "_";
     result << "transpose_b=" << shapeRelatedParams.input2.second << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
@@ -61,16 +61,15 @@ void MatMulTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapeRelatedParams.input1.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapeRelatedParams.input1.first))};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
-            ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
+    auto MatMul = std::make_shared<ov::op::v0::MatMul>(params[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }

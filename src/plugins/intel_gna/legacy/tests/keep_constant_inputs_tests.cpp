@@ -13,15 +13,15 @@
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 using namespace testing;
@@ -45,7 +45,7 @@ int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork& networ
 void transformNetwork(InferenceEngine::CNNNetwork& clonedNetwork, bool keep_constant_inputs) {
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         manager.register_pass<ov::pass::CommonOptimizations>();
         manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
@@ -59,7 +59,7 @@ void transformNetwork(InferenceEngine::CNNNetwork& clonedNetwork, bool keep_cons
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
-    std::shared_ptr<ngraph::Function> f_ptr;
+    std::shared_ptr<ov::Model> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
@@ -67,7 +67,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
-    std::shared_ptr<ngraph::Function> f_ptr;
+    std::shared_ptr<ov::Model> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
@@ -75,7 +75,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
-    std::shared_ptr<ngraph::Function> f_ptr;
+    std::shared_ptr<ov::Model> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
@@ -83,7 +83,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
-    std::shared_ptr<ngraph::Function> f_ptr;
+    std::shared_ptr<ov::Model> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
@@ -91,24 +91,24 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
-    std::shared_ptr<ngraph::Function> f_ptr;
-    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
-    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
-    f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
+    std::shared_ptr<ov::Model> f_ptr;
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
+    auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{786, 128}, {1});
+    auto empty_bias = ov::opset1::Constant::create(ov::element::f32, ov::Shape{786}, {0});
+    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ov::Shape{1, 786});
+    f_ptr = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "FullyConnected"), 3);
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
-    std::shared_ptr<ngraph::Function> f_ptr;
-    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
-    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
-    f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
+    std::shared_ptr<ov::Model> f_ptr;
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
+    auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{786, 128}, {1});
+    auto empty_bias = ov::opset1::Constant::create(ov::element::f32, ov::Shape{786}, {0});
+    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ov::Shape{1, 786});
+    f_ptr = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "FullyConnected"), 1);

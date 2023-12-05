@@ -16,9 +16,9 @@
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
-#include "ie_itt.hpp"
 #include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/cc/pass/itt.hpp"
@@ -29,7 +29,6 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
-#include "transformations/fix_rt_info.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "transformations/utils/utils.hpp"
@@ -136,7 +135,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     {
         ov::pass::Manager m;
         using namespace ov::pass;
-        REGISTER_PASS(m, FixRtInfo)
         REGISTER_PASS(m, EliminateScatterUpdate)
         REGISTER_PASS(m, RemoveConcatZeroDimInput)
         REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParamsResults)
@@ -199,12 +197,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     }
 
     _ngraph_function = ngraph::clone_function(*network.getFunction());
-    {
-        ov::pass::Manager m;
-        using namespace ov::pass;
-        REGISTER_PASS(m, FixRtInfo)
-        m.run_passes(_ngraph_function);
-    }
     validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
@@ -266,7 +258,7 @@ void CNNNetworkNGraphImpl::validate(int version) {
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                                            size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::addOutput");
 
     try {
         for (const auto& layer : _ngraph_function->get_ops()) {
@@ -471,7 +463,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
 #endif
 
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
 

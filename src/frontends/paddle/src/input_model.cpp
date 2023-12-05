@@ -13,13 +13,9 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-#    include <codecvt>
-#    include <locale>
-#endif
 
 namespace ov {
 namespace frontend {
@@ -169,9 +165,7 @@ std::basic_string<T> get_const_path(const std::basic_string<T>& folder_with_weig
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder, const std::string& name) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring _name = converter.from_bytes(name);
-    return folder + paddle::get_path_sep<wchar_t>() + _name;
+    return folder + paddle::get_path_sep<wchar_t>() + ov::util::string_to_wstring(name);
 }
 #endif
 

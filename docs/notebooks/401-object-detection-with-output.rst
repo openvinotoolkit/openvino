@@ -14,17 +14,44 @@ Additionally, you can also upload a video file.
    server, the webcam will not work. However, you can still do inference
    on a video.
 
-Preparation
------------
+**Table of contents:**
 
-Install requirements
-~~~~~~~~~~~~~~~~~~~~
+
+-  `Preparation <#preparation>`__
+
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+
+-  `The Model <#the-model>`__
+
+   -  `Download the Model <#download-the-model>`__
+   -  `Convert the Model <#convert-the-model>`__
+   -  `Load the Model <#load-the-model>`__
+
+-  `Processing <#processing>`__
+
+   -  `Process Results <#process-results>`__
+   -  `Main Processing Function <#main-processing-function>`__
+
+-  `Run <#run>`__
+
+   -  `Run Live Object Detection <#run-live-object-detection>`__
+   -  `Run Object Detection on a Video
+      File <#run-object-detection-on-a-video-file>`__
+
+-  `References <#references>`__
+
+Preparation 
+-----------------------------------------------------
+
+Install requirements 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q "openvino-dev>=2023.0.0"
-    !pip install -q tensorflow
-    !pip install -q opencv-python requests tqdm
+    %pip install -q "openvino-dev>=2023.1.0"
+    %pip install -q tensorflow
+    %pip install -q opencv-python requests tqdm
     
     # Fetch `notebook_utils` module
     import urllib.request
@@ -34,16 +61,31 @@ Install requirements
     )
 
 
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    fastapi 0.104.1 requires typing-extensions>=4.8.0, but you have typing-extensions 4.5.0 which is incompatible.
+    pydantic 2.4.2 requires typing-extensions>=4.6.1, but you have typing-extensions 4.5.0 which is incompatible.
+    pydantic-core 2.10.1 requires typing-extensions!=4.7.0,>=4.6.0, but you have typing-extensions 4.5.0 which is incompatible.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
 
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7ff46817ce50>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f00847d95b0>)
 
 
 
-Imports
-~~~~~~~
+Imports 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -55,17 +97,17 @@ Imports
     import cv2
     import numpy as np
     from IPython import display
-    from openvino import runtime as ov
+    import openvino as ov
     from openvino.tools.mo.front import tf as ov_tf_front
     from openvino.tools import mo
     
     import notebook_utils as utils
 
-The Model
----------
+The Model 
+---------------------------------------------------
 
-Download the Model
-~~~~~~~~~~~~~~~~~~
+Download the Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -107,12 +149,12 @@ Representation (OpenVINO IR).
     model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
 
 
-Convert the Model
-~~~~~~~~~~~~~~~~~
+Convert the Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
-convert it to OpenVINO IR format using `Model Optimizer Python
-API <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_Python_API.html>`__
+convert it to OpenVINO IR format, using `model conversion Python
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 (``mo.convert_model`` function). If the model has been already
 converted, this step is skipped.
 
@@ -132,7 +174,7 @@ converted, this step is skipped.
             tensorflow_object_detection_api_pipeline_config=tf_model_path.parent / "pipeline.config", 
             reverse_input_channels=True
         )
-        ov.serialize(ov_model, converted_model_path)
+        ov.save_model(ov_model, converted_model_path)
         del ov_model
 
 
@@ -141,8 +183,8 @@ converted, this step is skipped.
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
 
 
-Load the Model
-~~~~~~~~~~~~~~
+Load the Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Only a few lines of code are required to run the model. First,
 initialize OpenVINO Runtime. Then, read the network architecture and
@@ -151,19 +193,39 @@ desired device. If you choose ``GPU`` you need to wait for a while, as
 the startup time is much longer than in the case of ``CPU``.
 
 There is a possibility to let OpenVINO decide which hardware offers the
-best performance. For that purpose, just use ``AUTO``. Remember that for
-most cases the best hardware is ``GPU`` (better performance, but longer
-startup time).
+best performance. For that purpose, just use ``AUTO``.
 
 .. code:: ipython3
 
-    # Initialize OpenVINO Runtime.
-    ie_core = ov.Core()
+    import ipywidgets as widgets
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # Read the network and corresponding weights from a file.
-    model = ie_core.read_model(model=converted_model_path)
+    model = core.read_model(model=converted_model_path)
     # Compile the model for CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO).
-    compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get the input and output nodes.
     input_layer = compiled_model.input(0)
@@ -189,11 +251,11 @@ output.
 
 
 
-Processing
-----------
+Processing 
+----------------------------------------------------
 
-Process Results
-~~~~~~~~~~~~~~~
+Process Results 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, list all available classes and create colors for them. Then, in
 the post-process stage, transform boxes with normalized coordinates
@@ -282,8 +344,8 @@ threshold (0.5). Finally, draw boxes and labels inside them.
     
         return frame
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run object detection on the specified source. Either a webcam or a video
 file.
@@ -393,11 +455,11 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run
----
+Run 
+---------------------------------------------
 
-Run Live Object Detection
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Object Detection 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -426,12 +488,12 @@ Run the object detection:
 
 .. parsed-literal::
 
-    [ WARN:0@43.661] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@43.661] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@44.947] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@44.947] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-Run Object Detection on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Object Detection on a Video File 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -446,7 +508,7 @@ will work.
 
 
 
-.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_20_0.png
+.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_21_0.png
 
 
 .. parsed-literal::
@@ -454,8 +516,8 @@ will work.
     Source ended
 
 
-References
-----------
+References 
+----------------------------------------------------
 
 1. `SSDLite
    MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__

@@ -39,6 +39,11 @@ public:
         return get_type_info().name;
     }
 
+    /**
+     * @brief Apply the pass to the Linear IR
+     * @param linear_ir the target Linear IR
+     * @return status of the pass
+     */
     virtual bool run(lowered::LinearIR& linear_ir) = 0;
 };
 
@@ -55,7 +60,7 @@ public:
         register_pass(pass);
     }
 
-    void run(lowered::LinearIR& linear_ir);
+    void run(lowered::LinearIR& linear_ir) const;
 
 private:
     std::vector<std::shared_ptr<Pass>> m_passes;

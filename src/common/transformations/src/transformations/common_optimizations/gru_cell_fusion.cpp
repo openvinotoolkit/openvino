@@ -148,6 +148,15 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
             Bh = rg.make<ov::op::v0::Constant>(WRh.get_element_type(), Shape{1, static_cast<size_t>(hidden_size)}, 0);
         }
 
+        // perform additional check for applicability of the transformation
+        // without this check, process_weights can fail
+        if (WR.get_partial_shape()[1] != (hidden_size + input_size)) {
+            return false;
+        }
+        if (WRh.get_partial_shape()[1] != (hidden_size + input_size)) {
+            return false;
+        }
+
         Output<Node> Wzrh, Rzrh, Bzrh;
         if (cnt_of_consumers_of_zero_out == 1 && cnt_of_consumers_of_first_out == 2) {
             tie(Wzrh, Rzrh) = process_weights(rg, false, WR, WRh, input_size, hidden_size, axis_0, axis_1);
@@ -163,8 +172,8 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
 
         auto squeeze_B = rg.make<ov::op::v0::Squeeze>(Bzrh, axis_0);
 
-        string act_name_1 = pattern_map.at(activation_1)->get_type_name();
-        string act_name_2 = pattern_map.at(activation_2)->get_type_name();
+        std::string act_name_1 = pattern_map.at(activation_1)->get_type_name();
+        std::string act_name_2 = pattern_map.at(activation_2)->get_type_name();
         auto to_lower = [](unsigned char c) {
             return std::tolower(c);
         };
@@ -177,7 +186,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
                                                  Rzrh,
                                                  squeeze_B,
                                                  hidden_size,
-                                                 vector<string>{act_name_1, act_name_2});
+                                                 vector<std::string>{act_name_1, act_name_2});
 
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), rg.get());

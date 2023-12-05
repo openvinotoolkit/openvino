@@ -7,7 +7,6 @@
 #include <mutex>
 
 #include "ngraph/node.hpp"
-#include "ngraph/ops.hpp"
 
 using namespace std;
 

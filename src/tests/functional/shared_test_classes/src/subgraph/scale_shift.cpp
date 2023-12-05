@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/scaleshift.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -14,9 +14,9 @@ namespace SubgraphTestsDefinitions {
         std::tie(inputShapes, netPrecision, targetName, scale, shift) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        results << "Scale=" << CommonTestUtils::vec2str(scale) << "_";
-        results << "Shift=" << CommonTestUtils::vec2str(shift) << "_";
+        results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+        results << "Scale=" << ov::test::utils::vec2str(scale) << "_";
+        results << "Shift=" << ov::test::utils::vec2str(shift) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName << "_";
         return results.str();
@@ -31,7 +31,7 @@ namespace SubgraphTestsDefinitions {
         if (inputShapes.size() > 1)
             paramsShape = ngraph::Shape(inputShapes[1]);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
+        ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, paramsShape, scale);
         auto mul = std::make_shared<ngraph::opset1::Multiply>(paramsIn[0], mul_const);
         auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, paramsShape, shift);

@@ -20,7 +20,7 @@ const std::vector<ngraph::PartialShape> inputShapes = {
     { 4, 3, 16, 16 }
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
 };
 
@@ -30,14 +30,14 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         0,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         -3,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -51,7 +51,7 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         -3,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -65,14 +65,14 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         -3,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         2,
         4,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -86,7 +86,7 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         -1,
         8,
         "output_original",
-        "U8"
+        "u8"
     },
 };
 
@@ -94,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ShuffleChannelsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ShuffleChannelsTransformation::getTestCaseName);

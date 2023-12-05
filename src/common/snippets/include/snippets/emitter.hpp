@@ -12,7 +12,6 @@
 namespace ov {
 namespace snippets {
 
-using code = const uint8_t *;
 using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
 /**
@@ -25,9 +24,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter(const std::shared_ptr<ov::Node>& n) {}
-
-    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {}
+    Emitter() {}
 
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
@@ -50,8 +47,6 @@ public:
 
     virtual ~Emitter() = default;
 };
-
-using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ov::snippets::RegInfo>;
 
 } // namespace snippets
 } // namespace ov

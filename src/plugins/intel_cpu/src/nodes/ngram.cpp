@@ -6,46 +6,14 @@
 #include <vector>
 
 #include "ngram.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "shape_inference/custom/ngram.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-class NgramShapeInfer : public ShapeInferEmptyPads {
-public:
-    NgramShapeInfer(const size_t k) : m_k(k) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto output_shape = input_shapes[0].get();
-        output_shape[1] *= m_k;
-        return {{std::move(output_shape)}, ShapeInferStatus::success};
-    }
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    size_t m_k;
-};
-
-class NgramShapeInferFactory : public ShapeInferFactory {
-public:
-    NgramShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto ngram = ov::as_type_ptr<NgramNode>(m_op);
-        if (!ngram) {
-            IE_THROW(Unexpected) << "Wrong operation type";
-        }
-        return std::make_shared<NgramShapeInfer>(ngram->get_k());
-    }
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-}   // namespace
 
 bool Ngram::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -65,7 +33,7 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     : Node(op, context, NgramShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto ngram = ov::as_type_ptr<const NgramNode>(op);
@@ -87,13 +55,13 @@ void Ngram::initSupportedPrimitiveDescriptors() {
         return;
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != InferenceEngine::Precision::I32 && idcesPrecision != InferenceEngine::Precision::I64) {
-        idcesPrecision = InferenceEngine::Precision::I32;
+    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+        idcesPrecision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, idcesPrecision}},
-                         {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          ref_any);
 }
 
@@ -134,12 +102,12 @@ void Ngram::execute(dnnl::stream strm) {
     auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts;
-    if (idcesPrecision == InferenceEngine::Precision::I32) {
+    if (idcesPrecision == ov::element::i32) {
         batchLenghts = computeBatchLenghts<std::int32_t>();
-    } else if (idcesPrecision == InferenceEngine::Precision::I64) {
+    } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        IE_THROW() << "Unsupported idces precision: " << idcesPrecision;
+        OPENVINO_THROW("Unsupported idces precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:

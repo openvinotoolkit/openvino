@@ -4,10 +4,10 @@
 
 #include "transformations/transpose_sinking/ts_unary.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_utils.hpp"
 
@@ -83,6 +83,37 @@ NodePtr UnaryFactory<Clamp>::create(const OutputVector& inputs) const {
 template <>
 NodePtr UnaryFactory<Convert>::create(const OutputVector& inputs) const {
     return std::make_shared<Convert>(inputs[0], element::f64);
+}
+
+template <>
+NodePtr UnaryFactory<Selu>::create(const OutputVector& inputs) const {
+    auto alpha = std::make_shared<Constant>(element::f32, Shape{}, 2.0);
+    auto lambda = std::make_shared<Constant>(element::f32, Shape{}, 3.0);
+    return std::make_shared<Selu>(inputs[0], alpha, lambda);
+}
+
+template <>
+NodePtr UnaryFactory<Swish>::create(const OutputVector& inputs) const {
+    auto beta = std::make_shared<Constant>(element::f32, Shape{}, 0.9);
+    return std::make_shared<Swish>(inputs[0], beta);
+}
+
+template <>
+NodePtr UnaryFactory<HardSigmoid>::create(const OutputVector& inputs) const {
+    auto alpha = std::make_shared<Constant>(element::f32, Shape{}, 2.0);
+    auto beta = std::make_shared<Constant>(element::f32, Shape{}, 3.0);
+    return std::make_shared<HardSigmoid>(inputs[0], alpha, beta);
+}
+
+template <>
+NodePtr UnaryFactory<LogSoftmax>::create(const OutputVector& inputs) const {
+    return std::make_shared<LogSoftmax>(inputs[0], 2);
+}
+
+template <>
+NodePtr UnaryFactory<ConvertLike>::create(const OutputVector& inputs) const {
+    auto like = std::make_shared<Constant>(element::f64, Shape{}, 1);
+    return std::make_shared<ConvertLike>(inputs[0], like);
 }
 
 template <typename UnaryT>
@@ -352,16 +383,18 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(const FactoryPtr& unary_facto
 }  // namespace mult_consumers_first_node
 
 std::vector<FactoryPtr> unary_factories = {
-    CREATE_UNARY_FACTORY(Clamp),      CREATE_UNARY_FACTORY(Elu),      CREATE_UNARY_FACTORY(SoftPlus),
-    CREATE_UNARY_FACTORY(LogicalNot), CREATE_UNARY_FACTORY(Convert),  CREATE_UNARY_FACTORY(Abs),
-    CREATE_UNARY_FACTORY(Acos),       CREATE_UNARY_FACTORY(Asin),     CREATE_UNARY_FACTORY(Asinh),
-    CREATE_UNARY_FACTORY(Atan),       CREATE_UNARY_FACTORY(Ceiling),  CREATE_UNARY_FACTORY(Cos),
-    CREATE_UNARY_FACTORY(Cosh),       CREATE_UNARY_FACTORY(Erf),      CREATE_UNARY_FACTORY(Exp),
-    CREATE_UNARY_FACTORY(Gelu),       CREATE_UNARY_FACTORY(HSigmoid), CREATE_UNARY_FACTORY(HSwish),
-    CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
-    CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
-    CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
-    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
+    CREATE_UNARY_FACTORY(Clamp),      CREATE_UNARY_FACTORY(Elu),         CREATE_UNARY_FACTORY(SoftPlus),
+    CREATE_UNARY_FACTORY(LogicalNot), CREATE_UNARY_FACTORY(Convert),     CREATE_UNARY_FACTORY(Abs),
+    CREATE_UNARY_FACTORY(Acos),       CREATE_UNARY_FACTORY(Asin),        CREATE_UNARY_FACTORY(Asinh),
+    CREATE_UNARY_FACTORY(Atan),       CREATE_UNARY_FACTORY(Ceiling),     CREATE_UNARY_FACTORY(Cos),
+    CREATE_UNARY_FACTORY(Cosh),       CREATE_UNARY_FACTORY(Erf),         CREATE_UNARY_FACTORY(Exp),
+    CREATE_UNARY_FACTORY(Gelu),       CREATE_UNARY_FACTORY(HSigmoid),    CREATE_UNARY_FACTORY(HSwish),
+    CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative),    CREATE_UNARY_FACTORY(Relu),
+    CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),        CREATE_UNARY_FACTORY(Sin),
+    CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign),    CREATE_UNARY_FACTORY(Sqrt),
+    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh),        CREATE_UNARY_FACTORY(Selu),
+    CREATE_UNARY_FACTORY(Swish),      CREATE_UNARY_FACTORY(HardSigmoid), CREATE_UNARY_FACTORY(LogSoftmax),
+    CREATE_UNARY_FACTORY(ConvertLike)};
 
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
     FactoryPtr unary_factory;

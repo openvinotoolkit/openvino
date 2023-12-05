@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputAndQuantizationShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(axes),
         ::testing::ValuesIn(fuseMultiplyValues),
         ::testing::ValuesIn(shiftValues)),

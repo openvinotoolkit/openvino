@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/framework_node.hpp"
+#include "openvino/op/util/framework_node.hpp"
+
+#include <gtest/gtest.h>
 
 #include <vector>
-
-#include "gtest/gtest.h"
 
 TEST(framework_node, attrs) {
     ov::op::util::FrameworkNodeAttrs attrs;

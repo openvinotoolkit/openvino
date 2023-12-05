@@ -30,7 +30,7 @@ std::vector<size_t> outputChannels = {4, 8};
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConvTest,
                          ConcatConvTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(params),
                                             ::testing::ValuesIn(inputChannels),

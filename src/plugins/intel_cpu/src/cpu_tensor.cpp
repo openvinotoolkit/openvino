@@ -17,7 +17,7 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
     auto memdesc = m_memptr->getDescPtr();
     OPENVINO_ASSERT(memdesc->hasLayoutType(LayoutType::ncsp), "intel_cpu::Tensor only supports memory with ncsp layout.");
 
-    m_element_type = InferenceEngine::details::convertPrecision(memdesc->getPrecision());
+    m_element_type = memdesc->getPrecision();
 }
 
 void Tensor::set_shape(ov::Shape new_shape) {
@@ -68,8 +68,9 @@ void Tensor::update_strides() const {
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     auto& strides = blocked_desc->getStrides();
     m_strides.resize(strides.size());
-    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(),
-                std::bind1st(std::multiplies<size_t>(), m_element_type.size()));
+    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this] (const size_t stride) {
+        return stride * m_element_type.size();
+    });
 }
 
 void* Tensor::data(const element::Type& element_type) const {

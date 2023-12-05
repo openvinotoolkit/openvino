@@ -4,7 +4,7 @@
 
 #include <shared_test_classes/single_layer/gather_nd.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace ov;
@@ -31,12 +31,12 @@ public:
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
-        results << "IDXShape=" << CommonTestUtils::vec2str(indexes.first) << "_";
+        results << "IDXShape=" << ov::test::utils::vec2str(indexes.first) << "_";
         results << "SRCPrc=" << dataElementType << "_";
         results << "IDXPrc=" << idxElementType << "_";
         results << "BD=" << batchDims << "_";
@@ -52,10 +52,13 @@ protected:
         int batchDims;
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataElementType, shape));
+        }
         auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
         auto gather_nd = std::make_shared<ngraph::opset5::GatherND>(params[0], indexes_node, batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
@@ -78,10 +81,13 @@ protected:
         int batchDims;
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataElementType, shape));
+        }
         auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
         auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(params[0], indexes_node, batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};

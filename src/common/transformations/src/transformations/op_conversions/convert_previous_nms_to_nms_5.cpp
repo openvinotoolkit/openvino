@@ -6,19 +6,19 @@
 
 #include <list>
 #include <memory>
-#include <ngraph/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/non_max_suppression.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 
 namespace {
 struct NMSAttributes {
-    ngraph::element::Type output_type;
+    ov::element::Type output_type;
     ov::op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
     bool sort_result_descending;
     bool is_supported_nms;
@@ -30,7 +30,7 @@ NMSAttributes get_nms4_attrs(const std::shared_ptr<ov::op::v4::NonMaxSuppression
     attrs.box_encoding = ov::op::v5::NonMaxSuppression::BoxEncodingType::CORNER;
     attrs.is_supported_nms = true;
     attrs.sort_result_descending = true;
-    attrs.output_type = ::ngraph::element::i64;
+    attrs.output_type = ::ov::element::i64;
 
     switch (nms4->get_box_encoding()) {
     case ov::op::v4::NonMaxSuppression::BoxEncodingType::CENTER:
@@ -55,7 +55,7 @@ NMSAttributes get_nms3_attrs(const std::shared_ptr<ov::op::v3::NonMaxSuppression
     attrs.box_encoding = ov::op::v5::NonMaxSuppression::BoxEncodingType::CORNER;
     attrs.is_supported_nms = true;
     attrs.sort_result_descending = true;
-    attrs.output_type = ::ngraph::element::i64;
+    attrs.output_type = ::ov::element::i64;
 
     switch (nms3->get_box_encoding()) {
     case ov::op::v3::NonMaxSuppression::BoxEncodingType::CENTER:
@@ -80,7 +80,7 @@ NMSAttributes get_nms1_attrs(const std::shared_ptr<ov::op::v1::NonMaxSuppression
     attrs.box_encoding = ov::op::v5::NonMaxSuppression::BoxEncodingType::CORNER;
     attrs.is_supported_nms = true;
     attrs.sort_result_descending = true;
-    attrs.output_type = ::ngraph::element::i64;
+    attrs.output_type = ::ov::element::i64;
 
     switch (nms1->get_box_encoding()) {
     case ov::op::v1::NonMaxSuppression::BoxEncodingType::CENTER:
@@ -98,9 +98,9 @@ NMSAttributes get_nms1_attrs(const std::shared_ptr<ov::op::v1::NonMaxSuppression
     return attrs;
 }
 
-NMSAttributes get_nms_attrs(const std::shared_ptr<ngraph::Node>& root) {
+NMSAttributes get_nms_attrs(const std::shared_ptr<ov::Node>& root) {
     NMSAttributes attrs;
-    attrs.output_type = ::ngraph::element::i64;
+    attrs.output_type = ::ov::element::i64;
     attrs.box_encoding = ov::op::v5::NonMaxSuppression::BoxEncodingType::CORNER;
     attrs.sort_result_descending = false;
     attrs.is_supported_nms = false;
@@ -147,7 +147,7 @@ bool callback_func(pass::pattern::Matcher& m, pass::MatcherPass* impl) {
                                                                               attrs.output_type);
 
     nms_5->set_friendly_name(root->get_friendly_name());
-    ngraph::copy_runtime_info(root, nms_5);
+    ov::copy_runtime_info(root, nms_5);
     root->output(0).replace(nms_5->output(0));
     return true;
 }

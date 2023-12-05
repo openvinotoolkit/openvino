@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/scatter_update.hpp"
 
 namespace LayerTestsDefinitions {
@@ -19,10 +19,10 @@ std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo
     std::tie(shapeDescript, indicesValue, inputPrecision, indicesPrecision, targetName) = obj.param;
     std::tie(inShape, indicesShape, updateShape, axis) = shapeDescript;
     std::ostringstream result;
-    result << "InputShape=" << CommonTestUtils::vec2str(inShape) << "_";
-    result << "IndicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
-    result << "IndicesValue=" << CommonTestUtils::vec2str(indicesValue) << "_";
-    result << "UpdateShape=" << CommonTestUtils::vec2str(updateShape) << "_";
+    result << "InputShape=" << ov::test::utils::vec2str(inShape) << "_";
+    result << "IndicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
+    result << "IndicesValue=" << ov::test::utils::vec2str(indicesValue) << "_";
+    result << "UpdateShape=" << ov::test::utils::vec2str(updateShape) << "_";
     result << "Axis=" << axis << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "idxPrc=" << indicesPrecision.name() << "_";
@@ -76,8 +76,11 @@ void ScatterUpdateLayerTest::SetUp() {
     paramVector.push_back(inputParams);
     auto updateParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(updateShape));
     paramVector.push_back(updateParams);
-    auto paramVectorOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto s2d = ngraph::builder::makeScatterUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue, paramVectorOuts[1], axis);
+
+    auto indicesNode = std::make_shared<ov::op::v0::Constant>(idxPrc, ov::Shape(indicesShape), indicesValue);
+    auto axis_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto s2d = std::make_shared<ov::op::v3::ScatterUpdate>(paramVector[0], indicesNode, paramVector[1], axis_node);
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterUpdate");
 }

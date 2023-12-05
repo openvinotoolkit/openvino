@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 #include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using namespace CommonTestUtils;
 
 typedef std::tuple<
         size_t,                             // Stream executor number
@@ -38,6 +37,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+        using namespace ov::test::utils;
+
         std::string target_device;
         size_t streamExecutorNumber;
         std::map<std::string, std::string> configuration;
@@ -64,10 +65,10 @@ protected:
     inline InferenceEngine::InferRequest createInferRequestWithConfig() {
         // Load config
         configuration.insert({CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)});
-        if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-                target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
+        if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+                target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
             ie->SetConfig(configuration, target_device);
         }
         // Load CNNNetwork to target plugins
@@ -78,52 +79,52 @@ protected:
 };
 
 TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, InferenceEngine::executorManager()->getExecutorsNumber());
+    ASSERT_EQ(0ul, ov::threading::executor_manager()->get_executors_number());
     ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
-        ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
+    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
+        ASSERT_EQ(streamExecutorNumber, ov::threading::executor_manager()->get_executors_number());
     }
 }
 
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
+    ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
     ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
-        ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
+    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
+        ASSERT_EQ(streamExecutorNumber, ov::threading::executor_manager()->get_executors_number());
     }
 }
 
 TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
-    ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
-    ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
+    ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
+    ASSERT_EQ(0u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
 
     {
         // Load config
         std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)}};
         config.insert(configuration.begin(), configuration.end());
-        if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
+        if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
             ASSERT_NO_THROW(ie->SetConfig(config, target_device));
         }
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, target_device, config);
         execNet.CreateInferRequest();
-        if (target_device == CommonTestUtils::DEVICE_KEEMBAY) {
-            ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
-            ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
-        } else if ((target_device == CommonTestUtils::DEVICE_AUTO) ||
-                   (target_device == CommonTestUtils::DEVICE_MULTI)) {
+        if (target_device == ov::test::utils::DEVICE_KEEMBAY) {
+            ASSERT_EQ(1u, ov::threading::executor_manager()->get_executors_number());
+            ASSERT_EQ(0u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
+        } else if ((target_device == ov::test::utils::DEVICE_AUTO) ||
+                   (target_device == ov::test::utils::DEVICE_MULTI)) {
         } else {
-            ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
-            ASSERT_GE(2u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
+            ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
+            ASSERT_GE(2u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
         }
     }
 }

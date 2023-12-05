@@ -16,8 +16,6 @@ struct region_yolo : public primitive_base<region_yolo> {
 
     region_yolo() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -46,14 +44,14 @@ struct region_yolo : public primitive_base<region_yolo> {
     /// @brief Defines a scope of a region yolo normalization
     /// @details
     /// Specific behaviour is determined by these parameters, as follows:
-    uint32_t coords;
-    uint32_t classes;
-    uint32_t num;
+    uint32_t coords = 0;
+    uint32_t classes = 0;
+    uint32_t num = 0;
     std::vector<int64_t> mask;
-    uint32_t mask_size;
-    int32_t axis;
-    int32_t end_axis;
-    bool do_softmax;
+    uint32_t mask_size = 0;
+    int32_t axis = 0;
+    int32_t end_axis = 0;
+    bool do_softmax = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

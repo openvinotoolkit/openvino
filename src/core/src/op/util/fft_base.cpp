@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/fft_base.hpp"
+#include "openvino/op/util/fft_base.hpp"
 
-#include <fft_base_shape_inference.hpp>
-#include <ngraph/validation_util.hpp>
-
+#include "fft_base_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-
-using namespace std;
 
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 

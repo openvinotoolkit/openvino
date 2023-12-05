@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-from openvino.runtime import Type
+from openvino import Type
 import openvino.runtime.opset8 as ov
 
 

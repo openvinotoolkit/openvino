@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -20,9 +21,7 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
-// #include <ngraph/op/interpolate.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 using namespace ov;
@@ -84,9 +83,9 @@ bool can_be_fused(const std::shared_ptr<ov::op::v4::Interpolate>& fst,
     return compatible_axes(fst_axes, snd_axes);
 }
 
-ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ov::op::v4::Interpolate>& fst,
-                                                       const std::shared_ptr<ov::op::v4::Interpolate>& snd,
-                                                       pass::MatcherPass* matcherPass) {
+ov::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ov::op::v4::Interpolate>& fst,
+                                                   const std::shared_ptr<ov::op::v4::Interpolate>& snd,
+                                                   pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_sizes_node =
@@ -143,9 +142,9 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ov:
             new_interpolate};
 }
 
-ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<ov::op::v4::Interpolate>& fst,
-                                                        const std::shared_ptr<ov::op::v4::Interpolate>& snd,
-                                                        pass::MatcherPass* matcherPass) {
+ov::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<ov::op::v4::Interpolate>& fst,
+                                                    const std::shared_ptr<ov::op::v4::Interpolate>& snd,
+                                                    pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_scales_node =
@@ -211,8 +210,8 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<ov
 
 ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
-    auto interpolate_pattern = ngraph::pattern::wrap_type<ov::op::v4::Interpolate>();
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>();
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto snd_interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(m.get_match_root());
         if (!snd_interpolate)
             return false;
@@ -242,6 +241,6 @@ ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(interpolate_pattern, matcher_name);
     register_matcher(m, callback);
 }

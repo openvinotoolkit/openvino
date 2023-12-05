@@ -41,7 +41,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_compression_message  # pylint: disable=no-name-in-module,import-error
+    get_tf_fe_message, get_compression_message, get_ovc_message  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
@@ -313,12 +313,7 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
     all_fallback_operations = [
         # corresponds to TF1 While operation
-        "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
-        "LoopCond", "Enter", "NextIteration", "Exit",
-        # corresponds to operations with complex tensors
-        "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
-        "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
-        "Complex", "ComplexAbs", "Real", "Imag",
+        "LoopCond", "Enter", "NextIteration", "Exit", "Switch", "Merge",
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
         # no match for the fallback by unsupported operation
@@ -530,8 +525,8 @@ def check_model_object(argv):
         if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-            
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
             if isinstance(model, TorchScriptPythonDecoder):
                 return "pytorch"
         except Exception as e:
@@ -802,7 +797,7 @@ def update_args_for_saved_model_dir(args: dict):
             'input_model' in args and args['input_model'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
-    
+
     if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
         args['saved_model_dir'] = args['input_model']
         args['input_model'] = None
@@ -913,10 +908,14 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
             ov_update_message = get_ov_update_message()
             ov_api20_message = get_ov_api20_message()
+            ovc_message = get_ovc_message()
+            _, is_caffe, is_mxnet, is_kaldi, _ = deduce_legacy_frontend_by_namespace(argv)
             if ov_update_message is not None:
                 print(ov_update_message)
             if ov_api20_message is not None and ov_model is not None:
                 print(ov_api20_message)
+            if ovc_message is not None and not is_caffe and not is_mxnet and not is_kaldi:
+                print(ovc_message)
             is_fallback = getattr(argv, 'is_fallback', False)
             if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
                 # now TF FE is default frontend for TensorFlow models conversion

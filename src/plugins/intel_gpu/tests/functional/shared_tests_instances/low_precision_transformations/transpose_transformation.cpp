@@ -52,7 +52,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, TransposeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
     TransposeTransformation::getTestCaseName);
 }  // namespace

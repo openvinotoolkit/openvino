@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import re
 from typing import Iterable, Union
 
 import numpy as np
@@ -14,14 +13,13 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
-
 dynamic_dimension = np.ma.masked
 
 
 def refer_to_faq_msg(question_num: int):
     try:
         t = tm.Telemetry()
-        t.send_event('mo', 'error_info', "faq:" + str(question_num))
+        t.send_event('ovc', 'error_info', "faq:" + str(question_num))
     except Exception:
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass
@@ -101,6 +99,7 @@ def validate_batch_in_shape(shape, layer_name: str):
                      'you should pass "input_shape=[100,34]" instead of "batch=100". \n\n' +
                      'You can also specify batch dimension by setting "layout". \n\n')
                     .format(layer_name, shape))
+
 
 def get_ir_version():
     """

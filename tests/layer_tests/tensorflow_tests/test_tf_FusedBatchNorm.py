@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from sys import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -35,7 +37,7 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             c_dim = x_shape[-1]
-            if data_format == "NCHW":
+            if data_format == "NCHW" or data_format == "NCDHW":
                 c_dim = x_shape[1]
             x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
             if empty_mean_variance:
@@ -92,11 +94,17 @@ class TestFusedBatchNorm(CommonTFLayerTest):
              fbn_version="v3"),
         dict(x_shape=[5, 10, 8, 2], epsilon=0.0002, exponential_avg_factor=0.2, data_format="NHWC",
              is_training=True, fbn_version="v3", empty_mean_variance=False),
+        # 5D cases
+        dict(x_shape=[5, 4, 3, 2, 3], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCDHW",
+             is_training=False, fbn_version="v3"),
+        dict(x_shape=[3, 4, 3, 3, 2], epsilon=0.0003, exponential_avg_factor=0.0, data_format="NDHWC",
+             is_training=False, fbn_version="v3"),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_fused_batch_norm_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                     use_new_frontend, use_old_api):
         self._test(*self.create_fused_batch_norm_net(**params),

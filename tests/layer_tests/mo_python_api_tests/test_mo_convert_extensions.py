@@ -118,4 +118,5 @@ class TestExtensions(CommonMOConvertTest):
 
         test_params = params['params_test']
         test_params.update({'input_model': onnx_net_path})
+        test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, params['ref_graph'])

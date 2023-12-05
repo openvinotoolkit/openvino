@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include <legacy/ngraph_ops/eltwise.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -81,7 +81,7 @@ typedef tuple<size_t,  // Concat axis
 class InsertIdentityLayerConcatTest : public InsertIdentityLayerTest,
                                       public ::testing::WithParamInterface<InsertIdentityConcatTestParams> {
 public:
-    static string getTestCaseName(const testing::TestParamInfo<InsertIdentityConcatTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityConcatTestParams>& obj) {
         size_t axis, inputs_num;
         tie(axis, inputs_num) = obj.param;
 
@@ -198,7 +198,7 @@ typedef tuple<ELTWISE_TYPE,  // eltwise type
 class InsertIdentityLayerEltwiseTest : public InsertIdentityLayerTest,
                                        public ::testing::WithParamInterface<InsertIdentityEltwiseTestParams> {
 public:
-    static string getTestCaseName(const testing::TestParamInfo<InsertIdentityEltwiseTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityEltwiseTestParams>& obj) {
         ELTWISE_TYPE type;
         bool low_precision, both_inputs_32bits;
         tie(type, low_precision, both_inputs_32bits) = obj.param;
@@ -472,7 +472,7 @@ typedef tuple<bool,  // with pooling
 class InsertIdentityLayerConvMatMulTest : public InsertIdentityLayerTest,
                                           public ::testing::WithParamInterface<InsertIdentityConvTestParams> {
 public:
-    static string getTestCaseName(const testing::TestParamInfo<InsertIdentityConvTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InsertIdentityConvTestParams>& obj) {
         bool with_pool, with_act, swap_matmul;
         tie(with_pool, with_act, swap_matmul) = obj.param;
 
@@ -613,7 +613,7 @@ TEST_F(InsertIdentityLayerResultTest, CompareWithRefs) {
 }
 
 class InsertIdentityForNonQuantizableConcatInputTest : public InsertIdentityLayerTest {
-    string getName() {
+    std::string getName() {
         return "InsertIdentityForPrecAgnosticConcatInput";
     }
 
@@ -634,25 +634,27 @@ public:
     void SetUp() override {
         InsertIdentityLayerTest::SetUp();
         {
-            auto inputs = makeParams(f32, {{m_input_shape}, {m_input_shape}});
+            ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_input_shape),
+                                       std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_input_shape)};
             auto fq = create_fq(f32, inputs[0], -1, 1, 256);
             auto relu = make_shared<Relu>(fq);
             auto reshape_const = make_shared<Constant>(i64, Shape{1}, m_input_shape);
             auto reshape = make_shared<Reshape>(inputs[1], reshape_const, false);
-            auto concat = makeConcat({relu, reshape}, 0);
+            auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{relu, reshape}, 0);
             auto result = make_shared<Result>(concat);
             m_func = make_shared<Model>(result, inputs, getName());
         }
 
         {
-            auto inputs = makeParams(f32, {{m_input_shape}, {m_input_shape}});
+            ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_input_shape),
+                                       std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_input_shape)};
             auto fq = create_fq(f32, inputs[0], -1, 1, 256);
             auto relu = make_shared<Relu>(fq);
             auto reshape_const = make_shared<Constant>(i64, Shape{1}, m_input_shape);
             auto reshape = make_shared<Reshape>(inputs[1], reshape_const, false);
             // We expect the following Identity layer to be inserted
             auto identity = make_shared<Identity>(reshape);
-            auto concat = makeConcat({relu, identity}, 0);
+            auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{relu, identity}, 0);
             auto result = make_shared<Result>(concat);
             m_ref_func = make_shared<Model>(result, inputs, getName());
         }

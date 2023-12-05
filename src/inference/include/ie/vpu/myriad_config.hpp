@@ -60,7 +60,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(MYRIAD_PCIE);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(MYRIAD_USB);
 
 /**
- * @brief Optimize vpu plugin execution to maximize throughput.
+ * @brief Optimize MYRIAD plugin execution to maximize throughput.
  * This option should be used with integer value which is the requested number of streams.
  * The only possible values are:
  *     1

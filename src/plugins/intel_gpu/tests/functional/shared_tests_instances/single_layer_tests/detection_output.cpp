@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/detection_output.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/detection_output.hpp"
 
 namespace {
+using ov::test::DetectionOutputLayerTest;
+using ov::test::ParamsWhichSizeDepends;
 
 const int numClasses = 11;
 const int backgroundLabelId = 0;
@@ -54,7 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In,
                                             ::testing::ValuesIn(specificParams3In),
                                             ::testing::ValuesIn(numberBatch),
                                             ::testing::Values(0.0f),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          DetectionOutputLayerTest::getTestCaseName);
 
 /* =============== 5 inputs cases =============== */
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In,
                                             ::testing::ValuesIn(specificParams5In),
                                             ::testing::ValuesIn(numberBatch),
                                             ::testing::Values(objectnessScore),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          DetectionOutputLayerTest::getTestCaseName);
 
 }  // namespace

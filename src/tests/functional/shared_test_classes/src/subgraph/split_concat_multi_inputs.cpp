@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_concat_multi_inputs.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -16,7 +16,7 @@ std::string SplitConcatMultiInputsTest::getTestCaseName(testing::TestParamInfo<S
     bool withFC;
     std::tie(netPrecision, targetName, config, inputShape, splitsNum, withFC) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "SplitsN=" << splitsNum << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetName << "_";
@@ -38,16 +38,18 @@ void SplitConcatMultiInputsTest::SetUp() {
 
     inputShape[1] *= splitsNum;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, splitsNum);
+
     ngraph::OutputVector concatInputs = split->outputs();
 
     auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);
 
     if (withFC) {
         auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
-            CommonTestUtils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
+            ov::test::utils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
         auto matmul = std::make_shared<ngraph::op::MatMul>(concat, mul_const, false, true);
         function = std::make_shared<ngraph::Function>(matmul, params, "SplitConcatMultiInputs");
     } else {

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/elementwise_args.hpp"
+#include "openvino/op/util/elementwise_args.hpp"
 
 #include "eltwise_shape_inference.hpp"
-#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
 std::tuple<ov::element::Type, ov::PartialShape> ov::op::util::validate_and_infer_elementwise_args(Node* node) {
     OPENVINO_ASSERT(node != nullptr, "Node is empty! Cannot validate eltwise arguments.");

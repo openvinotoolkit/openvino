@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/op/max_pool.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, max_pool_op) {
-    NodeBuilder::get_ops().register_factory<opset1::MaxPool>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
+    NodeBuilder::get_ops().register_factory<ov::op::v1::MaxPool>();
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
     auto pads_begin = Shape{1};
@@ -25,9 +23,10 @@ TEST(attributes, max_pool_op) {
     auto rounding_mode = op::RoundingType::FLOOR;
     auto auto_pad = op::PadType::EXPLICIT;
 
-    auto max_pool = make_shared<opset1::MaxPool>(data, strides, pads_begin, pads_end, kernel, rounding_mode, auto_pad);
+    auto max_pool =
+        make_shared<ov::op::v1::MaxPool>(data, strides, pads_begin, pads_end, kernel, rounding_mode, auto_pad);
     NodeBuilder builder(max_pool, {data});
-    auto g_max_pool = ov::as_type_ptr<opset1::MaxPool>(builder.create());
+    auto g_max_pool = ov::as_type_ptr<ov::op::v1::MaxPool>(builder.create());
 
     EXPECT_EQ(g_max_pool->get_strides(), max_pool->get_strides());
     EXPECT_EQ(g_max_pool->get_pads_begin(), max_pool->get_pads_begin());
@@ -38,8 +37,8 @@ TEST(attributes, max_pool_op) {
 }
 
 TEST(attributes, max_pool_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::MaxPool>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
+    NodeBuilder::get_ops().register_factory<ov::op::v8::MaxPool>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
@@ -50,17 +49,17 @@ TEST(attributes, max_pool_v8_op) {
     const auto auto_pad = op::PadType::EXPLICIT;
     const element::Type& index_element_type = element::i32;
 
-    const auto max_pool = make_shared<opset8::MaxPool>(data,
-                                                       strides,
-                                                       dilations,
-                                                       pads_begin,
-                                                       pads_end,
-                                                       kernel,
-                                                       rounding_mode,
-                                                       auto_pad,
-                                                       index_element_type);
+    const auto max_pool = make_shared<ov::op::v8::MaxPool>(data,
+                                                           strides,
+                                                           dilations,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           kernel,
+                                                           rounding_mode,
+                                                           auto_pad,
+                                                           index_element_type);
     NodeBuilder builder(max_pool, {data});
-    auto g_max_pool = ov::as_type_ptr<opset8::MaxPool>(builder.create());
+    auto g_max_pool = ov::as_type_ptr<ov::op::v8::MaxPool>(builder.create());
 
     EXPECT_EQ(g_max_pool->get_strides(), max_pool->get_strides());
     EXPECT_EQ(g_max_pool->get_dilations(), max_pool->get_dilations());

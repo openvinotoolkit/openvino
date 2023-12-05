@@ -1,7 +1,5 @@
 #include "check_network_batchable.hpp"
 
-#include "ie_ngraph_utils.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/detection_output.hpp"
 #include "openvino/op/ops.hpp"

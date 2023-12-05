@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(params)),
     MultiplyToGroupConvolutionTransformation::getTestCaseName);
 */
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(precisions),
          ::testing::ValuesIn(inputShapes),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(params)),
      MultiplyToGroupConvolutionTransformation::getTestCaseName);
 */

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
@@ -16,7 +16,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     std::vector<InputShape> shapes;
     ElementType netType, inType, outType;
     ngraph::helpers::InputLayerType secondaryInputType;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     ov::AnyMap additional_config;
@@ -25,12 +25,12 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
 
     results << "IS=(";
     for (const auto& shape : shapes) {
-        results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        results << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     results << ")_TS=(";
     for (const auto& shape : shapes) {
         for (const auto& item : shape.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
     }
     results << ")_eltwiseOpType=" << eltwiseOpType << "_";
@@ -41,7 +41,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
     for (auto const& configItem : additional_config) {
-        results << "_configItem=" << configItem.first << "_";
+        results << "_configItem=" << configItem.first << "=";
         configItem.second.print(results);
     }
     return results.str();
@@ -71,7 +71,7 @@ void EltwiseLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
@@ -79,15 +79,15 @@ void EltwiseLayerTest::SetUp() {
 
     init_input_shapes(shapes);
 
-    auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
+    ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
 
     ov::PartialShape shape_input_secondary;
     switch (opType) {
-        case CommonTestUtils::OpType::SCALAR: {
+        case ov::test::utils::OpType::SCALAR: {
             shape_input_secondary = {1};
             break;
         }
-        case CommonTestUtils::OpType::VECTOR:
+        case ov::test::utils::OpType::VECTOR:
             shape_input_secondary = inputDynamicShapes.back();
             break;
         default:
@@ -100,8 +100,9 @@ void EltwiseLayerTest::SetUp() {
 
     std::shared_ptr<ngraph::Node> secondaryInput;
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        secondaryInput = ngraph::builder::makeDynamicParams(netType, {shape_input_secondary}).front();
-        parameters.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        auto param = std::make_shared<ov::op::v0::Parameter>(netType, shape_input_secondary);
+        secondaryInput = param;
+        parameters.push_back(param);
     } else {
         ov::Shape shape = inputDynamicShapes.back().get_max_shape();
         switch (eltwiseType) {

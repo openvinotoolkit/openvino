@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -41,18 +41,18 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : shapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "start="  << CommonTestUtils::vec2str(params.start) << "_";
-        result << "stop="   << CommonTestUtils::vec2str(params.stop) << "_";
-        result << "step="   << CommonTestUtils::vec2str(params.step) << "_";
-        result << "axes="   << CommonTestUtils::vec2str(params.axes) << "_";
+        result << "start="  << ov::test::utils::vec2str(params.start) << "_";
+        result << "stop="   << ov::test::utils::vec2str(params.stop) << "_";
+        result << "step="   << ov::test::utils::vec2str(params.step) << "_";
+        result << "axes="   << ov::test::utils::vec2str(params.axes) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -87,7 +87,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
         init_input_shapes({input_shapes});
         for (auto& targetShapes : targetStaticShapes) {
@@ -98,7 +98,10 @@ protected:
                 targetShapes.push_back({sliceParams.axes.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         std::shared_ptr<ngraph::Node> sliceNode;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             // Slice start, stop, step, axes are parameters.
@@ -113,17 +116,29 @@ protected:
                 // With axes parameter
                 auto axesNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, ov::Shape{sliceParams.axes.size()});
                 params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(axesNode));
-                sliceNode = ngraph::builder::makeSlice(params[0], startNode, stopdNode, stepNode, axesNode);
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], startNode, stopdNode, stepNode, axesNode);
             } else {
                 //without axes parameter
-                sliceNode = ngraph::builder::makeSlice(params[0], startNode, stopdNode, stepNode);
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], startNode, stopdNode, stepNode);
             }
         } else if (secondaryInputType == ngraph::helpers::InputLayerType::CONSTANT) {
             // Slice start, stop, step, axes are const.
-            sliceNode = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);;
+            ov::Shape constShape = {sliceParams.start.size()};
+            auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.start.data());
+            auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.stop.data());
+            auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.step.data());
+            if (!sliceParams.axes.empty()) {
+                // With axes parameter
+                auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.axes.data());
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], beginNode, endNode, strideNode, axesNode);
+            } else {
+                //without axes parameter
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], beginNode, endNode, strideNode);
+            }
         } else {
             // Not supported others.
-            IE_THROW() << "Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: " << secondaryInputType;
+            OPENVINO_THROW("Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: ",
+                           secondaryInputType);
         }
 
         function = makeNgraphFunction(netPrecision, params, sliceNode, "Slice8");

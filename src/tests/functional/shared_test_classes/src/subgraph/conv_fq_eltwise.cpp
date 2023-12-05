@@ -27,7 +27,7 @@ std::string ConvFqEltwiseTest::getTestCaseName(const testing::TestParamInfo<Conv
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "LEVELS=" << levels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice;
@@ -38,8 +38,8 @@ std::string ConvFqEltwiseTest::getTestCaseName(const testing::TestParamInfo<Conv
         result << "_inputArg=" << inputArg[0] << "_" << inputArg[1] << "_" << inputArg[2];
     }
     result << "_convFQ=" << convFQValue;
-    result << "_KERNEL=" << CommonTestUtils::vec2str(kernelShape) << "_";
-    result << "STRIDES=" << CommonTestUtils::vec2str(strides) << "_";
+    result << "_KERNEL=" << ov::test::utils::vec2str(kernelShape) << "_";
+    result << "STRIDES=" << ov::test::utils::vec2str(strides) << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels;
     return result.str();
@@ -71,7 +71,7 @@ void ConvFqEltwiseTest::SetUp() {
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const int seed = 0;
     std::mt19937 gen(seed);

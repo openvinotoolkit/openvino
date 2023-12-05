@@ -5,21 +5,21 @@
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
-    const auto weights = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_fq = pattern::wrap_type<ov::op::v0::FakeQuantize>({weights,
                                                               pattern::any_input(pattern::has_static_shape()),
                                                               pattern::any_input(pattern::has_static_shape()),
@@ -49,8 +49,8 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
 
         auto input_rank = fq->input(0).get_partial_shape().rank().get_length();
 
-        ngraph::NodeVector new_ops;
-        ngraph::OutputVector fq_inputs;
+        ov::NodeVector new_ops;
+        ov::OutputVector fq_inputs;
         for (size_t i = 0; i < fq->inputs().size(); ++i) {
             auto fq_input = fq->input_value(i);
             auto fq_input_rank = fq_input.get_partial_shape().rank().get_length();
@@ -70,19 +70,19 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 fq_input = constant;
             }
-            ngraph::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());
+            ov::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());
             fq_inputs.push_back(fq_input);
         }
 
         auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
         new_fq->set_friendly_name(transpose->get_friendly_name());
-        ngraph::copy_runtime_info({fq, transpose}, new_ops);
-        ngraph::replace_node(transpose, new_fq);
+        ov::copy_runtime_info({fq, transpose}, new_ops);
+        ov::replace_node(transpose, new_fq);
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_transpose, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_transpose, matcher_name);
     this->register_matcher(m, callback);
 }

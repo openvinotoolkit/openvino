@@ -5,16 +5,16 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/pass/manager.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <string>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -40,7 +40,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParameters) {
         loop->set_invariant_input(bi, b);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParameters) {
         loop->set_invariant_input(bi, b);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
     }
 }
 
@@ -79,7 +79,7 @@ TEST_F(TransformationTestsF, RemoveLoopManyDanglingParameters) {
         loop->set_invariant_input(ci, c);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -91,7 +91,7 @@ TEST_F(TransformationTestsF, RemoveLoopManyDanglingParameters) {
         loop->set_invariant_input(bi, b);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
     }
 }
 
@@ -122,7 +122,7 @@ TEST_F(TransformationTestsF, RemoveLoopManyDanglingParameters2) {
         loop->set_invariant_input(di, d);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c, d});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c, d});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -135,7 +135,7 @@ TEST_F(TransformationTestsF, RemoveLoopManyDanglingParameters2) {
         loop->set_invariant_input(di, d);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c, d});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c, d});
     }
 }
 
@@ -157,7 +157,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
         loop->set_invariant_input(bi, b);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
         loop->set_invariant_input(ai, a);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
     }
 }
 
@@ -197,7 +197,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
         if_op->set_input(X, Xte, Xte);
         if_op->set_input(Y, Yte, Yte);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -209,7 +209,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
         if_op->set_else_body(else_body);
         if_op->set_input(X, Xte, Xte);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
     }
 }
 
@@ -238,7 +238,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersOnlyFromBodies) {
         if_op->set_input(X, Xt, Xe);
         if_op->set_input(Y, Yt, Ye);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -251,7 +251,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersOnlyFromBodies) {
         if_op->set_input(X, Xt, nullptr);
         if_op->set_input(Y, nullptr, Ye);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
     }
 }
 
@@ -284,7 +284,7 @@ TEST_F(TransformationTestsF, RemoveIfManyDanglingParameters) {
         if_op->set_input(Y, Yt, Ye);
         if_op->set_input(Z, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -297,7 +297,7 @@ TEST_F(TransformationTestsF, RemoveIfManyDanglingParameters) {
         if_op->set_input(X, Xt, Xe);
         if_op->set_input(Z, Zt, nullptr);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
     }
 }
 
@@ -330,7 +330,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParamFromOneBodyAndUpdateAllDescrip
         if_op->set_input(Y, Yt, nullptr);
         if_op->set_input(Z, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -343,7 +343,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParamFromOneBodyAndUpdateAllDescrip
         if_op->set_input(X, nullptr, Xe);
         if_op->set_input(Z, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
     }
 }
 
@@ -366,7 +366,7 @@ TEST_F(TransformationTestsF, RemoveTensorIteratorDanglingParameter) {
 
         auto out = tensor_iterator->get_iter_value(Zo, -1);
         auto res = std::make_shared<Result>(out);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, M});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, M});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -379,7 +379,7 @@ TEST_F(TransformationTestsF, RemoveTensorIteratorDanglingParameter) {
 
         auto out = tensor_iterator->get_iter_value(Zo, -1);
         auto res = std::make_shared<Result>(out);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, M});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, M});
     }
 }
 
@@ -405,7 +405,7 @@ TEST_F(TransformationTestsF, RemoveTensorIteratorManyDanglingParameters) {
 
         auto out = tensor_iterator->get_iter_value(Zo, -1);
         auto res = std::make_shared<Result>(out);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z, M});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z, M});
 
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
@@ -418,7 +418,7 @@ TEST_F(TransformationTestsF, RemoveTensorIteratorManyDanglingParameters) {
 
         auto out = tensor_iterator->get_iter_value(Zo, -1);
         auto res = std::make_shared<Result>(out);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z, M});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z, M});
     }
 }
 

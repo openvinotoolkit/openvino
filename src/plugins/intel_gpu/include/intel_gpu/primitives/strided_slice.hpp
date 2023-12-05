@@ -16,8 +16,6 @@ struct strided_slice : public primitive_base<strided_slice> {
 
     strided_slice() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs strided_slice primitive.
     /// @param id This primitive id.
     /// @param input Input data primitive id.

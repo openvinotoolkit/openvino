@@ -10,7 +10,7 @@
 
 InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model)
-    : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin)),
+    : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin), nullptr, nullptr),
       m_model(model) {
     std::vector<ov::Output<const ov::Node>> inputs, outputs;
     for (const auto& input : m_model->getInputs()) {
@@ -33,7 +33,7 @@ void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) c
     try {
         m_model->Export(model);
     } catch (const InferenceEngine::NotImplemented& ex) {
-        OPENVINO_ASSERT_HELPER(ov::NotImplemented, "", false, ex.what());
+        OPENVINO_THROW_NOT_IMPLEMENTED(ex.what());
     }
 }
 

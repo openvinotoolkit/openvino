@@ -19,7 +19,7 @@ class ConvertOneHotToOneHotIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertOneHotToOneHotIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertOneHotToOneHotIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertOneHotToOneHotIEMatcher", "0");
     ConvertOneHotToOneHotIEMatcher();

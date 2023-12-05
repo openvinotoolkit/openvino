@@ -6,7 +6,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
@@ -23,8 +23,8 @@ std::string ReverseLayerTest::getTestCaseName(const testing::TestParamInfo<rever
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "mode=" << mode << "_";
     result << "prec=" << netPrecision.name() << "_";
     result << "dev=" << targetDevice;
@@ -40,7 +40,7 @@ void ReverseLayerTest::SetUp() {
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ngraph::ParameterVector paramsVector;
-    const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::shared_ptr<ov::op::v0::Constant> axes_constant;
     if (mode == "index") {
         axes_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{axes.size()}, axes);

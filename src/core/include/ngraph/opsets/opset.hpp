@@ -31,9 +31,7 @@ namespace ngraph {
 class NGRAPH_API OpSet : public ov::OpSet {
 public:
     explicit OpSet(const ov::OpSet& opset);
-    NGRAPH_SUPPRESS_DEPRECATED_START
     OpSet(const ngraph::OpSet& opset);
-    NGRAPH_SUPPRESS_DEPRECATED_END
     OpSet() = default;
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
@@ -56,17 +54,20 @@ public:
     }
 };
 
-const NGRAPH_API OpSet& get_opset1();
-const NGRAPH_API OpSet& get_opset2();
-const NGRAPH_API OpSet& get_opset3();
-const NGRAPH_API OpSet& get_opset4();
-const NGRAPH_API OpSet& get_opset5();
-const NGRAPH_API OpSet& get_opset6();
-const NGRAPH_API OpSet& get_opset7();
-const NGRAPH_API OpSet& get_opset8();
-const NGRAPH_API OpSet& get_opset9();
-const NGRAPH_API OpSet& get_opset10();
-const NGRAPH_API OpSet& get_opset11();
-const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset1();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset2();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset3();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset4();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset5();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset6();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset7();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset8();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset9();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset10();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset11();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset12();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset13();
+NGRAPH_API_DEPRECATED const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>&
+get_available_opsets();
 }  // namespace ngraph
 NGRAPH_SUPPRESS_DEPRECATED_END

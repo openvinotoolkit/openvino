@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class ReshapeFullyConnectedFusion : public ngraph::pass::MatcherPass {
+class ReshapeFullyConnectedFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeFullyConnectedFusion", "0");
     ReshapeFullyConnectedFusion();

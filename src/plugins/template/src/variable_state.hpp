@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 namespace template_plugin {

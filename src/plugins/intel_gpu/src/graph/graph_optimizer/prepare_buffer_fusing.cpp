@@ -8,10 +8,12 @@
 #include "concatenation_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
+#include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "strided_slice_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -58,7 +60,8 @@ auto available_pred = [](const program_node& input) {
     if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
-        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()))
+        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
+        !input.is_type<strided_slice>())
         return false;
     return true;
 };
@@ -115,7 +118,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if (pred.first->is_dynamic() && is_runtime) {
+        if (!pred.first->is_dynamic() || is_runtime) {
             if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis))
                 return false;
         }
@@ -430,6 +433,9 @@ void prepare_buffer_fusing::run(program& p) {
         bool is_dynamic = node->is_dynamic();
         bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layout(0).data_padding;
+        if (node->is_type<read_value>())
+            return true;
+
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
@@ -476,8 +482,12 @@ void prepare_buffer_fusing::run(program& p) {
                     return;
             }
 
+            // do not optimize crop, that must be calculated in propagate_constants
+            if (node.is_constant())
+                return;
+
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
+                if (p.is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
                 }
 
@@ -595,6 +605,37 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+        });
+        program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {
+            // Current implementation allows to avoid copy on read_value primitive
+            // only in cases when it has single user
+            // Otherwise we may face an issue with exeuction of read_value users and assign to the same variable
+            // Graph below is an example of unsupported case
+            //     ┌────────┐     ┌───────┐
+            //     │ Param1 │     │ Const │
+            //     └───┬────┘     └───┬───┘
+            //         │              │
+            //         │         ┌────┴──────┐
+            //  .......│.........│ ReadValue │
+            //  .      │         └────┬─────┬┘
+            //  .      │              │     │
+            //  .      │   ┌─────┐    │     │
+            //  .      └───┤ Add ├────┘     │
+            //  .          └──┬──┘          │
+            //  .             │             │
+            //  .             │             │
+            //  . ┌────────┐  │    ┌─────┐  │
+            //  ..│ Assign ├──┴────┤ Add ├──┘
+            //    └────────┘       └──┬──┘
+            //                        │
+            //                        │
+            //                   ┌────┴──────┐
+            //                   │  Result   │
+            //                   └───────────┘
+            // If read_value here returns virable memory w/o copy, then based on Add-s and Assign execution order we may have different results
+            // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
+            // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
+            node.can_be_optimized(node.get_users().size() == 1);
         });
     }
 }

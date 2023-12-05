@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/non_max_suppression.hpp"
-#include <ngraph/opsets/opset3.hpp>
+#include "openvino/op/non_max_suppression.hpp"
 #include <ov_ops/nms_ie_internal.hpp>
 
 #include "intel_gpu/primitives/reorder.hpp"
@@ -17,8 +16,19 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ov::op::internal::NonMaxSuppressionIEInternal>& op) {
-    validate_inputs_count(op, {2, 3, 4, 5, 6});
+static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::NonMaxSuppressionIEInternal>& op) {
+    cldnn::non_max_suppression::Rotation rotation = cldnn::non_max_suppression::Rotation::NONE;
+    const bool is_nms_rotated = op->m_rotation != ov::op::internal::NonMaxSuppressionIEInternal::Rotation_None;
+    if (is_nms_rotated) {
+        // For NMSRotated threshold inputs are mandatory, and soft_nms_sigma input is absent
+        validate_inputs_count(op, {5});
+
+        rotation = op->m_rotation == ov::op::internal::NonMaxSuppressionIEInternal::Rotation_Clockwise ?
+                    cldnn::non_max_suppression::Rotation::CLOCKWISE
+                    : cldnn::non_max_suppression::Rotation::COUNTERCLOCKWISE;
+    } else {
+        validate_inputs_count(op, {2, 3, 4, 5, 6});
+    }
     auto inputs = p.GetInputInfo(op);
     std::vector<cldnn::input_info> reordered_inputs;
     reordered_inputs.resize(inputs.size());
@@ -28,7 +38,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for 'max_output_boxes_per_class' input
             // so we need additional reorder if it's provided as i64
-            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_partial_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputs[portIndex],
@@ -55,8 +65,8 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         for (size_t i = 0; i < num_outputs; i++) {
             auto type = op->get_output_element_type(i);
             // GPU primitive supports only i32 as output data type
-            if (type == ngraph::element::i64) {
-                type = ngraph::element::i32;
+            if (type == ov::element::i64) {
+                type = ov::element::i32;
             }
             output_data_types.push_back(cldnn::element_type_to_data_type(type));
         }
@@ -76,6 +86,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
 
         prim.output_paddings = get_output_paddings();
         prim.output_data_types = get_output_data_types();
+        prim.rotation = rotation;
 
         switch (reordered_inputs.size()) {
             case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
@@ -94,8 +105,8 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         switch (num_outputs) {
             case 3: {
                 auto mutable_precision_second = op->get_output_element_type(2);
-                if (mutable_precision_second == ngraph::element::i64) {
-                    mutable_precision_second = ngraph::element::i32;
+                if (mutable_precision_second == ov::element::i64) {
+                    mutable_precision_second = ov::element::i32;
                 }
                 cldnn::layout mutableLayoutSecond = cldnn::layout(
                     cldnn::element_type_to_data_type(mutable_precision_second),
@@ -143,6 +154,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 "", "", "", "", "", "");
 
         prim.output_data_types = get_output_data_types();
+        prim.rotation = rotation;
 
         switch (reordered_inputs.size()) {
             case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;

@@ -1,16 +1,42 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#pragma once
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/arithmetic_reductions_keep_dims.hpp>
-#include <openvino/op/util/logical_reduction_keep_dims.hpp>
-#include <openvino/opsets/opset1.hpp>
 
+#pragma once
+
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
+namespace util {
+
+template <class T>
+result_shape_t<T> reduce_shape(const T& input_shape, std::vector<int64_t>& axes, const bool keep_dims) {
+    if (keep_dims) {
+        result_shape_t<T> result = input_shape;
+        result = input_shape;
+        for (auto&& axis : axes) {
+            result[axis] = 1;
+        }
+        return result;
+    } else {
+        const auto s = input_shape.size();
+        result_shape_t<T> result;
+        result.reserve(s);
+
+        for (size_t axis = 0; axis < s; ++axis) {
+            if (std::find(axes.begin(), axes.end(), axis) == axes.end()) {
+                result.emplace_back(input_shape[axis]);
+            }
+        }
+        return result;
+    }
+}
+}  // namespace util
+
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
                                         bool keep_dims,
@@ -38,21 +64,7 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
         ov::normalize_axes(op, data_rank.get_length(), *axes_val);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        if (keep_dims) {
-            output_shapes.push_back(data_shape);
-            auto& output_shape = output_shapes[0];
-            for (const auto& axis : *axes_val) {
-                output_shape[axis] = 1;
-            }
-        } else {
-            output_shapes.resize(1);
-            auto& output_shape = output_shapes[0];
-            for (size_t i = 0; i < data_shape.size(); ++i) {
-                if (std::find(axes_val->begin(), axes_val->end(), i) == axes_val->end()) {
-                    output_shape.push_back(data_shape[i]);
-                }
-            }
-        }
+        output_shapes.push_back(util::reduce_shape(data_shape, *axes_val, keep_dims));
     } else {
         if (keep_dims) {
             output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));

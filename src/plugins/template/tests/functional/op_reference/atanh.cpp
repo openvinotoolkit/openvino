@@ -62,10 +62,10 @@ INSTANTIATE_TEST_SUITE_P(
     ReferenceAtanhLayerTest,
     ::testing::Values(
         Builder{}
-            .input({{5}, element::f16, std::vector<ngraph::float16>{-1.0f, -0.5f, 0.0f, 0.8f, 1.0f}})
+            .input({{5}, element::f16, std::vector<ov::float16>{-1.0f, -0.5f, 0.0f, 0.8f, 1.0f}})
             .expected({{5},
                        element::f16,
-                       std::vector<ngraph::float16>{-INFINITY, -0.54930614f, 0.00000000f, 1.0986123f, INFINITY}}),
+                       std::vector<ov::float16>{-INFINITY, -0.54930614f, 0.00000000f, 1.0986123f, INFINITY}}),
         Builder{}
             .input({{5}, element::f32, std::vector<float>{-1.0f, -0.5f, 0.0f, 0.8f, 1.0f}})
             .expected(

@@ -10,33 +10,23 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {}
+    {{ov::hint::inference_precision.name(), ov::element::f32}}
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
-};
-
-const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+    {{ov::hint::inference_precision.name(), ov::element::f32},
+     {ov::device::priorities(ov::test::utils::DEVICE_CPU)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVIterationChaining,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         OVIterationChaining::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVIterationChaining,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVIterationChaining::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVIterationChaining,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
-                        OVIterationChaining::getTestCaseName);
-
 }  // namespace

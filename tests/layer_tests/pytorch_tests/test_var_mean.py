@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -11,47 +13,59 @@ class TestVar(PytorchLayerTest):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
-    def create_model(self, unbiased, dim=None, keepdim=True, two_args_case=True, return_mean=False):
+    def create_model(self, unbiased, dim=None, keepdim=True, two_args_case=True, op_type="var"):
         import torch
 
+        ops = {
+            "var": torch.var,
+            "var_mean": torch.var_mean,
+            "std": torch.std,
+            "std_mean": torch.std_mean
+        }
+
+        op = ops[op_type]
+
         class aten_var(torch.nn.Module):
-            def __init__(self, dim, unbiased, keepdim, return_mean):
+            def __init__(self, dim, unbiased, keepdim, op):
                 super(aten_var, self).__init__()
                 self.unbiased = unbiased
                 self.dim = dim
                 self.keepdim = keepdim
-                self.op = torch.var if not return_mean else torch.var_mean
+                self.op = op
 
             def forward(self, x):
                 return self.op(x, self.dim, unbiased=self.unbiased, keepdim=self.keepdim)
 
         class aten_var2args(torch.nn.Module):
-            def __init__(self, unbiased, return_mean):
+            def __init__(self, unbiased, op):
                 super(aten_var2args, self).__init__()
                 self.unbiased = unbiased
-                self.op =  torch.var if not return_mean else torch.var_mean
-
+                self.op =  op
             def forward(self, x):
-                return torch.var(x, self.unbiased)
+                return self.op(x, self.unbiased)
 
         ref_net = None
-        op_name = "aten::var" if not return_mean else "aten::var_mean"
+        op_name = f"aten::{op_type}"
         if two_args_case:
-            return aten_var2args(unbiased, return_mean), ref_net, op_name
-        return aten_var(dim, unbiased, keepdim, return_mean), ref_net, op_name
+            return aten_var2args(unbiased, op), ref_net, op_name
+        return aten_var(dim, unbiased, keepdim, op), ref_net, op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("unbiased", [True, False])
-    @pytest.mark.parametrize("return_mean", [True, False])
-    def test_var2args(self, unbiased, return_mean, ie_device, precision, ir_version):
-        self._test(*self.create_model(unbiased, return_mean), ie_device, precision, ir_version)
+    @pytest.mark.parametrize("op_type", ["var", "var_mean", "std", "std_mean"])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_var2args(self, unbiased, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(unbiased, op_type=op_type), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("unbiased", [False, True])
     @pytest.mark.parametrize("dim", [None, 0, 1, 2, 3, -1, -2, (0, 1), (-1, -2), (0, 1, -1), (0, 1, 2, 3)])
     @pytest.mark.parametrize("keepdim", [True, False])
-    @pytest.mark.parametrize("return_mean", [True, False])
-    def test_var(self, unbiased, dim, keepdim, return_mean, ie_device, precision, ir_version):
-        self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, return_mean=return_mean), ie_device, precision, ir_version)
+    @pytest.mark.parametrize("op_type", ["var", "var_mean", "std", "std_mean"])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_var(self, unbiased, dim, keepdim, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, op_type=op_type), ie_device, precision, ir_version)

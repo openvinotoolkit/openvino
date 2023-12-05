@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/is_nan.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -14,10 +16,10 @@ namespace {
 struct IsNaNParams {
     template <class IT, class OT>
     IsNaNParams(const PartialShape& shape,
-                  const element::Type& iType,
-                  const element::Type& oType,
-                  const std::vector<IT>& iValues,
-                  const std::vector<OT>& oValues)
+                const element::Type& iType,
+                const element::Type& oType,
+                const std::vector<IT>& iValues,
+                const std::vector<OT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(oType),
@@ -51,8 +53,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto is_nan = std::make_shared<op::v10::IsNaN>(in);
         return std::make_shared<Model>(NodeVector{is_nan}, ParameterVector{in});
@@ -68,18 +70,18 @@ std::vector<IsNaNParams> generateParamsForIsNaNFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
 
-    std::vector<IsNaNParams> params{
-        IsNaNParams(ov::PartialShape{8},
-                       IN_ET, element::Type_t::boolean,
-                       std::vector<T>{std::numeric_limits<T>::infinity(), 0.0000f,
-                            std::numeric_limits<T>::max(), -0.5000f,
-                            -std::numeric_limits<T>::infinity(), 1.0000f,
-                            std::numeric_limits<T>::min(), std::nanf("")},
-                       std::vector<U>{false, false,
-                          false, false,
-                          false, false,
-                          false, true})
-    };
+    std::vector<IsNaNParams> params{IsNaNParams(ov::PartialShape{8},
+                                                IN_ET,
+                                                element::Type_t::boolean,
+                                                std::vector<T>{std::numeric_limits<T>::infinity(),
+                                                               0.0000f,
+                                                               std::numeric_limits<T>::max(),
+                                                               -0.5000f,
+                                                               -std::numeric_limits<T>::infinity(),
+                                                               1.0000f,
+                                                               std::numeric_limits<T>::min(),
+                                                               std::nanf("")},
+                                                std::vector<U>{false, false, false, false, false, false, false, true})};
     return params;
 }
 
@@ -100,9 +102,8 @@ std::vector<IsNaNParams> generateCombinedParamsForIsNaN() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_IsNaN_With_Hardcoded_Refs,
-    ReferenceIsNaNLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForIsNaN()),
-    ReferenceIsNaNLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_IsNaN_With_Hardcoded_Refs,
+                         ReferenceIsNaNLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForIsNaN()),
+                         ReferenceIsNaNLayerTest::getTestCaseName);
 }  // namespace

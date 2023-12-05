@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
 
-using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+#include <gtest/gtest.h>
+
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "visitors/visitors.hpp"
 
 TEST(attributes, adaptive_avg_pool_op) {
-    NodeBuilder::get_ops().register_factory<opset8::AdaptiveAvgPool>();
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1, 3, 5, 4});
-    const auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 3});
+    ov::test::NodeBuilder::get_ops().register_factory<ov::op::v8::AdaptiveAvgPool>();
+    const auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 5, 4});
+    const auto out_shape = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {4, 3});
 
-    const auto adaptive_pool = make_shared<opset8::AdaptiveAvgPool>(A, out_shape);
-    NodeBuilder builder(adaptive_pool, {A, out_shape});
+    const auto adaptive_pool = std::make_shared<ov::op::v8::AdaptiveAvgPool>(A, out_shape);
+    ov::test::NodeBuilder builder(adaptive_pool, {A, out_shape});
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

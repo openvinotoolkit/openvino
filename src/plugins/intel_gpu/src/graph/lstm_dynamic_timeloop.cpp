@@ -38,7 +38,8 @@ void lstm_dynamic_timeloop_node::reverse_optional_outputs_connections() {
         }));
         mutable_data_node.users.push_back(this);
         users.remove(&mutable_data_node);
-        dependencies.insert(dependencies.begin() + index_to_insert, {&mutable_data_node, 0});
+        auto port_idx = get_port_from_deps(mutable_data_node.id());
+        dependencies.insert(dependencies.begin() + index_to_insert, {&mutable_data_node, port_idx});
         // fix inputs/outputs
         if (mutable_data_node.get_dependencies().empty()) {
             myprog.get_inputs().push_back(&mutable_data_node);
@@ -104,10 +105,10 @@ std::string lstm_dynamic_timeloop_inst::to_string(lstm_dynamic_timeloop_node con
     json_composite lstm_dynamic_input_info;
     lstm_dynamic_input_info.add("dyn_length id", desc->dyn_length);
     lstm_dynamic_input_info.add("recurrent id", desc->recurrent);
-    lstm_dynamic_input_info.add("initial cell id", initial_cell_id);
+    lstm_dynamic_input_info.add("initial cell id", std::move(initial_cell_id));
     lstm_dynamic_input_info.add("initial hidden id", initial_hidden_id);
     lstm_dynamic_input_info.add("last cell id", last_cell_id);
-    lstm_dynamic_input_info.add("last hidden id", last_hidden_id);
+    lstm_dynamic_input_info.add("last hidden id", std::move(last_hidden_id));
     lstm_dynamic_input_info.add("max seq len", node.input().get_output_layout().feature());
     lstm_dynamic_input_info.add("hidden size", node.recurrent().get_output_layout().spatial(0));
     lstm_dynamic_input_info.add("direction", node.recurrent().get_output_layout().feature());

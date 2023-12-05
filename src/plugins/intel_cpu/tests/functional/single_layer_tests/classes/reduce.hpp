@@ -5,7 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/fusing_test_utils.hpp"
@@ -17,7 +17,7 @@ namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<int>,               // Axis to reduce order
-        CommonTestUtils::OpType,        // Scalar or vector type axis
+        ov::test::utils::OpType,        // Scalar or vector type axis
         bool,                           // Keep dims
         ngraph::helpers::ReductionType, // Reduce operation type
         ElementType,                    // Net precision
@@ -50,7 +50,7 @@ namespace Reduce {
 const std::vector<bool>& keepDims();
 const std::vector<std::vector<int>>& axes();
 const std::vector<std::vector<int>>& axesND();
-const std::vector<CommonTestUtils::OpType>& opTypes();
+const std::vector<ov::test::utils::OpType>& opTypes();
 const std::vector<ngraph::helpers::ReductionType>& reductionTypes();
 const std::vector<ElementType>& inpOutPrc();
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfig();

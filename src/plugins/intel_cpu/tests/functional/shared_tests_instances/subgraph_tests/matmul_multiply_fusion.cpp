@@ -4,7 +4,7 @@
 
 #include "subgraph_tests/matmul_multiply_fusion.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
 std::vector<MatMulMultiplyFusionShapeParams> shape_params = {
@@ -67,12 +67,12 @@ std::vector<MatMulMultiplyFusionShapeParams> shape_params = {
     {{2, 3, 5, 10}, {2, 3, 7, 10}, true, {2, 3, 1, 7}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultiplyFusion, MatMulMultiplyFusion,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(shape_params),
-                                ::testing::Values(true), // can be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        MatMulMultiplyFusion::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultiplyFusion,
+                         MatMulMultiplyFusion,
+                         ::testing::Combine(::testing::ValuesIn(shape_params),
+                                            ::testing::Values(true),  // can be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMulMultiplyFusion::getTestCaseName);
 
 std::vector<MatMulMultiplyFusionShapeParams> negative_shape_params = {
     {{5}, {5}, false, {1}},
@@ -108,12 +108,12 @@ std::vector<MatMulMultiplyFusionShapeParams> negative_shape_params = {
     {{2, 3, 5, 10}, {2, 3, 10, 7}, false, {1, 1, 1, 1, 7}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NegativeMatMulMultiplyFusion, MatMulMultiplyFusion,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(negative_shape_params),
-                                ::testing::Values(false), // cannot be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        MatMulMultiplyFusion::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NegativeMatMulMultiplyFusion,
+                         MatMulMultiplyFusion,
+                         ::testing::Combine(::testing::ValuesIn(negative_shape_params),
+                                            ::testing::Values(false),  // cannot be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMulMultiplyFusion::getTestCaseName);
 
 std::vector<MatMulMultiplyFusionShapeParams> shape_params2 = {
     {{2, 2}, {2, 2}, false, {}},
@@ -158,12 +158,12 @@ std::vector<MatMulMultiplyFusionShapeParams> shape_params2 = {
     {{2, 3, 5, 10}, {2, 3, 7, 10}, true, {2, 3, 1, 7}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_QuantizedMatMulMultiplyFusion, QuantizedMatMulMultiplyFusion,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(shape_params2),
-                                ::testing::Values(true), // can be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        QuantizedMatMulMultiplyFusion::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_QuantizedMatMulMultiplyFusion,
+                         QuantizedMatMulMultiplyFusion,
+                         ::testing::Combine(::testing::ValuesIn(shape_params2),
+                                            ::testing::Values(true),  // can be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         QuantizedMatMulMultiplyFusion::getTestCaseName);
 
 std::vector<MatMulMultiplyFusionShapeParams> negative_shape_params2 = {
     {{2, 2}, {2, 2}, false, {2, 2}},
@@ -198,11 +198,11 @@ std::vector<MatMulMultiplyFusionShapeParams> negative_shape_params2 = {
     {{2, 3, 5, 10}, {3, 7, 10}, true, {2, 3, 5, 7}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NegativeQuantizedMatMulMultiplyFusion, QuantizedMatMulMultiplyFusion,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(negative_shape_params2),
-                                ::testing::Values(false), // cannot be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        QuantizedMatMulMultiplyFusion::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NegativeQuantizedMatMulMultiplyFusion,
+                         QuantizedMatMulMultiplyFusion,
+                         ::testing::Combine(::testing::ValuesIn(negative_shape_params2),
+                                            ::testing::Values(false),  // cannot be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         QuantizedMatMulMultiplyFusion::getTestCaseName);
 
-} // namespace
+}  // namespace

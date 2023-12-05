@@ -51,11 +51,14 @@ This is the key difference between standard diffusion and latent
 diffusion models: in latent diffusion, the model is trained to generate
 latent (compressed) representations of the images.
 
-There are three main components in latent diffusion: 
+There are three main components in latent diffusion:
 
-* A text-encoder, for example `CLIP’s Text Encoder <https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel>`__ for creation condition to generate image from text prompt. 
-* A U-Net for step-by-step denoising latent image representation.
-* An autoencoder (VAE) for encoding input image to latent space (if required) and decoding latent space to image back after generation.
+-  A text-encoder, for example `CLIP’s Text
+   Encoder <https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel>`__
+   for creation condition to generate image from text prompt.
+-  A U-Net for step-by-step denoising latent image representation.
+-  An autoencoder (VAE) for encoding input image to latent space (if
+   required) and decoding latent space to image back after generation.
 
 For more details regarding Stable Diffusion work, refer to the `project
 website <https://ommer-lab.com/research/latent-diffusion-models/>`__.
@@ -105,7 +108,7 @@ In the end, we are left with a very similar image synthesis pipeline
 with an additional control added for the shape of the output features in
 the final image.
 
-Training ControlNet comprises of the following steps:
+Training ControlNet consists of the following steps:
 
 1. Cloning the pre-trained parameters of a Diffusion model, such as
    Stable Diffusion’s latent UNet, (referred to as “trainable copy”)
@@ -136,26 +139,54 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
+**Table of contents:**
+
+-  `Prerequisites <#prerequisites>`__
+-  `Instantiating Generation
+   Pipeline <#instantiating-generation-pipeline>`__
+
+   -  `ControlNet in Diffusers
+      library <#controlnet-in-diffusers-library>`__
+   -  `OpenPose <#openpose>`__
+
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+
+   -  `OpenPose conversion <#openpose-conversion>`__
+
+-  `Select inference device <#select-inference-device>`__
+
+   -  `ControlNet conversion <#controlnet-conversion>`__
+   -  `UNet conversion <#unet-conversion>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
+
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Running Text-to-Image Generation with ControlNet Conditioning and
+   OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+-  `Select inference device for Stable Diffusion
+   pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+
 Prerequisites
 -------------
 
+
+
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.14.0" "git+https://github.com/huggingface/accelerate.git" controlnet-aux gradio
-
-
-.. parsed-literal::
-
-    
-    [notice] A new release of pip available: 22.3.1 -> 23.0.1
-    [notice] To update, run: pip install --upgrade pip
-
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch" "torchvision"
+    %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36"
+    %pip install -q "openvino>=2023.1.0"
 
 Instantiating Generation Pipeline
 ---------------------------------
 
+
+
 ControlNet in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
@@ -176,31 +207,29 @@ controlnet model and ``stable-diffusion-v1-5``:
     import torch
     from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
     
-    controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float32)
+    controlnet = ControlNetModel.from_pretrained("lllyasviel/control_v11p_sd15_openpose", torch_dtype=torch.float32)
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5", controlnet=controlnet
     )
 
 
-.. parsed-literal::
-
-    2023-03-12 15:26:19.533980: I tensorflow/core/util/util.cc:169] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-
-
 
 .. parsed-literal::
 
-    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
+    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
 
 
 .. parsed-literal::
 
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/transformers/models/clip/feature_extraction_clip.py:28: FutureWarning: The class CLIPFeatureExtractor is deprecated and will be removed in version 5 of Transformers. Please use CLIPImageProcessor instead.
-      warnings.warn(
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["id2label"]` will be overriden.
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["bos_token_id"]` will be overriden.
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["eos_token_id"]` will be overriden.
 
 
 OpenPose
 ~~~~~~~~
+
+
 
 Annotation is an important part of working with ControlNet.
 `OpenPose <https://github.com/CMU-Perceptual-Computing-Lab/openpose>`__
@@ -224,6 +253,13 @@ The code below demonstrates how to instantiate the OpenPose model.
     from controlnet_aux import OpenposeDetector
     
     pose_estimator = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+
+
+.. parsed-literal::
+
+    /home/ea/work/openvino_notebooks/test_env/lib/python3.8/site-packages/controlnet_aux/mediapipe_face/mediapipe_face_common.py:7: UserWarning: The module 'mediapipe' is not installed. The package will have limited functionality. Please install it using the command: pip install 'mediapipe'
+      warnings.warn(
+
 
 Now, let us check its result on example image:
 
@@ -284,34 +320,29 @@ Now, let us check its result on example image:
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-OpenVINO supports PyTorch through export to the ONNX format. We will use
-the ``torch.onnx.export`` function for obtaining the ONNX model, we can
-learn more in the `PyTorch
-documentation <https://pytorch.org/docs/stable/onnx.html>`__. We need to
-provide a model object, input data for model tracing, and a path for
-saving the model. Optionally, we can provide a target ONNX opset for
-conversion and other parameters specified in the documentation (for
-example, input and output names or dynamic shapes).
 
-While ONNX models are directly supported by OpenVINO™ runtime, it can be
-useful to convert them to IR format to take the advantage of advanced
-OpenVINO optimization tools and features. We will use OpenVINO `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-to convert a model to IR format and compression weights to ``FP16``
-format.
+
+Starting from 2023.0 release, OpenVINO supports PyTorch models
+conversion directly. We need to provide a model object, input data for
+model tracing to ``ov.convert_model`` function to obtain OpenVINO
+``ov.Model`` object instance. Model can be saved on disk for next
+deployment using ``ov.save_model`` function.
 
 The pipeline consists of five important parts:
 
-* OpenPose for obtaining annotation based on an estimated pose.
-* ControlNet for conditioning by image annotation.
-* Text Encoder for creation condition to generate an image from a text prompt.
-* Unet for step-by-step denoising latent image representation.
-* Autoencoder (VAE) for decoding latent space to image.
+-  OpenPose for obtaining annotation based on an estimated pose.
+-  ControlNet for conditioning by image annotation.
+-  Text Encoder for creation condition to generate an image from a text
+   prompt.
+-  Unet for step-by-step denoising latent image representation.
+-  Autoencoder (VAE) for decoding latent space to image.
 
 Let us convert each part:
 
 OpenPose conversion
 ~~~~~~~~~~~~~~~~~~~
+
+
 
 OpenPose model is represented in the pipeline as a wrapper on the
 PyTorch model which not only detects poses on an input image but is also
@@ -323,15 +354,25 @@ estimation part, which is located inside the wrapper
 
     from pathlib import Path
     import torch
+    import openvino as ov
     
-    OPENPOSE_ONNX_PATH = Path("openpose.onnx")
-    OPENPOSE_OV_PATH = OPENPOSE_ONNX_PATH.with_suffix(".xml")
+    OPENPOSE_OV_PATH = Path("openpose.xml")
+    
+    def cleanup_torchscript_cache():
+        """
+        Helper for removing cached model representation
+        """
+        torch._C._jit_clear_class_registry()
+        torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
+        torch.jit._state._clear_class_state()
     
     
     if not OPENPOSE_OV_PATH.exists():
-        if not OPENPOSE_ONNX_PATH.exists():
-            torch.onnx.export(pose_estimator.body_estimation.model, torch.zeros([1, 3, 184, 136]), OPENPOSE_ONNX_PATH)
-        !mo --input_model $OPENPOSE_ONNX_PATH --compress_to_fp16
+        with torch.no_grad():
+            ov_model = ov.convert_model(pose_estimator.body_estimation.model, example_input=torch.zeros([1, 3, 184, 136]), input=[[1,3,184,136]])
+            ov.save_model(ov_model, OPENPOSE_OV_PATH)
+            del ov_model
+            cleanup_torchscript_cache()
         print('OpenPose successfully converted to IR')
     else:
         print(f"OpenPose will be loaded from {OPENPOSE_OV_PATH}")
@@ -339,7 +380,7 @@ estimation part, which is located inside the wrapper
 
 .. parsed-literal::
 
-    OpenPose will be loaded from openpose.xml
+    OpenPose successfully converted to IR
 
 
 To reuse the original drawing procedure, we replace the PyTorch OpenPose
@@ -347,8 +388,7 @@ model with the OpenVINO model, using the following code:
 
 .. code:: ipython3
 
-    from openvino.runtime import Model, Core
-    
+    from collections import namedtuple
     
     class OpenPoseOVModel:
         """ Helper wrapper for OpenPose model inference"""
@@ -385,10 +425,47 @@ model with the OpenVINO model, using the following code:
             """
             self.model.reshape({0: [1, 3, height, width]})
             self.compiled_model = self.core.compile_model(self.model)
+            
+        def parameters(self):
+            Device = namedtuple("Device", ["device"])
+            return [Device(torch.device("cpu"))]
+        
     
      
-    core = Core()
-    ov_openpose = OpenPoseOVModel(core, OPENPOSE_OV_PATH)
+    core = ov.Core()
+
+Select inference device
+-----------------------
+
+
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    ov_openpose = OpenPoseOVModel(core, OPENPOSE_OV_PATH, device=device.value)
     pose_estimator.body_estimation.model = ov_openpose
 
 .. code:: ipython3
@@ -398,7 +475,7 @@ model with the OpenVINO model, using the following code:
 
 
 
-.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_14_0.png
+.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_17_0.png
 
 
 Great! As we can see, it works perfectly.
@@ -406,20 +483,25 @@ Great! As we can see, it works perfectly.
 ControlNet conversion
 ~~~~~~~~~~~~~~~~~~~~~
 
-The controlNet model accepts the same inputs like UNet in Stable
+
+
+The ControlNet model accepts the same inputs like UNet in Stable
 Diffusion pipeline and additional condition sample - skeleton key points
 map predicted by pose estimator:
 
-* ``sample`` - latent image sample from the previous step, generation process has not been started yet, so we will use random noise,
-* ``timestep`` - current scheduler step,
-* ``encoder_hidden_state`` - hidden state of text encoder,
-* ``controlnet_cond`` - condition input annotation. The output of the model is attention hidden states from down and middle blocks, which serves additional context for the UNet model.
+-  ``sample`` - latent image sample from the previous step, generation
+   process has not been started yet, so we will use random noise,
+-  ``timestep`` - current scheduler step,
+-  ``encoder_hidden_state`` - hidden state of text encoder,
+-  ``controlnet_cond`` - condition input annotation.
 
+The output of the model is attention hidden states from down and middle
+blocks, which serves additional context for the UNet model.
 
 .. code:: ipython3
 
-    from torch.onnx import _export as torch_onnx_export
     import gc
+    from functools import partial
     
     inputs = {
         "sample": torch.randn((2, 4, 64, 64)),
@@ -428,26 +510,26 @@ map predicted by pose estimator:
         "controlnet_cond": torch.randn((2,3,512,512))
     }
     
+    input_info = [(name, ov.PartialShape(inp.shape)) for name, inp in inputs.items()] 
     
-    CONTROLNET_ONNX_PATH = Path('controlnet-pose.onnx')
-    CONTROLNET_OV_PATH = CONTROLNET_ONNX_PATH.with_suffix('.xml')
+    CONTROLNET_OV_PATH = Path('controlnet-pose.xml')
     controlnet.eval()
     with torch.no_grad():
         down_block_res_samples, mid_block_res_sample = controlnet(**inputs, return_dict=False)
-    
-    controlnet_output_names = [f"down_block_res_sample_{i}" for i in range(len(down_block_res_samples))]
-    controlnet_output_names.append("mid_block_res_sample")
-    
-    
+        
     if not CONTROLNET_OV_PATH.exists():
-        if not CONTROLNET_ONNX_PATH.exists():
-    
-            with torch.no_grad():
-                torch_onnx_export(controlnet, inputs, CONTROLNET_ONNX_PATH, input_names=list(inputs), output_names=controlnet_output_names, onnx_shape_inference=False)    
-        !mo --input_model $CONTROLNET_ONNX_PATH --compress_to_fp16
+        with torch.no_grad():
+            controlnet.forward = partial(controlnet.forward, return_dict=False)
+            ov_model = ov.convert_model(controlnet, example_input=inputs, input=input_info)
+            ov.save_model(ov_model, CONTROLNET_OV_PATH)
+            del ov_model
+            cleanup_torchscript_cache()
         print('ControlNet successfully converted to IR')
     else:
         print(f"ControlNet will be loaded from {CONTROLNET_OV_PATH}")
+    
+    del controlnet
+    gc.collect()
 
 
 .. parsed-literal::
@@ -455,8 +537,18 @@ map predicted by pose estimator:
     ControlNet will be loaded from controlnet-pose.xml
 
 
+
+
+.. parsed-literal::
+
+    9962
+
+
+
 UNet conversion
 ~~~~~~~~~~~~~~~
+
+
 
 The process of UNet model conversion remains the same, like for original
 Stable Diffusion model, but with respect to the new inputs generated by
@@ -464,27 +556,91 @@ ControlNet.
 
 .. code:: ipython3
 
-    UNET_ONNX_PATH = Path('unet_controlnet/unet_controlnet.onnx')
-    UNET_OV_PATH = UNET_ONNX_PATH.parents[1] / 'unet_controlnet.xml'
+    from typing import Tuple
+    
+    UNET_OV_PATH = Path('unet_controlnet.xml')
+    
+    dtype_mapping = {
+        torch.float32: ov.Type.f32,
+        torch.float64: ov.Type.f64,
+        torch.int32: ov.Type.i32,
+        torch.int64: ov.Type.i64
+    }
+    
+    class UnetWrapper(torch.nn.Module):
+        def __init__(
+            self, 
+            unet, 
+            sample_dtype=torch.float32, 
+            timestep_dtype=torch.int64, 
+            encoder_hidden_states=torch.float32, 
+            down_block_additional_residuals=torch.float32, 
+            mid_block_additional_residual=torch.float32
+        ):
+            super().__init__()
+            self.unet = unet
+            self.sample_dtype = sample_dtype
+            self.timestep_dtype = timestep_dtype
+            self.encoder_hidden_states_dtype = encoder_hidden_states
+            self.down_block_additional_residuals_dtype = down_block_additional_residuals
+            self.mid_block_additional_residual_dtype = mid_block_additional_residual
+    
+        def forward(
+            self, 
+            sample:torch.Tensor, 
+            timestep:torch.Tensor, 
+            encoder_hidden_states:torch.Tensor, 
+            down_block_additional_residuals:Tuple[torch.Tensor],  
+            mid_block_additional_residual:torch.Tensor
+        ):
+            sample.to(self.sample_dtype)
+            timestep.to(self.timestep_dtype)
+            encoder_hidden_states.to(self.encoder_hidden_states_dtype)
+            down_block_additional_residuals = [res.to(self.down_block_additional_residuals_dtype) for res in down_block_additional_residuals]
+            mid_block_additional_residual.to(self.mid_block_additional_residual_dtype)
+            return self.unet(
+                sample, 
+                timestep, 
+                encoder_hidden_states, 
+                down_block_additional_residuals=down_block_additional_residuals, 
+                mid_block_additional_residual=mid_block_additional_residual
+            )
+    
+    
+    
+    def flattenize_inputs(inputs):
+        flatten_inputs = []
+        for input_data in inputs:
+            if input_data is None:
+                continue
+            if isinstance(input_data, (list, tuple)):
+                flatten_inputs.extend(flattenize_inputs(input_data))
+            else:
+                flatten_inputs.append(input_data)
+        return flatten_inputs
     
     if not UNET_OV_PATH.exists():
-        if not UNET_ONNX_PATH.exists():
-            UNET_ONNX_PATH.parent.mkdir(exist_ok=True)
-            inputs.pop("controlnet_cond", None)
-            inputs["down_block_additional_residuals"] = down_block_res_samples
-            inputs["mid_block_additional_residual"] = mid_block_res_sample
+        inputs.pop("controlnet_cond", None)
+        inputs["down_block_additional_residuals"] = down_block_res_samples
+        inputs["mid_block_additional_residual"] = mid_block_res_sample
     
-            unet = pipe.unet
-            unet.eval()
+        unet = UnetWrapper(pipe.unet)
+        unet.eval()
     
-            input_names = ["sample", "timestep", "encoder_hidden_states", *controlnet_output_names]
-    
-            with torch.no_grad():
-                torch_onnx_export(unet, inputs, str(UNET_ONNX_PATH), input_names=input_names, output_names=["sample_out"], onnx_shape_inference=False)
-            del unet
+        with torch.no_grad():
+            ov_model = ov.convert_model(unet, example_input=inputs)
+            
+        flatten_inputs = flattenize_inputs(inputs.values())
+        for input_data, input_tensor in zip(flatten_inputs, ov_model.inputs):
+            input_tensor.get_node().set_partial_shape(ov.PartialShape(input_data.shape))
+            input_tensor.get_node().set_element_type(dtype_mapping[input_data.dtype])
+        ov_model.validate_nodes_and_infer_types()
+        ov.save_model(ov_model, UNET_OV_PATH)
+        del ov_model
+        cleanup_torchscript_cache()
+        del unet
         del pipe.unet
         gc.collect()
-        !mo --input_model $UNET_ONNX_PATH --compress_to_fp16
         print('Unet successfully converted to IR')
     else:
         del pipe.unet
@@ -501,12 +657,14 @@ ControlNet.
 
 .. parsed-literal::
 
-    4989
+    0
 
 
 
 Text Encoder
 ~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -519,55 +677,46 @@ indexes of tokens from text processed by the tokenizer and padded to the
 maximum length accepted by the model. Model outputs are two tensors:
 ``last_hidden_state`` - hidden state from the last MultiHeadAttention
 layer in the model and ``pooler_out`` - pooled output for whole model
-hidden states. We will use ``opset_version=14`` because the model
-contains the ``triu`` operation, supported in ONNX only starting from
-this opset.
+hidden states.
 
 .. code:: ipython3
 
-    TEXT_ENCODER_ONNX_PATH = Path('text_encoder.onnx')
-    TEXT_ENCODER_OV_PATH = TEXT_ENCODER_ONNX_PATH.with_suffix('.xml')
+    TEXT_ENCODER_OV_PATH = Path('text_encoder.xml')
     
     
-    def convert_encoder_onnx(text_encoder:torch.nn.Module, onnx_path:Path):
+    def convert_encoder(text_encoder:torch.nn.Module, ir_path:Path):
         """
-        Convert Text Encoder model to ONNX. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+        Convert Text Encoder model to OpenVINO IR. 
+        Function accepts text encoder model, prepares example inputs for conversion, and convert it to OpenVINO Model
         Parameters: 
             text_encoder (torch.nn.Module): text_encoder model
-            onnx_path (Path): File for storing onnx model
+            ir_path (Path): File for storing model
         Returns:
             None
         """
-        if not onnx_path.exists():
+        if not ir_path.exists():
             input_ids = torch.ones((1, 77), dtype=torch.long)
             # switch model to inference mode
             text_encoder.eval()
     
             # disable gradients calculation for reducing memory consumption
             with torch.no_grad():
-                # infer model, just to make sure that it works
-                text_encoder(input_ids)
-                # export model to ONNX format
-                torch_onnx_export(
+                ov_model = ov.convert_model(
                     text_encoder,  # model instance
-                    input_ids,  # inputs for model tracing
-                    onnx_path,  # output file for saving result
-                    input_names=['tokens'],  # model input name for onnx representation
-                    output_names=['last_hidden_state', 'pooler_out'],  # model output names for onnx representation
-                    opset_version=14,  # onnx opset version for export
-                    onnx_shape_inference=False
+                    example_input=input_ids,  # inputs for model tracing
+                    input=([1,77],)
                 )
-            print('Text Encoder successfully converted to ONNX')
+                ov.save_model(ov_model, ir_path)
+                del ov_model
+            cleanup_torchscript_cache()
+            print('Text Encoder successfully converted to IR')
         
     
     if not TEXT_ENCODER_OV_PATH.exists():
-        convert_encoder_onnx(pipe.text_encoder, TEXT_ENCODER_ONNX_PATH)
-        !mo --input_model $TEXT_ENCODER_ONNX_PATH --compress_to_fp16
-        print('Text Encoder successfully converted to IR')
+        convert_encoder(pipe.text_encoder, TEXT_ENCODER_OV_PATH)
     else:
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
-    
+    del pipe.text_encoder
     gc.collect()
 
 
@@ -587,6 +736,8 @@ this opset.
 VAE Decoder conversion
 ~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 The VAE model has two parts, an encoder, and a decoder. The encoder is
 used to convert the image into a low-dimensional latent representation,
 which will serve as the input to the U-Net model. The decoder,
@@ -604,18 +755,17 @@ diffusion
 
 .. code:: ipython3
 
-    VAE_DECODER_ONNX_PATH = Path('vae_decoder.onnx')
-    VAE_DECODER_OV_PATH = VAE_DECODER_ONNX_PATH.with_suffix('.xml')
+    VAE_DECODER_OV_PATH = Path('vae_decoder.xml')
     
     
-    def convert_vae_decoder_onnx(vae: torch.nn.Module, onnx_path: Path):
+    def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to ONNX, then IR format. 
+        Convert VAE model to IR format. 
         Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
+        prepares example inputs for convert, 
         Parameters: 
             vae (torch.nn.Module): VAE model
-            onnx_path (Path): File for storing onnx model
+            ir_path (Path): File for storing model
         Returns:
             None
         """
@@ -627,21 +777,21 @@ diffusion
             def forward(self, latents):
                 return self.vae.decode(latents)
     
-        if not onnx_path.exists():
+        if not ir_path.exists():
             vae_decoder = VAEDecoderWrapper(vae)
             latents = torch.zeros((1, 4, 64, 64))
     
             vae_decoder.eval()
             with torch.no_grad():
-                torch.onnx.export(vae_decoder, latents, onnx_path, input_names=[
-                                  'latents'], output_names=['sample'])
-            print('VAE decoder successfully converted to ONNX')
+                ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[(1,4,64,64),])
+                ov.save_model(ov_model, ir_path)
+            del ov_model
+            cleanup_torchscript_cache()
+            print('VAE decoder successfully converted to IR')
     
     
     if not VAE_DECODER_OV_PATH.exists():
-        convert_vae_decoder_onnx(pipe.vae, VAE_DECODER_ONNX_PATH)
-        !mo --input_model $VAE_DECODER_ONNX_PATH --compress_to_fp16
-        print('VAE decoder successfully converted to IR')
+        convert_vae_decoder(pipe.vae, VAE_DECODER_OV_PATH)
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
 
@@ -653,6 +803,8 @@ diffusion
 
 Prepare Inference pipeline
 --------------------------
+
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow. |detailed workflow|
@@ -713,7 +865,7 @@ on OpenVINO.
 
 .. code:: ipython3
 
-    from diffusers.pipeline_utils import DiffusionPipeline
+    from diffusers import DiffusionPipeline
     from transformers import CLIPTokenizer
     from typing import Union, List, Optional, Tuple
     import cv2
@@ -788,11 +940,11 @@ on OpenVINO.
             self,
             tokenizer: CLIPTokenizer,
             scheduler,
-            core: Core,
-            controlnet: Model,
-            text_encoder: Model,
-            unet: Model,
-            vae_decoder: Model,
+            core: ov.Core,
+            controlnet: ov.Model,
+            text_encoder: ov.Model,
+            unet: ov.Model,
+            vae_decoder: ov.Model,
             device:str = "AUTO"
         ):
             super().__init__()
@@ -802,7 +954,7 @@ on OpenVINO.
             self.load_models(core, device, controlnet, text_encoder, unet, vae_decoder)
             self.set_progress_bar_config(disable=True)
     
-        def load_models(self, core: Core, device: str, controlnet:Model, text_encoder: Model, unet: Model, vae_decoder: Model):
+        def load_models(self, core: ov.Core, device: str, controlnet:ov.Model, text_encoder: ov.Model, unet: ov.Model, vae_decoder: ov.Model):
             """
             Function for loading models on device using OpenVINO
             
@@ -1102,6 +1254,8 @@ on OpenVINO.
 Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
 --------------------------------------------------------------------------
 
+
+
 Now, we are ready to start generation. For improving the generation
 process, we also introduce an opportunity to provide a
 ``negative prompt``. Technically, positive prompt steers the diffusion
@@ -1112,9 +1266,59 @@ this
 We can keep this field empty if we want to generate image without
 negative prompting.
 
+Select inference device for Stable Diffusion pipeline
+-----------------------------------------------------
+
+
+
+select device from dropdown list for running inference using OpenVINO
+
 .. code:: ipython3
 
-    ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, CONTROLNET_OV_PATH, TEXT_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device="AUTO")
+    import ipywidgets as widgets
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='CPU',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+
+
+
+.. code:: ipython3
+
+    ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, CONTROLNET_OV_PATH, TEXT_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
+
+.. code:: ipython3
+
+    np.random.seed(42)
+    
+    pose = pose_estimator(img)
+    
+    prompt = "Dancing Darth Vader, best quality, extremely detailed"
+    negative_prompt = "monochrome, lowres, bad anatomy, worst quality, low quality"
+    result = ov_pipe(prompt, pose, 20, negative_prompt=negative_prompt)
+    
+    result[0]
+
+
+
+
+.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_34_0.png
+
+
 
 .. code:: ipython3
 
@@ -1157,4 +1361,11 @@ negative prompting.
         pose_btn.click(extract_pose, inp_img, [out_pose, step1, step2])
         btn.click(generate, [out_pose, inp_prompt, inp_neg_prompt, inp_seed, inp_steps], out_result)
     
-    demo.queue().launch(share=True, debug=True)
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

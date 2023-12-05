@@ -16,7 +16,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
@@ -73,7 +73,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "FP32"
+        "f32"
     },
 
     // Actual:
@@ -127,7 +127,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "u8"
     },
 
     // Actual:
@@ -178,7 +178,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "FP32"
+        "f32"
     },
 
     // Actual:
@@ -229,7 +229,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "u8"
     },
 
     {
@@ -249,7 +249,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
                 { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
@@ -262,7 +262,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ConvolutionQDqTransformation::getTestCaseName);

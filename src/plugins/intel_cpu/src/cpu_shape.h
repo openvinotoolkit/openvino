@@ -8,8 +8,8 @@
 #include <vector>
 #include <utility>
 #include <ie_common.h>
-#include <ngraph/partial_shape.hpp>
 #include "cpu_types.h"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -44,7 +44,7 @@ public:
 
     Shape(const VectorDims& minDims, const VectorDims& maxDims) {
         if (minDims.size() != maxDims.size()) {
-            IE_THROW() << "Can't create shape due to min/max vectors dims size mismatch";
+            OPENVINO_THROW("Can't create shape due to min/max vectors dims size mismatch");
         }
         this->minDims = minDims;
         this->maxDims = maxDims;
@@ -114,7 +114,7 @@ public:
      */
     const VectorDims& getStaticDims() const {
         if (type != ShapeType::Static) {
-            IE_THROW() << "Cannot get dims for non static shape";
+            OPENVINO_THROW("Cannot get dims for non static shape");
         }
 
         return minDims;
@@ -155,7 +155,7 @@ public:
 
     size_t getElementsCount() const {
         if (type != ShapeType::Static) {
-            IE_THROW() << "Cannot get elements count for non static shape";
+            OPENVINO_THROW("Cannot get elements count for non static shape");
         }
 
         size_t size = 1;

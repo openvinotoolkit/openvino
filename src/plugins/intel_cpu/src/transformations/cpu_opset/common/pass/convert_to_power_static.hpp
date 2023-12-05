@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToPowerStatic: public ngraph::pass::MatcherPass {
+class ConvertToPowerStatic: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertToPowerStatic", "0");
     ConvertToPowerStatic();

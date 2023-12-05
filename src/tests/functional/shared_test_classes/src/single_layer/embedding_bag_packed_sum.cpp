@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/embedding_bag_packed_sum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/node_builders/embedding_bag_packed_sum.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,8 +18,8 @@ std::string EmbeddingBagPackedSumLayerTest::getTestCaseName(const testing::TestP
     std::tie(embTableShape, indices, withWeights) = params;
 
     std::ostringstream result;
-    result << "ETS=" << CommonTestUtils::vec2str(embTableShape) << "_";
-    result << "I" << CommonTestUtils::vec2str(indices) << "_";
+    result << "ETS=" << ov::test::utils::vec2str(embTableShape) << "_";
+    result << "I" << ov::test::utils::vec2str(indices) << "_";
     result << "WW" << withWeights << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "indPRC=" << indPrecision.name() << "_";
@@ -42,9 +42,7 @@ void EmbeddingBagPackedSumLayerTest::SetUp() {
     auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(embTableShape));
     ngraph::ParameterVector params = {emb_table_node};
 
-    auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingBagPackedSum>(
-            ngraph::builder::makeEmbeddingBagPackedSum(
-                ngPrc, ngIdxPrc, emb_table_node, indices, withWeights));
+    auto embBag = ov::test::utils::make_embedding_bag_packed_sum(ngPrc, ngIdxPrc, emb_table_node, indices, withWeights);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagPackedSum");
 }

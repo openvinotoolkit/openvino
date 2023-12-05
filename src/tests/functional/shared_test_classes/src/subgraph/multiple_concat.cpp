@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/multiple_concat.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -38,16 +38,16 @@ void MultipleConcatTest::SetUp() {
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> constant_dims {1, constantSize};
 
-    auto concat_1_vals = CommonTestUtils::generate_float_numbers(constantSize, -2.0f, 2.0f);
-    auto concat_2_vals = CommonTestUtils::generate_float_numbers(constantSize, -5.0f, 5.0f);
+    auto concat_1_vals = ov::test::utils::generate_float_numbers(constantSize, -2.0f, 2.0f);
+    auto concat_2_vals = ov::test::utils::generate_float_numbers(constantSize, -5.0f, 5.0f);
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto const_1 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
-    auto concat_1 = ngraph::builder::makeConcat({const_1, input_parameter[0]}, 1);
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const_1, input_parameter[0]}, 1);
 
     auto const_2 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
-    auto concat_2 = ngraph::builder::makeConcat({concat_1, const_2}, 1);
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_1, const_2}, 1);
 
     auto act = ngraph::builder::makeActivation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 

@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/log_softmax.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "ngraph/op/softmax.hpp"
-#include "ngraph/op/log_softmax.hpp"
-
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>& op) {
+static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Softmax>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -24,7 +24,7 @@ static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::So
     p.add_primitive(*op, softmaxPrim);
 }
 
-static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v8::Softmax>& op) {
+static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::Softmax>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -39,7 +39,7 @@ static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v8::So
     p.add_primitive(*op, softmaxPrim);
 }
 
-static void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSoftmax>& op) {
+static void CreateLogSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::LogSoftmax>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);

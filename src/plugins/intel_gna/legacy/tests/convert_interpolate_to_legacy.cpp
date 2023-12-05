@@ -6,25 +6,25 @@
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 
 TEST(TransformationTests, ConvertInterpolateDynamic) {
-    auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {30, 60});
-    auto interp = std::make_shared<ngraph::opset1::Interpolate>(data, shape, ngraph::op::v0::InterpolateAttrs());
+    auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto shape = ov::opset1::Constant::create(ov::element::i64, ov::Shape{2}, {30, 60});
+    auto interp = std::make_shared<ov::opset1::Interpolate>(data, shape, ov::op::v0::Interpolate::Attributes());
 
-    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{interp}, ngraph::ParameterVector{data});
+    auto f = std::make_shared<ov::Model>(ov::NodeVector{interp}, ov::ParameterVector{data});
 
-    ngraph::pass::Manager m;
+    ov::pass::Manager m;
     m.register_pass<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
     ASSERT_NO_THROW(m.run_passes(f));
 }

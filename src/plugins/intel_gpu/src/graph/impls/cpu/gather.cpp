@@ -22,7 +22,7 @@ struct gather_impl : public typed_primitive_impl<gather> {
 
     std::shared_ptr<ov::op::v8::Gather> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_impl>(*this);
@@ -42,11 +42,13 @@ struct gather_impl : public typed_primitive_impl<gather> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << axis;
         ob << batch_dims;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> axis;
         ib >> batch_dims;
     }

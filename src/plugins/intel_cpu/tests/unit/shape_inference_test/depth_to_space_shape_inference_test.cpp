@@ -24,7 +24,7 @@ TEST_F(DepthToSpaceV0StaticShapeInferenceTest, default_ctor) {
     const auto op = make_op();
     op->set_block_size(2);
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 2, 2 * 3, 2 * 1080, 2 * 1616}));
@@ -34,7 +34,7 @@ TEST_F(DepthToSpaceV0StaticShapeInferenceTest, block_first) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(4));
     const auto op = make_op(data, op_type::DepthToSpaceMode::BLOCKS_FIRST, 2);
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 2, 2 * 3, 2 * 1080, 2 * 1616}));

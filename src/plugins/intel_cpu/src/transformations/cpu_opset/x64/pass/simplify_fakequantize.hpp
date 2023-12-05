@@ -46,7 +46,7 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
 
     std::vector<float> outScale;
 
-    if (fq_node->get_output_element_type(0) == ngraph::element::u8 &&
+    if (fq_node->get_output_element_type(0) == ov::element::u8 &&
         std::all_of(cl.cbegin(),
                     cl.cend(),
                     [](float val) {
@@ -68,7 +68,7 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
         outScale = isc;
     }
 
-    if (fq_node->get_output_element_type(0) == ngraph::element::i8 &&
+    if (fq_node->get_output_element_type(0) == ov::element::i8 &&
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [&threshold](float val) {

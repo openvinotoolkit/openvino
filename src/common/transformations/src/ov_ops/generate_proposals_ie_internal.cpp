@@ -5,9 +5,9 @@
 #include "ov_ops/generate_proposals_ie_internal.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
 using namespace ov;

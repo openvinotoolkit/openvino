@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
     MATCHER_SCOPE(ConvertTopK11ToTopK3);

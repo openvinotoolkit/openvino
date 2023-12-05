@@ -13,13 +13,13 @@ The approach is validated on Linux, Windows and macOS operation systems.
 1. Clone OpenVINO repository and init submodules:
 ```sh
 git clone https://github.com/openvinotoolkit/openvino.git
-cd openvinof
+cd openvino
 git submodule update --init --recursive
 ```
 2. Run docker image and mount a volume with OpenVINO source code:
 ```sh
 $ docker pull emscripten/emsdk
-$ docker run -it --rm -v `pwd`:/openvino emscripten/emsdk
+$ docker run -it --rm -v `pwd`:/openvino emscripten/emsdk bash
 ```
 3. (CMake configure) Run cmake configure step using helper emscripten command:
 ```sh

@@ -20,8 +20,8 @@ std::string Transpose::getTestCaseName(testing::TestParamInfo<ov::test::snippets
     std::tie(inputShape, order, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShape}) << "_";
-    result << "Order=" << CommonTestUtils::vec2str(order) << "_";
+    result << "IS=" << ov::test::utils::partialShape2str({inputShape}) << "_";
+    result << "Order=" << ov::test::utils::vec2str(order) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -51,8 +51,8 @@ std::string TransposeMul::getTestCaseName(testing::TestParamInfo<ov::test::snipp
 
     std::ostringstream result;
     for (int i = 0; i < inputShapes.size(); i++)
-        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({inputShapes[i]}) << "_";
-    result << "Order=" << CommonTestUtils::vec2str(order) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
+    result << "Order=" << ov::test::utils::vec2str(order) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;

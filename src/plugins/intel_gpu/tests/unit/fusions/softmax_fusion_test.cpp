@@ -67,9 +67,11 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 #define CASE_SOFTMAX_FP32_1 {1, 15, 4, 5}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
 #define CASE_SOFTMAX_FP32_2 {1, 15, 4, 5}, data_types::f32, format::bfyx, 3, data_types::f32, format::bfyx
+#define CASE_SOFTMAX_FP32_3 {1, 15, 1, 1}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
 
 #define CASE_SOFTMAX_FP16_1 {1, 15, 4, 5}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
 #define CASE_SOFTMAX_FP16_2 {1, 15, 4, 5}, data_types::f16, format::bfyx, 3, data_types::f16, format::bfyx
+#define CASE_SOFTMAX_FP16_3 {1, 15, 1, 1}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
 
 class softmax_quantize : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize, basic) {
@@ -93,9 +95,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP32_2, 3, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_FP32_3, 2, 3 },
 
                         softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 2, 3 },
 }));
 
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};

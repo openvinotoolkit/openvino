@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/axis_vector.hpp"
+#include "openvino/core/axis_vector.hpp"
 
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const AxisVector& axis_vector) {
     s << "AxisVector{";
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    s << ngraph::join(axis_vector);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    s << ov::util::join(axis_vector);
     s << "}";
     return s;
 }

@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/broadcast.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
 
@@ -40,16 +40,16 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "targetShape=" << CommonTestUtils::vec2str(targetShapes)  << "_";
-        result << "axesMapping=" << CommonTestUtils::vec2str(axesMapping)  << "_";
+        result << "targetShape=" << ov::test::utils::vec2str(targetShapes)  << "_";
+        result << "axesMapping=" << ov::test::utils::vec2str(axesMapping)  << "_";
         result << "mode=" << mode << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constIn=(" << (isConstInputs[0] ? "True" : "False") << "." << (isConstInputs[1] ? "True" : "False") << ")_";
@@ -109,8 +109,6 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
-
         std::shared_ptr<ov::op::v3::Broadcast> broadcastOp;
         if (mode == ov::op::BroadcastType::EXPLICIT) {
             std::shared_ptr<ov::Node> targetShapeOp;
@@ -125,19 +123,19 @@ protected:
             } else {
                 axesMappingOp = functionParams.size() > 2 ? functionParams[2] : functionParams[1];
             }
-            broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
+            broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
                                                                 targetShapeOp,
                                                                 axesMappingOp,
                                                                 mode);
         } else if (mode == ov::op::BroadcastType::NUMPY) {
             if (isTargetShapeConst) {
                 auto targetShapeConst = ov::op::v0::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
-                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
+                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
                                                                       targetShapeConst,
                                                                       mode);
             } else {
-                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
-                                                                      paramOuts[1],
+                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
+                                                                      functionParams[1],
                                                                       mode);
             }
         }
@@ -226,7 +224,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_1d_explicit_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inputPrecisionsFloat),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInputShapes1D = {
@@ -243,7 +241,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_1d_numpy_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::NUMPY),
         ::testing::ValuesIn(inputPrecisionsInt),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 // ==============================================================================
@@ -262,7 +260,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_2d_explicit_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inputPrecisionsInt),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInputShapes2D = {
@@ -279,7 +277,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_2d_numpy_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::NUMPY),
         ::testing::ValuesIn(inputPrecisionsFloat),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 // ==============================================================================
@@ -298,7 +296,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_3d_explicit_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inputPrecisionsFloat),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInputShapes3D = {
@@ -315,7 +313,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_3d_numpy_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::NUMPY),
         ::testing::ValuesIn(inputPrecisionsInt),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 // ==============================================================================
@@ -334,7 +332,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_4d_explicit_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inputPrecisionsInt),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInputShapes4D = {
@@ -351,7 +349,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_4d_numpy_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::NUMPY),
         ::testing::ValuesIn(inputPrecisionsFloat),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 // ==============================================================================
@@ -370,7 +368,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_5d_explicit_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inputPrecisionsInt),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInputShapes5D = {
@@ -387,7 +385,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_5d_numpy_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::NUMPY),
         ::testing::ValuesIn(inputPrecisionsFloat),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 // ==============================================================================
 // 6D
@@ -405,7 +403,7 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_6d_numpy_compareWithRefs_dynamic,
         ::testing::Values(ov::op::BroadcastType::NUMPY),
         ::testing::ValuesIn(inputPrecisionsInt),
         ::testing::ValuesIn(inputConstants),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     BroadcastLayerGPUTest::getTestCaseName);
 
 } // namespace

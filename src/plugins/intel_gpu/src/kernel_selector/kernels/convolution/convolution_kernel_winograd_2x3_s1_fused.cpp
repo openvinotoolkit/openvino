@@ -51,8 +51,8 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1_fused::GetJitConstants(const conv
     auto C4_up16 = ((uint32_t)((idepth + 15) / 16) * 16) / 4;
 
     // if there's input padding then input offset should be ignored
-    const auto inoffset_x = (input_pad_x) ? 0 : params.padding.x;
-    const auto inoffset_y = (input_pad_y) ? 0 : params.padding.y;
+    const auto inoffset_x = (input_pad_x) ? 0 : params.padding_begin.x;
+    const auto inoffset_y = (input_pad_y) ? 0 : params.padding_begin.y;
 
     jit.AddConstants({
         MakeJitConstant("H", rows),
@@ -89,8 +89,8 @@ ConvolutionKernel_Winograd_2x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     const auto cols = arg.inputs[0].X().v + input_pad_x;
 
     // if there's input padding then input offset should be ignored
-    const auto inoffset_x = (input_pad_x) ? 0 : arg.padding.x;
-    const auto inoffset_y = (input_pad_y) ? 0 : arg.padding.y;
+    const auto inoffset_x = (input_pad_x) ? 0 : arg.padding_begin.x;
+    const auto inoffset_y = (input_pad_y) ? 0 : arg.padding_begin.y;
 
     auto P = rows - 2 + 2 * inoffset_y;
     auto Q = cols - 2 + 2 * inoffset_x;

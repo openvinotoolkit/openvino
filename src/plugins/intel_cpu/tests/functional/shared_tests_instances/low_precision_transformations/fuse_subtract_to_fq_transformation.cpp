@@ -33,7 +33,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseSubtractToFakeQuantizeTransformation,
     ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

@@ -10,6 +10,6 @@ namespace {
 TEST_P(ReferenceReductionLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
-} // namespace
-} // namespace ReductionOpsRefTestDefinitions
-} // namespace reference_tests
+}  // namespace
+}  // namespace ReductionOpsRefTestDefinitions
+}  // namespace reference_tests

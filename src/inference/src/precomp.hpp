@@ -27,5 +27,5 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/ngraph.hpp"
-#include "ngraph/ops.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"

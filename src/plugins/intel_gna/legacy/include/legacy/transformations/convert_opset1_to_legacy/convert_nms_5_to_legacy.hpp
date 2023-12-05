@@ -22,7 +22,7 @@ class ConvertNMS5ToLegacyMatcher;
  *      Convert NMS-5 directly to inner NMS.
  */
 
-class ngraph::pass::ConvertNMS5ToLegacyMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertNMS5ToLegacyMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertNMS5ToLegacyMatcher", "0");
     ConvertNMS5ToLegacyMatcher(bool force_i32_output_type = true);

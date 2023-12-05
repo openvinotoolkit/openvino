@@ -6,15 +6,12 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -23,6 +20,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -38,7 +38,7 @@ std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t inpu
     if (input_rank < 4 || s.size() != 2 * input_rank - 2)
         return {};
 
-    ngraph::Shape expected_shape(2 * input_rank - 2, 1);
+    ov::Shape expected_shape(2 * input_rank - 2, 1);
     std::vector<float> scales(input_rank - 2);
     for (uint64_t i = 1; i <= input_rank - 2; ++i) {
         expected_shape[2 * i] = s[2 * i];
@@ -281,7 +281,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     auto mul = pattern::wrap_type<ov::op::v1::Multiply>({reshape_1, mul_const});
     auto reshape_2 = pattern::wrap_type<ov::op::v1::Reshape>({mul, concat_2});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node =
@@ -384,6 +384,6 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_2, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_2, matcher_name);
     register_matcher(m, callback);
 }

@@ -16,10 +16,10 @@ std::string RDFTLayerTest::getTestCaseName(const testing::TestParamInfo<RDFTPara
     std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Precision=" << inputPrecision.name() << "_";
-    result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
-    result << "SignalSize=" << CommonTestUtils::vec2str(signalSize) << "_";
+    result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
+    result << "SignalSize=" << ov::test::utils::vec2str(signalSize) << "_";
     result << "Inverse=" << (opType == ngraph::helpers::DFTOpType::INVERSE) << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
@@ -37,9 +37,7 @@ void RDFTLayerTest::SetUp() {
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto rdft = ngraph::builder::makeRDFT(paramOuts[0], axes, signalSize, opType);
-
+    auto rdft = ngraph::builder::makeRDFT(paramVector[0], axes, signalSize, opType);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rdft)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "RDFT");

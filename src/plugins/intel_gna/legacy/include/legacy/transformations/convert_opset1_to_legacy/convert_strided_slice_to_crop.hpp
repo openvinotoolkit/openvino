@@ -19,7 +19,7 @@ class ConvertStridedSliceToCropMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertStridedSliceToCropMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertStridedSliceToCropMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertStridedSliceToCropMatcher", "0");
     ConvertStridedSliceToCropMatcher();

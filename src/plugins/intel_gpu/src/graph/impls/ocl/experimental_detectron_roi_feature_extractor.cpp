@@ -17,7 +17,7 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
     using kernel_params_t = std::pair<kernel_selector::experimental_detectron_roi_feature_extractor_params,
                                       kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_roi_feature_extractor_impl>(*this);

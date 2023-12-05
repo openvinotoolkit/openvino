@@ -23,9 +23,9 @@ std::string ConstantLayerTest::getTestCaseName(
     std::tie(data_shape, data_precision, data_elements, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "S=" << CommonTestUtils::vec2str(data_shape) << "_";
+    result << "S=" << ov::test::utils::vec2str(data_shape) << "_";
     result << "dataPRC=" << data_precision.name() << "_";
-    result << "dataValue=" << CommonTestUtils::vec2str(getElements<5>(data_elements)) << "_";
+    result << "dataValue=" << ov::test::utils::vec2str(getElements<5>(data_elements)) << "_";
     return result.str();
 }
 

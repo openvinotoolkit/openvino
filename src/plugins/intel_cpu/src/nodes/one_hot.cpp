@@ -5,15 +5,14 @@
 #include <vector>
 #include <string>
 #include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <selective_build.h>
 #include "one_hot.h"
 #include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
+#include "shape_inference/custom/one_hot.hpp"
 
 using namespace InferenceEngine;
 
@@ -21,70 +20,18 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-namespace {
-/**
- * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
- * of size `depth` is inserted at the dimension defined by the `axis` parameter.
- *  
- */
-class OneHotShapeInfer : public ShapeInferEmptyPads {
-public:
-    explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData())[0];
-
-        auto result = input_shapes.front().get();
-        result.insert(result.begin() + m_axis, depth);
-
-        return {{std::move(result)}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(1);
-    }
-
-private:
-    int64_t m_axis = 0;
-};
-
-class OneHotShapeInferFactory : public ShapeInferFactory {
-public:
-    OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
-        if (!oneHot) {
-            IE_THROW() << "Unexpected op type in OneHot shape inference factory: " << m_op->get_type_name();
-        }
-        auto axis = oneHot->get_axis();
-        auto dstShape = oneHot->get_output_partial_shape(0);
-        int output_dims_size = dstShape.size();
-        if (0 == output_dims_size) output_dims_size = 1;
-        if (axis < 0) {
-            axis += output_dims_size;
-        }
-        return std::make_shared<OneHotShapeInfer>(axis);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
-} // namespace
-
-bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
+        const auto oneHot = std::dynamic_pointer_cast<const ov::opset1::OneHot>(op);
         if (!oneHot) {
             errorMessage = "Only opset1 OneHot operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) == nullptr) {
             errorMessage = "Only const 'off_value' input is supported";
             return false;
         }
@@ -94,27 +41,27 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, OneHotShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
-    const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
-    const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
+    const auto oneHot = std::dynamic_pointer_cast<const ov::opset1::OneHot>(op);
+    const auto depthNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
     axis = oneHot->get_axis();
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
-    if (ngraph::is_scalar(srcDims)) {
+    if (ov::is_scalar(srcDims)) {
         srcDims = SizeVector{1};
     }
     VectorDims dstDims = getOutputShapeAtPort(0).getDims();
-    if (ngraph::is_scalar(dstDims)) {
+    if (ov::is_scalar(dstDims)) {
         dstDims = SizeVector{1};
     }
 
@@ -123,12 +70,12 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
         axis += output_dims_size;
     }
     if (axis < 0 || axis >= output_dims_size) {
-        IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
+        OPENVINO_THROW(errorPrefix, " has unsupported 'axis' attribute: ", oneHot->get_axis());
     }
 
     if (!(((1 + srcDims.size()) == dstDims.size()) ||
             (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1))))
-        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output dimensions!");
 }
 
 bool OneHot::needShapeInfer() const {
@@ -147,8 +94,8 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
     // check a precision of the input tensor
     auto input_precision = getOriginalInputPrecisionAtPort(INDICES_ID);
-    if (input_precision != Precision::I32) {
-        IE_THROW() << errorPrefix << " has incorrect input precision for the input. Only I32 is supported!";
+    if (input_precision != ov::element::i32) {
+        OPENVINO_THROW(errorPrefix, " has incorrect input precision for the input. Only I32 is supported!");
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);
 

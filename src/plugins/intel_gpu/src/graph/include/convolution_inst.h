@@ -128,12 +128,12 @@ public:
     static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 
-    bool need_reset_input_memory() const override {
+    bool need_reset_input_memory(size_t idx = 0) const override {
+        if (idx != 0)
+            return false;
+
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
-        if (input_layout.data_padding) {
-            return true;
-        }
-        return false;
+        return input_layout.data_padding ? true : false;
     }
 
     bool need_reset_output_memory() const override {
@@ -188,9 +188,6 @@ public:
     bool weights_zero_points_term() const { return _impl_params->weights_zero_points_layout.has_value(); }
     bool compensation_term() const { return _impl_params->compensation_layout.has_value(); }
     bool activations_zero_points_term() const { return _impl_params->activations_zero_points_layout.has_value(); }
-
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
     int32_t _deform_conv_dep_offset = 0;

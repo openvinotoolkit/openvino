@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class MoveEltwiseUpThroughDataMov : public ngraph::pass::MatcherPass {
+class MoveEltwiseUpThroughDataMov : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MoveEltwiseUpThroughDataMov", "0");
     MoveEltwiseUpThroughDataMov();

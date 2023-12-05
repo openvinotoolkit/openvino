@@ -3,7 +3,7 @@
 //
 
 #include <shared_test_classes/single_layer/strided_slice.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -46,21 +46,21 @@ public:
         std::tie(shapes, params, secondaryInputType, dataType, cpuParams) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "secondaryInputType=" << secondaryInputType << "_";
         results << "netPRC=" << dataType << "_";
-        results << "begin=" << CommonTestUtils::vec2str(params.begin) << "_";
-        results << "end=" << CommonTestUtils::vec2str(params.end) << "_";
-        results << "stride=" << CommonTestUtils::vec2str(params.strides) << "_";
-        results << "begin_m=" << CommonTestUtils::vec2str(params.beginMask) << "_";
-        results << "end_m=" << CommonTestUtils::vec2str(params.endMask) << "_";
-        results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.newAxisMask)) << "_";
-        results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.shrinkAxisMask)) << "_";
-        results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.ellipsisAxisMask)) << "_";
+        results << "begin=" << ov::test::utils::vec2str(params.begin) << "_";
+        results << "end=" << ov::test::utils::vec2str(params.end) << "_";
+        results << "stride=" << ov::test::utils::vec2str(params.strides) << "_";
+        results << "begin_m=" << ov::test::utils::vec2str(params.beginMask) << "_";
+        results << "end_m=" << ov::test::utils::vec2str(params.endMask) << "_";
+        results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.newAxisMask)) << "_";
+        results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.shrinkAxisMask)) << "_";
+        results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.ellipsisAxisMask)) << "_";
         results << CPUTestsBase::getTestCaseName(cpuParams);
 
         return results.str();
@@ -93,7 +93,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr("ref", dataType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
 
         init_input_shapes({input_shapes});
@@ -103,25 +103,47 @@ protected:
             targetShapes.push_back({ssParams.strides.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(dataType, inputDynamicShapes);
-        std::shared_ptr<ngraph::Node> ss;
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataType, shape));
+        }
+        ov::NodeVector ss_inputs;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {ssParams.begin.size()};
 
-            auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
-            auto endNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
-            auto strideNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inShape);
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inShape);
+            auto strideNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inShape);
 
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(beginNode));
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(endNode));
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(strideNode));
+            params.push_back(beginNode);
+            params.push_back(endNode);
+            params.push_back(strideNode);
 
-            ss = ngraph::builder::makeStridedSlice(params[0], beginNode, endNode, strideNode, inType, ssParams.beginMask,
-                                                   ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
+            ss_inputs.push_back(params[0]);
+            ss_inputs.push_back(beginNode);
+            ss_inputs.push_back(endNode);
+            ss_inputs.push_back(strideNode);
         } else {
-            ss = ngraph::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, inType, ssParams.beginMask,
-                                                   ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
+            ov::Shape constShape = {ssParams.begin.size()};
+            auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.begin.data());
+            auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.end.data());
+            auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.strides.data());
+
+            ss_inputs.push_back(params[0]);
+            ss_inputs.push_back(beginNode);
+            ss_inputs.push_back(endNode);
+            ss_inputs.push_back(strideNode);
         }
+        auto ss = std::make_shared<ov::op::v1::StridedSlice>(ss_inputs[0],
+                                                             ss_inputs[1],
+                                                             ss_inputs[2],
+                                                             ss_inputs[3],
+                                                             ssParams.beginMask,
+                                                             ssParams.endMask,
+                                                             ssParams.newAxisMask,
+                                                             ssParams.shrinkAxisMask,
+                                                             ssParams.ellipsisAxisMask);
+
         function = makeNgraphFunction(inType, params, ss, "StridedSlice");
     }
 

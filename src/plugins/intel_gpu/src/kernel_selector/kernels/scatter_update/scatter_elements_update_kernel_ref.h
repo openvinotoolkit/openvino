@@ -11,9 +11,11 @@ namespace kernel_selector {
 // scatter_elements_update_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct scatter_elements_update_params : public base_params {
-    scatter_elements_update_params() : base_params(KernelType::SCATTER_ELEMENTS_UPDATE), axis(ScatterUpdateAxis::BATCH) {}
+    scatter_elements_update_params() : base_params(KernelType::SCATTER_ELEMENTS_UPDATE) {}
 
-    ScatterUpdateAxis axis;
+    ScatterUpdateAxis axis{ScatterUpdateAxis::BATCH};
+    ScatterUpdateReduction mode{ScatterUpdateReduction::NONE};
+    bool use_init_val{true};
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -26,12 +26,12 @@ namespace ExecutionGraphTests {
 std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions) {
     IE_ASSERT(inputPrecisions.size() == 2);
 
-    auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
-    auto secondaryInput = ngraph::builder::makeInputLayer(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
-            ngraph::helpers::InputLayerType::PARAMETER, {{1, 16, 5, 4}});
-    inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+    ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]),
+                                                                       ov::Shape{1, 16, 5, 4}),
+                               std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
+                                                                       ov::Shape{1, 16, 5, 4})};
 
-    auto eltwise = ngraph::builder::makeEltwise(inputs[0], secondaryInput, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ngraph::builder::makeEltwise(inputs[0], inputs[1], ngraph::helpers::EltwiseTypes::ADD);
     eltwise->set_friendly_name("Eltwise");
 
     auto function = std::make_shared<ngraph::Function>(eltwise, inputs, "EltwiseWithTwoDynamicInputs");
@@ -41,8 +41,8 @@ std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<Inferenc
 std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions) {
     IE_ASSERT(inputPrecisions.size() == 1);
 
-    auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
-
+    ov::ParameterVector inputs{
+        std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), ov::Shape{1, 16, 5, 4})};
     auto inputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
     auto inputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
     auto outputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
@@ -60,8 +60,8 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector
 std::shared_ptr<ngraph::Function> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<InferenceEngine::Precision> &inputPrecisions) {
     IE_ASSERT(inputPrecisions.size() == 1);
 
-    auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
-
+    ov::ParameterVector inputs{
+        std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), ov::Shape{1, 16, 5, 4})};
     auto inputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
     auto inputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
     auto outputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
@@ -83,7 +83,7 @@ std::string ExecGraphRuntimePrecision::getTestCaseName(testing::TestParamInfo<Ex
 
     std::ostringstream result;
     result << "Function=" << specificParams.makeFunction(specificParams.inputPrecisions)->get_friendly_name() << "_";
-    result << "InPrcs=" << CommonTestUtils::vec2str(specificParams.inputPrecisions) << "_";
+    result << "InPrcs=" << ov::test::utils::vec2str(specificParams.inputPrecisions) << "_";
     result << "targetDevice=" << targetDevice;
 
     return result.str();
@@ -122,9 +122,9 @@ TEST_P(ExecGraphRuntimePrecision, CheckRuntimePrecision) {
         if (rtIter == rtInfo.end())
             FAIL() << "Runtime precision is not found for node: " << opIter->get()->get_friendly_name();
 
-        if (expectedPrc.second.name() != rtIter->second.as<std::string>())
+        if (InferenceEngine::details::convertPrecision(expectedPrc.second).get_type_name() != rtIter->second.as<std::string>())
             FAIL() << "`" << expectedPrc.first << "' node runtime precision mismatch: actual = " <<
-                rtIter->second.as<std::string>() << ", expected = " << expectedPrc.second.name();
+                rtIter->second.as<std::string>() << ", expected = " << InferenceEngine::details::convertPrecision(expectedPrc.second).get_type_name();
     }
 
     fnPtr.reset();

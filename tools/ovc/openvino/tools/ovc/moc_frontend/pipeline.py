@@ -4,7 +4,6 @@
 import argparse
 import logging as log
 import sys
-from copy import copy
 from typing import List
 
 import numpy as np
@@ -16,10 +15,10 @@ from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-mo
 from openvino.runtime.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.moc_frontend.analysis import json_model_analysis_dump
-from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, fe_output_user_data_repack
-from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict, get_dimension_index_by_label
+from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, \
+    fe_output_user_data_repack
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.utils import np_map_cast, mo_array, validate_batch_in_shape
+from openvino.tools.ovc.utils import np_map_cast, mo_array
 
 
 def get_enabled_and_disabled_transforms():
@@ -38,6 +37,17 @@ def get_enabled_and_disabled_transforms():
     return enabled_transforms, disabled_transforms
 
 
+def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
+    for new_node in new_nodes:
+        node = new_node['node']
+
+        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
+            if is_input:
+                raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
+            else:
+                raise Exception("Name {} is not found among model outputs.".format(new_node['output_name']))
+
+
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     """
     Load input model and convert it to nGraph function
@@ -46,13 +56,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :return: converted nGraph function ready for serialization
     """
 
-    share_weights = getattr(argv, 'share_weights', True)    #FIXME: Should be controlled by default value
+    share_weights = getattr(argv, 'share_weights', True)  # FIXME: Should be controlled by default value
     if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
         # frozen format with v1 checkpoints
-        assert not hasattr(argv, 'saved_model_tags') or not argv.saved_model_tags
         input_model = moc_front_end.load([part for part in argv.input_model], share_weights)
-    elif hasattr(argv, 'saved_model_tags') and argv.saved_model_tags:
-        input_model = moc_front_end.load([argv.input_model, argv.saved_model_tags], share_weights)
     else:
         input_model = moc_front_end.load(argv.input_model, share_weights)
 
@@ -65,13 +72,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
             input_model.override_all_outputs([x['node'] for x in outputs])
     '''
-    argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value)
+    argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+        argv.output, {}, moc_front_end.get_name())
 
     def check_places_are_same(places_original: List[Place], places_new: List[Place]):
         """
@@ -112,10 +118,16 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     model_inputs = input_model.get_inputs()
     inputs_equal = True
     if user_shapes:
+        # TODO: Remove this line when new 'cut' helper is introduced
+        raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
+
         inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
     if outputs:
+        # TODO: Remove this line when new 'cut' helper is introduced
+        raise_exception_for_input_output_cut(input_model.get_outputs(), outputs, False)
+
         outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
         inputs_equal, outputs_equal))
@@ -141,7 +153,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+                new_output_places_name, {}, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -153,7 +165,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+                argv.output, {}, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -228,12 +240,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
-
-    # obtain layout for all inputs
-    layout_values = {}
-    if 'layout_values' in argv and argv.layout_values:
-        layout_values = update_layout_to_dict(model_inputs, argv.layout_values,
-                                              lambda input_place: input_place.get_names())
 
     ov_model = moc_front_end.convert(input_model)
 

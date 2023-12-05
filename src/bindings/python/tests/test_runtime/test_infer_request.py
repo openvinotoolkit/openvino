@@ -10,26 +10,24 @@ import pytest
 import datetime
 import time
 
-import openvino.runtime.opset12 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest, CompiledModel
-from openvino.runtime import Type, PartialShape, Shape, Layout
+import openvino.runtime.opset13 as ops
+from openvino import (
+    Core,
+    CompiledModel,
+    InferRequest,
+    AsyncInferQueue,
+    Model,
+    Layout,
+    PartialShape,
+    Shape,
+    Type,
+    Tensor,
+)
+from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_need_mock_op
-from tests.conftest import model_path
-from tests.test_utils.test_utils import generate_image, get_relu_model
-
-test_net_xml, test_net_bin = model_path()
-
-
-def create_model_with_memory(input_shape, data_type):
-    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667")
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
-    res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
-    return model
+from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
 
 
 def create_simple_request_and_inputs(device):
@@ -89,7 +87,10 @@ def abs_model_with_data(device, ov_type, numpy_dtype):
 
 def test_get_profiling_info(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    softmax = ops.softmax(param, 1, name="fc_out")
+    model = Model([softmax], [param], "test_model")
+
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
@@ -98,8 +99,8 @@ def test_get_profiling_info(device):
     request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
-    soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
-    assert "Softmax" in soft_max_node.node_type
+    soft_max_node = next(node for node in prof_info if node.node_type == "Softmax")
+    assert soft_max_node
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
@@ -153,22 +154,28 @@ def test_tensor_setter(device):
 
 def test_set_tensors(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    softmax = ops.softmax(param, 1, name="fc_out")
+    res = ops.result(softmax, name="res")
+    res.output(0).get_tensor().set_names({"res"})
+    model = Model([res], [param], "test_model")
+
     compiled_model = core.compile_model(model, device)
 
     data1 = generate_image()
     tensor1 = Tensor(data1)
-    data2 = np.ones(shape=(1, 10), dtype=np.float32)
+    data2 = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor2 = Tensor(data2)
     data3 = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor3 = Tensor(data3)
-    data4 = np.zeros(shape=(1, 10), dtype=np.float32)
+    data4 = np.zeros(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor4 = Tensor(data4)
 
     request = compiled_model.create_infer_request()
-    request.set_tensors({"data": tensor1, "fc_out": tensor2})
+    request.set_tensors({"data": tensor1, "res": tensor2})
     t1 = request.get_tensor("data")
-    t2 = request.get_tensor("fc_out")
+    t2 = request.get_tensor("res")
     assert np.allclose(tensor1.data, t1.data, atol=1e-2, rtol=1e-2)
     assert np.allclose(tensor2.data, t2.data, atol=1e-2, rtol=1e-2)
 
@@ -284,7 +291,7 @@ def test_inputs_outputs_property_and_method(device):
 @pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     request = compiled_model.create_infer_request()
@@ -305,7 +312,7 @@ def test_cancel(device):
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_start_async(device, share_inputs):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     jobs = 3
@@ -471,7 +478,7 @@ def test_infer_queue(device, share_inputs):
     jobs = 8
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
@@ -552,7 +559,7 @@ def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -574,7 +581,7 @@ def test_infer_queue_fail_on_py_model(device):
     jobs = 1
     num_request = 1
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -657,19 +664,18 @@ def test_infer_queue_get_idle_handle(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
 
-    from openvino.runtime import Tensor
+    from openvino import Tensor
     from openvino.runtime.utils.types import get_dtype
 
-    model = create_model_with_memory(input_shape, data_type)
+    model = generate_model_with_memory(input_shape, data_type)
+    model.validate_nodes_and_infer_types()
     compiled_model = core.compile_model(model=model, device_name=device)
     request = compiled_model.create_infer_request()
     mem_states = request.query_state()
     mem_state = mem_states[0]
 
     assert mem_state.name == "var_id_667"
-    # todo: Uncomment after fix 45611,
-    #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
-    # Code: assert mem_state.state.tensor_desc.precision == data_type
+    assert get_dtype(mem_state.state.element_type) == data_type
 
     for i in range(1, 10):
         if mode == "set_init_memory_state":

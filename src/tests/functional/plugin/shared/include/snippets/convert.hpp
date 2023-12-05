@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::PartialShape>,                                              // InputShapes
+        std::vector<InputShape>,                                                    // InputShapes
         std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>,  // Input and Output data types for Converts
         size_t,                                                                     // Expected num nodes
         size_t,                                                                     // Expected num subgraphs

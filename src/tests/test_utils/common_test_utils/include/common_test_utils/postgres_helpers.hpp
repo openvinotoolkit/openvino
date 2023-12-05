@@ -12,7 +12,9 @@
 #include <map>
 #include <sstream>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 /// \brief Enables dynamic load of libpq module
 #define PGQL_DYNAMIC_LOAD
@@ -125,7 +127,7 @@ extern fnPQclear PQclear;
 extern fnPQresultErrorMessage PQresultErrorMessage;
 #endif
 
-extern char* PGPrefix(const char* text, ::testing::internal::GTestColor color);
+extern const char* PGPrefix(const char* text, ::testing::internal::GTestColor color);
 
 #define PG_ERR PGPrefix("[ PG ERROR ] ", ::testing::internal::COLOR_RED)
 #define PG_WRN PGPrefix("[ PG WARN  ] ", ::testing::internal::COLOR_YELLOW)
@@ -274,5 +276,6 @@ bool parse_test_name(const char* line, std::map<std::string, std::string>& keyVa
 /// \returns Returns true if all input string was compiled, false in case of any compilation error
 bool compile_string(const std::string& srcStr, const std::map<std::string, std::string>& keyValue, std::string& result);
 }  // namespace PostgreSQLHelpers
-
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

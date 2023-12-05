@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_split_connected,
                          ::testing::Combine(::testing::ValuesIn(inputs),
                                             ::testing::ValuesIn(connect_index),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(additional_config)),
                          SplitRelu::getTestCaseName);
 }  // namespace

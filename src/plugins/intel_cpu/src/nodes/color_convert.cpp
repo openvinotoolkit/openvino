@@ -9,8 +9,9 @@
 #include <openvino/op/i420_to_rgb.hpp>
 #include <openvino/op/i420_to_bgr.hpp>
 #include <openvino/core/type.hpp>
-#include <ie/ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include "kernels/x64/jit_kernel.hpp"
+#include "shape_inference/custom/color_convert.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl;
@@ -23,7 +24,7 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
-std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ngraph::Node>& op) {
+std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ov::Node>& op) {
     if (ov::is_type<ov::op::v8::NV12toRGB>(op))
         return std::make_tuple(Algorithm::ColorConvertNV12toRGB, std::string());
     if (ov::is_type<ov::op::v8::NV12toBGR>(op))
@@ -124,7 +125,7 @@ jit_uni_converter::jit_uni_converter()
 
 void jit_uni_converter::init() {
     if (create_kernel() != status::success)
-        IE_THROW() << "Can't generate jit color converter kernel";
+        OPENVINO_THROW("Can't generate jit color converter kernel");
     _fn = (function_t)jit_ker();
 }
 
@@ -272,9 +273,9 @@ namespace nv12 {
 ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
     const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
 
-    const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
-                                    ? Precision::U8
-                                    : Precision::FP32;
+    const ov::element::Type precision = node->getOriginalInputPrecisionAtPort(0) == ov::element::u8
+                                    ? ov::element::u8
+                                    : ov::element::f32;
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
@@ -311,10 +312,10 @@ protected:
 
 RefConverter::RefConverter(Node *node)
     : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 2))
-        IE_THROW() <<"NV12Converter node has incorrect number of inputs";
+    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2))
+        OPENVINO_THROW("NV12Converter node has incorrect number of inputs");
     if (!node->getOriginalOutputsNumber())
-        IE_THROW() <<"NV12Converter node has incorrect number of outputs";
+        OPENVINO_THROW("NV12Converter node has incorrect number of outputs");
 }
 
 template<typename T>
@@ -326,7 +327,7 @@ void RefConverter::convert(const T* y,
                            size_t width,
                            size_t stride_y,
                            size_t stride_uv) {
-    InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
+    ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
         auto uv_ptr = uv + batch * stride_uv;
@@ -529,7 +530,7 @@ const jit_uni_converter & jit_converter_create() {
             kernel.reset(converter);
             converter->init();
         } else {
-            IE_THROW() << "Can't create jit color converter kernel";
+            OPENVINO_THROW("Can't create jit color converter kernel");
         }
 
         return kernel;
@@ -568,7 +569,7 @@ public:
         const size_t stride_y = height * width * 3 / 2;
         const size_t stride_uv = height * width * 3 / 2;
 
-        InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
             typename jit_uni_converter::Params args;
             args.y = y + batch * stride_y + h * width;
             args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
@@ -603,7 +604,7 @@ public:
         const size_t stride_y = height * width;
         const size_t stride_uv = height * width / 2;
 
-        InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
             typename jit_uni_converter::Params args;
             args.y = y + batch * stride_y + h * width;
             args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
@@ -622,9 +623,9 @@ namespace i420 {
 ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
     const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
 
-    const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
-                                    ? Precision::U8
-                                    : Precision::FP32;
+    const ov::element::Type precision = node->getOriginalInputPrecisionAtPort(0) == ov::element::u8
+                                    ? ov::element::u8
+                                    : ov::element::f32;
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
@@ -663,9 +664,9 @@ protected:
 RefConverter::RefConverter(Node *node)
     : Converter(node) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 3))
-        IE_THROW() <<"I420Converter node has incorrect number of inputs";
+        OPENVINO_THROW("I420Converter node has incorrect number of inputs");
     if (!node->getOriginalOutputsNumber())
-        IE_THROW() <<"I420Converter node has incorrect number of outputs";
+        OPENVINO_THROW("I420Converter node has incorrect number of outputs");
 }
 
 template<typename T>
@@ -678,7 +679,7 @@ void RefConverter::convert(const T* y,
                            size_t width,
                            size_t stride_y,
                            size_t stride_uv) {
-    InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
+    ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
         auto u_ptr = u + batch * stride_uv;
@@ -879,7 +880,7 @@ const jit_uni_converter & jit_converter_create() {
             kernel.reset(converter);
             converter->init();
         } else {
-            IE_THROW() << "Can't create jit color converter kernel";
+            OPENVINO_THROW("Can't create jit color converter kernel");
         }
 
         return kernel;
@@ -919,7 +920,7 @@ public:
         const size_t stride_y = height * width * 3 / 2;
         const size_t stride_uv = height * width * 3 / 2;
 
-        InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
             typename jit_uni_converter::Params args;
             args.y = y + batch * stride_y + h * width;
             args.u = u + batch * stride_uv + (h / 2) * (width / 2);
@@ -956,7 +957,7 @@ public:
         const size_t stride_y = height * width;
         const size_t stride_uv = height * width / 4;
 
-        InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
             typename jit_uni_converter::Params args;
             args.y = y + batch * stride_y + h * width;
             args.u = u + batch * stride_uv + (h / 2) * (width / 2);
@@ -971,45 +972,6 @@ public:
 #endif
 }   // namespace i420
 
-/**
- * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
- * passed through or recalculated as 2/3 of the initial size.
- *
- */
-class ColorConvertShapeInfer : public ShapeInferEmptyPads {
-public:
-    ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& dims = input_shapes.front().get();
-        if (dims.size() != 4)
-            IE_THROW() <<"NV12Converter node has incorrect input dimensions";
-        return { m_singlePlain
-                    ? std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM] * 2 / 3, dims[Converter::W_DIM], 3 } }
-                    : std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM], dims[Converter::W_DIM], 3 } },
-                    ShapeInferStatus::success };
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    bool m_singlePlain = false;
-};
-
-class ColorConvertShapeInferFactory : public ShapeInferFactory {
-public:
-    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        bool isSinglePlain = m_op->get_input_size() == 1;
-        return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
 }   // namespace
 
 ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
@@ -1017,11 +979,11 @@ ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
     , _colorFormat(colorFormat) {
 }
 
-InferenceEngine::Precision ColorConvert::Converter::inputPrecision(size_t idx) const {
+ov::element::Type ColorConvert::Converter::inputPrecision(size_t idx) const {
     return _node->getParentEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
-InferenceEngine::Precision ColorConvert::Converter::outputPrecision(size_t idx) const {
+ov::element::Type ColorConvert::Converter::outputPrecision(size_t idx) const {
     return _node->getChildEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
@@ -1037,18 +999,18 @@ const VectorDims & ColorConvert::Converter::inputDims(size_t idx) const {
     return _node->getParentEdgesAtPort(idx)[0]->getMemory().getStaticDims();
 }
 
-bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     Algorithm alg;
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }
 
-ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ColorConvert::ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, ColorConvertShapeInferFactory(op)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 }
 
 void ColorConvert::getSupportedDescriptors() {}
@@ -1094,20 +1056,20 @@ void ColorConvert::initSupportedNV12Impls() {
     // ref
     {
         auto &impls = _supportedImpls[impl_desc_type::ref][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, ref);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, ref);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, ref);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
     // jit_uni
     {
         auto &impls = _supportedImpls[impl_desc_type::jit_uni][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, jit_uni);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, jit_uni);
     }
 #endif
     #undef SUPPORTED_IMPL
@@ -1122,20 +1084,20 @@ void ColorConvert::initSupportedI420Impls() {
     // ref
     {
         auto &impls = _supportedImpls[impl_desc_type::ref][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, ref);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, ref);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, ref);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
     // jit_uni
     {
         auto &impls = _supportedImpls[impl_desc_type::jit_uni][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, jit_uni);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, jit_uni);
     }
 #endif
     #undef SUPPORTED_IMPL
@@ -1144,8 +1106,8 @@ void ColorConvert::initSupportedI420Impls() {
 void ColorConvert::createPrimitive() {
     const NodeDesc *desc = getSelectedPrimitiveDescriptor();
     if (!desc)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "no optimal primitive descriptor selected";
+        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ",
+                       "no optimal primitive descriptor selected");
 
     if (!_impl) {
         const auto & cfg = desc->getConfig();
@@ -1162,8 +1124,7 @@ void ColorConvert::createPrimitive() {
 
 void ColorConvert::execute(dnnl::stream strm) {
     if (!_impl)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "has no any implemented converter";
+        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ", "has no any implemented converter");
     _impl->execute(strm);
 }
 

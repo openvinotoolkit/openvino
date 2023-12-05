@@ -4,11 +4,11 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/pad.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/pad.hpp"
 #include "pad_shape_inference.hpp"
 
 namespace ov {
@@ -98,9 +98,7 @@ void op::util::PadBase::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -132,15 +130,15 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     }
     outputs[0].set_shape(padded_shape);
 
-    ngraph::runtime::reference::pad(static_cast<char*>(inputs[0].data()),
-                                    pad_value,
-                                    static_cast<char*>(outputs[0].data()),
-                                    elem_size,
-                                    data_shape,
-                                    padded_shape,
-                                    pads_begin_coord,
-                                    pads_end_coord,
-                                    get_pad_mode());
+    ov::reference::pad(static_cast<char*>(inputs[0].data()),
+                       pad_value,
+                       static_cast<char*>(outputs[0].data()),
+                       elem_size,
+                       data_shape,
+                       padded_shape,
+                       pads_begin_coord,
+                       pads_end_coord,
+                       get_pad_mode());
 
     return true;
 }

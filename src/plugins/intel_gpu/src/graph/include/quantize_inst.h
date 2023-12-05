@@ -142,7 +142,6 @@ public:
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     int get_levels() const { return get_primitive()->levels; }
-    bool get_packed_binary_output() const { return get_output_layout().data_type == data_types::bin; }
     bool get_scale_shift_opt() const { return get_primitive()->scale_shift_opt; }
     bool get_need_pre_shift() const { return get_primitive()->need_pre_shift; }
     bool get_need_post_scale() const { return get_primitive()->need_post_scale; }
@@ -201,7 +200,9 @@ class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(quantize_node const& node, kernel_impl_params const& impl_param);
+    static std::vector<layout> calc_output_layouts(quantize_node const& node, kernel_impl_params const& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
     static layout calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(quantize_node const& node);
 

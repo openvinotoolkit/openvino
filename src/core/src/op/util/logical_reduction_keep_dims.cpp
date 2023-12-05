@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/logical_reduction_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
 
-using namespace std;
-
-ov::op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(const ngraph::Output<ngraph::Node>& arg,
-                                                                 const ngraph::Output<ngraph::Node>& reduction_axes,
+ov::op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(const ov::Output<ov::Node>& arg,
+                                                                 const ov::Output<ov::Node>& reduction_axes,
                                                                  const bool keep_dims)
     : LogicalReduction(arg, reduction_axes),
       m_keep_dims{keep_dims} {}

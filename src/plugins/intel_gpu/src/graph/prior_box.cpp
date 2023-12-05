@@ -280,15 +280,6 @@ tensor get_output_shape(int32_t height, int32_t width, int32_t number_of_priors)
 }
 }  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
-    if (prim->support_opset8) {
-        impl_type = impl_types::ocl;
-        constant = false;
-    } else {
-        constant = true;
-    }
-}
-
 void prior_box_node::calc_result() {
     if (result != nullptr)
         return;
@@ -410,12 +401,12 @@ void prior_box_node::calc_result() {
 
     // perform calculations
     if (get_output_layout().data_type == data_types::f16)
-        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(result,
+        calculate_prior_box_output<ov::element_type_traits<data_types::f16>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
     else
-        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(result,
+        calculate_prior_box_output<ov::element_type_traits<data_types::f32>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
@@ -449,7 +440,7 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         impl_param.get_input_layout(1).get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes = {ShapeType()};
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
 
     auto& memory_deps = impl_param.memory_deps;
 
@@ -460,7 +451,7 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_size_lock(output_size_mem, impl_param.get_stream());
         cldnn::mem_lock<uint8_t, mem_lock_type::read> img_size_lock(img_size_mem, impl_param.get_stream());
 
-        const_data.emplace(0, make_host_tensor(output_size_mem->get_layout(), output_size_lock.data()));
+        const_data.emplace(0, make_tensor(output_size_mem->get_layout(), output_size_lock.data()));
 
         auto p_param = const_cast<kernel_impl_params*>(&impl_param);
         if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
@@ -551,18 +542,18 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     json_composite prior_info;
     prior_info.add("input id", node.input().id());
     prior_info.add("iamge size", desc->img_size);
-    prior_info.add("variance", str_variance);
+    prior_info.add("variance", std::move(str_variance));
 
     json_composite box_sizes_info;
-    box_sizes_info.add("min sizes", str_min_sizes);
-    box_sizes_info.add("max sizes", str_max_sizes);
+    box_sizes_info.add("min sizes", std::move(str_min_sizes));
+    box_sizes_info.add("max sizes", std::move(str_max_sizes));
     prior_info.add("box sizes", box_sizes_info);
 
     prior_info.add("aspect_ratio", str_aspect_ratio);
     prior_info.add("flip", flip);
     prior_info.add("clip", clip);
     prior_info.add("scale all sizes", scale_all_sizes);
-    prior_info.add("fixed size", str_fixed_size);
+    prior_info.add("fixed size", std::move(str_fixed_size));
     prior_info.add("fixed ratio", str_fixed_ratio);
     prior_info.add("density", str_density);
 

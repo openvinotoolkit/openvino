@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "compilation_context.hpp"
+#include "cpp/ie_cnn_network.h"
 
 namespace InferenceEngine {
 namespace Serialization {

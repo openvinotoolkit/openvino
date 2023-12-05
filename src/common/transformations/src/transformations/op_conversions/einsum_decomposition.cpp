@@ -5,12 +5,10 @@
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/einsum.hpp"
@@ -23,6 +21,8 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 /// \brief      Check if the EinsumDecomposition transformation is applicable to a given Einsum.
@@ -50,7 +50,7 @@ std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const
     // TODO: implement algorithm for finding (pseudo-)optimal einsum_path
     std::vector<std::pair<size_t, size_t>> einsum_path;
     const size_t num_inputs = einsum_node->get_input_size();
-    NGRAPH_CHECK(num_inputs > 0);
+    OPENVINO_ASSERT(num_inputs > 0);
     for (size_t input_ind = num_inputs - 1; input_ind > 0; --input_ind) {
         einsum_path.push_back(std::make_pair(0, input_ind));
     }
@@ -158,15 +158,15 @@ std::string generate_grouping_subscript(const std::string& input_subscript,
 /// \param      new_node            New input node to be inserted in the tail
 /// \param      new_subscript       New input subscript to be inserted in the tail
 ///
-void update_operands(ngraph::OutputVector& input_nodes,
+void update_operands(ov::OutputVector& input_nodes,
                      std::vector<std::string>& input_subscripts,
                      size_t input_ind1,
                      size_t input_ind2,
-                     const ngraph::Output<ngraph::Node>& new_node,
+                     const ov::Output<ov::Node>& new_node,
                      const std::string& new_subscript) {
-    NGRAPH_CHECK(input_ind1 < input_ind2);
-    NGRAPH_CHECK(input_ind2 < input_nodes.size());
-    NGRAPH_CHECK(input_ind2 < input_subscripts.size());
+    OPENVINO_ASSERT(input_ind1 < input_ind2);
+    OPENVINO_ASSERT(input_ind2 < input_nodes.size());
+    OPENVINO_ASSERT(input_ind2 < input_subscripts.size());
     input_nodes.erase(input_nodes.begin() + input_ind2);
     input_nodes.erase(input_nodes.begin() + input_ind1);
     input_nodes.push_back(new_node);
@@ -187,27 +187,27 @@ void update_operands(ngraph::OutputVector& input_nodes,
 /// \return     A vector of input nodes that can be empty (if s_end <= s_begin)
 /// or contains just one input node with sub-shape or its product
 ///
-ngraph::OutputVector compute_sub_shape(const ngraph::Output<ngraph::Node>& data_shape,
-                                       size_t s_begin,
-                                       size_t s_end,
-                                       ngraph::NodeVector& subgraph_nodes,
-                                       bool is_product = false) {
+ov::OutputVector compute_sub_shape(const ov::Output<ov::Node>& data_shape,
+                                   size_t s_begin,
+                                   size_t s_end,
+                                   ov::NodeVector& subgraph_nodes,
+                                   bool is_product = false) {
     int64_t begin = static_cast<int64_t>(s_begin);
     int64_t end = static_cast<int64_t>(s_end);
-    ngraph::OutputVector sub_shape_vector;
+    ov::OutputVector sub_shape_vector;
     if (end <= begin) {
         return sub_shape_vector;
     }
     std::vector<int64_t> begin_mask(1, 0);
     std::vector<int64_t> end_mask(1, 0);
-    auto begin_const = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{1}, {begin});
-    auto end_const = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{1}, {end});
-    auto stride_const = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{1}, {1});
+    auto begin_const = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {begin});
+    auto end_const = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {end});
+    auto stride_const = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {1});
     auto sub_shape =
         std::make_shared<ov::op::v1::StridedSlice>(data_shape, begin_const, end_const, begin_mask, end_mask);
 
     if (is_product) {
-        auto reduce_axis_const = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{1}, {0});
+        auto reduce_axis_const = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {0});
         auto separate_shape_prod =
             std::make_shared<ov::op::v1::ReduceProd>(sub_shape->output(0), reduce_axis_const, true);
         sub_shape_vector.push_back(separate_shape_prod->output(0));
@@ -230,15 +230,14 @@ ngraph::OutputVector compute_sub_shape(const ngraph::Output<ngraph::Node>& data_
 /// \return     Unsqueezed input node if a vector of unsqueezing dimensions is not empty,
 /// otherwise, the original input node
 ///
-ngraph::Output<ngraph::Node> unsqueeze_input(const ngraph::Output<ngraph::Node>& input_node,
-                                             const std::vector<int64_t>& unsqueeze_axes,
-                                             ngraph::NodeVector& subgraph_nodes) {
+ov::Output<ov::Node> unsqueeze_input(const ov::Output<ov::Node>& input_node,
+                                     const std::vector<int64_t>& unsqueeze_axes,
+                                     ov::NodeVector& subgraph_nodes) {
     if (unsqueeze_axes.empty()) {
         return input_node;
     }
-    auto unsqueeze_axes_const = ov::op::v0::Constant::create(ngraph::element::Type_t::i64,
-                                                             ngraph::Shape{unsqueeze_axes.size()},
-                                                             unsqueeze_axes);
+    auto unsqueeze_axes_const =
+        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{unsqueeze_axes.size()}, unsqueeze_axes);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_node, unsqueeze_axes_const);
     subgraph_nodes.insert(subgraph_nodes.end(), {unsqueeze_axes_const, unsqueeze});
     return unsqueeze->output(0);
@@ -258,28 +257,28 @@ ngraph::Output<ngraph::Node> unsqueeze_input(const ngraph::Output<ngraph::Node>&
 ///
 /// \return     Reshaped input node
 ///
-ngraph::Output<ngraph::Node> reshape_input_for_matmul(const ngraph::Output<ngraph::Node>& input_node,
-                                                      const ngraph::OutputVector& common_sub_shape,
-                                                      const ngraph::OutputVector& separate_sub_shape,
-                                                      const ngraph::OutputVector& reduced_sub_shape_prod,
-                                                      bool is_separate_first,
-                                                      ngraph::NodeVector& subgraph_nodes) {
-    ngraph::OutputVector new_shape_parts;
+ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_node,
+                                              const ov::OutputVector& common_sub_shape,
+                                              const ov::OutputVector& separate_sub_shape,
+                                              const ov::OutputVector& reduced_sub_shape_prod,
+                                              bool is_separate_first,
+                                              ov::NodeVector& subgraph_nodes) {
+    ov::OutputVector new_shape_parts;
     new_shape_parts.insert(new_shape_parts.end(), common_sub_shape.begin(), common_sub_shape.end());
 
     // compute a product of a sub-shape for separate labels
-    ngraph::OutputVector separate_parts;
+    ov::OutputVector separate_parts;
     if (common_sub_shape.size() > 0 && separate_sub_shape.size() == 0) {
         // in this case new dimension corresponding to separate labels must be added
         // since MatMul operation is not possible to do without separate dimensions if the
         // common dimension presents
-        auto separate_new_dim = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{1}, {1});
+        auto separate_new_dim = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {1});
         separate_parts.push_back(separate_new_dim);
         subgraph_nodes.insert(subgraph_nodes.end(), {separate_new_dim});
     } else if (separate_sub_shape.size() > 0) {
         // in this case compute a product of separate dimension sizes since they must be
         // presented with just one dimension for MatMul
-        auto reduce_axis_const = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{1}, {0});
+        auto reduce_axis_const = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {0});
         auto separate_shape_prod =
             std::make_shared<ov::op::v1::ReduceProd>(separate_sub_shape[0], reduce_axis_const, true);
         separate_parts.push_back(separate_shape_prod->output(0));
@@ -307,7 +306,7 @@ ngraph::Output<ngraph::Node> reshape_input_for_matmul(const ngraph::Output<ngrap
     // in order to prevent repeated computing during constant-folding pass
     std::shared_ptr<ov::op::v1::Reshape> reshaped_input_op;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto new_shape_const = ngraph::get_constant_from_source(new_shape_op)) {
+    if (auto new_shape_const = ov::get_constant_from_source(new_shape_op)) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         reshaped_input_op = std::make_shared<ov::op::v1::Reshape>(input_node, new_shape_const, false);
         subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
@@ -331,15 +330,15 @@ ngraph::Output<ngraph::Node> reshape_input_for_matmul(const ngraph::Output<ngrap
 /// \param      subgraph_nodes      A vector of operation nodes that is included into
 /// a sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
-void transpose_input(ngraph::OutputVector& input_nodes,
+void transpose_input(ov::OutputVector& input_nodes,
                      std::vector<std::string>& input_subscripts,
                      const std::string& required_subscript,
                      size_t input_ind,
-                     ngraph::NodeVector& subgraph_nodes) {
+                     ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
     auto num_inputs = input_nodes.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     // generate permutation vector by searching for bijection between input_subscripts
     // and required_subscript
@@ -355,10 +354,10 @@ void transpose_input(ngraph::OutputVector& input_nodes,
     // and the required one
     auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     auto required_labels = ov::op::v7::Einsum::extract_labels(required_subscript);
-    NGRAPH_CHECK(labels.size() == required_labels.size());
+    OPENVINO_ASSERT(labels.size() == required_labels.size());
     for (const auto& required_label : required_labels) {
         auto it = std::find(labels.begin(), labels.end(), required_label);
-        NGRAPH_CHECK(it != labels.end());
+        OPENVINO_ASSERT(it != labels.end());
         int64_t found_index = static_cast<int64_t>(it - labels.begin());
         permutation.push_back(found_index);
     }
@@ -366,7 +365,7 @@ void transpose_input(ngraph::OutputVector& input_nodes,
     // create a sub-graph for transposing into the required layout
     const auto& input_node = input_nodes[input_ind];
     auto permutation_const =
-        ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{permutation.size()}, permutation);
+        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{permutation.size()}, permutation);
     auto transpose = std::make_shared<ov::op::v1::Transpose>(input_node, permutation_const);
 
     // update a vector of inputs and input subscripts
@@ -390,15 +389,15 @@ void transpose_input(ngraph::OutputVector& input_nodes,
 /// a sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
 void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
-                  ngraph::OutputVector& input_nodes,
+                  ov::OutputVector& input_nodes,
                   std::vector<std::string>& input_subscripts,
                   const std::string& output_subscript,
                   size_t input_ind,
-                  ngraph::NodeVector& subgraph_nodes) {
+                  ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
     auto num_inputs = input_nodes.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     std::vector<int64_t> reduced_axes;
     auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
@@ -426,7 +425,7 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     // reduce by summed up elements along dimension for which label is met just once
     const auto& input_node = input_nodes[input_ind];
     auto axes_const =
-        ov::op::v0::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{reduced_axes.size()}, reduced_axes);
+        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{reduced_axes.size()}, reduced_axes);
     auto reduce_sum = einsum_decompose_ptr->register_new_node<ov::op::v1::ReduceSum>(input_node, axes_const, false);
 
     // update a vector of inputs and input subscripts
@@ -452,12 +451,12 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 /// sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
 void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
-                         ngraph::OutputVector& input_nodes,
+                         ov::OutputVector& input_nodes,
                          std::vector<std::string>& input_subscripts,
                          const std::string& output_subscript,
                          size_t input_ind1,
                          size_t input_ind2,
-                         ngraph::NodeVector& subgraph_nodes) {
+                         ov::NodeVector& subgraph_nodes) {
     // assume that input_ind1 < input_ind2 without loss of generality, otherwise, just swap them
     if (input_ind2 < input_ind1) {
         std::swap(input_ind1, input_ind2);
@@ -465,8 +464,8 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
     // perform sanity check for arguments
     auto num_inputs = input_nodes.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
 
     const auto& input_node1 = input_nodes[input_ind1];
     const auto& input_node2 = input_nodes[input_ind2];
@@ -548,7 +547,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         // multiply both operands with broadcasting
         auto mul = std::make_shared<ov::op::v1::Multiply>(unsqueeze_output1,
                                                           unsqueeze_output2,
-                                                          ngraph::op::AutoBroadcastType::NUMPY);
+                                                          ov::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, mul->output(0), resultant_subscript);
@@ -606,7 +605,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     auto matmul_operand2 = input_node2;
     int64_t common_dims_begin = 0;
     int64_t common_dims_end = common_labels_inds1.size();
-    ngraph::OutputVector common_sub_shape, separate1_sub_shape, separate2_sub_shape;
+    ov::OutputVector common_sub_shape, separate1_sub_shape, separate2_sub_shape;
     if (no_reshape_for_matmul1 == false || no_reshape_for_matmul2 == false) {
         auto data_shape1 = std::make_shared<ov::op::v3::ShapeOf>(input_node1);
         common_sub_shape = compute_sub_shape(data_shape1, common_dims_begin, common_dims_end, subgraph_nodes);
@@ -664,7 +663,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         // since there are no collapsed (or auxiliary added) separated dimensions
         update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, matmul->output(0), resultant_subscript);
     } else {
-        ngraph::OutputVector new_shape;
+        ov::OutputVector new_shape;
         new_shape.insert(new_shape.end(), common_sub_shape.begin(), common_sub_shape.end());
         new_shape.insert(new_shape.end(), separate1_sub_shape.begin(), separate1_sub_shape.end());
         new_shape.insert(new_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
@@ -674,7 +673,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         // in order to prevent repeated computing during constant-folding pass
         std::shared_ptr<ov::op::v1::Reshape> result_op;
         OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto new_shape_const = ngraph::get_constant_from_source(result_shape_op)) {
+        if (auto new_shape_const = ov::get_constant_from_source(result_shape_op)) {
             OPENVINO_SUPPRESS_DEPRECATED_END
             result_op = std::make_shared<ov::op::v1::Reshape>(matmul->output(0), new_shape_const, false);
             subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
@@ -705,8 +704,8 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
     // but not applicable to a case with equation="aabc,bd->ad" due to repeated labels
     // in the first input subscript.
     MATCHER_SCOPE(EinsumDecomposition);
-    auto einsum = ngraph::pattern::wrap_type<ov::op::v7::Einsum>();
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    auto einsum = ov::pass::pattern::wrap_type<ov::op::v7::Einsum>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto einsum_node = std::dynamic_pointer_cast<ov::op::v7::Einsum>(m.get_match_root());
         if (!einsum_node) {
             return false;
@@ -726,8 +725,8 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
 
         // create a list of input nodes with preserving their order
         // and a vector of sub-graph nodes for copy_runtime_info
-        ngraph::OutputVector input_nodes = einsum_node->input_values();
-        ngraph::NodeVector subgraph_nodes;
+        ov::OutputVector input_nodes = einsum_node->input_values();
+        ov::NodeVector subgraph_nodes;
 
         // compute einsum path that is used to contract a pair of operands
         // in more optimal order
@@ -745,7 +744,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         }
 
         // reduce dimensions for the remained input node
-        NGRAPH_CHECK(input_nodes.size() == 1);
+        OPENVINO_ASSERT(input_nodes.size() == 1);
         reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
 
         // transpose dimensions to layout required by the output subscript
@@ -755,11 +754,11 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         // preserve the original node name
         auto last_node = input_nodes[0].get_node_shared_ptr();
         last_node->set_friendly_name(einsum_node->get_friendly_name());
-        ngraph::copy_runtime_info(einsum_node, subgraph_nodes);
-        ngraph::replace_node(einsum_node, last_node);
+        ov::copy_runtime_info(einsum_node, subgraph_nodes);
+        ov::replace_node(einsum_node, last_node);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(einsum, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(einsum, matcher_name);
     register_matcher(m, callback);
 }

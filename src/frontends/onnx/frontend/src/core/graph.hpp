@@ -18,6 +18,7 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "ops_bridge.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -25,7 +26,7 @@ class Graph : public std::enable_shared_from_this<Graph> {
 public:
     Graph(const std::string& model_dir,
           const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
-          const bool enable_mmap,
+          detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
 
@@ -43,8 +44,8 @@ public:
     const std::string& model_dir() const {
         return m_model_dir;
     }
-    bool mmap_enabled() const {
-        return m_enable_mmap;
+    detail::MappedMemoryHandles get_mmap_cache() const {
+        return m_mmap_cache;
     }
     const ParameterVector& get_ng_parameters() const {
         return m_parameters;
@@ -65,7 +66,7 @@ protected:
     Graph(const std::string& model_dir,
           const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
-          const bool enable_mmap,
+          detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -92,7 +93,7 @@ private:
     std::vector<Node> m_nodes;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::string m_model_dir;
-    bool m_enable_mmap;
+    detail::MappedMemoryHandles m_mmap_cache;
     OperatorsBridge m_ops_bridge;
 };
 

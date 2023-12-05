@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <ngraph/opsets/opset8.hpp>
 
 using namespace ngraph;
@@ -13,7 +13,7 @@ namespace SubgraphTestsDefinitions {
 class SubgraphWithBlockedFormat : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto type = element::f32;
         auto param = std::make_shared<opset8::Parameter>(type, Shape{1, 32, 64, 32});

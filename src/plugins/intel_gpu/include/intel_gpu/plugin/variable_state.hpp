@@ -3,46 +3,52 @@
 //
 #pragma once
 
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include "intel_gpu/plugin/graph.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include <functional>
+#include <unordered_map>
 
 namespace ov {
 namespace intel_gpu {
+class RemoteContextImpl;
 
-class VariableState : public InferenceEngine::IVariableStateInternal {
+struct VariableStateInfo {
+    VariableStateInfo(const std::string& id, const cldnn::layout& layout) : m_id(id), m_layout(layout) {}
+
+    std::string m_id;
+    cldnn::layout m_layout;
+};
+
+class VariableState : public ov::IVariableState {
 public:
-    VariableState(const std::string& name, const std::vector<cldnn::network::VariableState::Ptr>& states,
-                  cldnn::engine& engine, int currentBatch);
+    VariableState(const VariableStateInfo& info, std::shared_ptr<RemoteContextImpl> context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor);
+    using Ptr = std::shared_ptr<VariableState>;
 
-    /**
-     * @brief Reset internal variable state for relevant infer request, to a value specified as
-     * default for according `ReadValue` node
-     */
-    void Reset() override;
+    void reset() override;
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
 
-    /**
-     * @brief Sets the new state for the next inference
-     * @param newState A new state
-     */
-    void SetState(const InferenceEngine::Blob::Ptr &newState) override;
-
-    /**
-     * @brief Returns the value of the variable state.
-     * @return The value of the variable state
-     */
-    InferenceEngine::Blob::CPtr GetState() const override;
-
-protected:
-    InferenceEngine::SizeVector AggregateShape(const cldnn::layout &layout);
-    void IterateOverStates(std::function<void(cldnn::network::VariableState&)> f) const;
+    cldnn::memory::ptr get_memory() const;
+    const cldnn::layout& get_layout() const;
+    bool is_set() const;
+    void set();
+    void set_layout(const cldnn::layout& new_layout);
 
 private:
-    int currentBatch_;
-    std::vector<cldnn::network::VariableState::Ptr> states_;
-    InferenceEngine::TensorDesc desc_;
-    cldnn::engine& engine_;
+    cldnn::layout m_layout;
+    std::shared_ptr<RemoteContextImpl> m_context;
+    std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor;
+    bool m_is_set = false;
+    cldnn::memory::ptr m_memory = nullptr;
+    size_t actual_size = 0;
+
+    void update_device_buffer();
 };
+
+using VariablesMap = std::unordered_map<std::string, VariableState::Ptr>;
+using VariablesInfoMap = std::unordered_map<std::string, VariableStateInfo>;
 
 }  // namespace intel_gpu
 }  // namespace ov

@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <memory>
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(input_output, param_tensor) {
     // Params have no arguments, so we can check that the value becomes a tensor output
-    auto& et = element::f32;
-    Shape shape{2, 4};
-    auto param = make_shared<op::Parameter>(et, shape);
+    auto& et = ov::element::f32;
+    ov::Shape shape{2, 4};
+    auto param = make_shared<ov::op::v0::Parameter>(et, shape);
 
     ASSERT_EQ(param->get_output_size(), 1);
     ASSERT_EQ(et, param->get_element_type());
@@ -24,8 +26,8 @@ TEST(input_output, param_tensor) {
 }
 
 TEST(input_output, simple_output) {
-    auto param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto param_0 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     auto add = make_shared<op::v1::Add>(param_0, param_1);
 
     // Sort the ops

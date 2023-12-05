@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
+#include "openvino/op/cum_sum.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
-    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+    NodeBuilder::get_ops().register_factory<ov::op::v0::CumSum>();
 
     Shape shape{1, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto cs = make_shared<op::CumSum>(A);
+    auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto cs = make_shared<op::v0::CumSum>(A);
 
     NodeBuilder builder(cs, {A});
-    auto g_cs = ov::as_type_ptr<opset3::CumSum>(builder.create());
+    auto g_cs = ov::as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -30,15 +30,15 @@ TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
 }
 
 TEST(attributes, cum_sum_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
 
     Shape shape{1, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
-    auto cs = make_shared<op::CumSum>(A, axis);
+    auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+    auto cs = make_shared<op::v0::CumSum>(A, axis);
 
     NodeBuilder builder(cs, {A, axis});
-    auto g_cs = ov::as_type_ptr<opset3::CumSum>(builder.create());
+    auto g_cs = ov::as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -48,17 +48,17 @@ TEST(attributes, cum_sum_op_default_attributes) {
 }
 
 TEST(attributes, cum_sum_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
 
     Shape shape{1, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
     bool exclusive = true;
     bool reverse = true;
-    auto cs = make_shared<op::CumSum>(A, axis, exclusive, reverse);
+    auto cs = make_shared<op::v0::CumSum>(A, axis, exclusive, reverse);
 
     NodeBuilder builder(cs, {A, axis});
-    auto g_cs = ov::as_type_ptr<opset3::CumSum>(builder.create());
+    auto g_cs = ov::as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

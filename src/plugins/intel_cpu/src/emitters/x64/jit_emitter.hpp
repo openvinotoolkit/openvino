@@ -31,14 +31,8 @@ struct emitter_params {
 class jit_emitter : public ov::snippets::Emitter {
 public:
     jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : Emitter(nullptr), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
-        k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
-    }
-
-    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
-                InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : Emitter(n), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
+                ov::element::Type exec_prc = ov::element::f32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
+        : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
@@ -55,7 +49,7 @@ public:
      * Precisions are ordered, the first bigger bitness precision with the same type will be selected.
      * Empty collection means the emitter supports any input precisions.
      */
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -65,7 +59,7 @@ protected:
 
     dnnl::impl::cpu::x64::jit_generator* h;
     dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
-    InferenceEngine::Precision exec_prc_;
+    ov::element::Type exec_prc_;
     Xbyak::Opmask k_mask;
 
     virtual void prepare_table();
@@ -112,6 +106,8 @@ protected:
     mutable std::vector<size_t> aux_gpr_idxs;
 
     static constexpr int k_mask_size = 8;
+    static constexpr int k_mask_num = 8;
+    static constexpr int gpr_size = 8;
 
     Xbyak::Address table_val(std::string key, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
@@ -135,6 +131,13 @@ protected:
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
+
+    void internal_call_preamble() const;
+    void internal_call_postamble() const;
+    // align stack on 16-byte as ABI reqiures
+    // callee is responsible to save and restore rbx. rbx must not be changed after call callee.
+    void internal_call_rsp_align() const;
+    void internal_call_rsp_restore() const;
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;

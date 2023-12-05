@@ -18,9 +18,9 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     std::ostringstream result;
     const char separator = '_';
     result << activationNames[activationDecl.first] << separator;
-    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;
-    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;
-    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationDecl.second) << separator;
+    result << "IS=" << ov::test::utils::vec2str(shapes.first) << separator;
+    result << "AS=" << ov::test::utils::vec2str(shapes.second) << separator;
+    result << "ConstantsValue=" << ov::test::utils::vec2str(activationDecl.second) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;
@@ -39,7 +39,7 @@ void ActivationLayerTest::SetUp() {
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes.first))};
     params[0]->set_friendly_name("Input");
 
     if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
@@ -152,23 +152,25 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
 ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
-            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            ov::ParameterVector negativeSlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             negativeSlopeParam[0]->set_friendly_name("negativeSlope");
             return negativeSlopeParam;
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
-            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            ov::ParameterVector leakySlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             leakySlopeParam[0]->set_friendly_name("leakySlope");
             return leakySlopeParam;
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
-            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            ov::ParameterVector hardSigmoidParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape)),
+                                                  std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             hardSigmoidParam[0]->set_friendly_name("alpha");
             hardSigmoidParam[1]->set_friendly_name("beta");
             return hardSigmoidParam;
         }
         case ngraph::helpers::ActivationTypes::Selu: {
-            auto seluParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            ov::ParameterVector seluParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape)),
+                                           std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             seluParam[0]->set_friendly_name("alpha");
             seluParam[1]->set_friendly_name("lambda");
             return seluParam;
@@ -209,7 +211,7 @@ void ActivationParamLayerTest::SetUp() {
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes.first))};
     auto activationParams = createActivationParams(ngPrc, shapes.second);
 
     params[0]->set_friendly_name("Input");

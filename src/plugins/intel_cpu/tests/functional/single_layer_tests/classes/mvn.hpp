@@ -5,7 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/single_layer/mvn.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/fusing_test_utils.hpp"
@@ -32,7 +32,8 @@ using MvnLayerCPUTestParamSet = std::tuple<
        CPUSpecificParams,
        fusingSpecificParams,
        ElementType, // CNNNetwork input precision
-       ElementType>; // CNNNetwork output precision
+       ElementType, // CNNNetwork output precision
+       std::map<std::string, ov::element::Type>>;
 
 class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamSet>,
                        virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -61,5 +62,6 @@ namespace MVN {
    const std::vector<bool>& acrossChannels();
    const std::vector<double>& epsilon();
 
+   const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig();
 } // namespace MVN
 } // namespace CPULayerTestsDefinitions

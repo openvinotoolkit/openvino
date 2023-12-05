@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/sign.hpp"
+
 #include "unary_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::Sign>;
+using Type = ::testing::Types<ov::op::v0::Sign>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_sign, UnaryOperator, Type);

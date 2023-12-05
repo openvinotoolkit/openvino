@@ -4,8 +4,9 @@
 
 #include "ov_ops/augru_cell.hpp"
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -145,42 +146,42 @@ TEST(type_prop, augru_cell_invalid_input_rank) {
     // Invalid rank for W tensor.
     auto W = make_shared<opset9::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "AUGRUCell node was created with invalid data.";
 
     // Invalid rank for X tensor.
     W = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     X = make_shared<opset9::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "AUGRUCell node was created with invalid data.";
 
     // Invalid rank for H_t tensor.
     X = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<opset9::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "AUGRUCell node was created with invalid data.";
 
     // Invalid rank for R tensor.
     H_t = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<opset9::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "AUGRUCell node was created with invalid data.";
 
     // Invalid rank for B tensor.
     R = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     B = make_shared<opset9::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "AUGRUCell node was created with invalid data.";
 
     // Invalid rank for A tensor.
     B = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
     A = make_shared<opset9::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "AUGRUCell node was created with invalid data.";
 }
 

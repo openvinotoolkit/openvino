@@ -16,7 +16,7 @@ namespace pass {
 using LoopPort = LinearIR::LoopManager::LoopPort;
 
 namespace {
-int64_t get_dim_stride(size_t dim, const std::vector<size_t>& layout, const std::vector<size_t>& shape) {
+int64_t get_input_stride(size_t dim, const std::vector<size_t>& layout, const VectorDims& shape) {
     int64_t stride = 1;
     for (int i = static_cast<int>(layout.size()) - 1; i >= 0; i--) {
         if (layout[i] == dim) {
@@ -26,40 +26,49 @@ int64_t get_dim_stride(size_t dim, const std::vector<size_t>& layout, const std:
     }
     return stride;
 }
+int64_t get_output_stride(size_t dim, const VectorDims& shape) {
+    int64_t stride = 1;
+    for (size_t i = dim + 1; i < shape.size(); ++i) {
+        stride *= static_cast<int64_t>(shape[i]);
+    }
+    return stride;
+}
 }  // namespace
 
 InitLoops::InitLoops() : Pass() {}
 
 void InitLoops::init_ptr_increments(std::vector<LoopPort>& loop_inputs, std::vector<LoopPort>& loop_outputs, size_t work_amount, size_t dim_idx) {
     for (auto& loop_input : loop_inputs) {
-        const auto& port = loop_input.expr_port;
-        const auto source = *port->get_connected_ports().begin();
-        const auto loop_ids = port->get_expr()->get_loop_ids();
-        const auto& layout = port->get_descriptor_ptr()->get_layout();
-        const auto& shape = port->get_descriptor_ptr()->get_shape();
-        const auto& dim = *(layout.rbegin() + dim_idx);
         loop_input.ptr_increment = 0;
-        // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-        if (loop_input.is_incremented && !(shape[dim] == 1 && work_amount != 1)) {
-            loop_input.ptr_increment = get_dim_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
+        if (loop_input.is_incremented) {
+            const auto& port = loop_input.expr_port;
+            const auto source = *port->get_connected_ports().begin();
+            const auto loop_ids = port->get_expr()->get_loop_ids();
+            const auto& layout = port->get_descriptor_ptr()->get_layout();
+            const auto& shape = port->get_descriptor_ptr()->get_shape();
+            const auto& dim = *(layout.rbegin() + dim_idx);
+            // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
+            if (!(shape[dim] == 1 && work_amount != 1)) {
+                // Input layout shows how we should read data by which order and strides
+                loop_input.ptr_increment = get_input_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
+            }
         }
     }
 
     for (auto& loop_output : loop_outputs) {
-        const auto& port = loop_output.expr_port;
-        const auto loop_ids = port->get_expr()->get_loop_ids();
-        const auto& layout = port->get_descriptor_ptr()->get_layout();
-        const auto& shape = port->get_descriptor_ptr()->get_shape();
-        const auto& dim = *(layout.rbegin() + dim_idx);
-        // Ticket: 113106
-        // WA: the current logic doesn't support the case with transposed output shape for brgemm layer
-        // but for all existing cases planar layout can be used
-        std::vector<size_t> planar(layout.size());
-        std::iota(planar.begin(), planar.end(), 0);
         loop_output.ptr_increment = 0;
-        // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-        if (loop_output.is_incremented && !(shape[dim] == 1 && work_amount != 1)) {
-            loop_output.ptr_increment = get_dim_stride(dim, planar, shape);
+        if (loop_output.is_incremented) {
+            const auto& port = loop_output.expr_port;
+            const auto loop_ids = port->get_expr()->get_loop_ids();
+            const auto& layout = port->get_descriptor_ptr()->get_layout();
+            const auto& shape = port->get_descriptor_ptr()->get_shape();
+            const auto original_dim = layout.size() - 1 - dim_idx;
+            const auto& dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), original_dim));
+            // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
+            if (!(shape[dim] == 1 && work_amount != 1)) {
+                // Output layout shows how we already written data by which order and strides
+                loop_output.ptr_increment = get_output_stride(dim, shape);
+            }
         }
     }
 }

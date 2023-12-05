@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/attribute_visitor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 
 using namespace std;
 
@@ -130,13 +130,13 @@ void ov::AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vec
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
-void ov::AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
+void ov::AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) {
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
 constexpr const char* ov::AttributeVisitor::invalid_node_id;
 
-void ov::AttributeVisitor::register_node(const std::shared_ptr<ngraph::Node>& node, node_id_t id) {
+void ov::AttributeVisitor::register_node(const std::shared_ptr<ov::Node>& node, node_id_t id) {
     if (id == invalid_node_id) {
         id = node->get_friendly_name();
     }
@@ -144,13 +144,12 @@ void ov::AttributeVisitor::register_node(const std::shared_ptr<ngraph::Node>& no
     m_node_id_map[node] = id;
 }
 
-std::shared_ptr<ngraph::Node> ov::AttributeVisitor::get_registered_node(node_id_t id) {
+std::shared_ptr<ov::Node> ov::AttributeVisitor::get_registered_node(node_id_t id) {
     auto it = m_id_node_map.find(id);
-    return it == m_id_node_map.end() ? shared_ptr<ngraph::Node>() : it->second;
+    return it == m_id_node_map.end() ? shared_ptr<ov::Node>() : it->second;
 }
 
-ov::AttributeVisitor::node_id_t ov::AttributeVisitor::get_registered_node_id(
-    const std::shared_ptr<ngraph::Node>& node) {
+ov::AttributeVisitor::node_id_t ov::AttributeVisitor::get_registered_node_id(const std::shared_ptr<ov::Node>& node) {
     auto it = m_node_id_map.find(node);
     return it == m_node_id_map.end() ? invalid_node_id : it->second;
 }

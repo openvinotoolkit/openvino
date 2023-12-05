@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "common_types.h"
 #include "fully_connected_kernel_bfyx_ref.h"
 #include "kernel_selector_utils.h"
 
@@ -22,6 +23,8 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT4);
+    k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableAllInputLayout();
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
@@ -36,6 +39,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDynamicShapesSupport();
+    k.EnableWeightsCompression();
     return k;
 }
 
@@ -68,6 +72,11 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
+
+    auto wt = params.weights.GetDType();
+    if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
+        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+    }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = { "b", "ofm", "0", "0" };

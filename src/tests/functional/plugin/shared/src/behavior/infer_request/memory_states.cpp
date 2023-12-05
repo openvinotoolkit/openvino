@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <base/behavior_test_utils.hpp>
 #include "behavior/infer_request/memory_states.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+
+#include <base/behavior_test_utils.hpp>
+
 #include "blob_factory.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/sigmoid.hpp"
 
 namespace BehaviorTestsDefinitions {
-std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj) {
+std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams>& obj) {
     std::ostringstream result;
     InferenceEngine::CNNNetwork net;
     std::string targetDevice;
@@ -17,7 +21,7 @@ std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestPa
     std::tie(net, statesToQuery, targetDevice, configuration) = obj.param;
     result << "targetDevice=" << targetDevice;
     if (!configuration.empty()) {
-        for (auto &configItem : configuration) {
+        for (auto& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second << "_";
         }
     }
@@ -75,10 +79,10 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_QueryState) {
     auto states = inferReq.QueryState();
     ASSERT_TRUE(states.size() == 2) << "Incorrect number of VariableStates";
 
-    for (auto &&state : states) {
+    for (auto&& state : states) {
         auto name = state.GetName();
         ASSERT_TRUE(std::find(statesToQuery.begin(), statesToQuery.end(), name) != statesToQuery.end())
-                                    << "State " << name << "expected to be in memory states but it is not!";
+            << "State " << name << "expected to be in memory states but it is not!";
     }
 }
 
@@ -87,26 +91,26 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
     auto inferReq = executableNet.CreateInferRequest();
 
     const float new_state_val = 13.0f;
-    for (auto &&state : inferReq.QueryState()) {
+    for (auto&& state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
 
-        float *new_state_data = new float[element_count];
+        float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
             new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete[]new_state_data;
+        delete[] new_state_data;
         state.SetState(stateBlob);
     }
 
-    for (auto &&state : inferReq.QueryState()) {
+    for (auto&& state : inferReq.QueryState()) {
         auto lastState = state.GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float *>();
+        auto last_state_data = lastState->cbuffer().as<float*>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         for (int i = 0; i < last_state_size; i++) {
             EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
@@ -119,19 +123,19 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
     auto inferReq = executableNet.CreateInferRequest();
 
     const float new_state_val = 13.0f;
-    for (auto &&state : inferReq.QueryState()) {
+    for (auto&& state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
 
-        float *new_state_data = new float[element_count];
+        float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
             new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete[]new_state_data;
+        delete[] new_state_data;
 
         state.SetState(stateBlob);
     }
@@ -142,7 +146,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float *>();
+        auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         if (i == 0) {
@@ -163,22 +167,22 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) 
     auto inferReq2 = executableNet.CreateInferRequest();
 
     const float new_state_val = 13.0f;
-    for (auto &&state : inferReq.QueryState()) {
+    for (auto&& state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
 
-        float *new_state_data = new float[element_count];
+        float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
             new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete[]new_state_data;
+        delete[] new_state_data;
         state.SetState(stateBlob);
     }
-    for (auto &&state : inferReq2.QueryState()) {
+    for (auto&& state : inferReq2.QueryState()) {
         state.Reset();
     }
 
@@ -187,7 +191,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) 
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float *>();
+        auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -198,7 +202,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) 
     for (int i = 0; i < states2.size(); ++i) {
         auto lastState = states2[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float *>();
+        auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -215,8 +219,8 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     const float new_state_val = 13.0f;
 
     // set the input data for the network
-    for (const auto &input : executableNet.GetInputsInfo()) {
-        const auto &info = input.second;
+    for (const auto& input : executableNet.GetInputsInfo()) {
+        const auto& info = input.second;
         InferenceEngine::Blob::Ptr inBlob;
         inBlob = make_blob_with_precision(info->getTensorDesc());
         inBlob->allocate();
@@ -225,23 +229,23 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     }
 
     // initial state for 2nd infer request
-    for (auto &&state : inferReq2.QueryState()) {
+    for (auto&& state : inferReq2.QueryState()) {
         auto state_val = state.GetState();
         auto element_count = state_val->size();
 
-        float *new_state_data = new float[element_count];
+        float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
             new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete[]new_state_data;
+        delete[] new_state_data;
         state.SetState(stateBlob);
     }
 
     // reset state for 1st infer request
-    for (auto &&state : inferReq.QueryState()) {
+    for (auto&& state : inferReq.QueryState()) {
         state.Reset();
     }
 
@@ -257,20 +261,20 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float *>();
+        auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
         for (int j = 0; j < last_state_size; ++j) {
-                EXPECT_NEAR(0.0, last_state_data[j], 1e-5);
-            }
+            EXPECT_NEAR(0.0, last_state_data[j], 1e-5);
+        }
     }
 
     // check the output and state of 2nd request
     for (int i = 0; i < states2.size(); ++i) {
         auto lastState = states2[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float *>();
+        auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -286,4 +290,4 @@ TEST_P(InferRequestQueryStateExceptionTest, inferreq_smoke_QueryState_ExceptionT
 
     EXPECT_ANY_THROW(inferReq.QueryState());
 }
-} // namespace BehaviorTestsDefinitions
+}  // namespace BehaviorTestsDefinitions

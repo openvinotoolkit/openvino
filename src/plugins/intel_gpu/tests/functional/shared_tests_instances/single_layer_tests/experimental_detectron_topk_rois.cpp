@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronTopKROIs_static, Experimenta
                                  ::testing::ValuesIn(staticInputShape),
                                  ::testing::ValuesIn(maxRois),
                                  ::testing::ValuesIn(elementTypes),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronTopKROIsLayerTest::getTestCaseName);
 
 } // namespace

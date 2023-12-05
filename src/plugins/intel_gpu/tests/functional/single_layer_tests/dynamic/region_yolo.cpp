@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/region_yolo.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -75,7 +75,10 @@ protected:
 
         init_input_shapes({ inputShape });
 
-        auto paramRegionYolo = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        ov::ParameterVector paramRegionYolo;
+        for (auto&& shape : inputDynamicShapes) {
+            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
 
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,
@@ -134,7 +137,7 @@ const auto testCase_yolov3_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(emptyAdditionalConfig),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 const regionYoloAttributes yoloV3mxnetAttr = {20, 4, 9, false, 1, 3};
@@ -146,7 +149,7 @@ const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(emptyAdditionalConfig),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 const regionYoloAttributes yoloV2caffeAttr = {20, 4, 5, true, 1, 3};
@@ -158,7 +161,7 @@ const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(emptyAdditionalConfig),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPURegionYolov3Dynamic, RegionYoloLayerGPUTest,

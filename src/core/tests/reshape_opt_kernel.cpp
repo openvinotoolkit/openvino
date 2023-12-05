@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <numeric>
 #include <vector>
 
 #include "common_test_utils/ndarray.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/axis_vector.hpp"
+#include "openvino/reference/reshape.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 using ElementValue = int32_t;
@@ -31,8 +31,8 @@ AxisVector get_axis_order(AxisOrder order, size_t size) {
 
 struct TestParams {
     AxisOrder order;
-    test::NDArrayBase<ElementValue> input;
-    test::NDArrayBase<ElementValue> output;
+    ov::test::NDArrayBase<ElementValue> input;
+    ov::test::NDArrayBase<ElementValue> output;
 };
 
 struct ReshapeOptKernel : ::testing::TestWithParam<TestParams> {};
@@ -50,12 +50,12 @@ TEST_P(ReshapeOptKernel, reshape_opt_kernel) {
     for (size_t i = 0; i < out_shape.size(); i++)
         out_shape[i] = in_shape[axis_order[i]];
 
-    runtime::opt_kernel::reshape((const char*)p.input.data(),
-                                 (char*)output_buff.data(),
-                                 in_shape,
-                                 axis_order,
-                                 out_shape,
-                                 sizeof(ElementValue));
+    ov::reference::reshape(static_cast<const char*>(p.input.data()),
+                           reinterpret_cast<char*>(output_buff.data()),
+                           in_shape,
+                           axis_order,
+                           out_shape,
+                           sizeof(ElementValue));
     EXPECT_EQ(p.output.get_vector(), output_buff);
 }
 

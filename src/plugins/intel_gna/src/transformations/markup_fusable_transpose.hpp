@@ -16,7 +16,7 @@ namespace pass {
  * with specific 0-3-2-1 transpose after Convolution and mark it up
  * for special handling in compiler for backward compatibility purposes
  */
-class MarkupFusableTranspose : public ngraph::pass::FunctionPass {
+class MarkupFusableTranspose : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MarkupFusableTranspose", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;

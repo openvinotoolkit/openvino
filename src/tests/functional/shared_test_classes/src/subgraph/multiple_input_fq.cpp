@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/multiple_input_fq.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -33,7 +33,9 @@ void MultipleInputTest::SetUp() {
 
     const float minInput = -10.0;
     const float maxInput = 10.0;
-    auto input = ngraph::builder::makeParams(ngPrc, {{1, inputSize}, {1, inputSize}, {1, inputSize}});
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize}),
+                              std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize}),
+                              std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
     auto fake1 = ngraph::builder::makeFakeQuantize(input[0], ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
         { minInput }, { maxInput }, { minInput }, { maxInput });
     auto add1 = ngraph::builder::makeEltwise(input[0], fake1, ngraph::helpers::EltwiseTypes::ADD);

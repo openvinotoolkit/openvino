@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToSwishCPU: public ngraph::pass::MatcherPass {
+class ConvertToSwishCPU: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertToSwishCPU", "0");
     ConvertToSwishCPU();

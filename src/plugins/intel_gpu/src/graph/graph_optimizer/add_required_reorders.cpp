@@ -9,6 +9,7 @@
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "assign_inst.h"
+#include "mvn_inst.h"
 #include "tensor_type.h"
 
 #include <algorithm>
@@ -26,10 +27,13 @@ If not than required reorder is added to the network.
 /*
 Add a reorder in between node and usr
 */
-void add_required_reorders::add_reorder(program& p, program_node* node, program_node* usr) {
+void add_required_reorders::add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt) {
     layout reorder_layout = node->get_output_layout();
     reorder_layout.format = usr->get_output_layout().format;
     reorder_layout.data_type = usr->get_output_layout().data_type;
+
+    if (keep_original_dt)
+        reorder_layout.data_type = node->get_output_layout().data_type;
 
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
@@ -75,14 +79,15 @@ void add_required_reorders::run(program& p) {
             }
         }
 
-        if (usr->is_type<eltwise>() && usr->is_in_shape_of_subgraph()) {
+        if (usr->is_type<eltwise>()) {
             for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
                 auto& dep = usr->get_dependency(i);
                 if (!dep.is_in_data_flow() || dep.is_constant())
                     continue;
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
-                bool required_reorder = out_layout.data_type != dep_layout.data_type;
+                bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
+                                        (usr->is_in_shape_of_subgraph() && (out_layout.data_type != dep_layout.data_type));
                 if (required_reorder) {
                     auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
@@ -127,6 +132,22 @@ void add_required_reorders::run(program& p) {
                     p.add_intermediate(new_reorder_node, *usr, dep);
                     new_reorder_node.recalc_output_layout(false);
                 }
+            }
+        }
+
+        // Remove padded-inputs in spatial axes not to use ref kernel which causes huge perf drop
+        if (usr->is_type<mvn>() && usr->as<mvn>().input().is_padded_spatial()) {
+            auto out_layout = usr->get_output_layout();
+            // Check formats of implemented opt kernels without a spatial padding support
+            if (out_layout.format == format::b_fs_yx_fsv16 || out_layout.format == format::b_fs_zyx_fsv16 ||
+                out_layout.format == format::bs_fs_yx_bsv32_fsv16 || out_layout.format == format::bs_fs_yx_bsv32_fsv32) {
+                auto& dep = usr->as<mvn>().input();
+                cldnn::layout layout_wo_padding = dep.get_output_layout();
+                layout_wo_padding.data_padding = cldnn::padding{};
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_no_pad_reorder", dep.id(), layout_wo_padding);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, *usr, dep);
+                new_reorder_node.recalc_output_layout(false);
             }
         }
 
@@ -179,6 +200,7 @@ void add_required_reorders::run(program& p) {
                             auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);
                             p.add_intermediate(new_reorder_node, *usr, idx);
+                            new_reorder_node.recalc_output_layout(false);
                         } else {
                             continue;
                         }
@@ -250,10 +272,10 @@ void add_required_reorders::run(program& p) {
                 OPENVINO_ASSERT(correct_layout_selected,
                                 "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
                                 " (format: ", original_layout.format.to_string(),
-                                ", data_type: ", data_type_traits::name(original_layout.data_type), ") ",
+                                ", data_type: ", ov::element::Type(original_layout.data_type), ") ",
                                 "compatible with ", node.first->id(),
                                 " (format: ", node.first->get_output_layout().format.to_string(),
-                                ", data_type: ", data_type_traits::name(node.first->get_output_layout().data_type), ")");
+                                ", data_type: ", ov::element::Type(node.first->get_output_layout().data_type), ")");
             }
         }
 
@@ -358,8 +380,16 @@ void add_required_reorders::run(program& p) {
                         continue;
                 }
 
-                if (usr->get_output_layout() != node.first->get_output_layout())
-                    add_reorder(p, node.first, usr);
+                if (usr->get_output_layout() != node.first->get_output_layout()) {
+                    // Preserve original data type to prevent Convolution input data type from changing
+                    // in the following sequence: Node(U8, unsupported format) -> Conv(FP16, bfyx).
+                    // Without this condition, inserted reorder will change Conv's input to FP16, instead of
+                    // expected U8 format.
+                    bool keep_original_dt = false;
+                    if (usr->is_type<convolution>())
+                        keep_original_dt = true;
+                    add_reorder(p, node.first, usr, keep_original_dt);
+                }
             }
         }
     }

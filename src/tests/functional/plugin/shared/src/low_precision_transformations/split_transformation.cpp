@@ -12,14 +12,14 @@
 
 #include <transformations/init_node_info.hpp>
 #include "low_precision/split.hpp"
-#include "lpt_ngraph_functions/split_function.hpp"
+#include "ov_lpt_models/split.hpp"
 
 namespace LayerTestsDefinitions {
 std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<SplitTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape  inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
 
@@ -33,7 +33,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
     const auto& fqOnData = param.fakeQuantize;
@@ -48,7 +48,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
 void SplitTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
 

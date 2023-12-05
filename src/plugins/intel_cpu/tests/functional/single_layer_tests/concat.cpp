@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -31,14 +31,14 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")_";
@@ -65,7 +65,7 @@ protected:
     size_t inferNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         int axis;
         std::vector<InputShape> inputShape;
@@ -78,10 +78,14 @@ protected:
 
         init_input_shapes(inputShape);
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
+        ov::ParameterVector params;
+        ov::OutputVector paramsOuts;
+        for (auto&& shape : inputDynamicShapes) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
+            params.push_back(param);
+            paramsOuts.push_back(param);
+        }
+        auto concat = std::make_shared<ngraph::opset1::Concat>(paramsOuts, axis);
 
         function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
     }

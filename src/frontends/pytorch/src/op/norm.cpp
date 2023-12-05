@@ -4,9 +4,12 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
@@ -151,12 +154,38 @@ OutputVector translate_norm(const NodeContext& context) {
     return {res};
 };
 
+OutputVector translate_weight_norm(const NodeContext& context) {
+    // aten::_weight_norm(Tensor v, Tensor g, int dim=0) -> Tensor
+    num_inputs_check(context, 3, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    Output<Node> dim;
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
+    auto rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
+    rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
+    if (context.input_is_none(2)) {
+        dim = context.mark_node(std::make_shared<v0::Range>(zero, rank, one));
+    } else {
+        dim = context.get_input(2);
+        auto dims_before = context.mark_node(std::make_shared<v0::Range>(zero, dim, one));
+        auto dim_next = context.mark_node(std::make_shared<v1::Add>(dim, one));
+        auto dims_after = context.mark_node(std::make_shared<v0::Range>(dim_next, rank, one));
+        dim = context.mark_node(std::make_shared<v0::Concat>(OutputVector{dims_before, dims_after}, 0));
+    }
+    Output<Node> res;
+    auto norm = context.mark_node(std::make_shared<v4::ReduceL2>(x, dim, true));
+    auto y_norm = context.mark_node(std::make_shared<v1::Divide>(y, norm));
+    return {context.mark_node(std::make_shared<v1::Multiply>(x, y_norm))};
+};
+
 OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     // aten::linalg_vector_norm(Tensor self, Scalar ord=2, int[1]? dim=None, bool keepdim=False, *, ScalarType?
     // dtype=None) -> Tensor
     // aten::linalg_vector_norm.out(Tensor self, Scalar ord=2, int[1]? dim=None, bool
     // keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!):
-    num_inputs_check(context, 5, 6);
+    num_inputs_check(context, 4, 6);
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed.
     auto ord = context.const_input<float>(1);
@@ -259,7 +288,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
             auto input_rank = x.get_partial_shape().rank();
             if (input_rank.is_static() && input_rank.get_length() == 2) {
                 result = frobenius_norm(context, x, dim, keep_dim);
-            } else if (input_rank.is_static() && input_rank.get_length() == 1) {
+            } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
                 result = norm_vector(context, x, dim, 2, keep_dim);
             } else {
                 FRONT_END_OP_CONVERSION_CHECK(false,

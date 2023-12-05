@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
 
-using namespace std;
-
-ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
-    const ngraph::Output<ngraph::Node>& arg,
-    const ngraph::Output<ngraph::Node>& reduction_axes,
-    bool keep_dims)
+ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(const ov::Output<ov::Node>& arg,
+                                                                       const ov::Output<ov::Node>& reduction_axes,
+                                                                       bool keep_dims)
     : ArithmeticReduction(arg, reduction_axes),
       m_keep_dims{keep_dims} {}
 

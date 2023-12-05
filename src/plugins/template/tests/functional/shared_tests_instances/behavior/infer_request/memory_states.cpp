@@ -9,7 +9,7 @@ using namespace BehaviorTestsDefinitions;
 namespace {
 std::vector<memoryStateParams> memoryStateTestCases = {memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                                                                          {"c_1-3", "r_1-3"},
-                                                                         CommonTestUtils::DEVICE_TEMPLATE,
+                                                                         ov::test::utils::DEVICE_TEMPLATE,
                                                                          {})};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Template_BehaviorTests,
@@ -22,4 +22,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Template_BehaviorTests,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestQueryStateExceptionTest::getTestCaseName);
 }  // namespace
-

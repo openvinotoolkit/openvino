@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/bucketize.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
-
-#include <ngraph/op/bucketize.hpp>
-
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 namespace {
 
-void CreateBucketizeOp(Program& p, const std::shared_ptr<ngraph::op::v3::Bucketize>& op) {
+void CreateBucketizeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::Bucketize>& op) {
     validate_inputs_count(op, {2});
 
     const cldnn::bucketize bucketize_prim(layer_type_name_ID(op),

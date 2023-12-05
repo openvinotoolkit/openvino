@@ -7,13 +7,13 @@
 #include <memory>
 #include <string>
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 /**
  * @ingroup ie_transformation_common_api
  * @brief IntervalsAlignmentSharedValue is used by IntervalsAlignmentAttribute as attribute shared value.
@@ -68,7 +68,7 @@ public:
         const size_t minLevels);
 
     static ov::Any create(
-        const std::shared_ptr<ngraph::Node>& node,
+        const std::shared_ptr<ov::Node>& node,
         const AttributeParameters& params = AttributeParameters());
     void merge_attributes(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
@@ -77,4 +77,4 @@ public:
     size_t levels;
 };
 
-} // namespace ngraph
+} // namespace ov

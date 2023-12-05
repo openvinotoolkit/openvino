@@ -87,7 +87,7 @@ const auto params_OneAxis_dynamic = testing::Combine(
 const auto params_MultiAxis_4D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -101,7 +101,7 @@ const auto params_MultiAxis_4D = testing::Combine(
 const auto params_MultiAxis_4D_dynamic = testing::Combine(
         testing::Combine(
                 testing::Values(std::vector<int>{0, 1}),           // ACL supports reduce against static dims only
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -115,7 +115,7 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
 const auto params_Int32 = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::ValuesIn(keepDims()),
             testing::ValuesIn(reductionTypesInt32()),
             testing::Values(ElementType::i32),

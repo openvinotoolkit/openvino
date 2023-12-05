@@ -6,8 +6,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
     lrn_norm_region_within_channel
@@ -28,8 +26,6 @@ struct lrn : public primitive_base<lrn> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
 
     lrn() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs LRN primitive.
     /// @param id This primitive id.
@@ -55,15 +51,15 @@ struct lrn : public primitive_base<lrn> {
           norm_region(lrn_norm_region) {}
 
     /// @brief Size of normalization.
-    uint32_t size;
+    uint32_t size = 0;
     /// @brief Hyper parameter "k".
-    float k;
+    float k = 0.0f;
     /// @brief Hyper parameter "alpha".
-    float alpha;
+    float alpha = 0.0f;
     /// @brief Hyper parameter "beta".
-    float beta;
+    float beta = 0.0f;
     /// @brief Normalize across or within channel
-    lrn_norm_region norm_region;
+    lrn_norm_region norm_region = lrn_norm_region::lrn_norm_region_within_channel;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

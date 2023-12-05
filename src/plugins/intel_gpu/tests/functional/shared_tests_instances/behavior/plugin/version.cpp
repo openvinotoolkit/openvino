@@ -7,18 +7,10 @@
 using namespace BehaviorTestsDefinitions;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                         VersionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, VersionTest,
-                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                         VersionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, VersionTest,
-                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                          VersionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, VersionTest,
-                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::Values(ov::test::utils::DEVICE_HETERO),
                          VersionTest::getTestCaseName);
 }  // namespace

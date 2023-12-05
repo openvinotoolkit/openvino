@@ -51,8 +51,8 @@ public:
         std::tie(p, fmt, is_caching_test) = testing::TestWithParam<ctc_loss_test_params<TF, TI>>::GetParam();
 
         auto& engine = get_test_engine();
-        const auto float_data_type = type_to_data_type<TF>::value;
-        const auto int_data_type = type_to_data_type<TI>::value;
+        const auto float_data_type = ov::element::from<TF>();
+        const auto int_data_type = ov::element::from<TI>();
         const auto plane_format = format::bfyx;
         std::vector<std::tuple<primitive_id, memory::ptr, data_types>> inputs;
 
@@ -241,13 +241,14 @@ const std::vector<format::type> layout_formats = {
                                               testing::Values(false)),                                     \
                              ctc_loss_gpu_test_##float_type##int_type::PrintToStringParamName);
 
+using ov::float16;
 INSTANTIATE_CTC_LOSS_TEST_SUITE(float, int64_t);
-INSTANTIATE_CTC_LOSS_TEST_SUITE(FLOAT16, int32_t);
+INSTANTIATE_CTC_LOSS_TEST_SUITE(float16, int32_t);
 INSTANTIATE_TEST_SUITE_P(export_import,
-                         ctc_loss_gpu_test_FLOAT16int32_t,
-                         testing::Combine(testing::Values(getCTCLossParams<FLOAT16, int32_t>()[0]),
+                         ctc_loss_gpu_test_float16int32_t,
+                         testing::Combine(testing::Values(getCTCLossParams<ov::float16, int32_t>()[0]),
                                          testing::Values(layout_formats[0]),
                                          testing::Values(true)),
-                         ctc_loss_gpu_test_FLOAT16int32_t::PrintToStringParamName);
+                         ctc_loss_gpu_test_float16int32_t::PrintToStringParamName);
 
 }  // namespace

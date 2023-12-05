@@ -67,7 +67,7 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
 
     auto rank = std::get<1>(get_shape_rank(context, input_node));
     auto ones = std::make_shared<v3::Broadcast>(const_1, rank);
-    auto normalized_axis = normalize_axis(context, axis, input_node);
+    auto normalized_axis = normalize_axis(context, axis, rank);
     // Create vector of length of rank filled with ones, except single -1 value at place selected by axis element.
     auto new_shape = std::make_shared<v3::ScatterElementsUpdate>(ones, normalized_axis, const_neg_1, const_0);
     // Reshape scale and zero point to tensor of the same rank as input, having shape 1 everywhere except dimension

@@ -10,7 +10,7 @@
 #include <openvino/opsets/opset9.hpp>
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "execution_graph_tests/normalize_l2_decomposition.hpp"
 
@@ -35,7 +35,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNonContiguousAxes
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
+      if (device_name == ov::test::utils::DEVICE_GPU)
         config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
@@ -55,7 +55,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNormalizeOverAllA
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
+      if (device_name == ov::test::utils::DEVICE_GPU)
         config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
@@ -75,7 +75,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForNotSorted) {
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
+      if (device_name == ov::test::utils::DEVICE_GPU)
         config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
@@ -95,7 +95,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForSingleAxis) {
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
+      if (device_name == ov::test::utils::DEVICE_GPU)
         config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 

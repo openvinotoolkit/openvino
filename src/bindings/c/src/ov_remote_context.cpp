@@ -37,11 +37,11 @@ inline bool check_intel_gpu_property_value_is_ptr(std::string& key) {
         std::string property_key = va_arg(args_ptr, char*);        \
         if (check_intel_gpu_property_value_is_ptr(property_key)) { \
             ov::Any value = va_arg(args_ptr, void*);               \
-            property[property_key] = value;                        \
+            property[property_key] = std::move(value);             \
         } else {                                                   \
             std::string _value = va_arg(args_ptr, char*);          \
             ov::Any value = _value;                                \
-            property[property_key] = value;                        \
+            property[property_key] = std::move(value);             \
         }                                                          \
     }
 

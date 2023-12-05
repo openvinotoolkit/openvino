@@ -19,7 +19,6 @@ macro(ov_common_libraries_cpack_set_dirs)
     else()
         set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     endif()
-    set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
     if(CPACK_GENERATOR MATCHES "^(CONAN|VCPKG)$")
         set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_DATADIR}/openvino)
@@ -48,11 +47,6 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     # skipped during common libraries packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()
@@ -84,7 +78,11 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
     set(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     # licensing
-    set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    if(CPACK_GENERATOR STREQUAL "CONAN")
+        unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
+    else()
+        set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    endif()
     # samples
     set(OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
@@ -98,6 +96,8 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     # we don't need wheels in package, it's used installed only in open source distribution
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # we don't need requirements.txt in package, because dependencies are installed by packages managers like conda
+    set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)
@@ -109,6 +109,10 @@ endmacro()
 ov_define_component_include_rules()
 
 if(CPACK_GENERATOR STREQUAL "BREW")
-    # brew relies on RPATH
+    # brew relies on RPATHs
     set(CMAKE_SKIP_INSTALL_RPATH OFF)
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
+else()
+    # we don't need RPATHs, because libraries are searched by standard paths
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
 endif()

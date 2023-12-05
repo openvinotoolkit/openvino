@@ -4,41 +4,41 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/fake_quantize.hpp>
+#include "low_precision/fake_quantize.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fold_fake_quantize_function.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fold_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class FoldFakeQuantizeInTransformationsTestValues {
 public:
     class Actual {
     public:
         std::vector<float> constValues;
-        ngraph::element::Type constPrecision;
-        builder::subgraph::FakeQuantizeOnData fakeQuantize;
-        ngraph::element::Type fqOutPrecision;
+        ov::element::Type constPrecision;
+        ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantize;
+        ov::element::Type fqOutPrecision;
     };
 
     class Expected {
     public:
         std::vector<float> constValues;
-        ngraph::element::Type constPrecision;
+        ov::element::Type constPrecision;
     };
 
-    ngraph::Shape constShape;
+    ov::Shape constShape;
     TestTransformationParams params;
     bool updatePrecision;
     bool roundValues;
@@ -67,7 +67,7 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(testValues.updatePrecision);
 
-        std::shared_ptr<ngraph::Node> dataSource;
+        std::shared_ptr<ov::Node> dataSource;
         std::shared_ptr<ov::op::v0::Parameter> parameter;
         bool useParameterAsDataSource = (testValues.actual.constValues.size() == 0);
 
@@ -86,12 +86,12 @@ public:
             ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
                                                                    element::f32,
                                                                    testValues.actual.fakeQuantize);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                         testValues.actual.fqOutPrecision);
-        fq = ngraph::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
+        fq = ov::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                             testValues.roundValues);
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
-        actualFunction = std::make_shared<ngraph::Function>(
+        actualFunction = std::make_shared<ov::Model>(
             results,
             parameter ? ngraph::ParameterVector{parameter} : ngraph::ParameterVector{},
             "FoldFakeQuantizeFunction");
@@ -129,11 +129,11 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
         true,
         {
             {1, 0, 77, 125, 254, 100, 0, 127, 0, 64, 1, 254, 7, 0, 9, 0},
-            ngraph::element::f32,
+            ov::element::f32,
             {255ul, {}, {0.f}, {254.f}, {-127.f}, {127.f}},
-            ngraph::element::i8,
+            ov::element::i8,
         },
-        {{-126, -127, -50, -2, 127, -27, -127, 0, -127, -63, -126, 127, -120, -127, -118, -127}, ngraph::element::i8},
+        {{-126, -127, -50, -2, 127, -27, -127, 0, -127, -63, -126, 127, -120, -127, -118, -127}, ov::element::i8},
     },
     {
         Shape{2, 2, 2, 2},
@@ -142,9 +142,9 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
         false,
         {
             {1, -1, 77, 125, 254, 100, 0, 127, -2, 64, 1, 300, 7, -200, 9, -301},
-            ngraph::element::f32,
+            ov::element::f32,
             {255ul, {}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
-            ngraph::element::f32,
+            ov::element::f32,
         },
         {{-12.6f,
           -12.7f,
@@ -162,7 +162,7 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
           -12.7f,
           -11.8f,
           -12.7f},
-         ngraph::element::f32},
+         ov::element::f32},
     },
     {
         Shape{2, 2, 2, 2},
@@ -170,9 +170,9 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
         true,
         false,
         {{1, -1, 77, 125, 254, 100, 0, 127, -2, 64, 1, 300, 7, -200, 9, -301},
-         ngraph::element::f32,
+         ov::element::f32,
          {256ul, {}, {0.f}, {255.f}, {-12.8f}, {12.7f}},
-         ngraph::element::f32},
+         ov::element::f32},
         {{-12.7f,
           -12.8f,
           -5.1f,
@@ -189,7 +189,7 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
           -12.8f,
           -11.9f,
           -12.8f},
-         ngraph::element::f32},
+         ov::element::f32},
     },
     {
         Shape{2, 2, 2, 2},
@@ -197,10 +197,10 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
         true,
         false,
         {{1, 0, 77, 125, 254, 100, 0, 127, 0, 64, 1, 255, 7, 0, 9, 0},
-         ngraph::element::u8,
+         ov::element::u8,
          {256ul, {}, {0.f}, {255.f}, {-128.f}, {127.f}},
-         ngraph::element::i8},
-        {{-127, -128, -51, -3, 126, -28, -128, -1, -128, -64, -127, 127, -121, -128, -119, -128}, ngraph::element::i8},
+         ov::element::i8},
+        {{-127, -128, -51, -3, 126, -28, -128, -1, -128, -64, -127, 127, -121, -128, -119, -128}, ov::element::i8},
     },
     {
         Shape{2, 2, 2, 2},
@@ -210,9 +210,9 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
         {{
              // use empty constValues for data independent const folding
          },
-         ngraph::element::u8,
+         ov::element::u8,
          {256ul, {}, {0.f}, {255.f}, {127.f}, {127.f}},
-         ngraph::element::i8},
+         ov::element::i8},
         {{
              127,
              127,
@@ -231,7 +231,7 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
              127,
              127,
          },
-         ngraph::element::i8},
+         ov::element::i8},
     },
 };
 

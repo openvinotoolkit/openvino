@@ -60,6 +60,8 @@ public:
         return m_attrs;
     }
 
+    void set_attrs(Attributes attrs);
+
     const element::Type& get_roi_num_type() const {
         return m_roi_num_type;
     }

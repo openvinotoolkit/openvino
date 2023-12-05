@@ -16,7 +16,7 @@ std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampPa
     std::tie(inShape, interval, netPrc, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "inShape=" << CommonTestUtils::vec2str(inShape) << "_";
+    result << "inShape=" << ov::test::utils::vec2str(inShape) << "_";
     result << "min=" << interval.first << "_";
     result << "max=" << interval.second << "_";
     result << "netPrc=" << netPrc.name() << "_";

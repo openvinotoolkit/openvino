@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/manager.hpp>
+#include "openvino/frontend/manager.hpp"
 
 class TelemetryMock {
 public:

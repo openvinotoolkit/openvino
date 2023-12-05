@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/interpolate.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
@@ -65,10 +65,10 @@ public:
         std::ostringstream result;
         result << "ShapeCalcMode=" << shapeCalcMode << "_";
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         if (shapeCalcMode == ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES) {
             result << "Scales=";
@@ -76,7 +76,7 @@ public:
             result << "Sizes=";
         }
         for (const auto &data : shapeDataForInput) {
-            result << CommonTestUtils::vec2str(data) << "_";
+            result << ov::test::utils::vec2str(data) << "_";
         }
         result << "sizesInputType=" << sizesInputType << "_";
         result << "scalesInputType=" << scalesInputType << "_";
@@ -85,9 +85,9 @@ public:
         result << "NearestMode=" << nearMode << "_";
         result << "CubeCoef=" << cubeCoef << "_";
         result << "Antialias=" << antiAlias << "_";
-        result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
+        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
         result << "PRC=" << prec << "_";
         result << "v11=" << useInterpolateV11 << "_";
 
@@ -156,7 +156,7 @@ protected:
     size_t inferRequestNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         InterpolateSpecificParams specificParams;
         ShapeParams shapeParams;
@@ -204,7 +204,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
 
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES) {

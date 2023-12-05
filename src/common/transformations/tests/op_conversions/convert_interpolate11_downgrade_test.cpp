@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset11.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/op_conversions/convert_interpolate11_downgrade.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
+using namespace ov;
 using namespace testing;
 
 namespace {
@@ -74,23 +75,28 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(scales));
         output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
         if (with_axes) {
-            output_shape =
-                std::make_shared<ov::opset4::Broadcast>(output_shape, std::make_shared<ov::opset4::ShapeOf>(axes));
-        } else {
-            output_shape = std::make_shared<ov::opset4::Broadcast>(
+            output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
                 output_shape,
-                std::make_shared<ov::opset4::ShapeOf>(std::make_shared<ov::opset4::ShapeOf>(input)));
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(axes));
+        } else {
+            output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
+                output_shape,
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(
+                    ov::op::util::make_try_fold<ov::opset4::ShapeOf>(input)));
         }
     } else {
         output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(output_shape));
         scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
         if (with_axes) {
-            scales = std::make_shared<ov::opset4::Broadcast>(scales, std::make_shared<ov::opset4::ShapeOf>(axes));
-        } else {
-            scales = std::make_shared<ov::opset4::Broadcast>(
+            scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
                 scales,
-                std::make_shared<ov::opset4::ShapeOf>(std::make_shared<ov::opset4::ShapeOf>(input)));
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(axes));
+        } else {
+            scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
+                scales,
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(
+                    ov::op::util::make_try_fold<ov::opset4::ShapeOf>(input)));
         }
     }
 
@@ -109,32 +115,32 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    function = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
-    function_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
+    model = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
+    model_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    function = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
-    function_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
+    model = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
+    model_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales_no_axes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    function = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
-    function_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
+    model = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
+    model_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes_no_axes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    function = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
-    function_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
+    model = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
+    model_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -159,11 +165,11 @@ std::shared_ptr<ov::Model> create_non_downgradeable_model(const ov::opset11::Int
 }  // namespace
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_bicubic_pillow) {
-    function = create_non_downgradeable_model(ov::opset11::Interpolate::InterpolateMode::BICUBIC_PILLOW);
+    model = create_non_downgradeable_model(ov::opset11::Interpolate::InterpolateMode::BICUBIC_PILLOW);
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_bilinear_pillow) {
-    function = create_non_downgradeable_model(ov::opset11::Interpolate::InterpolateMode::BILINEAR_PILLOW);
+    model = create_non_downgradeable_model(ov::opset11::Interpolate::InterpolateMode::BILINEAR_PILLOW);
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
 }

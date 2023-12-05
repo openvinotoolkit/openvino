@@ -30,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         MemoryTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemoryTestV3, MemoryTestV3,
@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTestV3, MemoryTestV3,
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         MemoryTest::getTestCaseName);
 
 } // namespace

@@ -5,8 +5,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/ops.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
@@ -1991,7 +1990,7 @@ TEST(pre_post_process, exception_safety) {
                      .custom([](const Output<Node>& node) -> Output<Node> {
                          OPENVINO_THROW("test error");
                      });
-                 p.build(), ngraph::ngraph_error);
+                 p.build(), ov::Exception);
     EXPECT_EQ(f->get_parameters().size(), 2);
 
     EXPECT_EQ(f->input(0).get_element_type(), element::f32);

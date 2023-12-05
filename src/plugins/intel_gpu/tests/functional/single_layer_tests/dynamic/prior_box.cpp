@@ -8,7 +8,7 @@
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 #include <openvino/pass/constant_folding.hpp>
 
@@ -28,6 +28,7 @@ typedef std::tuple<
         InputShape,
         InputShape,
         ElementType,                // Net precision
+        std::vector<float>,
         priorbox_type
 > PriorBoxLayerGPUTestParamsSet;
 class PriorBoxLayerGPUTest : public testing::WithParamInterface<PriorBoxLayerGPUTestParamsSet>,
@@ -37,15 +38,18 @@ public:
         InputShape input1Shape;
         InputShape input2Shape;
         ElementType netPrecision;
+        std::vector<float> max_size;
         priorbox_type priorboxType;
-        std::tie(input1Shape, input1Shape, netPrecision, priorboxType) = obj.param;
+        std::tie(input1Shape, input2Shape, netPrecision, max_size, priorboxType) = obj.param;
 
         std::ostringstream result;
         switch (priorboxType) {
             case priorbox_type::Clustered:
                 result << "PriorBoxClusteredTest_";
+                break;
             case priorbox_type::V0:
                 result << "PriorBoxV0Test_";
+                break;
             case priorbox_type::V8:
             default:
                 result << "PriorBoxV8Test_";
@@ -53,50 +57,69 @@ public:
         result << std::to_string(obj.index) << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "I1S=";
-        result << CommonTestUtils::partialShape2str({input1Shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({input1Shape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : input1Shape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")";
         result << "I2S=";
-        result << CommonTestUtils::partialShape2str({input2Shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({input2Shape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : input2Shape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
+        result << "max_size=" << ov::test::utils::vec2str(max_size) << "_";
         result << ")";
         return result.str();
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         auto netPrecision = ElementType::undefined;
         InputShape input1Shape;
         InputShape input2Shape;
+        std::vector<float> max_size;
         priorbox_type priorboxType;
-        std::tie(input1Shape, input2Shape, netPrecision, priorboxType) = this->GetParam();
+        std::tie(input1Shape, input2Shape, netPrecision, max_size, priorboxType) = this->GetParam();
+
 
         init_input_shapes({input1Shape, input2Shape});
 
         inType = ov::element::Type(netPrecision);
         outType = ElementType::f32;
 
-        auto beginInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
-        auto endInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {4});
-        auto strideInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+        auto beginInput = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
+        auto endInput = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {4});
+        auto strideInput = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
 
-        auto functionParams = builder::makeDynamicParams(inType, inputDynamicShapes);
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
+        ov::ParameterVector functionParams;
+        for (auto&& shape : inputDynamicShapes)
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);
-        auto stridedSliceOp1 = ngraph::builder::makeStridedSlice(shapeOfOp1, beginInput, endInput, strideInput, element::i32,
-                                                                {0}, {1}, {0}, {0}, {0});
+        auto shapeOfOp1 = std::make_shared<ov::op::v3::ShapeOf>(functionParams[0], element::i32);
+        auto shapeOfOp2 = std::make_shared<ov::op::v3::ShapeOf>(functionParams[1], element::i32);
 
-        auto shapeOfOp2 = std::make_shared<opset3::ShapeOf>(paramOuts[1], element::i32);
-        auto stridedSliceOp2 = ngraph::builder::makeStridedSlice(shapeOfOp2, beginInput, endInput, strideInput, element::i32,
-                                                                {0}, {1}, {0}, {0}, {0});
+        auto stridedSliceOp1 = std::make_shared<ov::op::v1::StridedSlice>(shapeOfOp1,
+                                                                          beginInput,
+                                                                          endInput,
+                                                                          strideInput,
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{1},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0});
+
+        auto stridedSliceOp2 = std::make_shared<ov::op::v1::StridedSlice>(shapeOfOp2,
+                                                                          beginInput,
+                                                                          endInput,
+                                                                          strideInput,
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{1},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0});
 
         switch (priorboxType) {
             case priorbox_type::Clustered: {
@@ -106,8 +129,8 @@ protected:
                 attributes_clustered.heights = {44, 10, 30, 19, 94, 32, 61, 53, 17};
                 attributes_clustered.variances = {0.1, 0.1, 0.2, 0.2};
                 attributes_clustered.step = 16;
-                attributes_clustered.step_widths = 0;
-                attributes_clustered.step_heights = 0;
+                attributes_clustered.step_widths = 1;
+                attributes_clustered.step_heights = 1;
                 attributes_clustered.offset = 0.5;
                 attributes_clustered.clip = false;
 
@@ -121,7 +144,7 @@ protected:
                 ngraph::op::v0::PriorBox::Attributes attributes_v0;
 
                 attributes_v0.min_size = {64};
-                attributes_v0.max_size = {300};
+                attributes_v0.max_size = max_size;
                 attributes_v0.aspect_ratio = {2};
                 attributes_v0.variance = {0.1, 0.1, 0.2, 0.2};
                 attributes_v0.step = 16;
@@ -141,7 +164,7 @@ protected:
                 ngraph::op::v8::PriorBox::Attributes attributes_v8;
 
                 attributes_v8.min_size = {64};
-                attributes_v8.max_size = {300};
+                attributes_v8.max_size = max_size;
                 attributes_v8.aspect_ratio = {2};
                 attributes_v8.variance = {0.1, 0.1, 0.2, 0.2};
                 attributes_v8.step = 16;
@@ -157,22 +180,6 @@ protected:
                 function = std::make_shared <ngraph::Function>(results, functionParams, "PriorBoxV8Function");
             }
         }
-        ngraph::op::v8::PriorBox::Attributes attributes;
-        attributes.min_size = {64};
-        attributes.max_size = {300};
-        attributes.aspect_ratio = {2};
-        attributes.variance = {0.1, 0.1, 0.2, 0.2};
-        attributes.step = 16;
-        attributes.offset = 0.5;
-        attributes.clip = false;
-        attributes.flip = true;
-        attributes.scale_all_sizes = true;
-        attributes.min_max_aspect_ratios_order = true;
-
-        auto priorBoxOp = std::make_shared<ngraph::op::v8::PriorBox>(stridedSliceOp1, stridedSliceOp2, attributes);
-
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBoxOp)};
-        function = std::make_shared <ngraph::Function>(results, functionParams, "PriorBoxFunction");
     }
 };
 
@@ -191,7 +198,7 @@ const std::vector<ElementType> netPrecisions = {
 const std::vector<priorbox_type> mode = {
         priorbox_type::V0,
         priorbox_type::V8,
-        priorbox_type::Clustered
+        // priorboxclustered is not supported yet in prior_box_ref_cl
 };
 
 std::vector<ov::test::InputShape> inShapesDynamic = {
@@ -214,12 +221,17 @@ std::vector<ov::test::InputShape> imgShapesDynamic = {
             }
         },
 };
-INSTANTIATE_TEST_SUITE_P(smoke_prior_box_dynamic,
+
+std::vector<std::vector<float>> max_size = {
+        {}, {300}
+};
+INSTANTIATE_TEST_SUITE_P(smoke_prior_box_full_dynamic,
     PriorBoxLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamic),
         ::testing::ValuesIn(imgShapesDynamic),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(max_size),
         ::testing::ValuesIn(mode)),
     PriorBoxLayerGPUTest::getTestCaseName);
 } // namespace

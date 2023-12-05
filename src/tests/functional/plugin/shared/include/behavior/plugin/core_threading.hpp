@@ -10,7 +10,7 @@
 #include <cpp/ie_infer_request.hpp>
 
 #include <file_utils.h>
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
@@ -64,7 +64,7 @@ public:
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
-                FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(), "template_extension"));
+                FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(), "template_extension"));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception & ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: experimental");

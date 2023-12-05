@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, ctc_greedy_decoder_op) {
-    NodeBuilder::get_ops().register_factory<opset1::CTCGreedyDecoder>();
+    NodeBuilder::get_ops().register_factory<ov::op::v0::CTCGreedyDecoder>();
     bool m_ctc_merge_repeated = false;
-    auto data = make_shared<op::Parameter>(element::f32, Shape{3, 1, 3});
-    auto masks = make_shared<op::Parameter>(element::i32, Shape{3, 1});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 1, 3});
+    auto masks = make_shared<ov::op::v0::Parameter>(element::i32, Shape{3, 1});
     auto decoder = make_shared<op::v0::CTCGreedyDecoder>(data, masks, m_ctc_merge_repeated);
 
     NodeBuilder builder(decoder, {data, masks});
-    auto g_decoder = ov::as_type_ptr<opset1::CTCGreedyDecoder>(builder.create());
+    auto g_decoder = ov::as_type_ptr<ov::op::v0::CTCGreedyDecoder>(builder.create());
 
     EXPECT_EQ(g_decoder->get_ctc_merge_repeated(), decoder->get_ctc_merge_repeated());
 }

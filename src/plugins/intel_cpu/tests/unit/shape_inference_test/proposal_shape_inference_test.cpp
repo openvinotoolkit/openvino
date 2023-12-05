@@ -40,7 +40,7 @@ TYPED_TEST_P(ProposalTest, default_ctor) {
     this->op->set_attrs(this->make_attrs(10));
 
     this->input_shapes = ShapeVector{{2, 3, 10, 10}, {2, 6, 10, 10}, {3}};
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes);
 
     EXPECT_EQ(this->output_shapes.size(), this->exp_out_size());
     EXPECT_EQ(this->output_shapes.front(), StaticShape({20, 5}));
@@ -54,7 +54,7 @@ TYPED_TEST_P(ProposalTest, all_inputs_dynamic_rank) {
     this->op = this->make_op(class_probs, class_bbox_deltas, image_shape, this->make_attrs(4));
 
     this->input_shapes = ShapeVector{{2, 3, 10, 10}, {2, 6, 10, 10}, {3}};
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes);
 
     EXPECT_EQ(this->output_shapes.size(), this->exp_out_size());
     EXPECT_EQ(this->output_shapes[0], StaticShape({8, 5}));
@@ -68,7 +68,7 @@ TYPED_TEST_P(ProposalTest, all_inputs_static_rank) {
     this->op = this->make_op(class_probs, class_bbox_deltas, image_shape, this->make_attrs(5));
 
     this->input_shapes = ShapeVector{{3, 4, 10, 10}, {3, 8, 10, 10}, {4}};
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes);
 
     EXPECT_EQ(this->output_shapes.size(), this->exp_out_size());
     EXPECT_EQ(this->output_shapes[0], StaticShape({15, 5}));
@@ -82,7 +82,7 @@ TYPED_TEST_P(ProposalTest, batch_size_not_compatible) {
     this->op = this->make_op(class_probs, class_bbox_deltas, image_shape, this->make_attrs(5));
 
     this->input_shapes = ShapeVector{{3, 4, 10, 10}, {4, 8, 10, 10}, {3}};
-    OV_EXPECT_THROW(shape_inference(this->op.get(), this->input_shapes, this->output_shapes),
+    OV_EXPECT_THROW(shape_inference(this->op.get(), this->input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Batch size inconsistent between class_probs"));
 }
@@ -95,7 +95,7 @@ TYPED_TEST_P(ProposalTest, image_shape_input_not_compatible_shape) {
     this->op = this->make_op(class_probs, class_bbox_deltas, image_shape, this->make_attrs(5));
 
     this->input_shapes = ShapeVector{{3, 4, 10, 10}, {3, 8, 10, 10}, {5}};
-    OV_EXPECT_THROW(shape_inference(this->op.get(), this->input_shapes, this->output_shapes),
+    OV_EXPECT_THROW(shape_inference(this->op.get(), this->input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Image_shape must be 1-D tensor and has got 3 or 4 elements"));
 }

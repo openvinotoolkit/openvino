@@ -57,7 +57,7 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
         bool dim_use_default = is_none_node(rfftn_op->input_value(2));
         bool s_use_default = is_none_node(rfftn_op->input_value(1));
         // Can be None constant, when used check s_use_default.
-        auto raw_s_input_maybe = concat_list_construct(rfftn_op->input_value(1)).get_node_shared_ptr();
+        auto raw_s_input_maybe = concat_list_construct(rfftn_op->input_value(1));
 
         // Handle dim parameter containing vector of intigers indicating dimensions to be transformed.
         std::shared_ptr<ov::Node> dim;
@@ -130,7 +130,7 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
         auto normalized_rfftn_splitted = std::make_shared<v1::Split>(normalized_rfftn, const_neg_1, 2);
         auto rfftn_outs = rfftn_op->get_users();
         bool rval = false;
-        for (auto out : rfftn_outs) {
+        for (auto& out : rfftn_outs) {
             if (auto real_op = cast_fw_node(out, "aten::real")) {
                 auto squeezed = std::make_shared<v0::Squeeze>(normalized_rfftn_splitted->output(0), const_neg_1);
                 copy_runtime_info({rfftn_op, real_op}, squeezed);

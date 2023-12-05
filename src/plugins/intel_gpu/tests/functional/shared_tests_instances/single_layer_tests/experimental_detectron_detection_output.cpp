@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
                                             ::testing::Values(class_agnostic_box_regression_true),
                                             ::testing::ValuesIn(deltas_weights),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutputMaxDetectionsPerImage,
@@ -79,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutputMaxD
                                             ::testing::Values(class_agnostic_box_regression_true),
                                             ::testing::ValuesIn(deltas_weights),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
@@ -94,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
                                             ::testing::Values(class_agnostic_box_regression_false),
                                             ::testing::ValuesIn(deltas_weights),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
 
 

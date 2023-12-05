@@ -23,31 +23,31 @@ class ConvertGroupDeconvolution;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertConvolution : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertConvolution", "0");
     ConvertConvolution();
 };
 
-class ngraph::pass::ConvertGroupConvolution : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGroupConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGroupConvolution", "0");
     ConvertGroupConvolution();
 };
 
-class ngraph::pass::ConvertDeconvolution : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertDeconvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertDeconvolution", "0");
     ConvertDeconvolution();
 };
 
-class ngraph::pass::ConvertGroupDeconvolution : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGroupDeconvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGroupDeconvolution", "0");
     ConvertGroupDeconvolution();
 };
 
-class ngraph::pass::ConvertConvolutions : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertConvolutions : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertConvolutions", "0");
     ConvertConvolutions() {

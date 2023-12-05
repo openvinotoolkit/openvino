@@ -35,7 +35,7 @@ class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithPar
                                                        public OVCompiledNetworkTestBase {
 protected:
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> simpleNetwork;
+    std::shared_ptr<ov::Model> simpleNetwork;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);
@@ -95,7 +95,7 @@ protected:
 public:
     void SetUp() override {
         target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
+        heteroDeviceName = ov::test::utils::DEVICE_HETERO + std::string(":") + target_device;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();

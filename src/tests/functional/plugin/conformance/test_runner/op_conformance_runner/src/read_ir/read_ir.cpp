@@ -7,183 +7,114 @@
 #include <process.h>
 #endif
 
-#include <pugixml.hpp>
-
-#include "ngraph_functions/builders.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/graph_comparator.hpp"
-#include "functional_test_utils/crash_handler.hpp"
-#include "functional_test_utils/summary/op_info.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
-#include "conformance.hpp"
-#include "read_ir_test/read_ir.hpp"
-
 #include "common_test_utils/postgres_link.hpp"
 
-#include <setjmp.h>
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+
+#include "op_conformance_utils/utils/dynamism.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
+#include "conformance.hpp"
+
+#include "utils/models.hpp"
+#include "utils/types.hpp"
+
+#include "read_ir_test/read_ir.hpp"
 
 namespace ov {
 namespace test {
-namespace conformance {
-// It is used while files lookup, first value - path to model, second - amout of tests with this path
-std::list<std::pair<std::string, int>> dirListInfo;
-}
-
-namespace subgraph {
+namespace op_conformance {
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
-    using namespace CommonTestUtils;
+    using namespace ov::test::utils;
     std::pair<std::string, std::string> model_pair;
-    std::string path_to_model, path_to_cache, deviceName;
+    std::string path_to_model, path_to_ref_tensor, deviceName;
     ov::AnyMap config;
     std::tie(model_pair, deviceName, config) = obj.param;
-    std::tie(path_to_model, path_to_cache) = model_pair;
+    std::tie(path_to_model, path_to_ref_tensor) = model_pair;
 
     std::ostringstream result;
-    auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
-    std::reverse(splittedFilename.begin(), splittedFilename.end());
-    bool is_valid_path_format = true;
 
-    // Check that op is valid
-    if (splittedFilename.size() > 2) {
-        auto pos = splittedFilename[2].find('-');
-        std::string op_name = splittedFilename[2], op_version = "";
-        if (pos != std::string::npos) {
-            op_name = splittedFilename[2].substr(0, pos);
-            op_version = splittedFilename[2].substr(pos + 1);
-        }
-        if (std::find(ov::test::conformance::unique_ops[op_name].begin(),
-                      ov::test::conformance::unique_ops[op_name].end(), op_version) != ov::test::conformance::unique_ops[op_name].end() &&
-            ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end()) {
-            std::string message = "Op=" + op_name;
-            if (op_version != "") {
-                message += "." + op_version;
+    enum class IR_TYPE {
+        OP,
+        SUBGRAPH,
+        OTHER
+    };
+
+    auto ir_type = IR_TYPE::OTHER;
+    std::map<std::string, std::string> filled_info = {
+        { "hash", "" },
+        { "element_type", "" },
+        { "shape_type", "" },
+        { "extractor_name", ""},
+        { "op_name", "" },
+    };
+
+    {
+        auto splitted_filename = ov::test::utils::splitStringByDelimiter(path_to_model, ov::test::utils::FileSeparator);
+        std::set<std::string> shape_type = {"static", "dynamic"},
+                              graph_extractors = {"fused_names", "repeat_pattern"};
+        std::map<std::string, IR_TYPE> graph_type = {{"operation", IR_TYPE::OP}, {"subgraph", IR_TYPE::SUBGRAPH}};
+        for (const auto& item : splitted_filename) {
+            if (graph_type.find(item) != graph_type.end()) {
+                ir_type = graph_type.at(item);
+            } else if (shape_type.find(item) != shape_type.end()) {
+                filled_info["shape_type"] = item;
+            } else if (graph_extractors.find(item) != graph_extractors.end()) {
+                filled_info["extractor_name"] = item;
+            } else if (std::find(element_type_names.begin(),
+                                 element_type_names.end(),
+                                 item) != element_type_names.end()) {
+                filled_info["element_type"] = item;
+            } else {
+                auto pos = item.find('-');
+                if (pos != std::string::npos) {
+                    std::string op_name = item, op_version = "";
+                    if (pos != std::string::npos) {
+                        op_version = op_name.substr(pos + 1);
+                        op_name = op_name.substr(0, pos);
+                    }
+                    if (std::find(unique_ops[op_name].begin(),
+                                unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
+                        unique_ops.find(op_name) != unique_ops.end()) {
+                        filled_info["op_name"] = op_name + "." + op_version;
+                        continue;
+                    }
+                }
+                auto ir_name = ov::util::replace_extension(item, "");
+                if (ir_name != item) {
+                    filled_info["hash"] = ir_name;
+                    continue;
+                }
             }
-            message += "_";
-            result << message;
-        } else {
-            is_valid_path_format = false;
+        }
+        if (filled_info["shape_type"].empty()) {
+            auto a = 0;
         }
     }
-    // Check the element_type
-    if (splittedFilename.size() > 1) {
-        if (std::find(ov::test::conformance::element_type_names.begin(),
-                      ov::test::conformance::element_type_names.end(),
-                      splittedFilename[1]) != ov::test::conformance::element_type_names.end()) {
-            result << "Type=" << splittedFilename[1] << "_";
-        } else {
-            is_valid_path_format = false;
-        }
+
+    switch (ir_type) {
+    case IR_TYPE::OP: {
+        result << "Op=" << filled_info["op_name"] << "_";
+        result << "Type=" << filled_info["element_type"] << "_";
+        result << "Shape=" << filled_info["shape_type"] << "_";
+        result << "IR=" << filled_info["hash"] << "_";
+        break;
     }
-    result << "IR=" << (is_valid_path_format ? CommonTestUtils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
+    case IR_TYPE::SUBGRAPH: {
+        result << "Extractor=" << filled_info["extractor_name"] << "_";
+        result << "Shape=" << filled_info["shape_type"] << "_";
+        result << "IR=" << filled_info["hash"] << "_";
+        break;
+    }
+    default: {
+        result << "IR=" << path_to_model << "_";
+        break;
+    }
+    }
     result << "Device=" << deviceName << "_";
-    result << "Config=(";
-    auto configItem = config.begin();
-    while (configItem != config.end()) {
-        result << configItem->first << "=";
-        configItem->second.print(result);
-        if (++configItem != config.end()) {
-            result << "_";
-        }
-    }
-    result << ")";
+    result << "Config=" << config;
     return result.str();
-}
-
-void ReadIRTest::query_model() {
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &s = ov::test::utils::OpSummary::getInstance();
-
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
-#else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
-#endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        if (functionRefs == nullptr) {
-            functionRefs = ngraph::clone_function(*function);
-            functionRefs->set_friendly_name("refFunction");
-        }
-        s.setDeviceName(targetDevice);
-
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-        } else {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED, rel_influence_coef);
-        }
-        try {
-            SubgraphBaseTest::query_model();
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED, rel_influence_coef);
-        } catch (std::exception& err) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
-            GTEST_FAIL() << err.what();
-        } catch (...) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
-            GTEST_FAIL() << "Something is wrong in Query model! Please check";
-        }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
-    }
-}
-
-void ReadIRTest::import_export() {
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &summary = ov::test::utils::OpSummary::getInstance();
-
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
-#else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
-#endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        summary.setDeviceName(targetDevice);
-        try {
-            ov::CompiledModel model = core->compile_model(function, targetDevice, configuration);
-
-            std::stringstream strm;
-            model.export_model(strm);
-
-            ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
-
-            auto comparator = FunctionsComparator::with_default()
-                        .enable(FunctionsComparator::ATTRIBUTES)
-                        .enable(FunctionsComparator::NAMES)
-                        .enable(FunctionsComparator::CONST_VALUES);
-
-            auto importedFunction = importedModel.get_runtime_model()->clone();
-            auto res = comparator.compare(importedFunction, function);
-            EXPECT_TRUE(res.valid) << res.message;
-
-            summary.updateOPsImplStatus(function, true);
-        } catch (const std::exception &e) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
-        } catch (...) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the Core::query_model() method call!";
-        }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        summary.updateOPsImplStatus(function, false);
-        GTEST_FAIL() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsImplStatus(function, false);
-        GTEST_FAIL() << "Hang happens";
-    }
 }
 
 uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
@@ -191,94 +122,43 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
+    // todo: find the optimal way to find TEST_P instances
+    // inference + query_model + import_export
+    summary.setDowngradeCoefficient(3);
     std::pair<std::string, std::string> model_pair;
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
-    std::tie(path_to_model, path_to_cache) = model_pair;
+    std::tie(path_to_model, path_to_ref_tensor) = model_pair;
     function = core->read_model(path_to_model);
-    const auto metaFile = CommonTestUtils::replaceExt(path_to_model, "meta");
-    if (CommonTestUtils::fileExists(metaFile)) {
-        pugi::xml_document doc;
-        doc.load_file(metaFile.c_str());
-        auto models = doc.child("meta_info").child("models");
-        size_t model_len = 0, occurance = 0;
-        for (const auto &model : models.children("model")) {
-            ocurance_in_models.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
-            model_len++;
-            occurance += model.attribute("count").as_uint();
-        }
-        rel_influence_coef = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
-        // TODO: remove after cache update w/a
-        if (rel_influence_coef == 0) {
-            rel_influence_coef = 1.f;
-        }
-        auto portsInfo = doc.child("meta_info").child("ports_info");
-        auto getPortInfo = [&](size_t id) {
-            LayerTestsUtils::PortInfo info;
-            for (const auto &p : portsInfo.children()) {
-                if (p.attribute("id").as_uint() == id) {
-                    info.convert_to_const = p.attribute("convert_to_const").as_bool();
-                    if (std::strcmp(p.attribute("min").as_string(), "undefined") != 0) {
-                        info.min = p.attribute("min").as_double();
-                    } else {
-                        info.min = -10;
-                    }
-                    if (std::strcmp(p.attribute("max").as_string(), "undefined") != 0) {
-                        info.max = p.attribute("max").as_double();
-                    } else {
-                        info.max = 10;
-                    }
-                    break;
-                }
-            }
-            return info;
-        };
+    const auto metaFile = ov::util::replace_extension(path_to_model, "meta");
+    if (ov::util::file_exists(metaFile)) {
+        auto meta_info = ov::conformance::MetaInfo::read_meta_from_file(metaFile, true);
+        auto input_info = meta_info.get_input_info();
+        rel_influence_coef = meta_info.get_graph_priority();
 
-        auto params = function->get_parameters();
-        for (const auto &param : params) {
-            auto idx = -1;
-            for (size_t i = 0; i < param->get_output_size(); i++) {
-                for (const auto &node : param->get_output_target_inputs(i)) {
-                    const auto nodePtr = node.get_node()->shared_from_this();
-                    for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                        if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-                            idx = port;
-                            break;
-                        }
-                    }
-                }
+        auto inputMap = utils::getInputMap();
+        std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
+        for (const auto& param : function->get_parameters()) {
+            auto in_info = input_info.find(param->get_friendly_name())->second;
+            if (!in_info.is_const) {
+                continue;
             }
-            EXPECT_GE(idx, 0);
-
-            auto info = getPortInfo(idx);
-            if (info.convert_to_const) {
-                const auto constant = ngraph::builder::makeConstant(param->get_element_type(),
-                                                                    param->get_shape(),
-                                                                    std::vector<double>{},
-                                                                    true,
-                                                                    info.max,
-                                                                    info.min,
-                                                                    1);
-                ov::replace_node(param, constant);
-                function->remove_parameter(param);
-            }
+            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
+            // auto next_node = param->get_default_output().get_node_shared_ptr();
+            auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
+            auto it = inputMap.find(next_node->get_type_info());
+            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
+            auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
+            const_node->set_friendly_name(param->get_friendly_name());
+            ov::replace_node(param, const_node);
+            parameter_to_remove.push_back(param);
+            utils::ConstRanges::reset();
+        }
+        for (const auto& param : parameter_to_remove) {
+            function->remove_parameter(param);
         }
     }
 
-    bool hasDynamic = false;
-    for (const auto& param : function->get_parameters()) {
-        if (param->get_partial_shape().is_dynamic()) {
-            hasDynamic = true;
-            break;
-        }
-    }
-    if (!hasDynamic) {
-        for (const auto& result : function->get_results()) {
-            if (result->get_output_partial_shape(0).is_dynamic()) {
-                hasDynamic = true;
-                break;
-            }
-        }
-    }
+    bool hasDynamic = ov::util::is_dynamic_model(function);
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     // Updating data in runtime. Should be set before possible call of a first GTEST status
@@ -309,7 +189,7 @@ void ReadIRTest::SetUp() {
             pgLink->set_refuse_result();
         }
 
-        auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+        auto splittedFilename = ov::test::utils::splitStringByDelimiter(path_to_model, ov::test::utils::FileSeparator);
         std::reverse(splittedFilename.begin(), splittedFilename.end());
 
         // Try to resolve missing info
@@ -319,16 +199,16 @@ void ReadIRTest::SetUp() {
             if (pos != std::string::npos) {
                 op_name = splittedFilename[2].substr(0, pos);
                 op_version += splittedFilename[2].substr(pos + 1);
-                if (ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end() &&
-                    std::find(ov::test::conformance::unique_ops[op_name].begin(),
-                              ov::test::conformance::unique_ops[op_name].end(),
-                              op_version) != ov::test::conformance::unique_ops[op_name].end()) {
+                if (ov::test::op_conformance::unique_ops.find(op_name) != ov::test::op_conformance::unique_ops.end() &&
+                    std::find(ov::test::op_conformance::unique_ops[op_name].begin(),
+                              ov::test::op_conformance::unique_ops[op_name].end(),
+                              op_version) != ov::test::op_conformance::unique_ops[op_name].end()) {
                     pgLink->set_custom_field("opName", op_name, true);
                     pgLink->set_custom_field("opSet", op_version, true);
                 }
             } else {
                 for (const auto& path_part : splittedFilename) {
-                    if (ov::test::conformance::unique_ops.find(path_part) != ov::test::conformance::unique_ops.end()) {
+                    if (ov::test::op_conformance::unique_ops.find(path_part) != ov::test::op_conformance::unique_ops.end()) {
                         op_name = path_part;
                         break;
                     }
@@ -367,9 +247,9 @@ void ReadIRTest::SetUp() {
                 if (s.is_dynamic()) {
                     size_t range = s.get_max_length() - s.get_min_length();
                     if (range > std::numeric_limits<char>::max()) {
-                        CommonTestUtils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+                        ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
                     }
-                    CommonTestUtils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
+                    ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
                 } else {
                     dimValue = s.get_length();
                 }
@@ -405,23 +285,23 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
         std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
     }
     ov::TensorVector output_tensors;
-    if (!CommonTestUtils::fileExists(path_to_cache)) {
+    if (!ov::test::utils::fileExists(path_to_ref_tensor)) {
         std::cout << "[ REFERENCE   ] Calculate reference in runtime" << std::endl;
         output_tensors = SubgraphBaseTest::calculate_refs();
-        if (path_to_cache != "") {
-            std::ofstream ofstream_tensor(path_to_cache, std::ios::out | std::ios::binary);
+        if (path_to_ref_tensor != "") {
+            std::ofstream ofstream_tensor(path_to_ref_tensor, std::ios::out | std::ios::binary);
             for (const auto& out_tensor : output_tensors) {
                 ofstream_tensor.write(reinterpret_cast<const char*>(out_tensor.data()), out_tensor.get_byte_size());
             }
             ofstream_tensor.close();
         }
     } else {
-        std::cout << "[ REFERENCE   ] Read reference from file: " << path_to_cache << std::endl;
+        std::cout << "[ REFERENCE   ] Read reference from file: " << path_to_ref_tensor << std::endl;
         // Because of functionRefs is a static function
-        std::ifstream ref_data_ifstream(path_to_cache, std::ifstream::binary);
-        ref_data_ifstream.open(path_to_cache, std::ios::binary);
+        std::ifstream ref_data_ifstream(path_to_ref_tensor, std::ifstream::binary);
+        ref_data_ifstream.open(path_to_ref_tensor, std::ios::binary);
         if (!ref_data_ifstream.is_open())
-            IE_THROW() << "Weights file " << path_to_cache << " cannot be opened!";
+            IE_THROW() << "Weights file " << path_to_ref_tensor << " cannot be opened!";
 
         size_t buf_size = 0;
         for (const auto& output : functionRefs->outputs()) {
@@ -444,7 +324,41 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
     return output_tensors;
 }
 
-} // namespace subgraph
+TEST_P(ReadIRTest, Inference) {
+    run();
+}
+
+TEST_P(ReadIRTest, QueryModel) {
+    query_model();
+}
+
+TEST_P(ReadIRTest, ImportExport) {
+    import_export();
+}
+
+namespace {
+
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
+    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \
+                             ReadIRTest,                                                                   \
+                             ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),  \
+                                                ::testing::Values(conformance::targetDevice),                           \
+                                                ::testing::Values(conformance::pluginConfig)),                          \
+                             ReadIRTest::getTestCaseName); \
+
+// It should point on latest opset which contains biggest list of operations
+#include "openvino/opsets/opset13_tbl.hpp"
+#undef _OPENVINO_OP_REG
+
+INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
+                        ReadIRTest,
+                        ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
+                                           ::testing::Values(conformance::targetDevice),
+                                           ::testing::Values(conformance::pluginConfig)),
+                        ReadIRTest::getTestCaseName);
+
+}  // namespace
+
+} // namespace op_conformance
 } // namespace test
 } // namespace ov
-

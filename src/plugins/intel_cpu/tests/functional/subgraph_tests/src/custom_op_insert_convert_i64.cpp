@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/op/op.hpp>
-#include <shape_util.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <openvino/op/op.hpp>
+#include <shared_test_classes/base/ov_subgraph.hpp>
+#include <ov_models/builders.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -94,16 +93,21 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
 
         init_input_shapes({inputShape});
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
-        auto customOp = std::make_shared<CustomOpI64>(paramOuts);
+        ov::ParameterVector inputParams;
+        ov::OutputVector paramsOuts;
+        for (auto&& shape : inputDynamicShapes) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(inType, shape);
+            inputParams.push_back(param);
+            paramsOuts.push_back(param);
+        }
+        auto customOp = std::make_shared<CustomOpI64>(paramsOuts);
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(customOp)};
         function = std::make_shared<ov::Model>(results, inputParams, "customOpTest");

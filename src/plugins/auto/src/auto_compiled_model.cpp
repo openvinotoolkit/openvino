@@ -201,7 +201,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                         LOG_WARNING_TAG("deduce optimal infer requset num for auto-batch failed :%s", iie.what());
                     }
                     real = (std::max)(requests, optimal_batch_size);
-                } else if (device_info.device_name.find("VPU") != std::string::npos) {
+                } else if (device_info.device_name.find("NPU") != std::string::npos) {
                     real = 8u;
                 } else {
                     real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
@@ -264,8 +264,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             return m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_compiled_model->get_property(name).as<bool>();
         } else {
-            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
-             std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
+                            m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
             return m_scheduler->m_compile_context[CPU].
                 m_compiled_model->get_property(name).as<bool>();
         }

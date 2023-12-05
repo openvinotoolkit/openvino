@@ -262,8 +262,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                         ov::AnyMap{ov::device::id("0.1"), ov::log::level(ov::log::Level::INFO)});
 
     // device ID mismatch
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE.X", ov::AnyMap{ov::device::id("Y")}),
-                 InferenceEngine::Exception);
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE.X", ov::AnyMap{ov::device::id("Y")}), ov::Exception);
 
     // HETERO
     check_parsed_config("HETERO:DEVICE", ov::AnyMap{}, "HETERO", ov::AnyMap{ov::device::priorities("DEVICE")});
@@ -300,7 +299,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
     // device priorities mismatch
     EXPECT_THROW(ov::parseDeviceNameIntoConfig("HETERO:DEVICE", ov::AnyMap{ov::device::priorities("ANOTHER_DEVICE")}),
-                 InferenceEngine::Exception);
+                 ov::Exception);
 
     // MULTI
     check_parsed_config("MULTI:DEVICE", ov::AnyMap{}, "MULTI", ov::AnyMap{ov::device::priorities("DEVICE")});

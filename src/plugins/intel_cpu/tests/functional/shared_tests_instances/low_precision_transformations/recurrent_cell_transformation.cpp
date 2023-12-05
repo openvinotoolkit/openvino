@@ -14,7 +14,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     //ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
@@ -49,7 +49,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
-        "U8"
+        "u8"
     },
     // asymmetrical FQ on weights
     {
@@ -79,7 +79,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
-        "FP32"
+        "f32"
     }
 };
 
@@ -91,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
@@ -128,7 +128,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
-        "U8"
+        "u8"
     },
     // asymmetrical FQ on weights
     {
@@ -158,7 +158,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
-        "FP32"
+        "f32"
     }
 };
 
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);

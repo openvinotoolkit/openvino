@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/gather_nd.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -39,17 +39,17 @@ public:
 
         std::ostringstream result;
         result << "IS=(";
-        result << CommonTestUtils::partialShape2str({Shapes.inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({Shapes.inputShapes.first}) << "_";
         for (size_t i = 0lu; i < Shapes.inputShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(Shapes.inputShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(Shapes.inputShapes.second[i]) << "_";
             result << "}_";
         }
         result << "TS=(";
-        result << CommonTestUtils::partialShape2str({Shapes.targetShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({Shapes.targetShapes.first}) << "_";
         for (size_t i = 0lu; i < Shapes.targetShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(Shapes.targetShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(Shapes.targetShapes.second[i]) << "_";
             result << "}_";
         }
         result << "batchDims=" << Shapes.batch_dims << "_";
@@ -68,7 +68,7 @@ protected:
 
         std::tie(Shapes, netPrecision, isIndicesConstant) = this->GetParam();
         const int batchDims = Shapes.batch_dims;
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         std::shared_ptr<ov::Node> indicesNode;
         std::shared_ptr<ov::Node> gather_ndNode;
 
@@ -100,11 +100,8 @@ protected:
             params.back()->set_friendly_name("indices");
         }
 
-        auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
-
-        gather_ndNode = std::make_shared<ov::op::v8::GatherND>(paramOuts[0],
-                                                          isIndicesConstant ? indicesNode : paramOuts[1],
+        gather_ndNode = std::make_shared<ov::op::v8::GatherND>(params[0],
+                                                          isIndicesConstant ? indicesNode : params[1],
                                                           batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gather_ndNode)};
         function = std::make_shared<ngraph::Function>(results, params, "GatherND");
@@ -130,6 +127,11 @@ const std::vector<GatherNDShapeParams> dynamicInputShapeConstTargetShape = {
         ov::test::InputShape(ov::PartialShape({-1, -1}), {{2, 2}}),
         ov::test::InputShape(ov::PartialShape({}), {{2, 1}}),
         1
+    },
+    {
+        ov::test::InputShape(ov::PartialShape({-1, -1}), {{10, 14}}),
+        ov::test::InputShape(ov::PartialShape({}), {{3, 2}}),
+        0
     },
     {
         ov::test::InputShape(ov::PartialShape({-1, -1, -1}), {{2, 3, 4}, {3, 4, 5}}),

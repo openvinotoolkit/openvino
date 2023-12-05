@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -40,15 +40,15 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "Repeats=" << CommonTestUtils::vec2str(repeats)  << "_";
+        result << "Repeats=" << ov::test::utils::vec2str(repeats)  << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constRepeats=" << (isRepeatsConst ? "True" : "False") << "_";
         result << "trgDev=" << deviceName;
@@ -99,13 +99,12 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
         std::shared_ptr<ov::Node> tileNode;
         if (isRepeatsConst) {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0],
+            tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0],
                     ov::op::v0::Constant::create(ov::element::i64, { repeatsData.size() }, repeatsData));
         } else {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0], paramOuts[1]);
+            tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
         function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
     }
@@ -277,7 +276,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(CPUParams4D)),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -288,7 +287,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -312,7 +311,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynBatch4D, TileLayerCPUTest,
                                     ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(true),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -323,7 +322,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(CPUParams5D)),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -334,7 +333,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 /* ========= */

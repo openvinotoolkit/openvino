@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+from utils import get_path_to_model, get_image, get_path_to_extension_library
 
 #! [ie:create_core]
 import numpy as np
@@ -9,8 +10,10 @@ import openvino.inference_engine as ie
 core = ie.IECore()
 #! [ie:create_core]
 
+model_path = get_path_to_model(True)
+
 #! [ie:read_model]
-network = core.read_network("model.xml")
+network = core.read_network(model_path)
 #! [ie:read_model]
 
 #! [ie:compile_model]
@@ -26,7 +29,7 @@ exec_network = core.load_network(network, "CPU", num_requests=4)
 infer_request = exec_network.requests[0]
 # Get input blobs mapped to input layers names
 input_blobs = infer_request.input_blobs
-data = input_blobs["data1"].buffer
+data = input_blobs["data"].buffer
 # Original I64 precision was converted to I32
 assert data.dtype == np.int32
 # Fill the first blob ...
@@ -36,7 +39,7 @@ assert data.dtype == np.int32
 results = infer_request.infer()
 #! [ie:inference]
 
-input_data = iter(list())
+input_data = get_image()
 
 def process_results(results, frame_id):
     pass
@@ -67,11 +70,11 @@ for infer_request in exec_network.requests:
 total_frames = 100
 for _ in range(total_frames):
     # Wait for at least one free request
-    exec_network.wait(num_request=1)
+    exec_network.wait(num_requests=1)
     # Get idle id
     idle_id = exec_network.get_idle_request_id()
     # Start asynchronous inference on idle request
-    exec_network.start_async(request_id=idle_id, inputs=next(input_data))
+    exec_network.start_async(request_id=idle_id, inputs={"data": input_data})
 # Wait for all requests to complete
 exec_network.wait()
 #! [ie:start_async_and_wait]
@@ -79,12 +82,13 @@ exec_network.wait()
 #! [ie:get_output_tensor]
 # Get output blobs mapped to output layers names
 output_blobs = infer_request.output_blobs
-data = output_blobs["out1"].buffer
+data = output_blobs["relu"].buffer
 # Original I64 precision was converted to I32
 assert data.dtype == np.int32
 # Process output data
 #! [ie:get_output_tensor]
 
+path_to_extension_library = get_path_to_extension_library()
 #! [ie:load_old_extension]
-core.add_extension("path_to_extension_library.so", "CPU")
+core.add_extension(path_to_extension_library, "CPU")
 #! [ie:load_old_extension]

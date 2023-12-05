@@ -3,8 +3,9 @@
 //
 
 #include <shared_test_classes/single_layer/logical.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -56,13 +57,17 @@ protected:
         auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
         configuration.insert(additional_config.begin(), additional_config.end());
 
-        auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
-
+        ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
         std::shared_ptr<ngraph::Node> logicalNode;
         if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+            std::shared_ptr<ov::Node> secondInput;
             if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
+                auto param = std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.second));
+                secondInput = param;
+                inputs.push_back(param);
+            } else {
+                auto tensor = ov::test::utils::create_and_fill_tensor(ngInputsPrc, ov::Shape(inputShapes.second));
+                secondInput = std::make_shared<ov::op::v0::Constant>(tensor);
             }
             logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
         } else {
@@ -129,7 +134,7 @@ const auto LogicalTestParams = ::testing::Combine(
             ::testing::ValuesIn(bf16InpOutPrc),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 
@@ -143,7 +148,7 @@ const auto LogicalTestParamsNot = ::testing::Combine(
                 ::testing::ValuesIn(bf16InpOutPrc),
                 ::testing::Values(Layout::ANY),
                 ::testing::Values(Layout::ANY),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 

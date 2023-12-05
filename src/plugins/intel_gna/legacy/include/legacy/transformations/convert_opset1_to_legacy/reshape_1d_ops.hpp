@@ -21,25 +21,25 @@ class Reshape1DMaxPool;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::Reshape1DConvolution : public ngraph::pass::MatcherPass {
+class ngraph::pass::Reshape1DConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Reshape1DConvolution", "0");
     Reshape1DConvolution();
 };
 
-class ngraph::pass::Reshape1DAvgPool : public ngraph::pass::MatcherPass {
+class ngraph::pass::Reshape1DAvgPool : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Reshape1DAvgPool", "0");
     Reshape1DAvgPool();
 };
 
-class ngraph::pass::Reshape1DMaxPool : public ngraph::pass::MatcherPass {
+class ngraph::pass::Reshape1DMaxPool : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Reshape1DMaxPool", "0");
     Reshape1DMaxPool();
 };
 
-class ngraph::pass::Reshape1DOps : public ngraph::pass::GraphRewrite {
+class ngraph::pass::Reshape1DOps : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("Reshape1DOps", "0");
     Reshape1DOps() {

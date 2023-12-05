@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareRefs,
                          ::testing::Combine(::testing::ValuesIn(input_sizes),
                                             ::testing::ValuesIn(concat_const_sizes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ActivationConcatsEltwise::getTestCaseName);
 

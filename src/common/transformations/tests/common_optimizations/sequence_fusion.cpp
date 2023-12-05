@@ -8,7 +8,7 @@
 
 #include <queue>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "ov_ops/augru_cell.hpp"
@@ -202,13 +202,13 @@ class SequenceFusionTest : public WithParamInterface<SequenceFusionParams>, publ
 TEST_P(SequenceFusionTest, SequencePattern) {
     const auto& p = GetParam();
     {
-        function = gen_model(p.rnn_type, p.batch, p.hidden_size, p.input_size, p.cell_cnt);
+        model = gen_model(p.rnn_type, p.batch, p.hidden_size, p.input_size, p.cell_cnt);
         manager.register_pass<pass::SequenceFusion>();
     }
 
     // the transformation won't be applied for single cell
     if (p.cell_cnt > 1) {
-        function_ref = gen_reference(p.rnn_type, p.batch, p.hidden_size, p.input_size, p.cell_cnt);
+        model_ref = gen_reference(p.rnn_type, p.batch, p.hidden_size, p.input_size, p.cell_cnt);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

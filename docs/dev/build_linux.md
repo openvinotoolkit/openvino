@@ -11,7 +11,7 @@ The software was validated on:
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
-- Python 3.7 - 3.11 for OpenVINO Runtime Python API
+- Python 3.8 - 3.11 for OpenVINO Runtime Python API
 - (Optional) Install Intel® Graphics Compute Runtime for OpenCL™ Driver package to enable inference on Intel integrated GPUs. Select a driver package from the table below depending on what version of Ubuntu you are installing on.
 
   | Ubuntu | Driver package |
@@ -72,11 +72,9 @@ You can use the following additional build options:
      ```sh
      pip install -r requirements-dev.txt
      ```
-  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options:
+  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```
-     -DPYTHON_EXECUTABLE=`which python3.7` \
-     -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
-     -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
+     -DPython3_EXECUTABLE=/usr/bin/python3.8
      ```
   3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh
@@ -84,8 +82,8 @@ You can use the following additional build options:
      ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables: 
      ```
-     export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python_api/python3.7
-     export LD_LIBRARY_PATH=LD_LIBRARY_PATH:<openvino_repo>/bin/intel64/Release
+     export PYTHONPATH=<openvino_repo>/bin/intel64/Release/python:$PYTHONPATH
+     export LD_LIBRARY_PATH=<openvino_repo>/bin/intel64/Release:$LD_LIBRARY_PATH
      ```
      or install the wheel with pip:
      ```

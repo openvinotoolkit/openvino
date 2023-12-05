@@ -18,7 +18,7 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
     using kernel_params_t = std::pair<kernel_selector::experimental_detectron_topk_roi_params,
                                       kernel_selector::experimental_detectron_topk_roi_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_topk_rois_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_topk_rois_impl>(*this);

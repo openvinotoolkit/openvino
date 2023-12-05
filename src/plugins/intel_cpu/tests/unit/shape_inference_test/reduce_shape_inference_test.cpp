@@ -28,9 +28,8 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, default_ctor) {
     this->input_shapes = ShapeVector{{1, 6, 7, 8, 4}, {3}};
 
     int32_t axes_val[] = {0, 1, 3};
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
-        {1, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_val)}};
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{3}, axes_val}}};
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes, constant_data);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({1, 1, 7, 1, 4}));
@@ -43,7 +42,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_constant) {
     this->op = this->make_op(data, axes, false);
     this->input_shapes = {StaticShape{3, 6, 5, 8}, StaticShape{2}};
 
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 5}));
@@ -57,9 +56,8 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_param) {
     this->input_shapes = {StaticShape{3, 6, 5, 8}, StaticShape{2}};
 
     int32_t axes_val[] = {1, 3};
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
-        {1, std::make_shared<HostTensor>(element::i32, Shape{2}, axes_val)}};
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{2}, axes_val}}};
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes, constant_data);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 5}));
@@ -72,7 +70,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_constant_keep_dims) {
     this->op = this->make_op(data, axes, true);
     this->input_shapes = {StaticShape{3, 6, 5, 8}, StaticShape{2}};
 
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 1, 5, 1}));
@@ -86,9 +84,8 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_param_keep_dims) {
     this->input_shapes = {StaticShape{3, 6, 5, 8}, StaticShape{2}};
 
     int32_t axes_val[] = {1, 3};
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
-        {1, std::make_shared<HostTensor>(element::i32, Shape{2}, axes_val)}};
-    shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{2}, axes_val}}};
+    this->output_shapes = shape_inference(this->op.get(), this->input_shapes, constant_data);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 1, 5, 1}));

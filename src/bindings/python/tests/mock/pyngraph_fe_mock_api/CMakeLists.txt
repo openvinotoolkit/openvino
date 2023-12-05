@@ -12,6 +12,6 @@ pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::frontend::mock_py)
 
-add_clang_format_target(${PYBIND_FE_NAME}_clang FOR_TARGETS ${PYBIND_FE_NAME})
+ov_add_clang_format_target(${PYBIND_FE_NAME}_clang FOR_TARGETS ${PYBIND_FE_NAME})
 
 install(TARGETS ${PYBIND_FE_NAME} DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

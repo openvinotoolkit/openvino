@@ -6,9 +6,9 @@
 
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
@@ -29,8 +29,8 @@ protected:
 };
 
 void MemoryTestGna::CreateCommonFunc() {
-    auto param = builder::makeParams(ngPrc, {inputShape});
-    const auto variable_info = VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
+    ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    const auto variable_info = VariableInfo{inputShape, ngPrc, "v0"};
     auto variable = std::make_shared<Variable>(variable_info);
 
     auto min55 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-55.001678466796875f});
@@ -65,7 +65,6 @@ TEST_P(MemoryTestGna, CompareWithRefs) {
 std::vector<ngraph::helpers::MemoryTransformation> transformation{
     ngraph::helpers::MemoryTransformation::NONE,
     ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API,
     ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT};
 
 const std::vector<InferenceEngine::SizeVector> inShapes = {{1, 1}, {1, 2}, {1, 10}};
@@ -80,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest,
                                             ::testing::ValuesIn(iterationCount),
                                             ::testing::ValuesIn(inShapes),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          MemoryTest::getTestCaseName);
 
 }  // namespace

@@ -1,6 +1,23 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware
 ==============================================================================
 
+This notebook will provide you a way to see different precision models
+performing in different hardware. This notebook was done for showing
+case the use of Optimum-Intel-OpenVINO and it is not optimized for
+running multiple times.
+
+|image0|
+
+**Table of contents:**
+
+
+-  `Showing Info Available
+   Devices <#showing-info-available-devices>`__
+-  `Using full precision model in CPU with StableDiffusionPipeline <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__
+-  `Using full precision model in CPU with OVStableDiffusionPipeline <#using-full-precision-model-in-cpu-with-ovstablediffusionpipeline>`__
+-  `Using full precision model in dGPU with OVStableDiffusionPipeline <#using-full-precision-model-in-dgpu-with-ovstablediffusionpipeline>`__
+
+.. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
 Optimum Intel is the interface between the Transformers and Diffusers
 libraries and the different tools and libraries provided by Intel to
@@ -12,15 +29,15 @@ this
 
 .. code:: ipython3
 
-    %pip install -q "optimum-intel[openvino,diffusers]" "ipywidgets"
+    %pip install -q "optimum-intel[openvino,diffusers]" "ipywidgets" "transformers >= 4.31"
 
 .. code:: ipython3
 
     import warnings
     warnings.filterwarnings('ignore')
 
-Showing Info Available Devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Showing Info Available Devices 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -54,12 +71,14 @@ this
     GPU: Intel(R) Data Center GPU Flex 170 (dGPU)
 
 
-Using full precision model in CPU with StableDiffusionPipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in CPU with ``StableDiffusionPipeline`` 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
     from diffusers import StableDiffusionPipeline
+    
+    import gc
     
     model_id = "stabilityai/stable-diffusion-2-1-base"
     pipe = StableDiffusionPipeline.from_pretrained(model_id)
@@ -68,6 +87,9 @@ Using full precision model in CPU with StableDiffusionPipeline
     output_cpu = pipe(prompt, num_inference_steps=17).images[0]
     output_cpu.save("image_cpu.png")
     output_cpu
+    
+    del pipe
+    gc.collect()
 
 
 
@@ -106,8 +128,8 @@ Using full precision model in CPU with StableDiffusionPipeline
 
 
 
-Using full precision model in CPU with OVStableDiffusionPipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in CPU with ``OVStableDiffusionPipeline`` 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -195,8 +217,8 @@ Using full precision model in CPU with OVStableDiffusionPipeline
 
 
 
-Using full precision model in dGPU with OVStableDiffusionPipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in dGPU with ``OVStableDiffusionPipeline`` 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The model in this notebook is FP32 precision. And thanks to the new
 feature of OpenVINO 2023.0 you do not need to convert the model to FP16
@@ -221,18 +243,8 @@ for running the inference on GPU.
     output_gpu_ov = ov_pipe(prompt, num_inference_steps=17).images[0]
     output_gpu_ov.save("image_ov_gpu.png")
     output_gpu_ov
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/18 [00:00<?, ?it/s]
-
-
-
-
-.. image:: 236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_13_1.png
-
-
+    
+    del ov_pipe
+    gc.collect()
 
 

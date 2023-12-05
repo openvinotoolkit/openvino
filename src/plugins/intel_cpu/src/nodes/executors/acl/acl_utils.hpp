@@ -3,12 +3,33 @@
 //
 #pragma once
 
-#include "ie_precision.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "arm_compute/core/Types.h"
-
+// #include "openvino/core/type/element_type.hpp"
 namespace ov {
 namespace intel_cpu {
+
+/**
+* @brief ACL supports arm_compute::MAX_DIMS maximum. The method squashes the last
+* dimensions in order to comply with this limitation
+* @param dims vector of dimensions to squash
+* @return vector of dimensions that complies to ACL
+*/
+inline VectorDims collapse_dims_to_max_rank(VectorDims dims) {
+    const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
+    VectorDims result_dims(MAX_NUM_SHAPE - 1);
+    if (dims.size() >= MAX_NUM_SHAPE) {
+        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
+            result_dims[i] = dims[i];
+        }
+        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
+            result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
+        }
+    } else {
+        result_dims = dims;
+    }
+    return result_dims;
+}
 
 /**
 * @brief ACL handles NHWC specifically, it thinks it is NCHW, so we need to change layout manually:
@@ -54,19 +75,19 @@ inline Dim vectorProduct(const VectorDims& vec, size_t size) {
 * @param precision precision to be converted
 * @return ComputeLibrary DataType or UNKNOWN if precision is not mapped to DataType
 */
-inline arm_compute::DataType precisionToAclDataType(InferenceEngine::Precision precision) {
+inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision) {
     switch (precision) {
-        case InferenceEngine::Precision::I8:    return arm_compute::DataType::S8;
-        case InferenceEngine::Precision::U8:    return arm_compute::DataType::U8;
-        case InferenceEngine::Precision::I16:   return arm_compute::DataType::S16;
-        case InferenceEngine::Precision::U16:   return arm_compute::DataType::U16;
-        case InferenceEngine::Precision::I32:   return arm_compute::DataType::S32;
-        case InferenceEngine::Precision::U32:   return arm_compute::DataType::U32;
-        case InferenceEngine::Precision::FP16:  return arm_compute::DataType::F16;
-        case InferenceEngine::Precision::FP32:  return arm_compute::DataType::F32;
-        case InferenceEngine::Precision::FP64:  return arm_compute::DataType::F64;
-        case InferenceEngine::Precision::I64:   return arm_compute::DataType::S64;
-        case InferenceEngine::Precision::BF16:  return arm_compute::DataType::BFLOAT16;
+        case ov::element::i8:    return arm_compute::DataType::S8;
+        case ov::element::u8:    return arm_compute::DataType::U8;
+        case ov::element::i16:   return arm_compute::DataType::S16;
+        case ov::element::u16:   return arm_compute::DataType::U16;
+        case ov::element::i32:   return arm_compute::DataType::S32;
+        case ov::element::u32:   return arm_compute::DataType::U32;
+        case ov::element::f16:  return arm_compute::DataType::F16;
+        case ov::element::f32:  return arm_compute::DataType::F32;
+        case ov::element::f64:  return arm_compute::DataType::F64;
+        case ov::element::i64:   return arm_compute::DataType::S64;
+        case ov::element::bf16:  return arm_compute::DataType::BFLOAT16;
         default:                                return arm_compute::DataType::UNKNOWN;
     }
 }

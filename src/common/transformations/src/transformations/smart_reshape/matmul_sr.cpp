@@ -5,13 +5,11 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
 #include <memory>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -19,40 +17,35 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 
-bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap& pattern_to_output,
-                                         const std::shared_ptr<ngraph::Node>& matmul_label,
-                                         const std::shared_ptr<ngraph::Node>& reshape_label,
-                                         const std::shared_ptr<ngraph::Node>& other_input_label,
-                                         const std::shared_ptr<ngraph::Node>& reshape_pattern_label,
+bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMap& pattern_to_output,
+                                         const std::shared_ptr<ov::Node>& matmul_label,
+                                         const std::shared_ptr<ov::Node>& reshape_label,
+                                         const std::shared_ptr<ov::Node>& other_input_label,
+                                         const std::shared_ptr<ov::Node>& reshape_pattern_label,
                                          bool reshape_is_A_input) {
-    const auto& reshape_rank = pattern_to_output.at(reshape_label).get_partial_shape().rank();
-    const auto& matmul =
-        std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
-    if (!matmul || reshape_rank.is_dynamic() || reshape_rank.get_length() != 2)
+    const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+    if (!matmul)
         return false;
     const auto& shape_source = pattern_to_output.at(other_input_label);
-    if (ngraph::is_type<ov::op::v1::Transpose>(shape_source.get_node_shared_ptr()) ||
-        ngraph::is_type<ov::op::v1::Reshape>(shape_source.get_node_shared_ptr()))
+    if (ov::is_type<ov::op::v1::Transpose>(shape_source.get_node_shared_ptr()) ||
+        ov::is_type<ov::op::v1::Reshape>(shape_source.get_node_shared_ptr()))
         // avoiding loop creation
         return false;
 
-    const auto& raw_idx =
-        reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto& idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape_rank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    const auto& C =
-        std::make_shared<ov::op::v1::Gather>(std::make_shared<ov::op::v3::ShapeOf>(shape_source),
-                                             ov::op::v0::Constant::create(ngraph::element::i64, {idx.size()}, idx),
-                                             ov::op::v0::Constant::create(ngraph::element::i64, {}, {0}));
-    const auto& N = ov::op::v0::Constant::create(ngraph::element::i64, {1}, {-1});
-    const auto& pattern_vector =
-        reshape_is_A_input ? (matmul->get_transpose_a() ? ngraph::OutputVector({C, N}) : ngraph::OutputVector({N, C}))
-                           : (matmul->get_transpose_b() ? ngraph::OutputVector({N, C}) : ngraph::OutputVector({C, N}));
-    const auto& new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(pattern_vector, 0);
+    const auto idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
+    const auto C = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(shape_source),
+                                                        ov::op::v0::Constant::create(ov::element::i64, {1}, {idx}),
+                                                        ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+    const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    const auto pattern_vector = reshape_is_A_input
+                                    ? (matmul->get_transpose_a() ? ov::OutputVector({C, N}) : ov::OutputVector({N, C}))
+                                    : (matmul->get_transpose_b() ? ov::OutputVector({N, C}) : ov::OutputVector({C, N}));
+    const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(pattern_vector, 0);
 
     auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr();
     new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
@@ -68,8 +61,12 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
-    auto reshape_label = ngraph::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label});
-    auto matmul_label = ngraph::pattern::wrap_type<ov::op::v0::MatMul>({reshape_label, other_input_label});
+    auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
+    };
+    auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label},
+                                                                           reshape_predicate);
+    auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({reshape_label, other_input_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -80,7 +77,7 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
                                                    reshape_pattern_label,
                                                    true);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -89,8 +86,12 @@ ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
-    auto reshape_label = ngraph::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label});
-    auto matmul_label = ngraph::pattern::wrap_type<ov::op::v0::MatMul>({other_input_label, reshape_label});
+    auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
+    };
+    auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label},
+                                                                           reshape_predicate);
+    auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({other_input_label, reshape_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -101,13 +102,13 @@ ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
                                                    reshape_pattern_label,
                                                    false);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::TransposeMatMul::TransposeMatMul() {
     MATCHER_SCOPE(TransposeMatMul);
-    auto matmul_label = ngraph::pattern::wrap_type<ov::op::v0::MatMul>();
+    auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -116,7 +117,7 @@ ov::pass::TransposeMatMul::TransposeMatMul() {
         if (!matmul)
             return false;
 
-        auto transpose_is_fusable = [](const std::shared_ptr<ngraph::Node>& input) {
+        auto transpose_is_fusable = [](const std::shared_ptr<ov::Node>& input) {
             const auto& input_rank = input->get_output_partial_shape(0).rank();
             if (input_rank.is_static() && input_rank.get_length() >= 2) {
                 if (auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(input)) {
@@ -161,6 +162,6 @@ ov::pass::TransposeMatMul::TransposeMatMul() {
         }
         return false;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }

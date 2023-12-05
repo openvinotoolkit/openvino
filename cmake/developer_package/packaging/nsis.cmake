@@ -5,6 +5,8 @@
 macro(ov_nsis_specific_settings)
     # installation directory
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "Intel")
+    # License to be embedded in the installer
+    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
     # TODO: provide icons
     # set(CPACK_NSIS_MUI_ICON "")
@@ -44,6 +46,50 @@ endmacro()
 ov_nsis_specific_settings()
 
 #
+# ov_nsis_cpack_set_dirs()
+#
+# Set directories for ARCHIVE cpack
+#
+macro(ov_archive_cpack_set_dirs)
+    # common "archive" package locations
+    # TODO: move current variables to OpenVINO specific locations
+    set(OV_CPACK_INCLUDEDIR runtime/include)
+    set(OV_CPACK_IE_CMAKEDIR runtime/cmake)
+    set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake)
+    set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
+    set(OV_CPACK_DOCDIR docs)
+    set(OV_CPACK_LICENSESDIR licenses)
+    set(OV_CPACK_SAMPLESDIR samples)
+    set(OV_CPACK_WHEELSDIR tools)
+    set(OV_CPACK_TOOLSDIR tools)
+    set(OV_CPACK_DEVREQDIR tools)
+    set(OV_CPACK_PYTHONDIR python)
+
+    if(USE_BUILD_TYPE_SUBFOLDER)
+        set(build_type ${CMAKE_BUILD_TYPE})
+    else()
+        set(build_type $<CONFIG>)
+    endif()
+
+    if(WIN32)
+        set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/${build_type})
+        set(OV_CPACK_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/${build_type})
+        set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/${build_type})
+    elseif(APPLE)
+        set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/${build_type})
+        set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/${build_type})
+        set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/${build_type})
+    else()
+        set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER})
+        set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER})
+        set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER})
+    endif()
+    set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
+endmacro()
+
+ov_nsis_cpack_set_dirs()
+
+#
 # Override include / exclude rules for components
 # This is required to exclude some files from installation
 # (e.g. NSIS packages don't require wheels to be packacged)
@@ -67,6 +113,7 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    unset(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL)
     # tools
     unset(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL)

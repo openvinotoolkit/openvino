@@ -5,15 +5,15 @@
 #include "low_precision/squeeze.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/opsets/opset1.hpp"
+
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,7 +21,7 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
     MATCHER_SCOPE(SqueezeTransformation);
     auto matcher = pattern::wrap_type<opset1::Squeeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,18 +29,18 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool SqueezeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
-    auto squeezeOnConstant = [](const std::shared_ptr<ngraph::Node>& squeeze,
-                                const std::shared_ptr<ngraph::opset1::Constant>& dequantizationOpConstant,
-                                const ngraph::PartialShape& inputShape) {
+    auto squeezeOnConstant = [](const std::shared_ptr<ov::Node>& squeeze,
+                                const std::shared_ptr<ov::opset1::Constant>& dequantizationOpConstant,
+                                const ov::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
         const auto constantShape = dequantizationOpConstant->get_shape();
         if (shape_size(constantShape) == 1ul) {
@@ -80,4 +80,4 @@ bool SqueezeTransformation::canBeTransformed(const TransformationContext& contex
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

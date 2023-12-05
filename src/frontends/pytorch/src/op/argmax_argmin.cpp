@@ -21,7 +21,7 @@ using namespace ov::op;
 
 namespace {
 OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) {
-    num_inputs_check(context, 3, 3);
+    num_inputs_check(context, 2, 3);
     auto input = context.get_input(0);
     bool keep_dims = false;
     auto k = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));

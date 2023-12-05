@@ -45,8 +45,9 @@ static_assert((DEFAULT_FLOAT_TOLERANCE_BITS >= 0) && (DEFAULT_FLOAT_TOLERANCE_BI
 static_assert((DEFAULT_DOUBLE_TOLERANCE_BITS >= 0) && (DEFAULT_DOUBLE_TOLERANCE_BITS < DOUBLE_MANTISSA_BITS),
               "DEFAULT_DOUBLE_TOLERANCE_BITS must be in range [0, 53)");
 
-namespace ngraph {
+namespace ov {
 namespace test {
+namespace utils {
 
 // clang-format off
 /// \brief Check if the two f32 numbers are close
@@ -138,5 +139,6 @@ bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_B
                                        const std::vector<ov::Tensor>& bs,
                                        int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
                                        float min_signal = 0.0f);
+}  // namespace utils
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

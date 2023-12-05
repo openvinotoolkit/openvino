@@ -49,7 +49,7 @@ class paddle_frontend_converter:
             self.pdiparams = "{}.pdiparams".format(self.model_name)
             self.pdiparams_info = "{}.pdiparams.info".format(self.model_name)
 
-            import paddle # pylint: disable=import-error
+            import paddle  # pylint: disable=import-error
             if isinstance(self.model, paddle.hapi.model.Model):
                 self.model.save(self.model_name, False)
             else:
@@ -63,7 +63,7 @@ class paddle_frontend_converter:
                 elif isinstance(self.model, paddle.fluid.executor.Executor):
                     if self.outputs is None:
                         raise RuntimeError(
-                            "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'example_output' for this model"
+                            "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'output' for this model"
                         )
                     paddle.static.save_inference_model(self.model_name, self.inputs, self.outputs, self.model)
                 else:

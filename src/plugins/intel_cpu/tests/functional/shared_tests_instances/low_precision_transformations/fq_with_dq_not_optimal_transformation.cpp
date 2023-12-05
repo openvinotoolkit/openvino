@@ -6,10 +6,10 @@
 
 #include "low_precision_transformations/fake_quantize_with_dq_not_optimal_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
@@ -40,7 +40,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ngraph::element::f32, {}, false }
         },
         {},
-        "FP32"
+        "f32"
     },
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
@@ -59,7 +59,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ngraph::element::f32, {}, false }
         },
         {},
-        "I8"
+        "i8"
     },
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
@@ -78,7 +78,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ngraph::element::f32, {}, false }
         },
         {},
-        "FP32"
+        "f32"
     },
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
@@ -97,7 +97,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ngraph::element::f32, {}, false }
         },
         {},
-        "U8"
+        "u8"
     }
 };
 
@@ -105,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeWithNotOptimalTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),
     FakeQuantizeWithNotOptimalTransformation::getTestCaseName);

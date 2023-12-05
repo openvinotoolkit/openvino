@@ -19,7 +19,17 @@ void regclass_graph_op_If(py::module m) {
     py::class_<ov::op::v8::If, std::shared_ptr<ov::op::v8::If>, ov::Node> cls(m, "if_op");
     cls.doc() = "openvino.impl.op.If wraps ov::op::v0::If";
     cls.def(py::init<>());
-    cls.def(py::init<const ov::Output<ov::Node>&>(), py::arg("execution_condition"));
+    cls.def(py::init<const ov::Output<ov::Node>&>(),
+            py::arg("execution_condition"),
+            R"(
+            Constructs If with condition.
+
+            :param execution_condition: condition node.
+            :type execution_condition: openvino.runtime.Output
+
+            :rtype: openvino.impl.op.If
+        )");
+
     cls.def(py::init([](const std::shared_ptr<ov::Node>& execution_condition) {
                 if (MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
                     return std::make_shared<ov::op::v8::If>(execution_condition->output(0));
@@ -29,18 +39,124 @@ void regclass_graph_op_If(py::module m) {
                     return std::make_shared<ov::op::v8::If>();
                 }
             }),
-            py::arg("execution_condition"));
-    cls.def("get_else_body", &ov::op::v8::If::get_else_body);
-    cls.def("set_then_body", &ov::op::v8::If::set_then_body, py::arg("body"));
-    cls.def("set_else_body", &ov::op::v8::If::set_else_body, py::arg("body"));
+            py::arg("execution_condition"),
+            R"(
+            Constructs If with condition.
+
+            :param execution_condition: condition node.
+            :type execution_condition: openvino.runtime.Node
+
+            :rtype: openvino.impl.op.If
+        )");
+
+    cls.def(
+        "get_else_body",
+        [](ov::op::v8::If& self) {
+            auto model = self.get_else_body();
+            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            return model_class(py::cast(model));
+        },
+        R"(
+            Gets else_body as Model object.
+
+            :return: else_body as Model object.
+            :rtype: openvino.Model
+        )");
+
+    cls.def("set_then_body",
+            &ov::op::v8::If::set_then_body,
+            py::arg("body"),
+            R"(
+            Sets new Model object as new then_body.
+
+            :param body: new body for 'then' branch.
+            :type body: openvino.Model
+
+            :rtype: None
+        )");
+
+    cls.def("set_else_body",
+            &ov::op::v8::If::set_else_body,
+            py::arg("body"),
+            R"(
+            Sets new Model object as new else_body.
+
+            :param body: new body for 'else' branch.
+            :type body: openvino.Model
+
+            :rtype: None
+        )");
+
     cls.def("set_input",
             &ov::op::v8::If::set_input,
             py::arg("value"),
             py::arg("then_parameter"),
-            py::arg("else_parameter"));
-    cls.def("set_output", &ov::op::v8::If::set_output, py::arg("then_result"), py::arg("else_result"));
-    cls.def("get_function", &ov::op::util::MultiSubGraphOp::get_function, py::arg("index"));
-    cls.def("set_function", &ov::op::util::MultiSubGraphOp::set_function, py::arg("index"), py::arg("func"));
+            py::arg("else_parameter"),
+            R"(
+            Sets new input to the operation associated with parameters of each sub-graphs.
+
+            :param value: input to operation.
+            :type value: openvino.runtime.Output
+
+            :param then_result: parameter for then_body or nullptr.
+            :type then_result: openvino.runtime.Node
+
+            :param else_result: parameter for else_body or nullptr.
+            :type else_result: openvino.runtime.Node
+
+            :rtype: None
+        )");
+
+    cls.def("set_output",
+            &ov::op::v8::If::set_output,
+            py::arg("then_result"),
+            py::arg("else_result"),
+            R"(
+            Sets new output from the operation associated with results of each sub-graphs.
+
+            :param then_result: result from then_body.
+            :type then_result: openvino.runtime.Node
+
+            :param else_result: result from else_body.
+            :type else_result: openvino.runtime.Node
+
+            :return: output from operation.
+            :rtype: openvino.runtime.Output
+        )");
+
+    cls.def(
+        "get_function",
+        [](ov::op::v8::If& self, size_t index) {
+            auto model = self.get_function(index);
+            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            return model_class(py::cast(model));
+        },
+        py::arg("index"),
+        R"(
+            Gets internal sub-graph by index in MultiSubGraphOp.
+
+            :param index: sub-graph's index in op.
+            :type index: int
+            
+            :return: Model with sub-graph.
+            :rtype: openvino.Model
+        )");
+
+    cls.def("set_function",
+            &ov::op::util::MultiSubGraphOp::set_function,
+            py::arg("index"),
+            py::arg("func"),
+            R"(
+            Adds sub-graph to MultiSubGraphOp.
+
+            :param index: index of new sub-graph.
+            :type index: int
+
+            :param func: func new sub_graph as a Model.
+            :type func: openvino.Model
+
+            :rtype: None
+        )");
 
     cls.def(
         "set_input_descriptions",
@@ -48,7 +164,20 @@ void regclass_graph_op_If(py::module m) {
             self->set_input_descriptions(index, MultiSubgraphHelpers::list_to_input_descriptor(inputs));
         },
         py::arg("index"),
-        py::arg("inputs"));
+        py::arg("inputs"),
+        R"(
+            Sets list with connections between operation inputs and internal sub-graph parameters.
+
+            :param index: index of internal sub-graph.
+            :type index: int
+
+            :param inputs: list of input descriptions.
+            :type inputs: list[Union[openvino.runtime.op.util.MergedInputDescription,
+                                     openvino.runtime.op.util.InvariantInputDescription,
+                                     openvino.runtime.op.util.SliceInputDescription]]
+
+            :rtype: None
+        )");
 
     cls.def(
         "set_output_descriptions",
@@ -56,7 +185,19 @@ void regclass_graph_op_If(py::module m) {
             self->set_output_descriptions(index, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("index"),
-        py::arg("outputs"));
+        py::arg("outputs"),
+        R"(
+            Sets list with connections between operation outputs and internal sub-graph parameters.
+
+            :param index: index of internal sub-graph.
+            :type index: int
+
+            :param outputs: list of output descriptions.
+            :type outputs: list[Union[openvino.runtime.op.util.BodyOutputDescription,
+                                      openvino.runtime.op.util.ConcatOutputDescription]]
+
+            :rtype: None
+        )");
 
     cls.def(
         "get_output_descriptions",
@@ -69,7 +210,17 @@ void regclass_graph_op_If(py::module m) {
 
             return result;
         },
-        py::arg("index"));
+        py::arg("index"),
+        R"(
+            Gets list with connections between operation outputs and internal sub-graph parameters.
+
+            :param index: index of internal sub-graph.
+            :type index: int
+
+            :return: list of output descriptions.
+            :rtype: list[Union[openvino.runtime.op.util.BodyOutputDescription,
+                              openvino.runtime.op.util.ConcatOutputDescription]]
+        )");
 
     cls.def(
         "get_input_descriptions",
@@ -82,7 +233,18 @@ void regclass_graph_op_If(py::module m) {
 
             return result;
         },
-        py::arg("index"));
+        py::arg("index"),
+        R"(
+            Gets list with connections between operation inputs and internal sub-graph parameters.
+
+            :param index: index of internal sub-graph.
+            :type index: int
+
+            :return: list of input descriptions.
+            :rtype: list[Union[openvino.runtime.op.util.MergedInputDescription,
+                               openvino.runtime.op.util.InvariantInputDescription,
+                               openvino.runtime.op.util.SliceInputDescription]]
+        )");
 
     cls.def("__repr__", [](const ov::op::v8::If& self) {
         std::stringstream shapes_ss;

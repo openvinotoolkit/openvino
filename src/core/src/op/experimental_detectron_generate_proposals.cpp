@@ -9,7 +9,6 @@
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 
-using namespace std;
 namespace ov {
 namespace op {
 namespace v6 {
@@ -25,15 +24,15 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> ExperimentalDetectronGenerateProposalsSingleImage::clone_with_new_inputs(
+std::shared_ptr<Node> ExperimentalDetectronGenerateProposalsSingleImage::clone_with_new_inputs(
     const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ExperimentalDetectronGenerateProposalsSingleImage>(new_args.at(0),
-                                                                          new_args.at(1),
-                                                                          new_args.at(2),
-                                                                          new_args.at(3),
-                                                                          m_attrs);
+    return std::make_shared<ExperimentalDetectronGenerateProposalsSingleImage>(new_args.at(0),
+                                                                               new_args.at(1),
+                                                                               new_args.at(2),
+                                                                               new_args.at(3),
+                                                                               m_attrs);
 }
 
 bool ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {

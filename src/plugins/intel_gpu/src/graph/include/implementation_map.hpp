@@ -123,22 +123,22 @@ public:
 
     static void add(impl_types impl_type, shape_types shape_type, factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
-        add(impl_type, shape_type, factory, combine(types, formats));
+        add(impl_type, shape_type, std::move(factory), combine(types, formats));
     }
 
     static void add(impl_types impl_type, factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
-        add(impl_type, factory, combine(types, formats));
+        add(impl_type, std::move(factory), combine(types, formats));
     }
 
     static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
-        add(impl_type, shape_types::static_shape, factory, keys);
+        add(impl_type, shape_types::static_shape, std::move(factory), keys);
     }
 
     static void add(impl_types impl_type, shape_types shape_type, factory_type factory, std::set<key_type> keys) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
-        list_type::instance().push_back({impl_type, shape_type, keys, factory});
+        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory)});
     }
 
     static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {

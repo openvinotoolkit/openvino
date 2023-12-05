@@ -11,15 +11,18 @@
 #include <vector>
 #include "common/dnnl_executor.h"
 
+#include "executors/deconv_list.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void createPrimitive() override;
@@ -35,13 +38,13 @@ public:
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
-    const std::vector<ptrdiff_t>& getStride() const { return stride; }
+    const std::vector<ptrdiff_t>& getStride() const { return deconvAttrs.stride; }
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
@@ -55,6 +58,7 @@ protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
+    std::shared_ptr<DeconvExecutor> execPtrDeconv = nullptr;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -89,15 +93,12 @@ private:
     size_t groupNum = 1;
     size_t IC = 0;
     size_t OC = 0;
-    std::vector<ptrdiff_t> kernel;
-    std::vector<ptrdiff_t> stride;
-    std::vector<ptrdiff_t> dilation;
-    ov::CoordinateDiff paddingL;
-    ov::CoordinateDiff paddingR;
-    ov::CoordinateDiff outputPadding;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
     VectorDims expectedBiasDims {};
+
+    bool useACL = false;
+    DeconvAttrs deconvAttrs;
 
     Shape inShape;
 

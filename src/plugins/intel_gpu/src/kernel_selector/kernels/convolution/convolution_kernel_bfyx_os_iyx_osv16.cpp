@@ -50,6 +50,7 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDilation();
     k.EnableGroupedConvolution();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -128,7 +129,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         // if less than 16 values is required to compute one single row of output
         // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
         // performance results)
-        } else if (cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
+        } else if (!p.is_shape_agnostic && cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
             option.blockWidth = cp.outputs[0].X().v;
             option.blockHeight = 1;
             option.prefetch = 4;
@@ -153,7 +154,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
-    if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1) {
+    if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1)) {
         shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
     return option;

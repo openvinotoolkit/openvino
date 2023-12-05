@@ -9,26 +9,26 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset10 as ops
-from openvino.runtime import Core, Model
+from openvino import Core, Model
 from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
-from tests.test_utils.test_utils import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filename_for_test, compare_models
 
 def create_model():
     shape = [100, 100, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
-    model = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
-    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-    return func
+    floor_op = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
+    model = Model(floor_op, [parameter_a, parameter_b, parameter_c], "Model")
+    return model
 
 
 def test_constant_folding():
     node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ops.ceiling(node_constant)
-    model = Model(node_ceil, [], "TestFunction")
+    model = Model(node_ceil, [], "TestModel")
 
     assert count_ops_of_type(model, node_ceil) == 1
     assert count_ops_of_type(model, node_constant) == 1

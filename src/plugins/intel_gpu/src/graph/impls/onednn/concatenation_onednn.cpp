@@ -21,7 +21,7 @@ struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, dnnl::c
     using parent = typed_primitive_onednn_impl<concatenation, dnnl::concat::primitive_desc, dnnl::concat>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::concatenation_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -107,6 +107,8 @@ public:
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         _prim = dnnl::concat(_pd, prim_cache);
 #endif

@@ -32,7 +32,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseSubtractToFakeQuantizeTransformation,
         ::testing::Combine(
-            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+            ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(testValues)),
         FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

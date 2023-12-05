@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -29,10 +29,10 @@ public:
         std::tie(input_shapes, input_precision) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({input_shapes.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({input_shapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : input_shapes.second) {
-            result << CommonTestUtils::partialShape2str({shape}) << "_";
+            result << ov::test::utils::partialShape2str({shape}) << "_";
         }
         result << "Precision=" << input_precision;
         return result.str();
@@ -43,16 +43,17 @@ protected:
         InputShape input_shapes;
         ElementType input_precision;
         std::tie(input_shapes, input_precision) = GetParam();
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         init_input_shapes({input_shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(input_precision, inputDynamicShapes);
-        const VariableInfo variable_info { inputDynamicShapes[0], input_precision, "v0" };
-        auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(params.at(0), variable);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(input_precision, shape));
+        }
+        auto read_value = std::make_shared<ov::op::v3::ReadValue>(params.at(0), "v0");
         auto add = std::make_shared<ov::op::v1::Add>(read_value, params.at(0));
-        auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+        auto assign = std::make_shared<ov::op::v3::Assign>(add, "v0");
         auto res = std::make_shared<ov::op::v0::Result>(add);
         function = std::make_shared<ov::Model>(ResultVector { res }, SinkVector { assign }, params);
     }
@@ -71,8 +72,31 @@ protected:
 };
 
 TEST_P(ReadValueAssignGPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
-   run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+}
+
+TEST_P(ReadValueAssignGPUTest, CompareWithRefs_cached) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::stringstream ss;
+    ss << "gpu_model_cache_" << std::hash<std::string>{}(
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    std::string cacheDirName = ss.str();
+    {
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+        core->set_property(ov::cache_dir(cacheDirName));
+        compile_model();
+    }
+    {
+        run();
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+    }
 }
 
 namespace {

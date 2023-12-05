@@ -24,19 +24,19 @@ class ConvertMatMulToGemm;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMatMulToFC : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertMatMulToFC : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatMulToFC", "0");
     ConvertMatMulToFC();
 };
 
-class ngraph::pass::ConvertMatMulToGemm : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertMatMulToGemm : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatMulToGemm", "0");
     ConvertMatMulToGemm();
 };
 
-class ngraph::pass::ConvertMatMulToFCorGemm : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertMatMulToFCorGemm : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertMatMulToFCorGemm", "0");
     ConvertMatMulToFCorGemm() {

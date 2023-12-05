@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -41,7 +41,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_SIS=" << CommonTestUtils::vec2str(splitInputShape);
+        result << "_SIS=" << ov::test::utils::vec2str(splitInputShape);
         return result.str();
     }
 
@@ -51,7 +51,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -66,11 +66,13 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(splitInputShape), std::end(splitInputShape), 1, std::multiplies<size_t>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
         auto pattern1 =
             std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, splitInputShape);
         auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(reshape1, ngPrc, 2, 0);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto relu1 = std::make_shared<ngraph::opset8::Relu>(split->output(0));
         auto relu2 = std::make_shared<ngraph::opset8::Relu>(split->output(1));
@@ -102,7 +104,7 @@ const std::vector<std::vector<size_t>> shapes{{16, 24}, {8, 32}};
 INSTANTIATE_TEST_SUITE_P(smoke_conv_align_filter,
                          ConvolutionAlignFilterTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(shapes)),
                          ConvolutionAlignFilterTest::getTestCaseName);

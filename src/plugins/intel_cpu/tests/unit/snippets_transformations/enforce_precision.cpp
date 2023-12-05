@@ -12,7 +12,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "two_binary_ops_function.hpp"
+#include "two_binary_ops.hpp"
 
 namespace ov {
 namespace test {
@@ -27,7 +27,7 @@ public:
         const std::set<std::vector<element::Type>>& precisions2) : precisions1(precisions1), precisions2(precisions2) {
     }
 
-    std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& op) noexcept {
+    std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& op) noexcept {
         if (ov::is_type<ov::test::snippets::DummyOperation1>(op)) {
             return precisions1;
         } else if (ov::is_type<ov::test::snippets::DummyOperation2>(op)) {
@@ -126,7 +126,7 @@ public:
             std::ostringstream result;
             result << "{";
             for (const auto& precisions : precisions_pack) {
-                result << CommonTestUtils::vec2str(precisions) << "_";
+                result << ov::test::utils::vec2str(precisions) << "_";
             }
             result << "}";
             return result.str();
@@ -172,11 +172,11 @@ TEST_P(EnforcePrecisionTest, CompareFunctions) {
             test_values.expected.convertion_after_op2,
             test_values.expected.convertion_before_result
         });
-    function = function_stub.getOriginal();
+    model = function_stub.getOriginal();
 
     auto dummyPrecisionSelection = std::make_shared<DummyPrecisionSelection>(test_values.actual.precisions1, test_values.actual.precisions2);
 
-    auto get_supported_precisions = [dummyPrecisionSelection](const std::shared_ptr<ngraph::Node>& op) {
+    auto get_supported_precisions = [dummyPrecisionSelection](const std::shared_ptr<ov::Node>& op) {
         return dummyPrecisionSelection->get_supported_precisions(op);;
     };
 
@@ -185,7 +185,7 @@ TEST_P(EnforcePrecisionTest, CompareFunctions) {
         test_values.target,
         get_supported_precisions);
 
-    function_ref = function_stub.getReference();
+    model_ref = function_stub.getReference();
 }
 
 std::vector<std::pair<PartialShape, PartialShape>> shapes {

@@ -15,7 +15,7 @@ std::string AddOutputsTest::getTestCaseName(const testing::TestParamInfo<addOutp
     std::vector<std::string> outputsToAdd;
     std::string deviceName;
     std::tie(net, outputsToAdd, deviceName) = obj.param;
-    results << "Outputs:" << CommonTestUtils::vec2str<std::string>(outputsToAdd);
+    results << "Outputs:" << ov::test::utils::vec2str<std::string>(outputsToAdd);
     return results.str();
 }
 
