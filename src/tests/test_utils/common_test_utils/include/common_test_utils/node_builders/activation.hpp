@@ -7,6 +7,8 @@
 #include "common_test_utils/test_enums.hpp"
 #include "openvino/core/node.hpp"
 
+#pragma once
+
 namespace ov {
 namespace test {
 namespace utils {

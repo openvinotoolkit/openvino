@@ -290,7 +290,7 @@ PartialShape validate_and_infer_convolution_forward_output_shape(const Node* nod
 }
 
 //
-// Infers the output batch shape and element type for batched pooling fprop.
+// Infers the output batch shape for batched pooling fprop.
 //
 PartialShape infer_batched_pooling_forward(const Node* node,
                                            const PartialShape& data_batch_shape,
@@ -1208,117 +1208,14 @@ ov::PartialShape ov::infer_convolution_forward(const Node* node,
                                                const PartialShape& filters_shape,
                                                const Strides& filter_strides,
                                                const Strides& filter_dilation) {
-    Rank data_batch_filters_rank{Rank::dynamic()};
-
-    NODE_VALIDATION_CHECK(node,
-                          Rank::merge(data_batch_filters_rank, data_batch_shape.rank(), filters_shape.rank()),
-                          "Data batch and filters rank do not match (data batch shape: ",
-                          data_batch_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          data_batch_filters_rank.is_dynamic() || data_batch_filters_rank.get_length() >= 3,
-                          "Data batch and filters must have rank of at least 3 (one batch axis, ",
-                          "one input-channel axis, and at least one spatial dimension) ",
-                          "(data batch shape: ",
-                          data_batch_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
-
-    Rank spatial_rank{Rank::dynamic()};
-    NODE_VALIDATION_CHECK(node,
-                          Rank::merge(spatial_rank, spatial_rank, data_batch_filters_rank - 2) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_dilation.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_padding_below.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_padding_above.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, filter_strides.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, filter_dilation.size()),
-                          "Ranks for data item shape/filters shape (data batch has shape ",
-                          data_batch_shape,
-                          ", so data item rank is ",
-                          (data_batch_shape.rank() - 2),
-                          " and filters have shape ",
-                          filters_shape,
-                          ", so filters spatial rank is ",
-                          (filters_shape.rank() - 2),
-                          "), data dilation (",
-                          data_dilation,
-                          "), padding below (",
-                          data_padding_below,
-                          "), padding above (",
-                          data_padding_above,
-                          "), filter strides (",
-                          filter_strides,
-                          "), and filter dilation (",
-                          filter_dilation,
-                          ") do not match.");
-
-    Dimension batch_size = (data_batch_shape.rank().is_static() ? data_batch_shape[0] : Dimension::dynamic());
-    Dimension data_channel_count = (data_batch_shape.rank().is_static() ? data_batch_shape[1] : Dimension::dynamic());
-    PartialShape data_spatial_shape(PartialShape::dynamic(spatial_rank));
-
-    Dimension filter_output_channel_count =
-        (filters_shape.rank().is_static() ? filters_shape[0] : Dimension::dynamic());
-    Dimension filter_input_channel_count = (filters_shape.rank().is_static() ? filters_shape[1] : Dimension::dynamic());
-    PartialShape filter_spatial_shape(PartialShape::dynamic(spatial_rank));
-
-    //
-    // Note: spatial_rank is definitely static at this point.
-    //
-
-    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
-        if (data_batch_shape.rank().is_static()) {
-            data_spatial_shape[i] = data_batch_shape[i + 2];
-        }
-
-        if (filters_shape.rank().is_static()) {
-            filter_spatial_shape[i] = filters_shape[i + 2];
-        }
-    }
-
-    NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
-
-    Dimension merged_channel_count;
-
-    NODE_VALIDATION_CHECK(node,
-                          Dimension::merge(merged_channel_count, data_channel_count, filter_input_channel_count),
-                          "Data batch channel count (",
-                          data_channel_count,
-                          ") does not match filter input ",
-                          "channel count (",
-                          filter_input_channel_count,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          merged_channel_count.is_dynamic() || merged_channel_count.get_length() > 0,
-                          "Data batch channel count and/or filter input channel count is zero.");
-
-    NODE_VALIDATION_CHECK(node,
-                          filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
-                          "Filter output channel count is zero.");
-
-    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
-                                                                                   data_spatial_shape,
-                                                                                   data_dilation,
-                                                                                   data_padding_below,
-                                                                                   data_padding_above,
-                                                                                   filter_spatial_shape,
-                                                                                   filter_strides,
-                                                                                   filter_dilation,
-                                                                                   true);
-
-    PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
-    batch_output_shape[0] = batch_size;
-    batch_output_shape[1] = filter_output_channel_count;
-
-    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
-        batch_output_shape[i + 2] = data_output_shape[i];
-    }
-
-    return batch_output_shape;
+    return ov::util::infer_convolution_forward(node,
+                                               data_batch_shape,
+                                               data_dilation,
+                                               data_padding_below,
+                                               data_padding_above,
+                                               filters_shape,
+                                               filter_strides,
+                                               filter_dilation);
 }
 
 namespace ov {
@@ -1441,6 +1338,127 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     return std::any_of(others.begin(), others.end(), [&r](const Rank& other) {
         return r.compatible(other);
     });
+}
+
+PartialShape infer_convolution_forward(const Node* node,
+                                       const PartialShape& data_batch_shape,
+                                       const Strides& data_dilation,
+                                       const CoordinateDiff& data_padding_below,
+                                       const CoordinateDiff& data_padding_above,
+                                       const PartialShape& filters_shape,
+                                       const Strides& filter_strides,
+                                       const Strides& filter_dilation) {
+    Rank data_batch_filters_rank{Rank::dynamic()};
+
+    NODE_VALIDATION_CHECK(node,
+                          Rank::merge(data_batch_filters_rank, data_batch_shape.rank(), filters_shape.rank()),
+                          "Data batch and filters rank do not match (data batch shape: ",
+                          data_batch_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          data_batch_filters_rank.is_dynamic() || data_batch_filters_rank.get_length() >= 3,
+                          "Data batch and filters must have rank of at least 3 (one batch axis, ",
+                          "one input-channel axis, and at least one spatial dimension) ",
+                          "(data batch shape: ",
+                          data_batch_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    Rank spatial_rank{Rank::dynamic()};
+    NODE_VALIDATION_CHECK(node,
+                          Rank::merge(spatial_rank, spatial_rank, data_batch_filters_rank - 2) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_dilation.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_padding_below.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_padding_above.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, filter_strides.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, filter_dilation.size()),
+                          "Ranks for data item shape/filters shape (data batch has shape ",
+                          data_batch_shape,
+                          ", so data item rank is ",
+                          (data_batch_shape.rank() - 2),
+                          " and filters have shape ",
+                          filters_shape,
+                          ", so filters spatial rank is ",
+                          (filters_shape.rank() - 2),
+                          "), data dilation (",
+                          data_dilation,
+                          "), padding below (",
+                          data_padding_below,
+                          "), padding above (",
+                          data_padding_above,
+                          "), filter strides (",
+                          filter_strides,
+                          "), and filter dilation (",
+                          filter_dilation,
+                          ") do not match.");
+
+    Dimension batch_size = (data_batch_shape.rank().is_static() ? data_batch_shape[0] : Dimension::dynamic());
+    Dimension data_channel_count = (data_batch_shape.rank().is_static() ? data_batch_shape[1] : Dimension::dynamic());
+    PartialShape data_spatial_shape(PartialShape::dynamic(spatial_rank));
+
+    Dimension filter_output_channel_count =
+        (filters_shape.rank().is_static() ? filters_shape[0] : Dimension::dynamic());
+    Dimension filter_input_channel_count = (filters_shape.rank().is_static() ? filters_shape[1] : Dimension::dynamic());
+    PartialShape filter_spatial_shape(PartialShape::dynamic(spatial_rank));
+
+    //
+    // Note: spatial_rank is definitely static at this point.
+    //
+
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
+        if (data_batch_shape.rank().is_static()) {
+            data_spatial_shape[i] = data_batch_shape[i + 2];
+        }
+
+        if (filters_shape.rank().is_static()) {
+            filter_spatial_shape[i] = filters_shape[i + 2];
+        }
+    }
+
+    NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
+
+    Dimension merged_channel_count;
+
+    NODE_VALIDATION_CHECK(node,
+                          Dimension::merge(merged_channel_count, data_channel_count, filter_input_channel_count),
+                          "Data batch channel count (",
+                          data_channel_count,
+                          ") does not match filter input ",
+                          "channel count (",
+                          filter_input_channel_count,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          merged_channel_count.is_dynamic() || merged_channel_count.get_length() > 0,
+                          "Data batch channel count and/or filter input channel count is zero.");
+
+    NODE_VALIDATION_CHECK(node,
+                          filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
+                          "Filter output channel count is zero.");
+
+    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
+                                                                                   data_spatial_shape,
+                                                                                   data_dilation,
+                                                                                   data_padding_below,
+                                                                                   data_padding_above,
+                                                                                   filter_spatial_shape,
+                                                                                   filter_strides,
+                                                                                   filter_dilation,
+                                                                                   true);
+
+    PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
+    batch_output_shape[0] = batch_size;
+    batch_output_shape[1] = filter_output_channel_count;
+
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
+        batch_output_shape[i + 2] = data_output_shape[i];
+    }
+
+    return batch_output_shape;
 }
 }  // namespace util
 }  // namespace ov
