@@ -4,13 +4,15 @@
 
 #pragma once
 
-#include <string>
-#include "ie_system_conf.h"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include <exec_graph_info.hpp>
-#include <openvino/runtime/compiled_model.hpp>
+
+// To be removed
 #include "ie_system_conf.h"
+#include "exec_graph_info.hpp"
 
 namespace CPUTestUtils {
     typedef enum {

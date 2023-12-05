@@ -8,7 +8,6 @@ using namespace LayerTestsDefinitions;
 
 namespace CPUTestUtils {
 
-
 std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
     std::ostringstream result;
     std::vector<std::string> fusedOps;
@@ -78,7 +77,7 @@ void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<cons
 
 std::shared_ptr<ov::Node>
 postFunctionMgr::addPostOps(const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) const {
-    auto clonedPostFunction = ngraph::clone_function(*_pFunction);
+    auto clonedPostFunction = ov::clone_model(*_pFunction);
     clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
     clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
     return clonedPostFunction->get_result()->get_input_node_shared_ptr(0);
