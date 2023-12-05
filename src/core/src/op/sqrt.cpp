@@ -41,10 +41,13 @@ bool Sqrt::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& in_shape = inputs[0].get_shape();
     outputs[0].set_shape(in_shape);
     using namespace ov::element;
-    return IfTypeOf<f16, f32, f64, i32, i64, u32, u64>::apply<sqrt::Evaluate>(inputs[0].get_element_type(),
-                                                                              inputs[0],
-                                                                              outputs[0],
-                                                                              shape_size(in_shape));
+    return IF_TYPE_OF(v0_Sqrt_evaluate,
+                      OV_PP_ET_LIST(f16, f32, f64, i32, i64, u32, u64),
+                      sqrt::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      shape_size(in_shape));
 }
 
 bool Sqrt::has_evaluate() const {

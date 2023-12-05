@@ -135,10 +135,15 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32>::apply<fake_convert_details::Evaluate>(inputs[0].get_element_type(),
-                                                                           outputs,
-                                                                           inputs,
-                                                                           get_destination_type());
+    return IF_TYPE_OF(v13_FakeConvert_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32),
+                      fake_convert_details::Evaluate,
+                      inputs[0].get_element_type(),
+                      outputs,
+                      inputs,
+                      get_destination_type());
+
+    return true;
 }
 }  // namespace v13
 }  // namespace op

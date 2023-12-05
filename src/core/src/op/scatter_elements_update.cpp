@@ -101,16 +101,19 @@ struct Evaluate : public element::NoAction<bool> {
 
     ) {
         using namespace ov::element;
-        return IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<EvaluateByIndicesType>(indices.get_element_type(),
-                                                                                            data.data<const DT>(),
-                                                                                            indices,
-                                                                                            updates.data<const DT>(),
-                                                                                            output.data<DT>(),
-                                                                                            data_shape,
-                                                                                            indices_shape,
-                                                                                            axis,
-                                                                                            reduction,
-                                                                                            use_init_value);
+        return IF_TYPE_OF(scatter_el_update_idx_type,
+                          OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
+                          EvaluateByIndicesType,
+                          indices.get_element_type(),
+                          data.data<const DT>(),
+                          indices,
+                          updates.data<const DT>(),
+                          output.data<DT>(),
+                          data_shape,
+                          indices_shape,
+                          axis,
+                          reduction,
+                          use_init_value);
     }
 
 private:
@@ -156,18 +159,21 @@ bool evaluate(TensorVector& outputs,
     const auto& data_shape = data.get_shape();
     const auto& indices_shape = indices.get_shape();
     output.set_shape(data_shape);
+
     using namespace ov::element;
-    return IfTypeOf<boolean, f16, f32, i16, i32, i64, u32, u64>::apply<scatter_elements_update::Evaluate>(
-        data.get_element_type(),
-        data,
-        indices,
-        updates,
-        output,
-        data_shape,
-        indices_shape,
-        axis,
-        reduction,
-        use_init_value);
+    return IF_TYPE_OF(scatter_evaluate,
+                      OV_PP_ET_LIST(boolean, f16, f32, i16, i32, i64, u32, u64),
+                      scatter_elements_update::Evaluate,
+                      data.get_element_type(),
+                      data,
+                      indices,
+                      updates,
+                      output,
+                      data_shape,
+                      indices_shape,
+                      axis,
+                      reduction,
+                      use_init_value);
 }
 }  // namespace
 }  // namespace scatter_elements_update

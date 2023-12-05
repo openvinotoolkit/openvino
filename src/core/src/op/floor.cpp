@@ -44,11 +44,13 @@ bool Floor::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(in_shape);
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<floor::Evaluate>(
-        inputs[0].get_element_type(),
-        inputs[0],
-        outputs[0],
-        shape_size(in_shape));
+    return IF_TYPE_OF(v0_Floor_evaluate,
+                      OV_PP_ET_LIST(f16, f32, i8, i16, i32, i64, u8, u16, u32, u64),
+                      floor::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      shape_size(in_shape));
 }
 
 bool Floor::has_evaluate() const {

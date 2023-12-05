@@ -119,11 +119,14 @@ bool Range::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto step = get_tensor_data_as<double>(inputs[2])[0];
 
     using namespace ov::element;
-    return IfTypeOf<RANGE_ET_LIST>::apply<range::Evaluate>(out.get_element_type(),
-                                                           start,
-                                                           step,
-                                                           shape_size(out_shape),
-                                                           out);
+    return IF_TYPE_OF(v4_Range_evaluate,
+                      RANGE_ET_LIST,
+                      range::Evaluate,
+                      out.get_element_type(),
+                      start,
+                      step,
+                      shape_size(out_shape),
+                      out);
 }
 
 bool Range::has_evaluate() const {
@@ -199,11 +202,14 @@ bool Range::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     out.set_shape(out_shape);
 
     using namespace ov::element;
-    return IfTypeOf<RANGE_ET_LIST>::apply<range::Evaluate>(out.get_element_type(),
-                                                           start,
-                                                           step,
-                                                           shape_size(out_shape),
-                                                           out);
+    return IF_TYPE_OF(v0_Range_evaluate,
+                      RANGE_ET_LIST,
+                      range::Evaluate,
+                      out.get_element_type(),
+                      start,
+                      step,
+                      shape_size(out_shape),
+                      out);
 }
 
 bool Range::has_evaluate() const {

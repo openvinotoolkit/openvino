@@ -47,13 +47,16 @@ bool Multiply::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
 
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, f64, i32, i64, u32, u64>::apply<multiply::Evaluate>(inputs[0].get_element_type(),
-                                                                                        inputs[0],
-                                                                                        inputs[1],
-                                                                                        outputs[0],
-                                                                                        inputs[0].get_shape(),
-                                                                                        inputs[1].get_shape(),
-                                                                                        get_autob());
+    return IF_TYPE_OF(v1_Multiply_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32, f64, i32, i64, u32, u64),
+                      multiply::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      inputs[1].get_shape(),
+                      get_autob());
 }
 
 bool Multiply::has_evaluate() const {

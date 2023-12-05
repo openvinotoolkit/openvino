@@ -55,12 +55,15 @@ bool PRelu::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     out.set_shape(arg_shape);
 
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, i8>::apply<prelu::Evaluate>(inputs[0].get_element_type(),
-                                                                inputs[0],
-                                                                inputs[1],
-                                                                out,
-                                                                arg_shape,
-                                                                inputs[1].get_shape());
+    return IF_TYPE_OF(v0_PRelu_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32, i8),
+                      prelu::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      out,
+                      arg_shape,
+                      inputs[1].get_shape());
 }
 
 bool PRelu::has_evaluate() const {
