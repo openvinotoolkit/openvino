@@ -100,6 +100,7 @@ OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER_NAMED(translate_max_pool_with_argmax);
 OP_CONVERTER(translate_mirror_pad_op);
+OP_CONVERTER(translate_mul_no_nan_op);
 OP_CONVERTER_NAMED(translate_non_max_suppression_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
