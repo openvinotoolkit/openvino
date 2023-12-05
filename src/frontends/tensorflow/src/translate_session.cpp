@@ -4,6 +4,7 @@
 
 #include "translate_session.hpp"
 
+#include "helper_ops/complex_type_mark.hpp"
 #include "helper_ops/enter.hpp"
 #include "helper_ops/loop_cond.hpp"
 #include "helper_ops/merge.hpp"
@@ -322,7 +323,8 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 }
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
-                                       std::shared_ptr<ov::Model>& ov_model) {
+                                       std::shared_ptr<ov::Model>& ov_model,
+                                       const ov::OutputVector& ov_inputs) {
     OpMap ng_op_map;
     ControlDepsMap control_deps_map;
     std::vector<std::shared_ptr<LoopCond>> loop_cond_ops;
@@ -349,11 +351,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         ng_op_map[frozen_input_name] = {frozen_input_value};
     }
     // create parameter nodes for all tensor places corresponding to inputs
+    size_t idx = 0;
     for (const auto& input_place : model_inputs) {
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
         auto input_name = input_place->get_names()[0];
         if (ng_op_map.count(input_name)) {
             // probably this input is frozen
+            idx++;
             continue;
         }
         const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
@@ -368,14 +372,35 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
-        params.push_back(param);
-        ng_op_map[input_name] = {NamedOutput(param)};
+        if (ov_inputs.size() == 0) {
+            params.push_back(param);
+            ng_op_map[input_name] = {NamedOutput(param)};
+            idx++;
+            continue;
+        }
+        auto complex_type_mark = as_type_ptr<ComplexTypeMark>(ov_inputs[idx].get_node_shared_ptr());
+        idx++;
+        if (complex_type_mark) {
+            element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+            auto complex_param = std::make_shared<ComplexTypeMark>(param, complex_part_type);
+
+            params.push_back(param);
+            ng_op_map[input_name] = {NamedOutput(complex_param)};
+
+        } else {
+            params.push_back(param);
+            ng_op_map[input_name] = {NamedOutput(param)};
+        }
     }
 
     // create the OV ops from TensorFlow ops
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
+        // if (operation_name== "Const_3") {
+        //     std::cout << "ok" << std::endl;
+
+        // }
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -470,8 +495,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                    operation_place->get_output_ports().size(),
                                                                    operation_name,
                                                                    ex.what());
+                std::cout << ex.what() << std::endl;
                 ov_outputs = named_from_indexed(fw_outs);
             } catch (...) {
+                std::cout << "unknown exception" << std::endl;
                 // save unknown exception type
                 const auto fw_outs = create_fw_node_with_exception(operation_decoder,
                                                                    ov_inputs,
@@ -560,7 +587,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
-                    result_node->set_friendly_name(model_output_name + ":0");
+                    result_node->set_friendly_name(model_output_name + ":0");  // fail
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -660,6 +687,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     // during translation and topologically sorting this order could be lost
     auto input_names = model_tf->get_input_names();
     auto output_names = model_tf->get_output_names();
+
+    // ov::ParameterVector ordered_params =  params;
+    // ov::ResultVector ordered_results = results;
+
     ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
@@ -672,6 +703,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     }
 
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
+    // ov::serialize(ov_model, "/home/panas/Desktop/out/test/model.xml");
+    // size_t count = 0;
+    // for (auto node : ov_model->get_ops()) {
+    //     if (as_type_ptr<ComplexTypeMark>(node)) {
+    //         count++;
+    //     }
+    // }
+
+    // std::cout << "ComplexTypeMark: " << count << " Total: " << ov_model->get_ops().size() << " ";
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,
@@ -684,8 +724,16 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
     std::vector<ov::element::Type> input_types;
     input_types.reserve(ov_inputs.size());
     for (const auto& ov_input : ov_inputs) {
-        input_shapes.push_back(ov_input.get_partial_shape());
-        input_types.push_back(ov_input.get_element_type());
+        auto complex_type_mark = as_type_ptr<ComplexTypeMark>(ov_input.get_node_shared_ptr());
+        if (complex_type_mark) {
+            auto ov_input_complex = complex_type_mark->input_value(0);
+            input_shapes.push_back(ov_input_complex.get_partial_shape());
+            input_types.push_back(ov_input_complex.get_element_type());
+
+        } else {
+            input_shapes.push_back(ov_input.get_partial_shape());
+            input_types.push_back(ov_input.get_element_type());
+        }
     }
     CachedBodyModelSignature body_model_signature{body_graph_name, input_shapes, input_types};
 
@@ -739,7 +787,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
         }
 
         // try to find a function by name in the model library
-        translate_graph(body_input_model, body_model);
+        translate_graph(body_input_model, body_model, ov_inputs);
         // save new instance of body_model in the cache of body models
         // before its injection into the parent graph
 
@@ -755,6 +803,8 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
 
         auto cached_body_model = body_model->clone();
         update_cached_body_models(body_model_signature, cached_body_model);
+        // std::cout << body_graph_name << std::endl;
+        // ov::serialize(body_model, "/home/panas/Desktop/out/test/" + body_graph_name + ".xml");
     }
     return body_model;
 }

@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "input_model.hpp"
 #include "tf_utils.hpp"
 
@@ -14,7 +15,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_partitioned_call_op(const NodeContext& node) {
-    default_op_checks(node, 0, {"PartitionedCall", "StatefulPartitionedCall"});
+    default_op_checks(node, 0, {"PartitionedCall", "StatefulPartitionedCall"}, true);
     auto node_name = node.get_name();
     auto translate_session = node.get_translate_session();
     FRONT_END_GENERAL_CHECK(translate_session, "[TensorFlow Frontend] Internal error: Translate session is nullptr.");

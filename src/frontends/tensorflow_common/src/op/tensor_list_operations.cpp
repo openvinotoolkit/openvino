@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <climits>
+
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -11,6 +13,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -220,6 +223,39 @@ OutputVector translate_tensor_list_length_op(const NodeContext& node) {
 
     set_node_name(node.get_name(), list_length);
     return {list_length};
+}
+
+OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"TensorListConcatV2"});
+    auto input_handle = node.get_input(0);
+    auto size = node.get_input(1);
+
+    std::vector<int64_t> leading_dims;
+    get_const_input(node, 2, &leading_dims);
+
+    TENSORFLOW_OP_VALIDATION(node,
+                             leading_dims.size() == 0,
+                             "TensorListConcatV2 is not supported for non-empty leading_dims.");
+
+    // create auxiliary constants
+    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    const auto int_max = make_shared<v0::Constant>(element::i32, Shape{1}, INT_MAX);
+
+    auto tensor_list_shape = make_shared<v3::ShapeOf>(input_handle, element::i32);
+    auto list_length = make_shared<v8::Slice>(tensor_list_shape, zero_const, one_const, one_const);
+
+    auto dim_to_concat = make_shared<v8::Slice>(size, zero_const, one_const, one_const);
+    auto remaining_dims = make_shared<v8::Slice>(size, one_const, int_max, one_const);
+
+    auto concatinated_dim_length = make_shared<v1::Multiply>(dim_to_concat, list_length);
+    auto new_shape = make_shared<v0::Concat>(OutputVector{concatinated_dim_length, remaining_dims}, 0);
+
+    auto out = make_shared<v1::Reshape>(input_handle, new_shape, false);
+
+    set_node_name(node.get_name(), out);
+
+    return {out};
 }
 
 }  // namespace op

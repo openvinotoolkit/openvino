@@ -34,6 +34,11 @@ class TestStridedSlice(CommonTFLayerTest):
              begin_mask=0, end_mask=0, ellipsis_mask=0, new_axis_mask=8, shrink_axis_mask=0),
         dict(input_shape=[3, 4, 5, 7], begin_value=[2, 0, 3], end_value=[3, 0, 6], strides_value=[1, 1, 1],
              begin_mask=6, end_mask=6, ellipsis_mask=2, new_axis_mask=0, shrink_axis_mask=1),
+        dict(input_shape=[1, 4, 7, 2], begin_value=[0, 0, 0], end_value=[0, 6, 0], strides_value=[1, 1, 1],
+             begin_mask=6, end_mask=4, ellipsis_mask=1, new_axis_mask=0, shrink_axis_mask=0),
+
+        dict(input_shape=[1, 4, 7, 2], begin_value=[0, 0, 0], end_value=[0, 6, 0], strides_value=[1, 1, 1],
+             begin_mask=6, end_mask=4, ellipsis_mask=1, new_axis_mask=8, shrink_axis_mask=0),
     ]
 
     @pytest.mark.parametrize('params', test_basic_data)

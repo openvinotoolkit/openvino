@@ -23,9 +23,9 @@ namespace tensorflow {
 void set_node_name(const string& node_name, const shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
     node->set_friendly_name(node_name);
-    if (outputs.size() == 1) {
-        set_out_name(node_name, outputs[0]);
-    }
+    // if (outputs.size() == 1) {
+    //     set_out_name(node_name, outputs[0]);
+    // }
     for (size_t idx = 0; idx < outputs.size(); ++idx) {
         set_out_name({node_name + ":" + to_string(idx)}, outputs[idx]);
     }
@@ -267,6 +267,9 @@ void default_op_checks(const frontend::NodeContext& node,
         auto node_input = node.get_input(input_ind);
         if (as_type_ptr<ComplexTypeMark>(node_input.get_node_shared_ptr())) {
             has_input_complex_type = true;
+            // std::cout << node.get_name() << "<-"
+            //           << node_input.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_friendly_name()
+            //           << std::endl;
             break;
         }
     }

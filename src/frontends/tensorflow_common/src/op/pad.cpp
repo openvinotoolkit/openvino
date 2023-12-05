@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "utils.hpp"
 
@@ -29,12 +30,37 @@ static void slice_pads_begin_end(const Output<Node>& paddings,
 static OutputVector translate_pad_base_op(const NodeContext& node,
                                           const Output<Node>& input,
                                           const Output<Node>& paddings,
-                                          const Output<Node>& constant_value) {
+                                          const Output<Node>& constant_value,
+                                          const shared_ptr<ComplexTypeMark>& complex_type_mark) {
     auto pad_mode = ov::op::PadMode::CONSTANT;
 
     // prepare pads_begin and pads_end for OpenVINO Pad
     shared_ptr<Node> pads_begin, pads_end;
     slice_pads_begin_end(paddings, pads_begin, pads_end);
+
+    if (complex_type_mark) {
+        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+
+        auto const_zero = make_shared<Constant>(element::i64, Shape{1}, 0);
+
+        OutputVector concat_inputs1;
+        concat_inputs1.push_back(pads_begin);
+        concat_inputs1.push_back(const_zero);
+
+        auto new_pads_begin = make_shared<Concat>(concat_inputs1, 0);
+
+        OutputVector concat_inputs2;
+        concat_inputs2.push_back(pads_end);
+        concat_inputs2.push_back(const_zero);
+
+        auto new_pads_end = make_shared<Concat>(concat_inputs2, 0);
+
+        auto pad_complex = make_shared<Pad>(input, new_pads_begin, new_pads_end, constant_value, pad_mode);
+        set_node_name(node.get_name(), pad_complex);
+
+        auto pad_complex1 = make_shared<ComplexTypeMark>(pad_complex, complex_part_type);
+        return {pad_complex1->output(0)};
+    }
 
     auto pad = make_shared<Pad>(input, pads_begin, pads_end, constant_value, pad_mode);
     set_node_name(node.get_name(), pad);
@@ -42,12 +68,16 @@ static OutputVector translate_pad_base_op(const NodeContext& node,
 }
 
 OutputVector translate_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Pad"});
+    default_op_checks(node, 2, {"Pad"}, true);
     auto input = node.get_input(0);
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    if (complex_type_mark) {
+        input = complex_type_mark->input_value(0);
+    }
     auto paddings = node.get_input(1);
     auto constant_value = create_same_type_const_scalar<int32_t>(input, 0);
 
-    return translate_pad_base_op(node, input, paddings, constant_value);
+    return translate_pad_base_op(node, input, paddings, constant_value, complex_type_mark);
 }
 
 OutputVector translate_padv2_op(const NodeContext& node) {
@@ -56,7 +86,7 @@ OutputVector translate_padv2_op(const NodeContext& node) {
     auto paddings = node.get_input(1);
     auto constant_value = node.get_input(2);
 
-    return translate_pad_base_op(node, input, paddings, constant_value);
+    return translate_pad_base_op(node, input, paddings, constant_value, nullptr);
 }
 
 OutputVector translate_mirror_pad_op(const NodeContext& node) {

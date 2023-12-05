@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "helper_ops/complex_type_mark.hpp"
 #include "helper_ops/merge.hpp"
 #include "helper_ops/switch.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -478,12 +479,17 @@ void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
                 }
             }
         }
+        auto ov_input = ov_inputs[ext_found_ind];
+        auto complex_type_mark = as_type_ptr<ComplexTypeMark>(ov_input.get_node_shared_ptr());
+        if (complex_type_mark) {
+            ov_input = complex_type_mark->input_value(0);
+        }
 
         auto orig_type = body_parameters[param_ind]->get_element_type();
         // avoid not needed tensor names from body graph Parameter node after replacing
         body_parameters[param_ind]->output(0).set_names({});
-        body_parameters[param_ind]->output(0).replace(ov_inputs[ext_found_ind]);
-        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[ext_found_ind].get_node_shared_ptr())) {
+        body_parameters[param_ind]->output(0).replace(ov_input);
+        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_input.get_node_shared_ptr())) {
             // save type of a Parameter as converted in the body
             // this is important if the external conversion extension is applied to body graph node
             // with setting its own type
