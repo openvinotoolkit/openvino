@@ -73,18 +73,16 @@ void Assign::validate_and_infer_types() {
     const auto& input_type = get_input_element_type(0);
     const auto& input_shape = get_input_partial_shape(0);
 
-    OPENVINO_ASSERT(input_type.compatible(variable_type),
-                    "The type specified in the Variable is not compatible with the input type.",
-                    " Input type: ",
-                    input_type,
-                    " Variable type: ",
-                    variable_type);
-    OPENVINO_ASSERT(input_shape.compatible(variable_shape),
-                    "The shape specified in the Variable is not compatible with the shape of the input.",
-                    " Input shape: ",
-                    input_shape,
-                    " Variable shape: ",
-                    variable_shape);
+    NODE_VALIDATION_CHECK(this,
+                          input_type.compatible(variable_type),
+                          "The type specified in the Variable is not compatible with the input type."
+                          " Variable type: ",
+                          variable_type);
+    NODE_VALIDATION_CHECK(this,
+                          input_shape.compatible(variable_shape),
+                          "The shape specified in the Variable is not compatible with the shape of the input."
+                          " Variable shape: ",
+                          variable_shape);
     set_output_type(0, input_type, input_shape);
 }
 
