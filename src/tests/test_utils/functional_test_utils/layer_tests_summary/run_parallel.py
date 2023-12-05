@@ -873,7 +873,7 @@ class TestParallelRunner:
             )
             if os.path.isfile(interapted_log_path):
                 test_cnt_real_saved_now += 1
-        if self._is_save_cache and os.path.isfile(self._cache_path):
+        if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w", encoding=constants.ENCODING) as cache_file:
                 cache_file.writelines(
