@@ -3,8 +3,8 @@
 //
 #include <random>
 
+#include "openvino/frontend/common/random_normal_helper.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/frontend/utils/random_normal.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"

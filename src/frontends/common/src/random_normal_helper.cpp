@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
+#include "openvino/frontend/common/random_normal_helper.hpp"
 
-#include "ngraph/op/reshape.hpp"
 #include "ngraph/output_vector.hpp"
-#include "openvino/frontend/visibility.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -17,19 +15,12 @@
 namespace ov {
 namespace frontend {
 
-/// \brief Creates a random normal tensor with the given shape and type.
-/// \details Uses Box-Mueller algorithm to generate random numbers from a Gauassian distribution
-/// \param sizes Shape of the output tensor
-/// \param target_type Type of the output tensor
-/// \param mean Mean of the distribution
-/// \param scale Standard deviation of the distribution
-/// \param seed Seed for the random number generator
-inline OutputVector make_random_normal(pass::NodeRegistry& registry,
-                                       const Output<Node>& sizes,
-                                       element::Type target_type,
-                                       const Output<Node>& mean,
-                                       const Output<Node>& scale,
-                                       float seed) {
+OutputVector make_random_normal(pass::NodeRegistry& registry,
+                                const Output<Node>& sizes,
+                                element::Type target_type,
+                                const Output<Node>& mean,
+                                const Output<Node>& scale,
+                                float seed) {
     // We start by generating two random series from a uniform distribution
     const uint64_t global_seed = 0;
 
@@ -72,18 +63,11 @@ inline OutputVector make_random_normal(pass::NodeRegistry& registry,
     return {sum};
 }
 
-/// \brief Creates a random normal tensor with the given shape and type.
-/// \details Uses Box-Mueller algorithm to generate random numbers from a Gauassian distribution
-/// \param sizes Shape of the output tensor
-/// \param target_type Type of the output tensor
-/// \param mean Mean of the distribution
-/// \param scale Standard deviation of the distribution
-/// \param seed Seed for the random number generator
-inline std::pair<OutputVector, pass::NodeRegistry> make_random_normal(const Output<Node>& sizes,
-                                                                      element::Type target_type,
-                                                                      const Output<Node>& mean,
-                                                                      const Output<Node>& scale,
-                                                                      float seed) {
+std::pair<OutputVector, pass::NodeRegistry> make_random_normal(const Output<Node>& sizes,
+                                                               element::Type target_type,
+                                                               const Output<Node>& mean,
+                                                               const Output<Node>& scale,
+                                                               float seed) {
     pass::NodeRegistry registry;
     OutputVector res = make_random_normal(registry, sizes, target_type, mean, scale, seed);
     return std::make_pair(res, registry);

@@ -3,6 +3,7 @@
 #
 
 set(TARGET_NAME "frontend_common")
+set(FE_DEV_API_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -24,8 +25,13 @@ target_include_directories(${TARGET_NAME}_obj
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+        ${FE_DEV_API_PATH}
         # for ov_frontends.hpp in static build
         ${CMAKE_CURRENT_BINARY_DIR}/src)
+
+add_library(frontend_common_dev INTERFACE)
+add_library(frontend::common::dev ALIAS frontend_common_dev)
+target_include_directories(frontend_common_dev INTERFACE $<BUILD_INTERFACE:${FE_DEV_API_PATH}>)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
@@ -63,7 +69,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 # INTERFACE library for BW compatibility
 
 add_library(${TARGET_NAME} INTERFACE)
-target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime frontend::common::dev)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 

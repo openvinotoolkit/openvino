@@ -4,7 +4,7 @@
 
 #include "ngraph/shape.hpp"
 #include "op/random_uniform_like.hpp"
-#include "openvino/frontend/utils/random_normal.hpp"
+#include "openvino/frontend/common/random_normal_helper.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

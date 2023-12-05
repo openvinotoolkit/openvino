@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/utils/random_normal.hpp"
-
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/frontend/common/random_normal_helper.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 
