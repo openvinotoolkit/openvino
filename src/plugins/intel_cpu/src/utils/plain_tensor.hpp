@@ -169,10 +169,19 @@ struct PlainTensor {
     }
 
     void reset(MemoryPtr mem) {
-        assert_dt<DT>(mem->getDesc().getPrecision());
+        const auto& mem_desc = mem->getDesc();
+        assert_dt<DT>(mem_desc.getPrecision());
+        const auto* desc_ptr = mem_desc.as<BlockedMemoryDesc>();
+        // not support block layout
+        OPENVINO_ASSERT(desc_ptr && desc_ptr->getOrder().size() == mem->getStaticDims().size());
         m_mem = mem;
+        VectorDims strides(desc_ptr->getStrides().size());
+        const auto& orders = desc_ptr->getOrder();
+        for (size_t i = 0; i < orders.size(); i++) {
+            strides[orders[i]] = desc_ptr->getStrides()[i];
+        }
         // this reshape_to() can do reshape w/o additional cost
-        resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()));
+        resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()), &strides);
     }
 
     ov::element::Type get_precision(void) {
@@ -244,7 +253,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     PlainTensor<DT> slice(int axis, int start, int end, int step = 1) const {
         PlainTensor<DT> sub_tensor;
-        assert(axis < m_rank);
+        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
@@ -327,14 +336,14 @@ struct PlainTensor {
         return new_tensor_view;
     }
 
-    void resize(const VectorDims& new_dims, DT* data = nullptr) {
+    void resize(const VectorDims& new_dims, DT* data = nullptr, const VectorDims* strides = nullptr) {
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
-            m_strides[i] = stride;
+            m_strides[i] = strides ? (*strides)[i] : stride;
             stride *= new_dims[i];
         }
 

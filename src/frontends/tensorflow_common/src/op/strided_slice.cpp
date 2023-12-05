@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/strided_slice.hpp"
+
 #include <climits>
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -55,15 +56,15 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     ellipsis_mask.resize(max_length, 0);
     shrink_axis_mask.resize(max_length, 0);
 
-    auto strided_slice = make_shared<StridedSlice>(input,
-                                                   begin,
-                                                   end,
-                                                   strides,
-                                                   begin_mask,
-                                                   end_mask,
-                                                   new_axis_mask,
-                                                   shrink_axis_mask,
-                                                   ellipsis_mask);
+    auto strided_slice = make_shared<v1::StridedSlice>(input,
+                                                       begin,
+                                                       end,
+                                                       strides,
+                                                       begin_mask,
+                                                       end_mask,
+                                                       new_axis_mask,
+                                                       shrink_axis_mask,
+                                                       ellipsis_mask);
     set_node_name(node.get_name(), strided_slice);
     return {strided_slice};
 }

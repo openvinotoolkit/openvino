@@ -220,10 +220,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize>
         case 4:
             return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
         default: {
-            float min = +5.f, max = +25.f;
-
             InputGenerateData inGenData;
-            inGenData.range = max - min;
+            inGenData.range = 10.f;
             inGenData.resolution = 1.0f;
             inGenData.seed = seed;
 

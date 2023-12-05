@@ -4,7 +4,7 @@
 import argparse
 import numbers
 
-from openvino.runtime import get_version as get_rt_version # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import get_version as get_rt_version  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.telemetry_params import telemetry_params
 from openvino.tools.ovc.utils import check_values_equal
@@ -24,6 +24,7 @@ def init_mo_telemetry(app_name='Model Conversion API'):
                         enable_opt_in_dialog=False,
                         disable_in_ci=True
                         )
+
 
 def send_framework_info(framework: str):
     """
@@ -51,7 +52,7 @@ def send_conversion_result(conversion_result: str, need_shutdown=False):
 
 def arg_to_str(arg):
     # This method converts to string only known types, otherwise returns string with name of the type
-    from openvino.runtime import PartialShape, Shape, Type, Layout # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime import PartialShape, Shape, Type, Layout  # pylint: disable=no-name-in-module,import-error
     if isinstance(arg, (PartialShape, Shape, Type, Layout)):
         return str(arg)
     if isinstance(arg, (str, numbers.Number, bool)):

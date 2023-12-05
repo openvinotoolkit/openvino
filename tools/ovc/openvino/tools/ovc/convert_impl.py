@@ -41,7 +41,6 @@ from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExt
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
 
-
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
         extract_model_graph  # pylint: disable=no-name-in-module,import-error
@@ -137,7 +136,8 @@ def get_moc_frontends(argv: argparse.Namespace):
         return moc_front_end, available_moc_front_ends
     if argv.input_model:
         if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
-            moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
+            moc_front_end = fem.load_by_model(
+                [argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
         else:
             moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
@@ -212,7 +212,7 @@ def check_model_object(argv):
         import paddle
         if isinstance(model, paddle.hapi.model.Model) or isinstance(model,
                                                                     paddle.fluid.dygraph.layers.Layer) or isinstance(
-                model, paddle.fluid.executor.Executor):
+            model, paddle.fluid.executor.Executor):
             return "paddle"
 
     raise Error('Unknown model type: {}'.format(type(model)))
@@ -227,6 +227,7 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
     ov_model = moc_emit_ir(prepare_ir(argv), argv)
 
     return ov_model
+
 
 def get_non_default_params(argv, cli_parser):
     import numbers
@@ -498,7 +499,8 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
 
             _, peak_size = tracemalloc.get_traced_memory()
-            print("[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(peak_size / (1024 * 1024)))
+            print("[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(
+                peak_size / (1024 * 1024)))
             tracemalloc.stop()
 
         return ov_model, argv
