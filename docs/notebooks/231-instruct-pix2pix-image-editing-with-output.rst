@@ -99,7 +99,7 @@ Convert Models to OpenVINO IR
 -----------------------------------------------------------------------
 
 OpenVINO supports PyTorch models using `Model Conversion
-API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html>`__
 to convert the model to IR format. ``ov.convert_model`` function accepts
 PyTorch model object and example input and then converts it to
 ``ov.Model`` class instance that ready to use for loading on device or

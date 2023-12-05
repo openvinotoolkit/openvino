@@ -25,37 +25,37 @@ namespace intel_cpu {
 
 template <typename T>
 inline void assert_dt(ov::element::Type dt) {
-    IE_ASSERT(false);
+    OPENVINO_ASSERT(false);
 }
 
 template <>
 inline void assert_dt<float>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::f32);
+    OPENVINO_ASSERT(dt == ov::element::f32);
 }
 
 template <>
 inline void assert_dt<ov::bfloat16>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::bf16);
+    OPENVINO_ASSERT(dt == ov::element::bf16);
 }
 
 template <>
 inline void assert_dt<uint8_t>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::u8);
+    OPENVINO_ASSERT(dt == ov::element::u8);
 }
 
 template <>
 inline void assert_dt<int8_t>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::i8);
+    OPENVINO_ASSERT(dt == ov::element::i8);
 }
 
 template <>
 inline void assert_dt<int32_t>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::i32);
+    OPENVINO_ASSERT(dt == ov::element::i32);
 }
 
 template <>
 inline void assert_dt<float16>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::f16);
+    OPENVINO_ASSERT(dt == ov::element::f16);
 }
 
 template <typename T>
@@ -109,13 +109,16 @@ struct precision_of<float16> {
 };
 
 #define PLAINTENSOR_RANK_MAX 8
-struct PlainTensorBase {
+
+template <typename DT>
+struct PlainTensor {
     size_t m_strides[PLAINTENSOR_RANK_MAX];
     size_t m_dims[PLAINTENSOR_RANK_MAX];
     size_t m_rank = 0;
     void* m_ptr = nullptr;
     size_t m_capacity = 0;
     bool with_storage = false;
+    MemoryPtr m_mem;        // hold memory ptr reference
 
     operator bool() const {
         return static_cast<bool>(m_ptr);
@@ -128,20 +131,13 @@ struct PlainTensorBase {
     size_t size(int i) const {
         if (i < 0)
             i += m_rank;
-        assert(i < m_rank);
+        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_dims[i];
     }
     size_t stride(int i) const {
-        assert(i < m_rank);
+        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_strides[i];
     }
-    virtual ov::element::Type get_precision(void) = 0;
-    virtual void reset(MemoryPtr mem) = 0;
-};
-
-template <typename DT>
-struct PlainTensor : public PlainTensorBase {
-    MemoryPtr m_mem;        // hold memory ptr reference
     PlainTensor(MemoryPtr mem) {
         reset(mem);
     }
@@ -154,7 +150,7 @@ struct PlainTensor : public PlainTensorBase {
 
     // copy construct (always not take ownership)
     PlainTensor<DT> operator=(const PlainTensor<DT>& other) {
-        IE_ASSERT(!with_storage);
+        OPENVINO_ASSERT(!with_storage);
         memcpy(&m_strides, &other.m_strides, sizeof(m_strides));
         memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
         m_rank = other.m_rank;
@@ -172,14 +168,23 @@ struct PlainTensor : public PlainTensorBase {
         }
     }
 
-    void reset(MemoryPtr mem) override {
-        assert_dt<DT>(mem->getDesc().getPrecision());
+    void reset(MemoryPtr mem) {
+        const auto& mem_desc = mem->getDesc();
+        assert_dt<DT>(mem_desc.getPrecision());
+        const auto* desc_ptr = mem_desc.as<BlockedMemoryDesc>();
+        // not support block layout
+        OPENVINO_ASSERT(desc_ptr && desc_ptr->getOrder().size() == mem->getStaticDims().size());
         m_mem = mem;
+        VectorDims strides(desc_ptr->getStrides().size());
+        const auto& orders = desc_ptr->getOrder();
+        for (size_t i = 0; i < orders.size(); i++) {
+            strides[orders[i]] = desc_ptr->getStrides()[i];
+        }
         // this reshape_to() can do reshape w/o additional cost
-        resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()));
+        resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()), &strides);
     }
 
-    ov::element::Type get_precision(void) override {
+    ov::element::Type get_precision(void) {
         return precision_of<DT>::value;
     }
 
@@ -248,7 +253,7 @@ struct PlainTensor : public PlainTensorBase {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     PlainTensor<DT> slice(int axis, int start, int end, int step = 1) const {
         PlainTensor<DT> sub_tensor;
-        assert(axis < m_rank);
+        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
@@ -331,14 +336,14 @@ struct PlainTensor : public PlainTensorBase {
         return new_tensor_view;
     }
 
-    void resize(const VectorDims& new_dims, DT* data = nullptr) {
+    void resize(const VectorDims& new_dims, DT* data = nullptr, const VectorDims* strides = nullptr) {
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
-            m_strides[i] = stride;
+            m_strides[i] = strides ? (*strides)[i] : stride;
             stride *= new_dims[i];
         }
 
@@ -436,7 +441,7 @@ struct PlainTensor : public PlainTensorBase {
                 ss << i << ",";
             ss << "]";
             // asm("int3");
-            IE_ASSERT(false) << ss.str();
+            OPENVINO_THROW(ss.str());
         }
     }
 

@@ -96,7 +96,6 @@ class HighlightTableCreator():
 
         self.devices = expected_devices if expected_devices else []
         self.expected_devices = expected_devices
-        self.sw_plugins = set()
 
         self.expected_test_modes = expected_test_mode
 
@@ -223,11 +222,10 @@ class HighlightTableCreator():
 
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
+            else:
+                logger.info("Opset info collecting is finished successfully")
 
         self.update_real_devices(ops_devices)
-
-    def build_sw_plugin_name(self, sw_plugin, device):
-        return 'HW PLUGIN' if str(sw_plugin).upper() == str(device).upper() else sw_plugin
 
     def collect_api_info(self):
         logger.info("API info collecting is started")
@@ -243,13 +241,13 @@ class HighlightTableCreator():
                     api_devices.add(device.tag)
                     for test_type in xml_root.findall(f"results/{device.tag}/*"):
                         self.api_info.setdefault(test_type.tag, {})
-                        for sw_plugin in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
-                            sw_plugin_name = self.build_sw_plugin_name(sw_plugin.tag, device.tag)
-                            self.sw_plugins.add(sw_plugin_name)
-                            self.api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {}})
-                            self.api_info[test_type.tag][sw_plugin_name][device.tag] = {'passrate': float(sw_plugin.get('passrate', 0)), 'diff': 0,
-                                                                                        'rel_passrate': float(sw_plugin.get('relative_passrate', 0)), "rel_diff": 0,
-                                                                                        'title': 'Passrate on optional API scope', 'rel_title': 'Passrate on mandatory API scope'}
+                        for plugin_info in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
+                            if plugin_info.tag != device.tag:
+                                continue
+                            self.api_info[test_type.tag].setdefault(device.tag, {})
+                            self.api_info[test_type.tag][device.tag] = {'passrate': float(plugin_info.get('passrate', 0)), 'diff': 0,
+                                                                        'rel_passrate': float(plugin_info.get('relative_passrate', 0)), "rel_diff": 0,
+                                                                        'title': 'Passrate on optional API scope', 'rel_title': 'Passrate on mandatory API scope'}
 
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
@@ -263,34 +261,32 @@ class HighlightTableCreator():
 
                     for test_type in xml_root.findall(f"results/{device.tag}/*"):
                         self.api_info.setdefault(test_type.tag, {})
-                        for sw_plugin in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
-                            sw_plugin_name = self.build_sw_plugin_name(sw_plugin.tag, device.tag)
-                            self.api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {'passrate': 0, 'diff': 0, "rel_passrate": 0, "rel_diff": 0}})
-                            self.api_info[test_type.tag][sw_plugin_name][device.tag]['diff'] = round(self.api_info[test_type.tag][sw_plugin_name][device.tag].get('passrate', 0) -\
-                                                                                                     float(sw_plugin.get('passrate')), 0)
-                            self.api_info[test_type.tag][sw_plugin_name][device.tag]['rel_diff'] = round(self.api_info[test_type.tag][sw_plugin_name][device.tag].get('rel_passrate', 0) -\
-                                                                                                         float(sw_plugin.get('relative_passrate')), 0)
+                        for plugin_info in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
+                            if plugin_info.tag != device.tag:
+                                continue
+                            self.api_info[test_type.tag].setdefault(device.tag, {'passrate': 0, 'diff': 0, "rel_passrate": 0, "rel_diff": 0})
+                            self.api_info[test_type.tag][device.tag]['diff'] = round(self.api_info[test_type.tag][device.tag].get('passrate', 0) -\
+                                                                                     float(plugin_info.get('passrate')), 0)
+                            self.api_info[test_type.tag][device.tag]['rel_diff'] = round(self.api_info[test_type.tag][device.tag].get('rel_passrate', 0) -\
+                                                                                         float(plugin_info.get('relative_passrate')), 0)
 
-                            if self.api_info[test_type.tag][sw_plugin_name][device.tag]['diff'] != 0:
-                                self.api_info[test_type.tag][sw_plugin_name][device.tag]['title'] += f",{' increased' if self.api_info[test_type.tag][sw_plugin_name][device.tag]['diff'] > 0 else ' decreased'} of " +\
-                                                                                                     f"{self.api_info[test_type.tag][sw_plugin_name][device.tag]['diff']}% from previous run"
-                            if self.api_info[test_type.tag][sw_plugin_name][device.tag]['rel_diff'] != 0:
-                                self.api_info[test_type.tag][sw_plugin_name][device.tag]['rel_title'] += f",{' increased' if self.api_info[test_type.tag][sw_plugin_name][device.tag]['rel_diff'] > 0 else ' decreased'} of " +\
-                                                                                                     f"{self.api_info[test_type.tag][sw_plugin_name][device.tag]['rel_diff']}% from previous run"
+                            if self.api_info[test_type.tag][device.tag]['diff'] != 0:
+                                self.api_info[test_type.tag][device.tag]['title'] += f",{' increased' if self.api_info[test_type.tag][device.tag]['diff'] > 0 else ' decreased'} of " +\
+                                                                                     f"{self.api_info[test_type.tag][device.tag]['diff']}% from previous run"
+                            if self.api_info[test_type.tag][device.tag]['rel_diff'] != 0:
+                                self.api_info[test_type.tag][device.tag]['rel_title'] += f",{' increased' if self.api_info[test_type.tag][device.tag]['rel_diff'] > 0 else ' decreased'} of " +\
+                                                                                         f"{self.api_info[test_type.tag][device.tag]['rel_diff']}% from previous run"
 
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
+            else:
+                logger.info("API info collecting is finished successfully")
 
         self.update_real_devices(api_devices)
 
     def create_html(self, output_folder=None, output_filename=None, report_tag="",
                     report_version="", current_commit="", prev_commit=""):
-        sw_plugins = list(self.sw_plugins)
-        sw_plugins.sort()
-        if 'HW PLUGIN' in sw_plugins:
-            sw_plugins.remove('HW PLUGIN')
-            sw_plugins.insert(0, 'HW PLUGIN')
-
+        logger.info("Creating html report is started")
         script_dir = Path(__file__).parent.absolute()
         file_loader = FileSystemLoader(script_dir.joinpath('template').as_posix())
         env = Environment(loader=file_loader)
@@ -301,7 +297,6 @@ class HighlightTableCreator():
                                       general_pass_rate=self.general_pass_rate,
                                       expected_test_mode=self.ops_info.keys(),
                                       api_info=self.api_info,
-                                      sw_plugins=sw_plugins,
                                       report_tag=report_tag,
                                       report_version=report_version,
                                       current_commit=current_commit,
@@ -316,6 +311,8 @@ class HighlightTableCreator():
 
         with open(report_path.as_posix(), "w") as f:
             f.write(res_summary)
+        
+        logger.info("Creating html report is finished successfully")
 
 if __name__ == "__main__":
 

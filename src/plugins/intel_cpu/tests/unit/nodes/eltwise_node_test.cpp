@@ -7,7 +7,6 @@
 #include "ie_common.h"
 #include "nodes/eltwise.h"
 
-using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 
 class EltwisePrecisionHelperTest : public testing::Test {};

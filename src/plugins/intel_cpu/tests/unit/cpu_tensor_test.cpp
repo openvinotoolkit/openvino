@@ -17,10 +17,8 @@
 #include "cpu_tensor.h"
 #include "openvino/runtime/itensor.hpp"
 
-#include "ie_ngraph_utils.hpp"
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 
 using CPUTensorTest = ::testing::Test;
 

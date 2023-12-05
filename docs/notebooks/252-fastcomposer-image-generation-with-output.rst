@@ -27,9 +27,8 @@ different styles, actions, and contexts.
    transformers >= 4.30.1 (due to security vulnerability)
 
 **Table of contents:**
----
 
-- `Install Prerequisites <#install-prerequisites>`__
+-  `Install Prerequisites <#install-prerequisites>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
    format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
@@ -49,10 +48,10 @@ different styles, actions, and contexts.
 
       This tutorial requires about 25-28GB of free memory to generate one image. Each extra image requires ~11GB of free memory.
 
-Install Prerequisites 
----------------------------------------------------------------
+Install Prerequisites
+---------------------
 
-Install required packages.
+ Install required packages.
 
 .. code:: ipython3
 
@@ -83,8 +82,10 @@ Download pretrained model.
     
     model_path = hf_hub_download(repo_id='mit-han-lab/fastcomposer', filename='pytorch_model.bin')
 
-Convert models to OpenVINO Intermediate representation (IR) format 
-------------------------------------------------------------------------------------------------------------
+Convert models to OpenVINO Intermediate representation (IR) format
+------------------------------------------------------------------
+
+
 
 Define a configuration and make instance of ``FastComposerModel``.
 
@@ -126,8 +127,10 @@ Pipeline consist of next models: ``Unet``, ``TextEncoder``,
 
 So, convert the models into OpenVINO IR format.
 
-Convert text_encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert text_encoder
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 Model components are PyTorch modules, that can be converted with
 openvino.convert_model function directly. We also use
@@ -173,8 +176,10 @@ padded to the maximum length accepted by the model.
     del model.text_encoder
     gc.collect();
 
-The Object Transform 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Object Transform
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 It pads an incoming user image to square and resize it. An input is a
 tensor of size [3, height, width].
@@ -212,8 +217,10 @@ tensor of size [3, height, width].
     del object_transforms
     gc.collect();
 
-The Image Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Image Encoder
+~~~~~~~~~~~~~~~~~
+
+
 
 The image encoder is a CLIP (Contrastive Language-Image Pretraining)
 Image Encoder. It takes a transformed image from the previous step as
@@ -230,8 +237,10 @@ input and transforms it into a high-dimensional vector or embeddings.
     del model.image_encoder
     gc.collect();
 
-Postfuse module 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postfuse module
+~~~~~~~~~~~~~~~
+
+
 
 On this step it is employed a multilayer perceptron (MLP) to augment the
 text embeddings with visual features extracted from the reference
@@ -256,8 +265,10 @@ MLP.
     del model.postfuse_module
     gc.collect();
 
-Convert Unet 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Unet
+~~~~~~~~~~~~
+
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -280,8 +291,10 @@ text encoder hidden state.
     
     gc.collect()
 
-Rebuild pipeline 
-----------------------------------------------------------
+Rebuild pipeline
+----------------
+
+
 
 Also, it needs to modify some internal FastComposer entities, to use
 OpenVINO models. First of all, how to get results. For example, to
@@ -900,8 +913,10 @@ And replace all model in the pipeline by converted models.
         )
     )
 
-Inference 
----------------------------------------------------
+Inference
+---------
+
+
 
 And now it is possible to make inference. You can provide 1 or 2 images
 (``image1`` and ``image2``). If you want to provide only one image pass
@@ -941,8 +956,10 @@ to display them.
 
     display(result[0][0])
 
-Run Gradio 
-----------------------------------------------------
+Run Gradio
+----------
+
+
 
 Also, it is possible to run with Gradio
 
@@ -966,7 +983,7 @@ Also, it is possible to run with Gradio
             gr.Markdown(DESCRIPTION)
             with gr.Row():
                 with gr.Column():
-                    with gr.Box():
+                    with gr.Group():
                         image1 = gr.Image(label="Image 1", type="pil")
                         gr.Examples(
                             examples=["fastcomposer/data/newton.jpeg"],
@@ -1031,9 +1048,7 @@ Also, it is possible to run with Gradio
                             value=50,
                         )
                 with gr.Column():
-                    result = gr.Gallery(label="Generated Images").style(
-                        grid=[2], height="auto"
-                    )
+                    result = gr.Gallery(label="Generated Images", columns=[2])
                     error_message = gr.Text(label="Job Status")
     
             inputs = [

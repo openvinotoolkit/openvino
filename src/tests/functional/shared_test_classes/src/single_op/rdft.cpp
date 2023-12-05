@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/rdft.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/rdft.hpp"
 
 namespace ov {
 namespace test {
@@ -35,7 +35,7 @@ void RDFTLayerTest::SetUp() {
     std::tie(input_shape, model_type, axes, signal_size, op_type, targetDevice) = this->GetParam();
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
-    auto rdft = ngraph::builder::makeRDFT(param, axes, signal_size, op_type);
+    auto rdft = ov::test::utils::make_rdft(param, axes, signal_size, op_type);
     function = std::make_shared<ov::Model>(rdft->outputs(), ov::ParameterVector{param}, "RDFT");
 }
 }  // namespace test

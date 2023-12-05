@@ -111,8 +111,6 @@ public:
 
 private:
     void on_execute() override;
-
-    void reuse_input();
 };
 
 using reshape_inst = typed_primitive_inst<reshape>;

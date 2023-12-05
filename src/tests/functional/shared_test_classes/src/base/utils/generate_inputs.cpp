@@ -220,10 +220,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize>
         case 4:
             return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
         default: {
-            float min = +5.f, max = +25.f;
-
             InputGenerateData inGenData;
-            inGenData.range = max - min;
+            inGenData.range = 10.f;
             inGenData.resolution = 1.0f;
             inGenData.seed = seed;
 
@@ -467,60 +465,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& no
         return ov::test::utils::create_and_fill_tensor(elemType, targetShape, seq_len);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
-}
-
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression>& node,
-                             size_t port,
-                             const ov::element::Type& elemType,
-                             const ov::Shape& targetShape) {
-    switch (port) {
-        case 1: {
-            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
-
-            const size_t range = 1;
-            const size_t startFrom = 0;
-            const size_t k = 1000;
-            const int seed = 1;
-            std::default_random_engine random(seed);
-            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-
-            auto *dataPtr = tensor.data<float>();
-            for (size_t i = 0; i < tensor.get_size(); i++) {
-                auto value = static_cast<float>(distribution(random));
-                dataPtr[i] = value / static_cast<float>(k);
-            }
-            return tensor;
-        }
-        default:
-            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
-    }
-}
-
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppression>& node,
-                             size_t port,
-                             const ov::element::Type& elemType,
-                             const ov::Shape& targetShape) {
-    switch (port) {
-        case 1: {
-            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
-
-            const size_t range = 1;
-            const size_t startFrom = 0;
-            const size_t k = 1000;
-            const int seed = 1;
-            std::default_random_engine random(seed);
-            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-
-            auto *dataPtr = tensor.data<float>();
-            for (size_t i = 0; i < tensor.get_size(); i++) {
-                auto value = static_cast<float>(distribution(random));
-                dataPtr[i] = value / static_cast<float>(k);
-            }
-            return tensor;
-        }
-        default:
-            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
-    }
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& node,
@@ -1088,6 +1032,42 @@ ov::runtime::Tensor generate(const
         inGenData.resolution = 2;
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v8::MatrixNms>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        InputGenerateData inGenData(0, 1, 1000, 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v5::NonMaxSuppression>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        InputGenerateData inGenData(0, 1, 1000, 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v9::NonMaxSuppression>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        InputGenerateData inGenData(0, 1, 1000, 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
 template<typename T>

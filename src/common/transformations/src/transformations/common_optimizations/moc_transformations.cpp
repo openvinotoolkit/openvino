@@ -95,10 +95,19 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // To avoid issues with dynamism we make ov::Model dynamic and after we apply all
     // transformations we restore original shapes to the ov::Model back
     std::unordered_map<ov::op::v0::Parameter*, PartialShape> input_shapes;
+    std::unordered_map<ov::op::util::Variable*, PartialShape> variable_shapes;
     if (!m_use_shapes) {
         for (auto&& param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
             param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+        }
+        // After setting dynamic ranks into Parameters, the initializing subgraph of ReadValue operation might
+        // also have a dynamic rank. The shape consistency check between this subgraph and Variable might fail.
+        // We have to set dynamic rank to Variables to keep the ov::Model consistent.
+        for (const auto& variable : f->get_variables()) {
+            const auto& var_info = variable->get_info();
+            variable_shapes[variable.get()] = var_info.data_shape;
+            variable->update_data_shape(PartialShape::dynamic(var_info.data_shape.rank()));
         }
         f->validate_nodes_and_infer_types();
     }
@@ -262,6 +271,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         // Restore original shapes to the ov::Model
         for (auto&& param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
+        }
+
+        for (const auto& variable : f->get_variables()) {
+            variable->update_data_shape(variable_shapes.at(variable.get()));
         }
     }
     f->validate_nodes_and_infer_types();
