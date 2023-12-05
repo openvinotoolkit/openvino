@@ -50,13 +50,13 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
 
 * Saved on disk
 
-   As the name suggests, a model in this state consists of one or more files that fully represent the neural network. As OpenVINO not only supports their proprietary format but also other frameworks, how a model is stored can vary. For example:
+  As the name suggests, a model in this state consists of one or more files that fully represent the neural network. As OpenVINO not only supports their proprietary format but also other frameworks, how a model is stored can vary. For example:
 
-      * OpenVINO IR: pair of .xml and .bin files
-      * ONNX: .onnx file
-      * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
-      * TensorFlow Lite: .tflite file
-      * PaddlePaddle: .pdmodel file
+    * OpenVINO IR: pair of .xml and .bin files
+    * ONNX: .onnx file
+    * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
+    * TensorFlow Lite: .tflite file
+    * PaddlePaddle: .pdmodel file
 
 * Loaded but not compiled
 
@@ -71,28 +71,28 @@ Functions for Reading, Converting, and Saving Models
 
 * ``read_model``
 
-   * Creates an ov.Model from a file.
-   * File formats supported: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
-   * OpenVINO files are read directly while other formats are converted automatically.
+  * Creates an ov.Model from a file.
+  * File formats supported: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+  * OpenVINO files are read directly while other formats are converted automatically.
 
 * ``compile_model``
 
-   * Creates an ov.CompiledModel from a file or ov.Model object.
-   * File formats supported: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
-   * OpenVINO files are read directly while other formats are converted automatically.
+  * Creates an ov.CompiledModel from a file or ov.Model object.
+  * File formats supported: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+  * OpenVINO files are read directly while other formats are converted automatically.
 
 * ``convert_model``
 
-   * Creates an ov.Model from a file or Python memory object.
-   * File formats supported: ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite.
-   * Framework objects supported: PaddlePaddle, TensorFlow and PyTorch.
-   * This method is only available in the Python API.
+  * Creates an ov.Model from a file or Python memory object.
+  * File formats supported: ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite.
+  * Framework objects supported: PaddlePaddle, TensorFlow and PyTorch.
+  * This method is only available in the Python API.
 
 * ``save_model``
 
-   * Saves an ov.Model to OpenVINO IR format.
-   * Compresses weights to FP16 by default. 
-   * This method is only available in the Python API.
+  * Saves an ov.Model to OpenVINO IR format.
+  * Compresses weights to FP16 by default. 
+  * This method is only available in the Python API.
 
 For more information on each function, see the Additional Resources section.
 
@@ -276,9 +276,9 @@ As PyTorch does not have a save format that contains everything needed to reprod
 
 * Python objects
 
-   * torch.nn.Module
-   * torch.jit.ScriptModule
-   * torch.jit.ScriptFunction
+  * torch.nn.Module
+  * torch.jit.ScriptModule
+  * torch.jit.ScriptFunction
 
 ONNX, PaddlePaddle and TensorFlow Lite Import Options
 ############################################################################################
@@ -291,27 +291,27 @@ The complete support for all frameworks is as follows:
 
 * ONNX
 
-   * Files
+  * Files
 
-      * <input_model>.onnx
+    * <input_model>.onnx
 
 * PaddlePaddle
 
-   * Files
+  * Files
 
-      * <input_model>.pdmodel
+    * <input_model>.pdmodel
 
-   * Python objects:
+  * Python objects:
 
-      * paddle.hapi.model.Model
-      * paddle.fluid.dygraph.layers.Layer
-      * paddle.fluid.executor.Executor
+    * paddle.hapi.model.Model
+    * paddle.fluid.dygraph.layers.Layer
+    * paddle.fluid.executor.Executor
 
 * TensorFlow Lite
 
-   * Files
+  * Files
 
-      * <input_model>.tflite
+    * <input_model>.tflite
 
 Further Improvements
 ################################################
