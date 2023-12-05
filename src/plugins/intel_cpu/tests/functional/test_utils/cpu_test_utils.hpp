@@ -4,13 +4,15 @@
 
 #pragma once
 
-#include <string>
-#include "ie_system_conf.h"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include <exec_graph_info.hpp>
-#include <openvino/runtime/compiled_model.hpp>
+
+// To be removed
 #include "ie_system_conf.h"
+#include "exec_graph_info.hpp"
 
 namespace CPUTestUtils {
     typedef enum {
@@ -153,9 +155,9 @@ protected:
      * @param lastNode The last node of the initial graph.
      * @return The last node of the modified graph.
      */
-    virtual std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type& ngPrc,
-                                                  ov::ParameterVector& params,
-                                                  const std::shared_ptr<ov::Node>& lastNode);
+    virtual std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
+                                                      ov::ParameterVector &params,
+                                                      const std::shared_ptr<ov::Node> &lastNode);
 
     virtual bool primTypeCheck(std::string primType) const;
 
