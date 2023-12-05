@@ -182,7 +182,7 @@ void ExecutorManagerImpl::execute_task_by_streams_executor(
     ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
     ov::threading::Task task) {
     ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor");
-    streamsConfig.update_executor_config(1, 1, core_type, false);
+    streamsConfig.update_executor_config(1, 1, core_type);
     if (!streamsConfig._streams_info_table.empty()) {
         auto taskExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
         std::vector<Task> tasks{std::move(task)};

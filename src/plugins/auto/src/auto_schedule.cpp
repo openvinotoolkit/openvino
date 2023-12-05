@@ -166,7 +166,10 @@ void AutoSchedule::init() {
         m_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             ov::threading::IStreamsExecutor::Config{"AutoDeviceAsyncCompile"}.update_executor_config(
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                0 /*default threads per stream, workaround for ticket 62376*/));
+                1,
+                ov::threading::IStreamsExecutor::Config::PreferredCoreType::ANY,
+                true,
+                false /*not use TBB, workaround for ticket 62376*/));
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
             m_idle_worker_requests[device.device_name];

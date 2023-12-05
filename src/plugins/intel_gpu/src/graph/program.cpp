@@ -119,6 +119,8 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
     task_executor_config.update_executor_config(task_executor_config._streams,
                                                 1,
                                                 task_executor_config._threadPreferredCoreType,
+                                                true,
+                                                true,
                                                 enable_cpu_pinning);
 
     return task_executor_config;
