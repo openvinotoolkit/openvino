@@ -93,14 +93,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
-          skip_filter=''
-          
-          if [[ "${{ runner.arch }}" == "ARM64" ]] && [[ "${{ runner.os }}" == "macOS" ]]; then
-            # Skips under Ticket: 122660
-            skip_filter='--gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions*'
-          fi
-          
-          ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 "$skip_filter" \
+          ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
@@ -146,14 +139,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
-          skip_filter=''
-          
-          if [[ "${{ runner.arch }}" == "ARM64" ]] && [[ "${{ runner.os }}" == "macOS" ]]; then
-            # Skips under Ticket: 122666
-            skip_filter='--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*:*NgramCompilation*'
-          fi
-          
-          ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 "$skip_filter" \
+          ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
@@ -168,14 +154,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
-          skip_filter=''
-          
-          if [[ "${{ runner.arch }}" == "ARM64" ]] && [[ "${{ runner.os }}" == "macOS" ]]; then
-            # Skips under Ticket: 122666
-            skip_filter='--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*:*TransformationTests/CompressQuantizeWeightsTests.FusionTest*'
-          fi
-          
-          ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 "$skip_filter" \
+          ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Legacy Transformations func tests
