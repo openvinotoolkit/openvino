@@ -155,9 +155,9 @@ protected:
      * @param lastNode The last node of the initial graph.
      * @return The last node of the modified graph.
      */
-    virtual std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
-                                                      ov::ParameterVector &params,
-                                                      const std::shared_ptr<ov::Node> &lastNode);
+    virtual std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type& ngPrc,
+                                                  ov::ParameterVector& params,
+                                                  const std::shared_ptr<ov::Node>& lastNode);
 
     virtual bool primTypeCheck(std::string primType) const;
 
