@@ -55,7 +55,6 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStatic) {
         model = std::make_shared<ov::Model>(NodeVector{scaled_dot_product_attention},
                                             ParameterVector{query, key, value, attention_mask, scale});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-        comparator.enable(FunctionsComparator::CONST_VALUES);
     }
 
     {
@@ -82,7 +81,6 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionDynamic) {
         model = std::make_shared<ov::Model>(NodeVector{scaled_dot_product_attention},
                                             ParameterVector{query, key, value, attention_mask, scale});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-        comparator.enable(FunctionsComparator::CONST_VALUES);
     }
 
     {
