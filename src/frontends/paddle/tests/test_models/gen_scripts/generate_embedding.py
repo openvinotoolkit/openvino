@@ -63,7 +63,6 @@ def embedding(name: str, ids, vocab_size, embedding_dim, padding_idx=None, spars
     """
     padding_idx (int|long|None) 
     """
-    import paddle
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
