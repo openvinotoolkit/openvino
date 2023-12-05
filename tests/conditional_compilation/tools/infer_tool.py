@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from openvino.runtime import Core
+from openvino import Core
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
