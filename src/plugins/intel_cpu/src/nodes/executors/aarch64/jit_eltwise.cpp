@@ -49,9 +49,21 @@ bool JitEltwiseExecutor::isSupported(
     };
 
     const std::set<ov::element::Type> supported_precisions = {
-        ov::element::f16,
         ov::element::f32
     };
+
+    const auto parent = node->getParentEdgeAt(0)->getParent();
+    if (parent->getType() == ov::intel_cpu::Type::Convert) {
+        const auto& input_precisions = parent->getOriginalInputPrecisions();
+        if (input_precisions.size() != 1ull) {
+            return false;
+        }
+        // input precision will be changed after fuse
+        if (supported_precisions.find(input_precisions[0]) == supported_precisions.end()) {
+            return false;
+        }
+    }
+
     if (!check_precisions(supported_precisions)) {
         return false;
     }
