@@ -2,18 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "frontend_common")
-set(FE_DEV_API_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
+set(TARGET_NAME "openvino_frontend_common")
+
+set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(FRONTEND_DEV_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
+
+# create frontend common library
+
+add_library(${TARGET_NAME} INTERFACE)
+
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${FRONTEND_DEV_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
+    $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
+
+add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 # create library
 
@@ -25,13 +38,8 @@ target_include_directories(${TARGET_NAME}_obj
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-        ${FE_DEV_API_PATH}
         # for ov_frontends.hpp in static build
         ${CMAKE_CURRENT_BINARY_DIR}/src)
-
-add_library(frontend_common_dev INTERFACE)
-add_library(frontend::common::dev ALIAS frontend_common_dev)
-target_include_directories(frontend_common_dev INTERFACE $<BUILD_INTERFACE:${FE_DEV_API_PATH}>)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
@@ -39,7 +47,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev frontend::common::dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev openvino::frontend::common)
 
 # TODO: fix lto
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
@@ -66,20 +74,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
-# INTERFACE library for BW compatibility
-
-add_library(${TARGET_NAME} INTERFACE)
-target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime frontend::common::dev)
-target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
-
-add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
-add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
-add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
-
 # Installation rules header files
 
-install(TARGETS frontend_common frontend_common_dev EXPORT OpenVINOTargets)
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
