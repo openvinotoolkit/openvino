@@ -65,10 +65,10 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (dst->get_shape() == ov::Shape{0} || ov::util::is_dynamic_shape(dst->get_shape()))
+
+    if (dst->get_shape() == ov::Shape{0})
         dst->set_shape(get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     OPENVINO_ASSERT(shapes_equal(get_shape(), dst->get_shape()),
                     "Tensor shapes are not equal. (src: ",
                     get_shape(),
