@@ -1,8 +1,12 @@
 .. {#pot_ranger_README}
 
-Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision")
-===========================================================================================
+[Deprecated] Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision")
+================================================================================================================
 
+.. danger:: 
+
+   Post-training Optimization Tool has been deprecated since OpenVINO 2023.0. 
+   :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for post-training quantization instead.
 
 Introduction
 ####################
