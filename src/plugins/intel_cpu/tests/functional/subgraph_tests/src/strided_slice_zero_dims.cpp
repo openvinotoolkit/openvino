@@ -6,8 +6,11 @@
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
 
-namespace ov {
-namespace test {
+using namespace InferenceEngine;
+using namespace ov::test;
+using namespace ngraph;
+
+namespace SubgraphTestsDefinitions {
 
 /*
     param1 [56]   param2 [-1, -1, 768] (dynamic shape)
@@ -37,12 +40,12 @@ public:
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
         }
-        auto end = ngraph::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{2147483647});
-        auto stride  = ngraph::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
-        auto indices = ngraph::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
-        auto axes = ngraph::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
-        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(inputParams[1]);
-        auto gather = std::make_shared<ov::op::v8::Gather>(shapeOf, indices, axes);
+        auto end = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{2147483647});
+        auto stride  = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
+        auto indices = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
+        auto axes = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
+        auto shapeOf = std::make_shared<opset9::ShapeOf>(inputParams[1]);
+        auto gather = std::make_shared<opset9::Gather>(shapeOf, indices, axes);
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(inputParams.front(),
                                                                         gather,
                                                                         end,
@@ -53,7 +56,7 @@ public:
                                                                         std::vector<int64_t>{},
                                                                         std::vector<int64_t>{});
         NodeVector results{strided_slice};
-        function = std::make_shared<ov::Model>(results, inputParams, "StridedSliceStaticShape");
+        function = std::make_shared<Function>(results, inputParams, "StridedSliceStaticShape");
     }
 };
 
@@ -61,5 +64,4 @@ TEST_F(StridedSliceZeroDimsTest, smoke_CompareWithRefs) {
     run();
 }
 
-}  // namespace test
-}  // namespace ov
+} // namespace SubgraphTestsDefinitions

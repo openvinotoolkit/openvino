@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/node_builders/eltwise.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 /*This test runs the following subgraph:
 
@@ -30,8 +29,10 @@
 The main purpose of the test is to check the memory sharing between result and in_place edges.
 */
 
-namespace ov {
-namespace test {
+using namespace InferenceEngine;
+using namespace ov::test;
+
+namespace SubgraphTestsDefinitions {
 
 class SplitConcatAddInPlace : virtual public ov::test::SubgraphBaseTest {
 protected:
@@ -49,17 +50,17 @@ protected:
         auto split = std::make_shared<ov::op::v1::Split>(params.front(), split_axis_op, 3);
 
         auto add_const = ngraph::builder::makeConstant(precision, {1}, std::vector<float>({1.0f}));
-        auto add_1 = utils::makeEltwise(split->output(0), add_const, utils::EltwiseTypes::ADD);
-        auto result_add_1 = std::make_shared<ov::op::v0::Result>(add_1);
-        auto add_2 = utils::makeEltwise(split->output(1), add_const, utils::EltwiseTypes::ADD);
-        auto add_3 = utils::makeEltwise(split->output(2), add_const, utils::EltwiseTypes::ADD);
+        auto add_1 = ngraph::builder::makeEltwise(split->output(0), add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto result_add_1 = std::make_shared<ngraph::opset3::Result>(add_1);
+        auto add_2 = ngraph::builder::makeEltwise(split->output(1), add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto add_3 = ngraph::builder::makeEltwise(split->output(2), add_const, ngraph::helpers::EltwiseTypes::ADD);
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{add_1, add_2, add_3}, 1);
-        auto result_concat = std::make_shared<ov::op::v0::Result>(concat);
-        auto add_4 = utils::makeEltwise(concat, add_const, utils::EltwiseTypes::ADD);
-        auto add_5 = utils::makeEltwise(concat, add_const, utils::EltwiseTypes::ADD);
-        auto result_1 = std::make_shared<ov::op::v0::Result>(add_4);
-        auto result_2 = std::make_shared<ov::op::v0::Result>(add_5);
-        ov::ResultVector results = {result_1, result_2, result_add_1, result_concat};
+        auto result_concat = std::make_shared<ngraph::opset3::Result>(concat);
+        auto add_4 = ngraph::builder::makeEltwise(concat, add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto add_5 = ngraph::builder::makeEltwise(concat, add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto result_1 = std::make_shared<ngraph::opset3::Result>(add_4);
+        auto result_2 = std::make_shared<ngraph::opset3::Result>(add_5);
+        ngraph::ResultVector results = {result_1, result_2, result_add_1, result_concat};
         function = std::make_shared<ov::Model>(results, params, "Subgraph");
     }
 };
@@ -68,5 +69,4 @@ TEST_F(SplitConcatAddInPlace, smoke_CompareWithRefs) {
     run();
 }
 
-}  // namespace test
-}  // namespace ov
+} // namespace SubgraphTestsDefinitions

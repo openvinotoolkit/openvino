@@ -12,8 +12,7 @@
 using namespace CPUTestUtils;
 using namespace ov::opset9;
 
-namespace ov {
-namespace test {
+namespace SubgraphTestsDefinitions {
 
 class SubgraphSnippetSerializationTest : public ::testing::Test, public CPUTestsBase {};
 
@@ -147,5 +146,4 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithResultAs1stO
 
     ASSERT_TRUE(results.valid) << results.message;
 }
-}  // namespace test
-}  // namespace ov
+} // namespace SubgraphTestsDefinitions
