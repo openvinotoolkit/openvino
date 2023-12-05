@@ -280,6 +280,20 @@ const auto params_EmptyTensor = ::testing::Combine(::testing::Values(shape_Empty
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_EmptyTensor, ShapeOpsCPUTest, params_EmptyTensor, ShapeOpsCPUTest::getTestCaseName);
 
+// test cases about NeedShapeInfer return right result
+inputDescription shape_NeedShapeInfer{{{-1, -1},
+                                 {ngraph::Shape{640, 80}, ngraph::Shape{640, 80}, ngraph::Shape{1280, 40}, ngraph::Shape{1280, 40}}},
+                                 {std::vector<int>{320, 160}, std::vector<int>{640, 80}, std::vector<int>{320, 160}, std::vector<int>{640, 80}}};
+
+const auto params_NeedShapeInfer = ::testing::Combine(::testing::Values(shape_NeedShapeInfer),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(shapeNodeType::Reshape),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
+                                                ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NeedShapeInfer, ShapeOpsCPUTest, params_NeedShapeInfer, ShapeOpsCPUTest::getTestCaseName);
+
 } // namespace reshapeTest
 
 namespace squeezeTest {
