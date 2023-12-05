@@ -1,19 +1,6 @@
-<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats.md
-# Supported Model Formats {#Supported_Model_Formats_MO_DG}
+# [LEGACY] Supported Model Formats {#Supported_Model_Formats_MO_DG}
 
 @sphinxdirective
-=======
-.. {#Supported_Model_Formats_MO_DG}
-
-[LEGACY] Supported Model Formats
-=====================================
-
-.. danger::
-
-   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
-
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <Supported_Model_Formats>` article. 
->>>>>>> b9fc9dfdff (add legacy note to mo section):docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats.rst
 
 .. toctree::
    :maxdepth: 1
@@ -29,7 +16,12 @@
 .. meta::
    :description: Learn about supported model formats and the methods used to convert, read, and compile them in OpenVINO™.
 
+.. danger::
 
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <Supported_Model_Formats>` article. 
+   
 **OpenVINO IR (Intermediate Representation)** - the proprietary and default format of OpenVINO, benefiting from the full extent of its features. All other supported model formats, as listed below, are converted to :doc:`OpenVINO IR <openvino_ir>` to enable inference. Consider storing your model in this format to minimize first-inference latency, perform model optimization, and, in some cases, save space on your drive.
 
 **PyTorch, TensorFlow, ONNX, and PaddlePaddle** - can be used with OpenVINO Runtime API directly, 

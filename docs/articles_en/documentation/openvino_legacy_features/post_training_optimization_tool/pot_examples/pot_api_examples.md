@@ -1,11 +1,4 @@
-<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool/pot_examples/pot_api_examples.md
-# Post-training Optimization Tool API Examples {#pot_example_README}
-=======
-.. {#pot_example_README}
-
-[Deprecated] Post-training Optimization Tool API Examples
-===============================================================
->>>>>>> f09d0284e9 (add note to pot):docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool/pot_examples/pot_api_examples.rst
+# [Deprecated] Post-training Optimization Tool API Examples {#pot_example_README}
 
 @sphinxdirective
 

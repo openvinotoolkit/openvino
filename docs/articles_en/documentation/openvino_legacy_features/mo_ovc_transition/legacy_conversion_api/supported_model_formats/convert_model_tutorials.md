@@ -1,11 +1,4 @@
-<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats/convert_model_tutorials.md
-# Model Conversion Tutorials {#openvino_docs_MO_DG_prepare_model_convert_model_tutorials}
-=======
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_tutorials}
-
-[LEGACY] Model Conversion Tutorials
-====================================================
->>>>>>> b9fc9dfdff (add legacy note to mo section):docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats/convert_model_tutorials.rst
+# [LEGACY] Model Conversion Tutorials {#openvino_docs_MO_DG_prepare_model_convert_model_tutorials}
 
 @sphinxdirective
 

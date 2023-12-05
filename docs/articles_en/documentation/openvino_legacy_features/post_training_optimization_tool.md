@@ -1,11 +1,4 @@
-<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool.md
-# (Deprecated) Post-training Quantization with POT {#pot_introduction}
-=======
-.. {#pot_introduction}
-
-[Deprecated] Post-training Quantization with POT
-================================================
->>>>>>> f09d0284e9 (add note to pot):docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool.rst
+# [Deprecated]  Post-training Quantization with POT {#pot_introduction}
 
 @sphinxdirective
 
