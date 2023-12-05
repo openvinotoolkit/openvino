@@ -79,6 +79,7 @@ add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 
 # Installation rules header files
 
+install(TARGETS frontend_common frontend_common_dev EXPORT OpenVINOTargets)
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
