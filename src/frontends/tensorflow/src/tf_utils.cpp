@@ -63,7 +63,7 @@ void copy_conditional_flow_markers_for_producer(
 }
 
 template <typename T>
-void extract_tensor_content(const string& tensor_content, Tensor* values) {
+void extract_tensor_content(const std::string& tensor_content, Tensor* values) {
     const auto tensor_content_size = tensor_content.size();
     FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
                             "Size of tensor_content (",
@@ -185,7 +185,7 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
             ov_type.is_static(),
             "Encountered unknown element type " + DataType_Name(tensor_type) + " on an empty tensor_proto");
     } else {
-        auto data = vector<string>();
+        auto data = vector<std::string>();
         for (const auto& item : tensor_proto.string_val()) {
             data.push_back(item);
         }

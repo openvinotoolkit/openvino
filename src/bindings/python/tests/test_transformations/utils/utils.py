@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Model, PartialShape, opset8
+from openvino import Model, PartialShape
+from openvino.runtime import opset13 as ops
 from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
 
 
 def get_relu_model():
     # Parameter->Relu->Result
-    param = opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
-    relu = opset8.relu(param.output(0))
-    res = opset8.result(relu.output(0), name="result")
+    param = ops.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    relu = ops.relu(param.output(0))
+    res = ops.result(relu.output(0), name="result")
     return Model([res], [param], "test")
 
 
@@ -45,12 +46,12 @@ class PatternReplacement(MatcherPass):
         MatcherPass.__init__(self)
         self.model_changed = False
 
-        relu = WrapType("opset8::Relu")
+        relu = WrapType("opset13::Relu")
 
         def callback(matcher: Matcher) -> bool:
             self.applied = True
             root = matcher.get_match_root()
-            new_relu = opset8.relu(root.input(0).get_source_output())
+            new_relu = ops.relu(root.input(0).get_source_output())
 
             # For testing purpose
             self.model_changed = True

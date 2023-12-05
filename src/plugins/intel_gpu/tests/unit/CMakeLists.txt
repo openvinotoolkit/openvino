@@ -20,6 +20,10 @@ file(GLOB_RECURSE SOURCES_MAIN
     # openvino graph transformation
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.hpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/variable_state.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_context.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_tensor.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/usm_host_tensor.cpp"
   )
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)
@@ -45,6 +49,7 @@ set(SOURCES_ALL
   )
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
+target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

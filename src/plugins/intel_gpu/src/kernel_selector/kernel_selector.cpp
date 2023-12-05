@@ -145,6 +145,14 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, co
     return GetNaiveBestKernel(allImplementations, params, options);
 }
 
+std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string& kernel_name) const {
+    for (auto& impl : implementations) {
+        if (impl->GetName().compare(kernel_name) == 0)
+            return impl;
+    }
+    return nullptr;
+}
+
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
     using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
     auto comparePriority = [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {

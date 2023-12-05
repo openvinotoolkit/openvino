@@ -8,7 +8,8 @@ import pytest
 from contextlib import nullcontext as does_not_raise
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import AxisSet, Shape, Type
+from openvino import Shape, Type
+from openvino.runtime import AxisSet
 from openvino.runtime.op import Constant, Parameter
 
 @pytest.mark.parametrize(("ov_op", "expected_ov_str", "expected_type"), [

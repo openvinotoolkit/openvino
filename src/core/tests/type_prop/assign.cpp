@@ -10,8 +10,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace std;
 using namespace ov;
