@@ -1,11 +1,4 @@
-<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool/pot_faq.md
-# Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
-=======
-.. {#pot_docs_FrequentlyAskedQuestions}
-
-[Deprecated] Post-training Optimization Tool FAQ
-===========================================================
->>>>>>> f09d0284e9 (add note to pot):docs/articles_en/documentation/openvino_legacy_features/post_training_optimization_tool/pot_faq.rst
+# [Deprecated]  Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
 
 @sphinxdirective
 
