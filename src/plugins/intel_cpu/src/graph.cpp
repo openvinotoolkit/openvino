@@ -28,7 +28,6 @@
 #include "low_precision/low_precision.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "memory_solver.hpp"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/convert.h"
@@ -49,6 +48,8 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+
+#include "openvino/runtime/memory_solver.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
@@ -629,10 +630,10 @@ void Graph::AllocateWithReuse() {
     const int64_t alignment = 32;  // 32 bytes
 
     // Markup the boxes
-    std::vector<MemorySolver::Box> definedBoxes;
-    std::vector<MemorySolver::Box> undefinedBoxes;
+    std::vector<ov::MemorySolver::Box> definedBoxes;
+    std::vector<ov::MemorySolver::Box> undefinedBoxes;
     for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
+        ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -679,7 +680,7 @@ void Graph::AllocateWithReuse() {
     }
 
     // Process defined boxes (static shapes)
-    MemorySolver staticMemSolver(definedBoxes);
+    ov::MemorySolver staticMemSolver(definedBoxes);
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(ov::element::i8, Shape(VectorDims{total_size})));
@@ -693,7 +694,7 @@ void Graph::AllocateWithReuse() {
         int count = 0;
         for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                int64_t offset = staticMemSolver.getOffset(box.id);
+                int64_t offset = staticMemSolver.get_offset(box.id);
                 // !! Fallback to individual memory allocation !!
                 // if you like to check infer without reuse just call this function without arguments.
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
@@ -762,9 +763,9 @@ void Graph::AllocateWithReuse() {
             }
         }
 
-        MemorySolver::normalizeBoxes(undefinedBoxes);
+        ov::MemorySolver::normalize_boxes(undefinedBoxes);
 
-        std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
+        std::vector<std::vector<ov::MemorySolver::Box>> groups; //groups of nonoverlapping boxes
         constexpr bool enableMemReuse = true; // set false to disable mem reuse for debug purposes
         if (enableMemReuse) {
             groups.push_back({undefinedBoxes.front()});
