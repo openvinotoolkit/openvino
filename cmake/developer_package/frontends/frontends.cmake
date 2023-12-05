@@ -57,10 +57,10 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common_obj _ov_frontends_hpp)
+    add_dependencies(openvino_frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
-    get_target_property(sources frontend_common_obj SOURCES)
+    get_target_property(sources openvino_frontend_common_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
@@ -226,7 +226,7 @@ macro(ov_add_frontend)
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} openvino::frontend::common PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     if(OV_FRONTEND_PROTOBUF_REQUIRED)
