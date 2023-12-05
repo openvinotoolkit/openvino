@@ -27,17 +27,7 @@ from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_need_mock_op
-from tests.utils.helpers import generate_image, get_relu_model
-
-
-def create_model_with_memory(input_shape, data_type):
-    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667", data_type, input_shape)
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
-    res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
-    return model
+from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
 
 
 def create_simple_request_and_inputs(device):
@@ -663,9 +653,7 @@ def test_infer_queue_get_idle_handle(device):
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,
-                          # issue after ConvertPrecision transformation, ticket: TBA
-                          # np.float16
-                          ])
+                          np.float16])
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
 @pytest.mark.skipif(
@@ -679,7 +667,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     from openvino import Tensor
     from openvino.runtime.utils.types import get_dtype
 
-    model = create_model_with_memory(input_shape, data_type)
+    model = generate_model_with_memory(input_shape, data_type)
     model.validate_nodes_and_infer_types()
     compiled_model = core.compile_model(model=model, device_name=device)
     request = compiled_model.create_infer_request()

@@ -198,14 +198,4 @@ static void generate_anchors(unsigned int base_size,
         }
     }
 }
-
-void proposal_inst::save(BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _anchors;
-}
-
-void proposal_inst::load(BinaryInputBuffer& ib) {
-    parent::load(ib);
-    ib >> _anchors;
-}
 }  // namespace cldnn
