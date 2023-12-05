@@ -111,7 +111,7 @@ class KVCacheTests: public ::testing::Test {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
-        auto core = ov::Core();
+        auto core = ov::test::utils::PluginCache::get().core();
 
         std::string cacheDirName;
         if (is_caching_test) {
@@ -123,7 +123,7 @@ class KVCacheTests: public ::testing::Test {
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
             ov::test::utils::removeDir(cacheDirName);
-            core.set_property(ov::cache_dir(cacheDirName));
+            core->set_property(ov::cache_dir(cacheDirName));
         }
 
         const size_t batch = 1;
@@ -136,9 +136,9 @@ class KVCacheTests: public ::testing::Test {
 
         auto model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type);
         if (is_caching_test) {
-            core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+            core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
         }
-        auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
 
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
@@ -153,7 +153,7 @@ class KVCacheTests: public ::testing::Test {
             kv_cache.copy_to(kv_cache_copy);
             ngraph::helpers::resize_function(ref_model, {kv_cache_copy.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
 
-            auto compiled_model_ref = core.compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
+            auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
             auto inf_req_ref = compiled_model_ref.create_infer_request();
             inf_req_ref.set_tensor(input0, kv_cache_copy);
             inf_req_ref.set_tensor(input1, new_token_data);
@@ -253,7 +253,7 @@ class KVCacheTests: public ::testing::Test {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
-        auto core = ov::Core();
+        auto core = ov::test::utils::PluginCache::get().core();
 
         std::string cacheDirName;
         if (is_caching_test) {
@@ -265,7 +265,7 @@ class KVCacheTests: public ::testing::Test {
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
             ov::test::utils::removeDir(cacheDirName);
-            core.set_property(ov::cache_dir(cacheDirName));
+            core->set_property(ov::cache_dir(cacheDirName));
         }
 
         const size_t batch = 1;
@@ -279,9 +279,9 @@ class KVCacheTests: public ::testing::Test {
         auto model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type, true);
         auto ref_model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type, false);
         if (is_caching_test) {
-            core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+            core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
         }
-        auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
 
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
@@ -293,7 +293,7 @@ class KVCacheTests: public ::testing::Test {
             auto input2 = ref_model->get_parameters().at(2);
             ngraph::helpers::resize_function(ref_model, {kv_cache.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
 
-            auto compiled_model_ref = core.compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
+            auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
             auto inf_req_ref = compiled_model_ref.create_infer_request();
             inf_req_ref.set_tensor(input0, kv_cache);
             inf_req_ref.set_tensor(input1, new_token_data);
