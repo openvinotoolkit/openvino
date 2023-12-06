@@ -77,14 +77,13 @@ Tensor make_tensor_of_min_value(const element::Type_t et);
 ///
 /// \return true if auto padding was applied successfully (all needed informations such as
 ///         spatial dims are known), false otherwise.
-OPENVINO_API
-bool try_apply_auto_padding(const PartialShape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below);
+OPENVINO_API bool try_apply_auto_padding(const PartialShape& image_shape,
+                                         const Shape& filter_shape,
+                                         const Strides& filter_strides,
+                                         const Strides& filter_dilations,
+                                         const op::PadType pad_type,
+                                         CoordinateDiff& padding_above,
+                                         CoordinateDiff& padding_below);
 
 /// @brief Get the tensors shapes as ov::PartialShape.
 ///
@@ -128,5 +127,15 @@ OPENVINO_API void infer_auto_padding(const Shape& image_shape,
                                      const op::PadType pad_type,
                                      CoordinateDiff& padding_above,
                                      CoordinateDiff& padding_below);
+
+/// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would be represented as partial
+/// shape object using Dimension(min, max) for each element.
+///
+/// \param output Node output pointing to the tensor for estimation.
+/// \param pshape Resulting estimation would be stored in this PartialShape.
+///
+/// \return True if evaluation was successful.
+OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
+
 }  // namespace util
 }  // namespace ov

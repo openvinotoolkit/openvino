@@ -1066,36 +1066,7 @@ int64_t ov::normalize_axis(const std::string& node_description,
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
-    Tensor lb, ub;
-    std::tie(lb, ub) = ov::evaluate_both_bounds(output);
-    bool shape_defined = false;
-    if (lb && ub) {
-        auto lower_bound = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
-                               ->cast_vector<int64_t>();
-        auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
-                               ->cast_vector<int64_t>();
-        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
-        const TensorLabel& labels = output.get_tensor().get_value_label();
-        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
-
-        std::vector<Dimension> resulting_pshape(lower_bound.size());
-        for (size_t i = 0; i < lower_bound.size(); ++i) {
-            auto low = lower_bound[i], up = upper_bound[i];
-            OPENVINO_ASSERT(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
-            if (output.get_element_type() == element::i32 && low != up) {
-                if (up == std::numeric_limits<std::int32_t>::max())
-                    up = std::numeric_limits<std::int64_t>::max();
-                if (low == std::numeric_limits<std::int32_t>::max())
-                    low = std::numeric_limits<std::int64_t>::max();
-            }
-            resulting_pshape[i] = {low, up};
-            if (!labels.empty() && labels[i])
-                ov::DimensionTracker::set_label(resulting_pshape[i], labels[i]);
-        }
-        pshape = PartialShape(resulting_pshape);
-        shape_defined = true;
-    }
-    return shape_defined;
+    return ov::util::evaluate_as_partial_shape(output, pshape);
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
@@ -1476,5 +1447,39 @@ void infer_auto_padding(const Shape& image_shape,
                            padding_above,
                            padding_below);
 }
+
+bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+    Tensor lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(output);
+    bool shape_defined = false;
+    if (lb && ub) {
+        auto lower_bound = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
+                               ->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
+                               ->cast_vector<int64_t>();
+        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
+        const TensorLabel& labels = output.get_tensor().get_value_label();
+        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
+
+        std::vector<Dimension> resulting_pshape(lower_bound.size());
+        for (size_t i = 0; i < lower_bound.size(); ++i) {
+            auto low = lower_bound[i], up = upper_bound[i];
+            OPENVINO_ASSERT(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
+            if (output.get_element_type() == element::i32 && low != up) {
+                if (up == std::numeric_limits<std::int32_t>::max())
+                    up = std::numeric_limits<std::int64_t>::max();
+                if (low == std::numeric_limits<std::int32_t>::max())
+                    low = std::numeric_limits<std::int64_t>::max();
+            }
+            resulting_pshape[i] = {low, up};
+            if (!labels.empty() && labels[i])
+                DimensionTracker::set_label(resulting_pshape[i], labels[i]);
+        }
+        pshape = PartialShape(resulting_pshape);
+        shape_defined = true;
+    }
+    return shape_defined;
+}
+
 }  // namespace util
 }  // namespace ov

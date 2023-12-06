@@ -12,6 +12,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/broadcast.hpp"
+#include "validation_util.hpp"
 
 ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                            const Output<Node>& target_shape,
@@ -190,9 +191,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
     }
 
     PartialShape output_shape;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool output_shape_defined = ov::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool output_shape_defined = ov::util::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
 
     if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
         auto concat_inputs = concat->inputs();
