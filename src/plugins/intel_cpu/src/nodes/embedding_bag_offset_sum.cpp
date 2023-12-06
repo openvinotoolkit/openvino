@@ -48,17 +48,17 @@ void EmbeddingBagOffsetSum::initSupportedPrimitiveDescriptors() {
 
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
     static const std::set<ov::element::Type > supportedPrecisions =
-            {ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8, ov::element::i32};
+            {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (inDataPrecision == ov::element::bf16)
+    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16))
         inDataPrecision = ov::element::f32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
             OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions =
-                {ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8, ov::element::i32};
+                {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
             OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     }
