@@ -43,7 +43,7 @@ OutputVector translate_atan2_op(const NodeContext& node) {
     auto atan_y_x_plus_pi = make_shared<v1::Add>(atan, const_pi);
     result = make_shared<v1::Select>(cond1, atan_y_x_plus_pi, result);
 
-    // handle the third consition : x<0 && y<0
+    // handle the third condition : x<0 && y<0
     auto is_y_negative = make_shared<v1::Less>(y, const_zero);
     auto cond2 = make_shared<v1::LogicalAnd>(is_x_negative, is_y_negative);
     auto atan_y_x_minus_pi = make_shared<v1::Subtract>(atan, const_pi);
