@@ -107,6 +107,17 @@ def get_value_from_getattr(getattr_node, self_module):
         module = getattr(module, attr_name)
     return module
 
+def graph_has_ops(graph, op_types:list) -> bool:
+    res = False
+    for n in graph.nodes():
+        if any(kind in n.kind() for kind in op_types):
+            return True
+        for b in n.blocks():
+            res = graph_has_ops(b, op_types)
+        if res:
+            return res
+    return res
+    
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
