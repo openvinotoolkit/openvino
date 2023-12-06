@@ -130,6 +130,12 @@ jobs:
       - name: Clean sccache stats
         run: '& "$Env:SCCACHE_PATH" --zero-stats'
 
+        # the case is the following:
+        # sccache: error: failed to persist temporary file: Access is denied. (os error 5)
+        # which can be explained by an attempt to write to a file opened by another process
+      - name: Stop sccache server just in case
+        run: '& "$Env:SCCACHE_PATH" --stop-server'
+
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
