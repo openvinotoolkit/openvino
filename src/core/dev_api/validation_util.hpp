@@ -118,5 +118,15 @@ OPENVINO_API PartialShape infer_convolution_forward(const Node* node,
                                                     const PartialShape& filters_shape,
                                                     const Strides& filter_strides,
                                                     const Strides& filter_dilation);
+
+/// \brief Infers image paddings.
+///
+OPENVINO_API void infer_auto_padding(const Shape& image_shape,
+                                     const Shape& filter_shape,
+                                     const Strides& filter_strides,
+                                     const Strides& filter_dilations,
+                                     const op::PadType pad_type,
+                                     CoordinateDiff& padding_above,
+                                     CoordinateDiff& padding_below);
 }  // namespace util
 }  // namespace ov

@@ -121,15 +121,13 @@ void op::ConvolutionIE::validate_and_infer_types() {
             m_pads_end.clear();
             auto filter_shape = filters_shape.to_shape();
             filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2);  // Remove {O,I}
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            infer_auto_padding(data_batch_shape.to_shape(),
-                               filter_shape,
-                               m_strides,
-                               m_dilations,
-                               m_auto_pad,
-                               m_pads_end,
-                               m_pads_begin);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::infer_auto_padding(data_batch_shape.to_shape(),
+                                         filter_shape,
+                                         m_strides,
+                                         m_dilations,
+                                         m_auto_pad,
+                                         m_pads_end,
+                                         m_pads_begin);
         }
     }
 
