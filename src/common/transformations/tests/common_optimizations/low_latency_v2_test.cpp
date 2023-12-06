@@ -775,6 +775,86 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+TEST(TransformationTests, LowLatency2_Multiply_Loop) {
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
+    {
+        auto Yi = std::make_shared<Parameter>(element::f32, Shape{16, 1});
+        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 16});
+        auto X_init = std::make_shared<Parameter>(element::f32, Shape{1, 16});
+        Yi->set_friendly_name("Yi_t");
+
+        // Body
+        auto multiply = std::make_shared<Multiply>(Xi, Yi);
+        auto res = std::make_shared<Result>(multiply);
+        auto body = std::make_shared<Model>(OutputVector{res}, ParameterVector{Xi, Yi});
+        auto body_condition = std::make_shared<Constant>(element::boolean, Shape{1}, true);
+        auto cond_res = std::make_shared<Result>(body_condition);
+
+        body->add_results({cond_res});
+        auto results = body->get_results();
+
+        // Loop
+        auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 2);
+        auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
+        auto loop = std::make_shared<Loop>(trip_count, exec_condition);
+        loop->set_special_body_ports({-1, 1});
+        loop->set_function(body);
+        loop->set_friendly_name("MultiplyLoop");
+        loop->set_merged_input(Xi, X_init, results[0]);
+
+        auto out0 = loop->get_iter_value(results[0], -1);
+
+        auto res_loop = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Model>(NodeVector{res_loop}, ParameterVector{Yi, X_init});
+
+        pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
+        manager.run_passes(f);
+
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto Y = std::make_shared<Parameter>(element::f32, Shape{1, 16});
+        auto Yi = std::make_shared<Parameter>(element::f32, Shape{16, 1});
+        auto X = std::make_shared<Parameter>(element::f32, Shape{1, 16});
+        Yi->set_friendly_name("Yi_t");
+
+        const std::string variable_name_Y("MultiplyLoop/Yi_t/variable_0");
+        auto variable_Y = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), Y->get_element_type(), variable_name_Y});
+        auto read_value_Y = std::make_shared<ReadValue>(create_init_subgraph(Y), variable_Y);
+
+        auto multiply = std::make_shared<Multiply>(X, Yi);
+        auto res = std::make_shared<Result>(multiply);
+        auto body = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Yi});
+        auto body_condition = std::make_shared<Constant>(element::boolean, Shape{1}, true);
+        auto cond_res = std::make_shared<Result>(body_condition);
+
+        body->add_results({cond_res});
+        auto results = body->get_results();
+
+        // Loop
+        auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 2);
+        auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
+        auto loop = std::make_shared<Loop>(trip_count, exec_condition);
+        loop->set_special_body_ports({-1, 1});
+        loop->set_function(body);
+        loop->set_friendly_name("MultiplyLoop");
+        loop->set_merged_input(X, read_value_Y, results[0]);
+        auto out0 = loop->get_iter_value(results[0], -1);
+
+        auto res_loop = std::make_shared<Result>(loop->output(0));
+        auto assign_Y = std::make_shared<Assign>(loop->output(0), variable_Y);
+        f_ref = std::make_shared<Model>(OutputVector{res_loop}, ParameterVector{X, Y});
+        f_ref->add_sinks({assign_Y});
+        assign_Y->add_control_dependency(read_value_Y);
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
 namespace {
 using OutPtr = Output<Node>;
 enum class RNNType : size_t {
