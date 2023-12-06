@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import itertools
 import os
 import shutil
-import itertools
-import numpy as np
 
+import numpy as np
 from models_hub_common.constants import test_device
 
 
@@ -13,6 +13,7 @@ def get_models_list(file_name: str):
     models = []
     with open(file_name) as f:
         for model_info in f:
+            model_info = model_info.strip()
             # skip comment in model scope file
             if model_info.startswith('#'):
                 continue

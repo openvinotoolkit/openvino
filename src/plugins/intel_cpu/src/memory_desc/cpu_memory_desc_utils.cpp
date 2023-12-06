@@ -48,7 +48,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
 
 CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to CpuBlockedMemoryDesc";
+        OPENVINO_THROW("Cannot convert InferenceEngine::TensorDesc with ANY layout to CpuBlockedMemoryDesc");
 
     const auto& blkDesc = desc.getBlockingDesc();
     const auto& dims = desc.getDims();
@@ -110,7 +110,7 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc";
+        OPENVINO_THROW("Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc");
 
     const auto& blkDesc = desc.getBlockingDesc();
     const auto& dims = desc.getDims();
@@ -171,7 +171,7 @@ InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDes
                                            blockingDesc->getShape().getStaticDims(),
                                            blkDesc);
     } else {
-        IE_THROW() << "Cannot convert MemoryDesc to InferenceEngine::TensorDesc";
+        OPENVINO_THROW("Cannot convert MemoryDesc to InferenceEngine::TensorDesc");
     }
 }
 

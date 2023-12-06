@@ -79,11 +79,13 @@ struct activation_impl : public typed_primitive_impl<activation> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << make_data(&activation_function, sizeof(activation_func));
         ob << make_data(&additional_params, sizeof(activation_additional_params));
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> make_data(&activation_function, sizeof(activation_func));
         ib >> make_data(&additional_params, sizeof(activation_additional_params));
     }

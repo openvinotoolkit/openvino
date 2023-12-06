@@ -4,7 +4,7 @@
 
 """Factory functions for ops added to openvino opset13."""
 from functools import partial
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 import logging
 
 import numpy as np
@@ -118,6 +118,39 @@ def bitwise_xor(
 
 
 @nameable_op
+def fake_convert(
+    data: NodeInput,
+    scale: NodeInput,
+    shift: Optional[NodeInput] = None,
+    destination_type: Literal["f8e4m3", "f8e5m2"] = "f8e4m3",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs FakeConvert.
+
+    FakeConvert is experimental and may change in the future.
+    .. warning:: FakeConvert is experimental and may change in the future.
+
+    :param data: The node with data tensor with FP16, BF16 or FP32 datatype.
+    :param scale: Tensor with a scale factor for the data input value,
+                  of the same type as the data, and shape Numpy-broadcastable to data.
+    :param shift: Optional tensor with value to subtract before and add after conversion of the data input value,
+                  of the same type as the data, and shape Numpy-broadcastable to data.
+    :param destination_type: Type to emulate, string of either "f8e4m3" or "f8e5m2".
+    :param name: The optional new name for output node.
+
+    :return: The new node performing FakeConvert operation.
+    """
+    nodes = [data, scale]
+    if shift is not None:
+        nodes.append(shift)
+    return _get_node_factory_opset13().create(
+        "FakeConvert",
+        as_nodes(*nodes),
+        {"destination_type": destination_type},
+    )
+
+
+@nameable_op
 def multinomial(
     probs: NodeInput,
     num_samples: NodeInput,
@@ -129,7 +162,7 @@ def multinomial(
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
-    :param probs: Tensor with probabilities of floating-point type, and shape [class_size] or [batch_size, class_size].
+    :param probs: Tensor with probabilities of floating-point type, and shape [batch_size, class_size].
     :param num_samples: Tensor (scalar or 1D) a single element of type i32 or i64,
                         specifying the number of samples to draw from the multinomial distribution.
     :param convert_type: Specifies the output tensor type, possible values: 'i64', 'i32'.
