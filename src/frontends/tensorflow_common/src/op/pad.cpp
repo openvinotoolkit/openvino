@@ -91,7 +91,7 @@ OutputVector translate_padv2_op(const NodeContext& node) {
 }
 
 OutputVector translate_mirror_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"MirrorPad"}, true);
+    default_op_checks(node, 2, {"MirrorPad"});
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
 
@@ -99,15 +99,9 @@ OutputVector translate_mirror_pad_op(const NodeContext& node) {
     auto mode = node.get_attribute<std::string>("mode");
     auto pad_mode = convert_padding_mode(node, mode);
 
-    bool is_complex = false;
-    if (auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr())) {
-        is_complex = true;
-        input = complex_type_mark->input_value(0);
-    }
-
     // prepare pads_begin and pads_end for OpenVINO Pad
     shared_ptr<Node> pads_begin, pads_end;
-    slice_pads_begin_end(paddings, pads_begin, pads_end, is_complex);
+    slice_pads_begin_end(paddings, pads_begin, pads_end);
 
     auto pad = make_shared<v1::Pad>(input, pads_begin, pads_end, pad_mode);
     set_node_name(node.get_name(), pad);
