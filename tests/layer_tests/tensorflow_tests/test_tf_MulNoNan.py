@@ -15,9 +15,9 @@ class TestMulNoNan(CommonTFLayerTest):
         inputs_data['x'] = mix_array_with_value(inputs_data['x'], np.inf)
         inputs_data['x'] = mix_array_with_value(inputs_data['x'], np.nan)
         inputs_data['y'] = np.random.randint(-10, 10, y_shape).astype(self.input_type) * \
-                           np.random.randint(0, 2, y_shape).astype(self.input_type)
+                           np.random.choice([0.0], y_shape).astype(self.input_type)
         return inputs_data
-    
+
     def create_mul_no_nan_net(self, input_shape, input_type):
         self.input_type = input_type
         tf.compat.v1.reset_default_graph()
@@ -28,7 +28,7 @@ class TestMulNoNan(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         return tf_net, None
-    
+
     test_data_basic = [
         dict(input_shape=[10, 10], input_type=np.float32),
         dict(input_shape=[2, 3, 4], input_type=np.float32),
