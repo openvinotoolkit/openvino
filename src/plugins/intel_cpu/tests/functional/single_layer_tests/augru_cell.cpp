@@ -132,7 +132,7 @@ TEST_P(AUGRUCellCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<ov::AnyMap> additionalConfig = {{ov::hint::inference_precision()},
+std::vector<ov::AnyMap> additionalConfig = {{ov::hint::inference_precision(ov::element::f32)},
                                             {ov::hint::inference_precision(ov::element::bf16)}};
 
 CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"};

@@ -20,7 +20,7 @@ using ConvertToPluginSpecificNodeParams = std::tuple<ov::Shape,                 
                                                      size_t>;                        // expected number of constant node
 
 class ConvertToPluginSpecificNode : public testing::WithParamInterface<ConvertToPluginSpecificNodeParams>,
-                                    public SubgraphBaseTest {
+                                    public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvertToPluginSpecificNodeParams> obj) {
         ov::Shape nonConstShape, constShape;
