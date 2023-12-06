@@ -81,8 +81,8 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         if (concat_axis != split_axis) {
             if (input.get_partial_shape().is_static()) {
                 auto rank = input.get_partial_shape().rank().get_length();
-                concat_axis = concat_axis < 0 ? concat_axis + rank : concat_axis;
-                split_axis = split_axis < 0 ? split_axis + rank : split_axis;
+                concat_axis = ov::util:::normalize(concat_axis, rank);
+                split_axis = ov::util:::normalize(split_axis, rank);
             }
             if (concat_axis != split_axis)
                 return false;
