@@ -606,7 +606,6 @@ class TestParallelRunner:
 
     def __execute_tests(self, filters: [], prev_worker_cnt=0):
         commands = [f"{self._command} --gtest_filter={filter}" for filter in filters]
-        [logger.info(f'{command}') for command in commands]
         tmp_log_dir = os.path.join(self._working_dir, "temp")
         if not os.path.isdir(tmp_log_dir):
             os.mkdir(tmp_log_dir)
