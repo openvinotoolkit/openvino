@@ -58,23 +58,17 @@ public:
     void register_pass(const snippets::pass::PassPosition& position, const std::shared_ptr<Pass>& pass);
     void register_pass(const std::shared_ptr<Pass>& pass);
 
-    template<typename T, bool Enable = true, class... Args>
+    template<typename T, class... Args>
     void register_pass(Args&&... args) {
         static_assert(std::is_base_of<Pass, T>::value, "Pass not derived from lowered::Pass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         register_pass(pass);
-        if (!Enable && !m_pass_config->is_enabled<T>()) {
-            m_pass_config->disable<T>();
-        }
     }
-    template<typename T, class Pos, bool Enable = true, class... Args, std::enable_if<std::is_same<snippets::pass::PassPosition, Pos>::value, bool>() = true>
+    template<typename T, class Pos, class... Args, std::enable_if<std::is_same<snippets::pass::PassPosition, Pos>::value, bool>() = true>
     void register_pass(const snippets::pass::PassPosition& position, Args&&... args) {
         static_assert(std::is_base_of<Pass, T>::value, "Pass not derived from lowered::Pass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         register_pass(position, pass);
-        if (!Enable && !m_pass_config->is_enabled<T>()) {
-            m_pass_config->disable<T>();
-        }
     }
 
     void register_positioned_passes(const std::vector<PositionedPassLowered>& pos_passes);
