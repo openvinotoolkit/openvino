@@ -442,9 +442,9 @@ jobs:
 
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
-    if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+    # if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
     with:
@@ -454,9 +454,8 @@ jobs:
 
   TensorFlow_Hub_Performance_Models_Tests:
     name: TensorFlow Hub Performance Models tests
-    if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-    #   fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_tensorflow_hub_performance_models_tests.yml
     with:
@@ -464,107 +463,15 @@ jobs:
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
       event: ${{ github.event_name }}
 
-  # TODO: Enable once they are ready for self-hosted runners
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    needs: [Build, Smart_CI]
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
-    defaults:
-      run:
-        shell: bash
-    runs-on: 'aks-linux-16-cores-arm'
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
-    env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
-    if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
-
-    steps:
-      - name: Check sudo
-        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Install dependencies
-        run: |
-          # install git (required to build pip deps from the sources)
-          # install 'g++' to build 'detectron2' and 'natten' wheels
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package_x86_64
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests_x86_64
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-
-      - name: Install OpenVINO Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-
-      - name: Install PyTorch tests requirements
-        run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
-          echo "Available storage:"
-          df -h
-        env:
-          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
-
-      - name: PyTorch Models Tests
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
-        env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
-          TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
-
-      - name: Available storage after tests
-        run: |
-          echo "Available storage:"
-          df -h
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-torch-models
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-          if-no-files-found: 'error'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_models_tests.yml
+    with:
+      runner: 'aks-linux-16-cores-arm'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      event: ${{ github.event_name }}
 
   Overall_Status:
     name: ci/gha_overall_status

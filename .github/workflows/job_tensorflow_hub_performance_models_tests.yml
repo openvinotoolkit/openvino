@@ -82,7 +82,7 @@ jobs:
         with:
           version: '3.11'
           should-setup-pip-paths: 'false'
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -98,7 +98,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/performance_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_performance.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results

@@ -1,4 +1,4 @@
-name: TensorFlow Hub Models tests
+name: PyTorch Models tests
 
 on:
   workflow_call:
@@ -18,9 +18,9 @@ on:
         required: true
 
 jobs:
-  TensorFlow_Hub_Models_Tests:
-    name: TensorFlow Hub Models tests
-    timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 25 }}
+  PyTorch_Models_Tests:
+    name: PyTorch Models tests
+    timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 30 }}
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -84,25 +84,44 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
+      - name: Install dependencies
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          # install git (required to build pip deps from the sources)
+          # install 'g++' to build 'detectron2' and 'natten' wheels
+          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
+
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
-      - name: Install TF Hub tests requirements
-        run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
+      - name: Install PyTorch tests requirements
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
+          echo "Available storage:"
+          df -h
+        env:
+          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
-      - name: TensorFlow Hub Tests - TF FE
+      - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
+
+      - name: Available storage after tests
+        run: |
+          echo "Available storage:"
+          df -h
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-tensorflow-hub-models
+          name: test-results-torch-models
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
