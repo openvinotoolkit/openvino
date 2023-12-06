@@ -110,7 +110,7 @@ protected:
                 coordsTensorData[i + 3] = static_cast<std::int16_t>(ngraph::bfloat16(19.f).to_bits());
             }
         } else {
-            IE_THROW() << "roi align. Unsupported precision: " << coordsET;
+            OPENVINO_THROW("roi align. Unsupported precision: ", coordsET);
         }
 
         auto roisIdxTensor = ov::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };

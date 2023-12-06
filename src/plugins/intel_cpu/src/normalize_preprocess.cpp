@@ -25,7 +25,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
     }
 
     if (!dimsEqualStrong(inChannels, inputShape.getDims()[1])) {
-        IE_THROW() << "channels mismatch between mean and input";
+        OPENVINO_THROW("channels mismatch between mean and input");
     }
 
     switch (pp.getMeanVariant()) {
@@ -36,7 +36,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
 
             for (unsigned channel = 0; channel < inChannels; channel++) {
                 if (pp[channel]->stdScale == 0) {
-                    IE_THROW() << "Preprocessing error: stdScale cannot be equal zero";
+                    OPENVINO_THROW("Preprocessing error: stdScale cannot be equal zero");
                 }
                 meanValues[channel] = pp[channel]->meanValue;
                 stdScales[channel] = pp[channel]->stdScale;
@@ -57,9 +57,12 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
             for (unsigned channel = 0; channel < inChannels; channel++) {
                 Blob::Ptr meanBlob = pp[channel]->meanData;
                 if (!meanBlob || InferenceEngine::details::convertPrecision(meanBlob->getTensorDesc().getPrecision()) != ov::element::f32)
-                    IE_THROW() << "mean image not provided or not in Float 32";
+                    OPENVINO_THROW("mean image not provided or not in Float 32");
                 if (meanBlob->size() != meanHeight*meanWidth) {
-                    IE_THROW() << "mean image size does not match expected network input, expecting " << meanWidth << " x " << meanHeight;
+                    OPENVINO_THROW("mean image size does not match expected network input, expecting ",
+                                   meanWidth,
+                                   " x ",
+                                   meanHeight);
                 }
                 // todo: cast to TBlob and make sure it is floats
                 cpu_memcpy_s(meanBuffer->data() + channel*meanBlob->size(), meanBuffer->byteSize() - channel*meanBlob->byteSize(),
@@ -75,21 +78,21 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
             break;
 
         default: {
-            IE_THROW() << "Unsupported mean variant: " << pp.getMeanVariant();
+            OPENVINO_THROW("Unsupported mean variant: ", pp.getMeanVariant());
         }
     }
 }
 
 void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, InferenceEngine::Layout layout) {
-    IE_ASSERT(input != nullptr);
+    OPENVINO_ASSERT(input != nullptr);
 
     const auto inputDims = inputShape.getStaticDims();
     if (inputDims.size() != 4) {
-        IE_THROW() << "Expecting input as 4 dimension blob with format NxCxHxW.";
+        OPENVINO_THROW("Expecting input as 4 dimension blob with format NxCxHxW.");
     }
 
     if (layout != NCHW && layout != NHWC) {
-        IE_THROW() << "Expecting input layout NCHW or NHWC.";
+        OPENVINO_THROW("Expecting input layout NCHW or NHWC.");
     }
 
     int MB = inputDims[0];
@@ -119,7 +122,7 @@ void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, 
             });
         }
     } else {
-        IE_THROW() << "Preprocessing error: meanValues and stdScales arrays are inconsistent.";
+        OPENVINO_THROW("Preprocessing error: meanValues and stdScales arrays are inconsistent.");
     }
 }
 

@@ -86,7 +86,7 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                     ov::element::f16,
                     ov::element::i32,
                     ov::element::f32)) {
-            DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.name());
+            DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.to_string());
             return false;
         }
         if ((convertParams.srcPrc == ov::element::i8 && !one_of(convertParams.dstPrc,
@@ -122,7 +122,7 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                                                                 ov::element::f16,
                                                                 ov::element::i32))) {
             DEBUG_LOG("NECopy does not support passed combination of source and destination precisions. ",
-                      "source precision: ", convertParams.srcPrc.name(), " destination precsion: ", convertParams.dstPrc.name());
+                      "source precision: ", convertParams.srcPrc.to_string(), " destination precsion: ", convertParams.dstPrc.to_string());
             return false;
         }
     }

@@ -18,7 +18,7 @@ API conformance contains 2 test types:
 
 >**NOTE:** To run only mandatory API Conformance tests use `--gtest_filter=*mandatory*`.
 
-A result of the `apiConformanceTests` run is report `report_api.xml`. It shows OpenVINO API entities' test statistics for each OpenVINO API entity, such as `passed/failed/crashed/skipped/hanging`, tests number, pass rates, and implementation status.
+A result of the `ov_api_conformance_tests` run is report `report_api.xml`. It shows OpenVINO API entities' test statistics for each OpenVINO API entity, such as `passed/failed/crashed/skipped/hanging`, tests number, pass rates, and implementation status.
 
 ### Opset Conformance
 
@@ -30,7 +30,7 @@ The suite contains:
 * `ReadIR_ImportExport` tests exports and imports of compiled model, using a graph (Conformance IR) based on model parameters.
 * `OpImplCheckTest` set checks an operation plugin implementation status, using a simple synthetic single operation graph (`Implemented`/`Not implemented`). The suite checks only `compile_model` without comparison with the reference.
 
-A result of the `conformanceTests` run is the `report_opset.xml` file. It shows tests statistic, like pass rate, passed, crashed, skipped, failed tests, and plugin implementation per operation for devices.
+A result of the `ov_op_conformance_tests` run is the `report_opset.xml` file. It shows tests statistic, like pass rate, passed, crashed, skipped, failed tests, and plugin implementation per operation for devices.
 
 ## How to build
 
@@ -43,7 +43,7 @@ Run the following commands in the build directory:
    ```
    make --jobs=$(nproc --all) subgraphsDumper
    make --jobs=$(nproc --all) conformanceTests
-   make --jobs=$(nproc --all) apiConformanceTests
+   make --jobs=$(nproc --all) ov_api_conformance_tests
    ```
 3. Build plugins to validate:
    ```
@@ -82,7 +82,7 @@ The script has the following optional arguments:
 * `c OV_CONFIG_PATH, --ov_config_path OV_CONFIG_PATH`
                         Specify path to a plugin config file as `.lst` file. Default value is ``
 * `s DUMP_GRAPH, --dump_graph DUMP_GRAPH`
-                        Set '1' to create Conformance IRs from models using subgraphsDumper tool. The default value is '0'.
+                        Set '1' to create Conformance IRs from models using ov_subgraphs_dumper tool. The default value is '0'.
                         NOTE: Applicable only for Opset Conformance.
 * `sm SPECIAL_MODE, --special_mode SPECIAL_MODE`
                         Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``

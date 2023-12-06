@@ -17,17 +17,103 @@
 namespace ov {
 namespace intel_cpu {
 
-class VariableState : public ov::IVariableState {
+class IVariableState : public ov::IVariableState {
 public:
-    VariableState(std::string name, MemoryPtr storage) : ov::IVariableState{name} {
-        const auto& memDesc = storage->getDesc();
-        m_state = ov::make_tensor(memDesc.getPrecision(),
-                                  memDesc.getShape().getDims());
-        cpu_memcpy(m_state->data(), storage->getData(), storage->getSize());
-    }
+    using ov::IVariableState::IVariableState;
 
-    void reset() override;
+    virtual void commit() = 0;
+
+    virtual MemoryPtr input_mem() = 0;
+    virtual MemoryPtr output_mem() = 0;
+    virtual MemoryDescPtr internal_desc() const = 0;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+class VariableStateBase : public IVariableState {
+public:
+    VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc);
+
+    //ov::IVariableState
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+protected:
+    virtual MemoryPtr internal_state_mem() const = 0;
+
+    static MemoryDescPtr to_static(const MemoryDescPtr& desc);
+    static const dnnl::engine& get_engine();
+
+protected:
+    MemoryDescPtr m_external_desc;
+};
+
+class VariableStateDoubleBuffer : public VariableStateBase {
+public:
+    VariableStateDoubleBuffer(const std::string& name,
+                              const MemoryPtr& first_buffer,
+                              const MemoryPtr& second_buffer,
+                              const MemoryDescPtr& external_desc,
+                              const MemoryCPtr& init_val);
+
+    //ov::IVariableState
+    void reset() override;
+
+    //ov::intel_cpu::IVariableState
+    void commit() override;
+
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
+    MemoryDescPtr internal_desc() const override;
+
+private:
+    void reset_prime_mem(const MemoryPtr& mem) {
+        m_internal_mem[buffer_num] = mem;
+    }
+
+    void reset_second_mem(const MemoryPtr& mem) {
+        m_internal_mem[buffer_num ^ 0x1] = mem;
+    }
+
+    const MemoryPtr& prime_mem() const {
+        return m_internal_mem[buffer_num];
+    }
+
+    const MemoryPtr& second_mem() const {
+        return m_internal_mem[buffer_num ^ 0x1];
+    }
+
+    MemoryPtr internal_state_mem() const override;
+
+private:
+    MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
+    std::array<MemoryPtr, 2> m_internal_mem{};
+    size_t buffer_num = 0;
+};
+
+class VariableStateSingleBuffer : public VariableStateBase {
+public:
+    VariableStateSingleBuffer(const std::string& name,
+                              const MemoryPtr& buffer,
+                              const MemoryDescPtr& external_desc,
+                              const MemoryCPtr& init_val);
+    //ov::IVariableState
+    void reset() override;
+
+    //ov::intel_cpu::IVariableState
+    void commit() override;
+
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
+    MemoryDescPtr internal_desc() const override;
+
+private:
+    MemoryPtr internal_state_mem() const override;
+
+private:
+    MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
+    MemoryPtr m_internal_mem;
+};
+
+using MemStatePtr = std::shared_ptr<IVariableState>;
+using MemStateCPtr = std::shared_ptr<const IVariableState>;
+}   // namespace intel_cpu
+}   // namespace ov

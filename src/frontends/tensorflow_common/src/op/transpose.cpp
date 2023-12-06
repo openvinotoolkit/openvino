@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/transpose.hpp"
+
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/concat.hpp"
 #include "utils.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -28,21 +30,21 @@ OutputVector translate_transpose_op(const NodeContext& node) {
         x = complex_type_mark->input_value(0);
 
         auto input_rank = compute_subgraph_scalar_rank(x, element::i32, false);
-        auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
-        auto input_rank_minus_one = make_shared<Subtract>(input_rank, const_one)->output(0);
+        auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        auto input_rank_minus_one = make_shared<v1::Subtract>(input_rank, const_one)->output(0);
 
         OutputVector concat_inputs;
         concat_inputs.push_back(perm);
         concat_inputs.push_back(input_rank_minus_one);
 
-        auto concat = make_shared<Concat>(concat_inputs, 0);
-        auto transpose = make_shared<Transpose>(x, concat);
+        auto concat = make_shared<v0::Concat>(concat_inputs, 0);
+        auto transpose = make_shared<v1::Transpose>(x, concat);
         set_node_name(node.get_name(), transpose);
         auto complex_transpose = make_shared<ComplexTypeMark>(transpose, complex_part_type);
 
         return {complex_transpose->output(0)};
     }
-    auto transpose = make_shared<Transpose>(x, perm);
+    auto transpose = make_shared<v1::Transpose>(x, perm);
     set_node_name(node.get_name(), transpose);
     return {transpose};
 }

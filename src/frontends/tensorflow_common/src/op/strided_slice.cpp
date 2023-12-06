@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/concat.hpp"
+
 #include <climits>
 
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -54,16 +57,16 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     element::Type complex_part_type = element::dynamic;
     std::vector<int64_t> begin_axes;
-    if (complex_type_mark) {
-        complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+    // if (complex_type_mark) {
+    //     complex_part_type = complex_type_mark->get_complex_part_type();
+    //     input = complex_type_mark->input_value(0);
 
-        TENSORFLOW_OP_VALIDATION(node,
-                                 as_type_ptr<Constant>(node.get_input(1).get_node_shared_ptr()),
-                                 "StridedSlice for complex values is not supported with non-constant begin");
-        get_const_input(node, 1, &begin_axes);
-        max_length = std::max(begin_axes.size() + 1, max_length);
-    }
+    //     TENSORFLOW_OP_VALIDATION(node,
+    //                              as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
+    //                              "StridedSlice for complex values is not supported with non-constant begin");
+    //     get_const_input(node, 1, &begin_axes);
+    //     max_length = std::max(begin_axes.size() + 1, max_length);
+    // }
 
     begin_mask.resize(max_length, 0);
     end_mask.resize(max_length, 0);
@@ -72,11 +75,11 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     shrink_axis_mask.resize(max_length, 0);
 
     if (complex_type_mark) {
-        auto zero = make_shared<Constant>(element::i32, Shape{1}, 0);
-        auto one = make_shared<Constant>(element::i32, Shape{1}, 1);
-        begin = make_shared<Concat>(OutputVector{begin, zero}, 0);
-        end = make_shared<Concat>(OutputVector{end, zero}, 0);
-        strides = make_shared<Concat>(OutputVector{strides, one}, 0);
+        auto zero = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+        auto one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        begin = make_shared<v0::Concat>(OutputVector{begin, zero}, 0);
+        end = make_shared<v0::Concat>(OutputVector{end, zero}, 0);
+        strides = make_shared<v0::Concat>(OutputVector{strides, one}, 0);
 
         begin_mask[begin_axes.size()] = 1;
         end_mask[begin_axes.size()] = 1;
@@ -85,7 +88,7 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
         shrink_axis_mask[begin_axes.size()] = 0;
     }
 
-    auto strided_slice = make_shared<StridedSlice>(input,
+    auto strided_slice = make_shared<v1::StridedSlice>(input,
                                                    begin,
                                                    end,
                                                    strides,

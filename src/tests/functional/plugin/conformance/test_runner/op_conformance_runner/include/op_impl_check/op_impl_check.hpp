@@ -7,19 +7,17 @@
 #include "gtest/gtest.h"
 
 #include "common_test_utils/test_common.hpp"
-#include "common_test_utils/common_utils.hpp"
-
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 
 namespace ov {
 namespace test {
-namespace subgraph {
+namespace op_conformance {
 
 using OpImplParams = std::tuple<
         std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>,       // Function to check
-        std::string,                         // Target Device
-        ov::AnyMap>; // Plugin Config
+        std::string,                                                       // Target Device
+        ov::AnyMap>;                                                       // Plugin Config
 
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
                         public ov::test::TestsCommon {
@@ -35,6 +33,6 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj);
 };
 
-}   // namespace subgraph
+}   // namespace op_conformance
 }   // namespace test
 }   // namespace ov

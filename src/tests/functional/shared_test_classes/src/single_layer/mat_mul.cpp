@@ -63,7 +63,9 @@ void MatMulTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapeRelatedParams.input1.first))};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }

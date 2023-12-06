@@ -7,7 +7,6 @@ import sys
 import numpy as np
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Tensor, PartialShape
-
 from openvino.tools.ovc.error import Error
 
 
@@ -30,7 +29,7 @@ def get_pytorch_decoder(model, example_inputs, args):
             pass
         if not is_good_version:
             raise RuntimeError(
-                    "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
+                "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, TorchScriptPythonDecoder):
         decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
@@ -86,7 +85,8 @@ def extract_input_info_from_example(args, inputs):
     if args.input_model._input_is_list:
         list_inputs[0] = list_inputs[0].unsqueeze(0)
     if args.input_model._input_signature is not None and not is_dict_input:
-        input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[0] == "self" else args.input_model._input_signature
+        input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[
+                                                                   0] == "self" else args.input_model._input_signature
         if not is_dict_input:
             example_inputs = dict(zip(input_names, list_inputs))
             is_dict_input = True
@@ -109,7 +109,8 @@ def extract_input_info_from_example(args, inputs):
             example_dtype = pt_to_ov_type_map.get(str(dtype))
             user_dtype = get_value_from_list_or_dict(data_types, input_name, input_id)
             if user_dtype is not None and example_dtype is not None and example_dtype.to_dtype() != user_dtype:
-                raise Error(f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}")
+                raise Error(
+                    f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}")
 
             data_rank = getattr(example_input, "ndim", 0)
             user_input_shape = get_value_from_list_or_dict(input_shapes, input_name, input_id)
@@ -119,14 +120,15 @@ def extract_input_info_from_example(args, inputs):
                     f" is not equal to provided example_input rank {data_rank}")
 
             input_shape = user_input_shape if user_input_shape is not None else PartialShape([-1] * data_rank)
-            update_list_or_dict(data_types, input_name, input_id, example_dtype.to_dtype() if example_dtype is not None else None)
+            update_list_or_dict(data_types, input_name, input_id,
+                                example_dtype.to_dtype() if example_dtype is not None else None)
             update_list_or_dict(input_shapes, input_name, input_id, input_shape)
     else:
         for input_id, example_input in enumerate(list_inputs):
             dtype = getattr(example_input, "dtype", type(example_input))
             ov_dtype = pt_to_ov_type_map.get(str(dtype))
             data_rank = getattr(example_input, "ndim", 0)
-            input_shape =  PartialShape([-1] * data_rank)
+            input_shape = PartialShape([-1] * data_rank)
             input_name = input_names[input_id] if input_names else None
             update_list_or_dict(input_shapes, input_name, input_id, input_shape)
             update_list_or_dict(data_types, input_name, input_id, ov_dtype.to_dtype() if ov_dtype is not None else None)
@@ -137,9 +139,10 @@ def extract_input_info_from_example(args, inputs):
         args.input_list = input_names
         args.input = ",".join(input_names)
 
+
 # pylint: disable=no-member
 def to_torch_tensor(tensor):
-    import torch # pylint: disable=import-error
+    import torch  # pylint: disable=import-error
     if isinstance(tensor, torch.Tensor):
         return tensor
     if isinstance(tensor, np.ndarray):
@@ -157,7 +160,6 @@ def to_torch_tensor(tensor):
 
 
 def prepare_torch_inputs(example_inputs):
-    import torch
     inputs = None
     if example_inputs is not None:
         inputs = example_inputs

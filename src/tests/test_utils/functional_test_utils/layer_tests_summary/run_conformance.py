@@ -27,9 +27,9 @@ except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False
 
-API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
-OP_CONFORMANCE_BIN_NAME = "conformanceTests"
-SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
+API_CONFORMANCE_BIN_NAME = "ov_api_conformance_tests"
+OP_CONFORMANCE_BIN_NAME = "ov_op_conformance_tests"
+SUBGRAPH_DUMPER_BIN_NAME = "ov_subgraphs_dumper"
 
 SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
 NO_MODEL_CONSTANT = os.path.join(SCRIPT_DIR_PATH, "data", "models.lst")
@@ -166,12 +166,12 @@ class Conformance:
         self._model_path = file_utils.prepare_filelist(self._model_path,
                                                        constants.SUPPORTED_MODEL_EXTENSION)
         logger.info(f"Stating model dumping from {self._model_path}")
-        cmd = f'{subgraph_dumper_path} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
+        log_path = os.path.join(self._working_dir, "ov_subgraphs_dumper.log")
+        logger.info(f"ov_subgraphs_dumper.log will be saved to: {log_path}")
+        cmd = f'{subgraph_dumper_path} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}" > {log_path}'
         process = Popen(cmd, shell=True)
         out, err = process.communicate()
         if err is None:
-            for line in str(out).split('\n'):
-                logger.info(line)
             logger.info(f"Conformance IRs were saved to {conformance_ir_path}")
         else:
             logger.error(err)

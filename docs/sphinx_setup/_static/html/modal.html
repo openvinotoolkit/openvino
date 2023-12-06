@@ -1,0 +1,74 @@
+<div>
+    <div class="modal-header">
+        <h2>Benchmark Graph Builder</h2>
+        <span class="modal-close">&times;</span>
+    </div>
+    <div class="modal-line-divider"></div>
+    <section id="modal-configure-graphs" class="modal-configure-graphs">
+        <div id="configure-graphs-header" class="configure-graphs-header">
+            <h3>Configure Graphs</h3>
+            <div class="buttons-nav">
+                <div>
+                    <button id="build-graphs-btn" disabled="disabled" class="build-graphs-btn">Build Graphs</button>
+                </div>
+                <div class="clear-all-btn">
+                    <span class="clear-all-btn-content">Clear All</span>
+                </div>
+            </div>
+        </div>
+        <div class="configure-graphs-content">
+            <div class="modal-content-grid-container">
+                <div class="modal-content-grid-item span-element-big">
+                    <h5>Models</h5>
+                    <div class="modal-line-divider"></div>
+                    <div class="modal-content-grid modal-content-grid--cols-2">
+                        <div class="models-column-one column"></div>
+                        <div class="models-column-two column"></div>
+                    </div>
+                </div>
+                <div class="modal-content-grid-item">
+                    <h5>Platform Type</h5>
+                    <div class="modal-line-divider"></div>
+                    <div class="modal-content-grid">
+                        <div class="ietype-column column"></div>
+                    </div>
+                </div>
+                <div class="modal-content-grid-item">
+                    <h5>Platforms</h5>
+                    <div class="modal-line-divider"></div>
+                    <div class="modal-content-grid">
+                        <div class="client-platform-column column"></div>
+                    </div>
+                </div>
+                <div class="modal-content-grid-item">
+                    <h5>Parameters</h5>
+                    <div class="modal-line-divider"></div>
+                    <div class="modal-content-grid">
+                        <div class="kpi-column column"></div>
+                    </div>
+                </div>
+                <div class="modal-content-grid-item">
+                    <h5>Precision</h5>
+                    <div class="modal-line-divider"></div>
+                    <div class="modal-content-grid">
+                        <div class="precisions-column column"></div>
+                        <p>(Use for Throughput and Latency parameters only)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section id="modal-display-graphs" class="modal-display-graphs">
+        <div class="benchmark-graph-results-header">
+            <h3>Graph Results</h3>
+            <div class="edit-settings-btn">
+                <div class="edit-settings-text">Edit Settings
+                    <span class="edit-settings-icon"></span>
+                </div>
+            </div>
+        </div>
+        <div class="chart-placeholder"></div>
+    </section>
+    <div class="modal-footer">
+    </div>
+</div>

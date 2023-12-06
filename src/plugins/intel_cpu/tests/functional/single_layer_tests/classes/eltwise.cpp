@@ -77,7 +77,8 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 params = gen_params(UINT16_MAX, 0);
                 break;
             case ov::element::u32:
-                params = gen_params(UINT32_MAX, 0);
+                // testing::internal::Random::random limitation
+                params = gen_params(INT32_MAX, 0);
                 break;
             default:
                 params = gen_params(INT32_MAX, INT32_MIN);

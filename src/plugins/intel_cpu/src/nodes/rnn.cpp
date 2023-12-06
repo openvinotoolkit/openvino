@@ -757,7 +757,7 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     w_data_mem->allocate();
     auto w_ptr = static_cast<Prec*>(w_data_mem->buffer());
     if (w_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
     const VectorDims dims_s = { L, D, SC, G, SC };
     TensorDesc w_state_desc(InferenceEngine::details::convertPrecision(targetWeightPrec), dims_s, getWeightsLayoutByDims(dims_s, false));
@@ -765,7 +765,7 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     w_state_mem->allocate();
     auto r_ptr = static_cast<Prec*>(w_state_mem->buffer());
     if (r_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
     const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
     const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
@@ -822,7 +822,7 @@ void RNN::fillBiases(const int *gate_map) {
     w_bias_data_mem->allocate();
     auto b_ptr = static_cast<dataType*>(w_bias_data_mem->buffer());
     if (b_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
     auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
