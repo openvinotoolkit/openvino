@@ -55,7 +55,7 @@ class TestMultinomial(PytorchLayerTest):
                 "exact",
             ),
             (
-                np.array([[0.001, 0.001, 0.1, 0.9], [5, 10, 1e-5, 256], [1, 1e-5, 1e-5, 1e-5]], dtype=np.float64),
+                np.array([[0.001, 0.001, 0.1, 0.9], [5, 10, 0.1, 256], [1, 1e-5, 1e-5, 1e-5]], dtype=np.float32),
                 4,
                 False,
                 "sorted",
