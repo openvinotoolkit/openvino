@@ -26,31 +26,48 @@ public:
     virtual MemoryPtr input_mem() = 0;
     virtual MemoryPtr output_mem() = 0;
     virtual MemoryDescPtr internal_desc() const = 0;
+    virtual bool is_reset_state() const = 0;
 };
 
-class VariableStateDoubleBuffer : public IVariableState {
+class VariableStateBase : public IVariableState {
 public:
-    using MemBuilder = std::function<MemoryPtr(void)>;
+    VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc);
 
-public:
-    VariableStateDoubleBuffer(std::string name,
-                              const MemBuilder& mem_build,
-                              MemoryDescPtr external_desc,
-                              MemoryCPtr init_val);
     //ov::IVariableState
-    void reset() override;
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
     ov::SoPtr<ov::ITensor> get_state() const override;
+    void reset() final;
+    bool is_reset_state() const final;
+    void commit() final;
 
-    //ov::intel_cpu::IVariableState
-    void commit() override;
+protected:
+    virtual MemoryPtr internal_state_mem() const = 0;
+    virtual void reset_impl() = 0;
+    virtual void commit_impl() = 0;
+
+    static MemoryDescPtr to_static(const MemoryDescPtr& desc);
+    static const dnnl::engine& get_engine();
+
+private:
+    MemoryDescPtr m_external_desc;
+    bool reset_state_flag = true;
+};
+
+class VariableStateDoubleBuffer : public VariableStateBase {
+public:
+    VariableStateDoubleBuffer(const std::string& name,
+                              const MemoryPtr& first_buffer,
+                              const MemoryPtr& second_buffer,
+                              const MemoryDescPtr& external_desc);
 
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;
     MemoryDescPtr internal_desc() const override;
 
 private:
-    static MemoryDescPtr to_static(const MemoryDescPtr& desc);
+    //ov::intel_cpu::VariableStateBase
+    void reset_impl() override;
+    void commit_impl() override;
 
     void reset_prime_mem(const MemoryPtr& mem) {
         m_internal_mem[buffer_num] = mem;
@@ -68,14 +85,34 @@ private:
         return m_internal_mem[buffer_num ^ 0x1];
     }
 
-
-    const dnnl::engine& get_engine() const;
+    MemoryPtr internal_state_mem() const override;
 
 private:
-    MemoryDescPtr m_external_desc;
     MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
     std::array<MemoryPtr, 2> m_internal_mem{};
     size_t buffer_num = 0;
+};
+
+class VariableStateSingleBuffer : public VariableStateBase {
+public:
+    VariableStateSingleBuffer(const std::string& name,
+                              const MemoryPtr& buffer,
+                              const MemoryDescPtr& external_desc);
+
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
+    MemoryDescPtr internal_desc() const override;
+
+private:
+    //ov::intel_cpu::VariableStateBase
+    void reset_impl() override;
+    void commit_impl() override;
+
+    MemoryPtr internal_state_mem() const override;
+
+private:
+    MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
+    MemoryPtr m_internal_mem;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

@@ -34,6 +34,13 @@ TEST(type_prop, tensor_constant_deduce_bool) {
     ASSERT_EQ(c->get_shape(), (ov::Shape{2, 2}));
 }
 
+TEST(type_prop, tensor_constant_deduce_string) {
+    auto c =
+        ov::op::v0::Constant::create(ov::element::string, ov::Shape{2, 2}, vector<std::string>{"1", "2", "3", "4"});
+    ASSERT_EQ(c->get_element_type(), ov::element::string);
+    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 2}));
+}
+
 TEST(type_prop, tensor_constant_bad_count) {
     try {
         auto c = ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{2, 2}, {1, 1, 1});
@@ -51,5 +58,12 @@ TEST(type_prop, tensor_constant_bad_count) {
 TEST(type_prop, constant_zero_elements_one_string) {
     auto c = make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2, 0, 2, 2}, std::vector<std::string>{"42"});
     ASSERT_EQ(c->get_element_type(), ov::element::i64);
+    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 0, 2, 2}));
+}
+
+TEST(type_prop, constant_zero_elements_ov_string) {
+    auto c =
+        make_shared<ov::op::v0::Constant>(ov::element::string, ov::Shape{2, 0, 2, 2}, std::vector<std::string>{"42"});
+    ASSERT_EQ(c->get_element_type(), ov::element::string);
     ASSERT_EQ(c->get_shape(), (ov::Shape{2, 0, 2, 2}));
 }
