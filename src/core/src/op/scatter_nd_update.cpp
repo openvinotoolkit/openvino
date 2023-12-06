@@ -24,14 +24,17 @@ struct Evaluate : public element::NoAction<bool> {
                              const Shape& indices_shape,
                              const Shape& updates_shape) {
         using namespace ov::element;
-        return IfTypeOf<i32, i64>::apply<EvaluateByIndicesType>(indices.get_element_type(),
-                                                                data.data<const DT>(),
-                                                                indices,
-                                                                updates.data<const DT>(),
-                                                                output.data<DT>(),
-                                                                data_shape,
-                                                                indices_shape,
-                                                                updates_shape);
+        return IF_TYPE_OF(sctter_nd_eval_idx_type,
+                          OV_PP_ET_LIST(i32, i64),
+                          EvaluateByIndicesType,
+                          indices.get_element_type(),
+                          data.data<const DT>(),
+                          indices,
+                          updates.data<const DT>(),
+                          output.data<DT>(),
+                          data_shape,
+                          indices_shape,
+                          updates_shape);
     }
 
 private:
@@ -82,14 +85,17 @@ bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs
     const auto& updates_shape = updates.get_shape();
     output.set_shape(data_shape);
     using namespace ov::element;
-    return IfTypeOf<boolean, f16, f32, i32, i64, u32, u64>::apply<scatter_nd_update::Evaluate>(data.get_element_type(),
-                                                                                               data,
-                                                                                               indices,
-                                                                                               updates,
-                                                                                               output,
-                                                                                               data_shape,
-                                                                                               indices_shape,
-                                                                                               updates_shape);
+    return IF_TYPE_OF(v3_ScatterNDUpdate_evaluate,
+                      OV_PP_ET_LIST(boolean, f16, f32, i32, i64, u32, u64),
+                      scatter_nd_update::Evaluate,
+                      data.get_element_type(),
+                      data,
+                      indices,
+                      updates,
+                      output,
+                      data_shape,
+                      indices_shape,
+                      updates_shape);
 }
 
 bool ScatterNDUpdate::has_evaluate() const {
