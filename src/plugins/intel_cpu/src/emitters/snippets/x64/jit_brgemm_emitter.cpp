@@ -6,7 +6,6 @@
 
 #include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/port_connector.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
@@ -173,7 +172,8 @@ void jit_brgemm_emitter::init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<brge
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OPENVINO_ASSERT(m_with_scratch && in.size() == 3 || !m_with_scratch && in.size() == 2, "BRGEMM Emitter expects 3 inputs if there are compensations/wsp");
+    OPENVINO_ASSERT((m_with_scratch && in.size() == 3) || (!m_with_scratch && in.size() == 2),
+                    "BRGEMM Emitter expects 3 inputs if there are compensations/wsp");
 }
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -311,7 +311,7 @@ void jit_brgemm_emitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const
     brgemm_p.do_apply_comp = static_cast<size_t>(with_comp);
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
-    assert(brg_kernel);
+    OPENVINO_ASSERT(brg_kernel != nullptr, "jit_brgemm_emitter has nullptr kernel");
     (*brg_kernel)(&brgemm_p);
 }
 

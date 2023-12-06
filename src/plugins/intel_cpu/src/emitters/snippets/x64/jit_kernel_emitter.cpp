@@ -4,7 +4,6 @@
 
 #include "jit_kernel_emitter.hpp"
 
-#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -19,19 +18,16 @@ inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::
 }
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_container_emitter(h, isa),
-      reg_indexes_idx(abi_param1.getIdx()),
-      reg_const_params_idx(abi_param2.getIdx()) {
+    : jit_container_emitter(h, isa), reg_indexes_idx(abi_param1.getIdx()), reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
-    if (!kernel)
-        OPENVINO_THROW("jit_kernel_emitter invoked with invalid op argument");
-    if (kernel->region.empty())
-        OPENVINO_THROW("jit_kernel_emitter invoked with empty body");
-    if (kernel->compile_params == nullptr)
-        OPENVINO_THROW("jit_kernel_emitter invoked with op::Kernel that contains no compile_params");
+    OPENVINO_ASSERT(kernel != nullptr, "jit_kernel_emitter invoked with invalid op argument");
+    OPENVINO_ASSERT(!kernel->region.empty(), "jit_kernel_emitter invoked with empty body");
+    OPENVINO_ASSERT(kernel->compile_params != nullptr, "jit_kernel_emitter invoked with op::Kernel that contains no compile_params");
+
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     master_shape = body.get_master_shape();
+
     // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
     //       so we have to reproduce this behavior here
     master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
@@ -125,24 +121,19 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
 }
 
-void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
+                                   const std::vector<size_t> &pool_vec_idx, const std::vector<size_t> &pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
 void jit_kernel_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    if (!in.empty())
-        OPENVINO_THROW("jit_kernel_emitter got invalid number of inputs. Expected 0, got ", in.size());
-    if (!out.empty())
-        OPENVINO_THROW("jit_kernel_emitter got invalid number of outputs. Expected 0, got ", out.size());
+    OPENVINO_ASSERT(in.empty(), "jit_kernel_emitter got invalid number of inputs. Expected 0, got ", in.size());
+    OPENVINO_ASSERT(out.empty(), "jit_kernel_emitter got invalid number of outputs. Expected 0, got ", out.size());
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
-    // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
-    if (data_ptr_regs_idx.size() != num_params)
-        OPENVINO_THROW(
-            "jit_kernel_emitter: number of inputs and outputs is inconsistent with the number of allocated registers ",
-            num_params,
-            " data_ptr_regs_idx.size() = ",
-            data_ptr_regs_idx.size());
+    OPENVINO_ASSERT(data_ptr_regs_idx.size() == num_params,
+                    "jit_kernel_emitter: number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
+                    " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
 }
 
 void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,
@@ -251,7 +242,6 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     }
     h->postamble();
 }
-
 
 }   // namespace intel_cpu
 }   // namespace ov

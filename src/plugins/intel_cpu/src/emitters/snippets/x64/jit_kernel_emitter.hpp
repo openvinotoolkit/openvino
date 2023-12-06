@@ -30,35 +30,32 @@ struct jit_snippets_compile_args {
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
 /// mapping and creates a pools of available gpr and vec registers. Kernel usually contains (at least one)
-/// LoopBeginEmitter and LoopEndEmitter pair. In general the enclosed emitters should be organized in the following way:
+/// jit_loop_begin_emitter and jit_loop_end_emitter pair. In general the enclosed emitters should be organized in the following way:
 /// jit_kernel_emitter {                 /* entry point, maps registers, creates pools of available registers */
-///     1.S LoopBeginEmitter        /* Scalar Loop over the outer dimension [START] */
-///         2.S LoopBeginEmitter    /* inner vector loop [START] */
+///     1.S jit_loop_begin_emitter        /* Scalar Loop over the outer dimension [START] */
+///         2.S jit_loop_begin_emitter    /* inner vector loop [START] */
 ///             ...                 /* All the necessary Load/Strore/elementwise emitters */
-///         2.E LoopEndEmitter      /* inner vector loop [END] */
-///         3.S LoopBeginEmitter    /* inner scalar loop for tail processing [START]*/
+///         2.E jit_loop_end_emitter      /* inner vector loop [END] */
+///         3.S jit_loop_begin_emitter    /* inner scalar loop for tail processing [START]*/
 ///             ...                 /* All the necessary Load/Strore/elementwise emitters */
-///         3.E LoopEndEmitter      /* inner scalar loop for tail processing [END]*/
-///     1.E LoopEndEmitter          /* Scalar Loop over the outer dimension [END] */
+///         3.E jit_loop_end_emitter      /* inner scalar loop for tail processing [END]*/
+///     1.E jit_loop_end_emitter          /* Scalar Loop over the outer dimension [END] */
 /// }
 /// Note that Kernel doesn't accept any input arguments.
 ///
 
 class jit_kernel_emitter : public jit_container_emitter {
 public:
-    jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-    void emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override;
 
 private:
-    using jit_emitter::emit_code;
-    void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out) const override;
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out) const override;
+    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void init_data_pointers(const Xbyak::Reg64&, const Xbyak::Reg64&, const std::vector<Xbyak::Reg64>&) const;
 
     jit_snippets_compile_args jcp;

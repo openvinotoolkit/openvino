@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cpu_generator.hpp"
+
 #include "snippets/snippets_isa.hpp"
 
-#include <string>
-#include <iostream>
-#include <array>
-
-#include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/jit_brgemm_copy_b_emitter.hpp"
 #include "emitters/snippets/x64/jit_brgemm_emitter.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
@@ -65,11 +62,9 @@ public:
 
     ~jit_snippet() = default;
 
-    jit_snippet() : jit_generator(jit_name()) {
-    }
+    jit_snippet() : jit_generator(jit_name()) {}
 
-    void generate() override {
-    }
+    void generate() override {}
 };
 
 intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
@@ -144,8 +139,6 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_swish_emitter);
     jitters[ov::op::v4::HSwish::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_hswish_emitter);
-    // jitters[ov::op::v1::HardSigmoid::get_type_info_static()] = CREATE_CPU_EMITTER(); // not supported
-    // jitters[ov::op::v1::Selu::get_type_info_static()] = CREATE_CPU_EMITTER(); // not supported
     jitters[ov::op::v0::Gelu::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_gelu_v0_emitter);
     jitters[ov::op::v7::Gelu::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_gelu_v7_emitter);
     jitters[snippets::op::Fill::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_fill_emitter);

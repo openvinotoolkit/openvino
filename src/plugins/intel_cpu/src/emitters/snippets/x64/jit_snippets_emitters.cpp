@@ -63,7 +63,7 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t> &in, const s
         case 4: h->uni_vbroadcastss(vmm_dst, xmm_src0); break;
         case 2: h->vpbroadcastw(vmm_dst, xmm_src0); break;
         case 1: h->vpbroadcastb(vmm_dst, xmm_src0); break;
-        default: assert(!"unsupported data type");
+        default: OPENVINO_THROW("unsupported data type");
     }
 }
 
@@ -87,8 +87,7 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator* h, cpu_isa_t isa, const Ex
     prepare_table();
 }
 
-void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in,
-                              const std::vector<size_t>& out) const {
+void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {

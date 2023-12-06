@@ -8,12 +8,10 @@
 
 #include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/port_connector.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 #include <cpu/x64/brgemm/brgemm.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
 
@@ -104,7 +102,7 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
 
     auto status = matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf);
     if (status != dnnl_success)
-        OPENVINO_THROW("BrgemmRepackEmitter cannot create kernel due to invalid params");
+        OPENVINO_THROW("jit_brgemm_copy_b_emitter cannot create kernel due to invalid params");
 }
 
 void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in,
@@ -255,7 +253,7 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
 void jit_brgemm_copy_b_emitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, const void *src,
                                  const void *dst, const void *comp, size_t N, size_t K) {
     if (!kernel)
-        OPENVINO_THROW("Kernel for `brgemm_copy_b` hasn't been created");
+        OPENVINO_THROW("Kernel for jit_brgemm_copy_b_emitter hasn't been created");
 
     auto ctx = dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
     ctx.current_N_blk = N;

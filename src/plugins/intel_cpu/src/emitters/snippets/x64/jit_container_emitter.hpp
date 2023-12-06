@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_cpu {
 
 ///
-/// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)
+/// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, jit_kernel_emitter)
 ///  This is needed to provide common interface for register mapping
 /// (abstract to physical) and nested code access.
 ///

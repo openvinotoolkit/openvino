@@ -3,10 +3,9 @@
 //
 
 #include "jit_conversion_emitters.hpp"
+
 #include "utils/bfloat16.hpp"
-#include "cpu/x64/jit_uni_eltwise.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include <nodes/eltwise.h>
+
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -76,7 +75,7 @@ void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_vec
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        OPENVINO_THROW("Unsupported ISA");
     }
 }
 
@@ -121,7 +120,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             h->uni_vpmovzxbd(vmm_dst, vmm_src);
             break;
         default:
-            assert(!"unsupported output data type");
+            OPENVINO_THROW("Unsupported input data type");
     }
 
     switch (output_type) {
@@ -160,7 +159,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             }
             break;
         default:
-            assert(!"unsupported output data type");
+           OPENVINO_THROW("Unsupported output data type");
     }
 }
 
@@ -205,7 +204,7 @@ void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t> &in_vec
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        assert(!"unsupported isa");
+        OPENVINO_THROW("Unsupported ISA");
     }
 }
 
@@ -247,7 +246,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             h->uni_vpmovzxbd(vmm_dst, vmm_src);
             break;
         default:
-            assert(!"unsupported output data type");
+           OPENVINO_THROW("Unsupported input data type");
     }
 
     switch (output_type) {
@@ -287,7 +286,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             }
             break;
         default:
-            assert(!"unsupported output data type");
+            OPENVINO_THROW("Unsupported output data type");
     }
 }
 

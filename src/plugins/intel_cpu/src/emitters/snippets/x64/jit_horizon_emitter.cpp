@@ -77,7 +77,7 @@ void jit_horizon_emitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm
             h->uni_vaddps(vmm1, vmm2, vmm3);
             break;
         default:
-            assert(!"Unsupported horizontal operation.");
+            OPENVINO_THROW("Unsupported horizontal operation.");
     }
 }
 

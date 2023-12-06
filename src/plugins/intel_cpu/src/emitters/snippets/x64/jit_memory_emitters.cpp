@@ -103,7 +103,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t> &in, const s
         case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg + byte_offset]); break;
         case 2: h->vpbroadcastw(vmm_dst, h->ptr[in_reg + byte_offset]); break;
         case 1: h->vpbroadcastb(vmm_dst, h->ptr[in_reg + byte_offset]); break;
-        default: assert(!"unsupported data type");
+        default: OPENVINO_THROW(!"unsupported data type");
     }
 }
 

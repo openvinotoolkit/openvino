@@ -18,9 +18,7 @@ public:
     size_t get_inputs_num() const override {return 0;}
 
 private:
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out) const override {
-    }
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override {}
 };
 
 class jit_parameter_emitter : public jit_nop_emitter {
@@ -46,8 +44,7 @@ public:
     size_t get_inputs_num() const override {return 1;}
 
 private:
-    void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out) const override;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -67,8 +64,7 @@ protected:
     size_t aux_gprs_count() const override {return 1;}
 
 private:
-    void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out) const override;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
