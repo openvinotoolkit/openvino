@@ -174,6 +174,8 @@ Engine::Engine() :
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
 #endif
+        auto& ov_version = ov::get_openvino_version();
+        compiled_model_format_info = std::string(ov_version.buildNumber);
 }
 
 Engine::~Engine() {
@@ -688,6 +690,15 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::hint::num_requests)::value_type(engConfig.hintNumRequests);
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
+    } else if (name == ov::internal::compiled_model_format.name()) {
+        return decltype(ov::internal::compiled_model_format)::value_type(compiled_model_format_info);
+    } else if (name == ov::internal::compiled_model_format_supported.name()) {
+        ov::Any res = false;
+        auto it = options.find(ov::internal::compiled_model_format_supported.name());
+        if (it != options.end() && it->second.as<std::string>() == compiled_model_format_info) {
+            res = true;
+        }
+        return res;
     }
     return get_ro_property(name, options);
 }
@@ -738,7 +749,9 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
     } else if (ov::internal::supported_properties.name() == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_format.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_format_supported.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name.name()};
         return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
@@ -796,7 +809,9 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_format.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_format_supported.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {

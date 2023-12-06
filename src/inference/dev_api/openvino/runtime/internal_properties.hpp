@@ -67,6 +67,25 @@ static constexpr Property<ov::threading::IStreamsExecutor::ThreadBindingType, Pr
  */
 static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream{"THREADS_PER_STREAM"};
 
+/**
+ * @brief It contains compiled_model_format information to make plugin runtime can check whether it compatible
+ * with the cached compiled model, and it is returned by get_property.
+ *
+ * The information details are defined by plugin itself, each plugin can have different contents.
+ * For example, CPU plugin will contain OV version, while GPU plugin will contain OV and GPU driver version, etc.
+ * Core doesn't understand its content and only read it from plugin and write it into blob header.
+ *
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string, PropertyMutability::RO> compiled_model_format{"COMPILED_MODEL_FORMAT"};
+
+/**
+ * @brief Check whether the attached compile_model_format is supported by this plugin.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> compiled_model_format_supported{
+    "COMPILED_MODEL_FORMAT_SUPPORTED"};
+
 }  // namespace internal
 OPENVINO_DEPRECATED(
     "This property is deprecated and will be removed soon. Use ov::internal::caching_properties instead of it.")

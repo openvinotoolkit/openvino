@@ -19,6 +19,7 @@ private:
     std::string m_default_device_id = "0";
     std::map<std::string, cldnn::device::ptr> m_device_map;
     std::map<std::string, ExecutionConfig> m_configs_map;
+    ov::AnyMap m_compiled_model_format;
 
     mutable std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
     mutable std::once_flag m_default_contexts_once;
@@ -38,6 +39,7 @@ private:
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
     uint32_t get_optimal_batch_size(const ov::AnyMap& options) const;
     uint32_t get_max_batch_size(const ov::AnyMap& options) const;
+    ov::AnyMap parse_compiled_model_format(const std::string& input) const;
 
     ov::AnyMap preprocess_config(const ov::AnyMap& orig_config) const;
     bool is_metric(const std::string& name) const;

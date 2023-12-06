@@ -104,6 +104,27 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
+/** Parse compiled model format to be ov::AnyMap
+ *  input:"aaa:1234;ccc:xyzw;"
+ *  output:
+ *       out["aaa"] = "1234"
+ *       out["ccc"] = "xyzw"
+ */
+ov::AnyMap Plugin::parse_compiled_model_format(const std::string& input) const {
+    ov::AnyMap res = {};
+    auto in = input;
+    while (!in.empty()) {
+        auto pos_1 = in.find_first_of(':');
+        auto pos_2 = in.find_first_of(';');
+        if (pos_1 == std::string::npos || pos_2 == std::string::npos) {
+            break;
+        }
+        res[in.substr(0, pos_1)] = in.substr(pos_1 + 1, pos_2 - pos_1 - 1);
+        in = in.substr(pos_2 + 1);
+    }
+    return res;
+}
+
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     auto deviceInfo = m_device_map.at(config.get_property(ov::device::id))->get_info();
@@ -173,6 +194,13 @@ Plugin::Plugin() {
     // Set default configs for each device
     for (const auto& device : m_device_map) {
         m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
+    }
+
+    // Set runtime info
+    auto& ov_version = ov::get_openvino_version();
+    m_compiled_model_format["OV_VERSION"] = ov_version.buildNumber;
+    for (const auto& device : m_device_map) {
+        m_compiled_model_format[device.first] = device.second->get_info().driver_version;
     }
 }
 
@@ -331,6 +359,29 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    } else if (name == ov::internal::compiled_model_format.name()) {
+        std::string format_info;
+        for (auto& it : m_compiled_model_format) {
+            format_info += it.first + ":" + it.second.as<std::string>() + ";";
+        }
+        return decltype(ov::internal::compiled_model_format)::value_type(format_info);
+    } else if (name == ov::internal::compiled_model_format_supported.name()) {
+        ov::Any res = true;
+        auto it = options.find(ov::internal::compiled_model_format_supported.name());
+        if (it == options.end()) {
+            res = false;
+        } else {
+            const auto data = it->second.as<std::string>();
+            auto input = parse_compiled_model_format(data);
+            for (auto& item : m_compiled_model_format) {
+                auto it = input.find(item.first);
+                if (it == input.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
+                    res = false;
+                    break;
+                }
+            }
+        }
+        return res;
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -572,7 +623,9 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
     static const std::vector<ov::PropertyName> supported_internal_properties = {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_format.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_format_supported.name(), ov::PropertyMutability::RO}};
     return supported_internal_properties;
 }
 
