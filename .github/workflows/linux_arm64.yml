@@ -449,7 +449,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
       event: ${{ github.event_name }}
 
   TensorFlow_Hub_Performance_Models_Tests:
@@ -460,7 +460,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_hub_performance_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
       event: ${{ github.event_name }}
 
   PyTorch_Models_Tests:
@@ -470,7 +470,7 @@ jobs:
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
       event: ${{ github.event_name }}
 
   Overall_Status:
