@@ -9,12 +9,12 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "shape_inference/custom/subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/hash.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/propagate_precision.hpp"
+#include "snippets/pass/positioned_pass.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
@@ -325,11 +325,10 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     // * precision propagation & align element types
     // * data flow optimizations
     // The result of these transformations will be reused by all shapes
-    using Manager = snippets::pass::Manager;
-    std::vector<Manager::PositionedPass> backend_passes;
+    std::vector<ov::snippets::pass::Manager::PositionedPassBase> backend_passes;
 #if defined(OPENVINO_ARCH_X86_64)
-    using PassPosition = snippets::pass::Manager::PassPosition;
-    using Place = snippets::pass::Manager::PassPosition::Place;
+    using PassPosition = ov::snippets::pass::PassPosition;
+    using Place = PassPosition::Place;
 #   define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
             backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
 #else
@@ -590,10 +589,10 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
 }
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
-    std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPass> backend_passes;
+    std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> backend_passes;
 
 #if defined(OPENVINO_ARCH_X86_64)
-    using PassPosition = ov::snippets::lowered::pass::PassPipeline::PassPosition;
+    using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #   define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
         backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))

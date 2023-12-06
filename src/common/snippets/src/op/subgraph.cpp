@@ -381,7 +381,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
 void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input_shapes,
                                          const std::vector<ov::element::Type>& input_precisions,
                                          const std::vector<ov::element::Type>& output_precisions,
-                                         const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes) {
+                                         const std::vector<snippets::pass::Manager::PositionedPassBase>& backend_passes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
@@ -412,7 +412,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
                                             LoweringResult& lowering_result,
                                             const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                            const std::vector<lowered::pass::PassPipeline::PositionedPass>& lowered_backend_passes) const {
+                                            const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
@@ -449,9 +449,9 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
                                       const std::vector<ov::element::Type>& input_precisions,
                                       const std::vector<ov::element::Type>& output_precisions,
-                                      const std::vector<snippets::pass::Manager::PositionedPass>& data_flow_backend_passes,
+                                      const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_backend_passes,
                                       const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                      const std::vector<lowered::pass::PassPipeline::PositionedPass>& lowered_backend_passes,
+                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
                                       size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
@@ -461,7 +461,7 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
 }
 
 snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                                     const std::vector<lowered::pass::PassPipeline::PositionedPass>& backed_passes,
+                                                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& backed_passes,
                                                      const void* compile_params) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
