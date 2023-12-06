@@ -144,6 +144,13 @@ const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig() 
     return additionalConfig;
 }
 
+const std::vector<std::map<std::string, ov::element::Type>>& f32Config() {
+    static const std::vector<std::map<std::string, ov::element::Type>> f32Config = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}}
+    };
+    return f32Config;
+}
+
 const std::vector<InputShape>& inputShapes_1D() {
     static const std::vector<InputShape> inputShapes_1D = {
         { {}, {{5}}},
@@ -333,6 +340,13 @@ const std::vector<ov::Shape>& inputShapesStatic_4D() {
         {1, 147, 2, 2}
     };
     return inputShapesStatic_4D;
+}
+
+const std::vector<ov::Shape>& inputShapesMyStatic_4D() {
+    static const std::vector<ov::Shape> inputShapesMyStatic_4D = {
+        {1, 3, 256, 128}
+    };
+    return inputShapesMyStatic_4D;
 }
 
 const std::vector<ov::Shape>& inputShapesStatic_5D() {

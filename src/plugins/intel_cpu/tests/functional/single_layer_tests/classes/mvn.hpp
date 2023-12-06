@@ -63,5 +63,6 @@ namespace MVN {
    const std::vector<double>& epsilon();
 
    const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig();
+   const std::vector<std::map<std::string, ov::element::Type>>& f32Config();
 } // namespace MVN
 } // namespace CPULayerTestsDefinitions

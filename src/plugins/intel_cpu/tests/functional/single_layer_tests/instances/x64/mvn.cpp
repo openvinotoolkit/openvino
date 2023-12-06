@@ -179,6 +179,23 @@ const auto Mvn4DStatic = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mvn4DStatic, MvnLayerCPUTest::getTestCaseName);
 
+// Test platform without AVX2 instructions.
+const auto Mvn4DStatic_NO_AVX2 = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(static_shapes_to_test_representation({{1, 3, 256, 128}})),
+               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(emptyReductionAxes()),
+               ::testing::Values(false),
+               ::testing::ValuesIn(normalizeVariance),
+               ::testing::ValuesIn({9.9999997473787516e-06})),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+       ::testing::ValuesIn({emptyFusingSpec}),
+       ::testing::ValuesIn({ElementType::f32}),
+       ::testing::ValuesIn({ElementType::f32}),
+       ::testing::ValuesIn(f32Config()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static_NO_AVX2, MvnLayerCPUTest, Mvn4DStatic_NO_AVX2, MvnLayerCPUTest::getTestCaseName);
+
 const auto Mvn5DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D())),
