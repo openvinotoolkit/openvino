@@ -637,39 +637,9 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
 
-    auto fp16_kvcache_applicable = [&]() -> bool {
-        bool enable_fp16_kvcache = true;
-        const char* disable = std::getenv("OV_DISABLE_SDPA_KVCACHE_FP16");
-        if (disable && std::atoi(disable) > 0) {
-            enable_fp16_kvcache = false;
-        }
-        if (!enable_fp16_kvcache) return false;
+    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
 
-        if (!m_config.config.fuse_concat || !mayiuse(cpu_isa_t::avx2) || rtPrecision== ov::element::bf16) return false;
-
-        // applicable only in case of stateful model.
-        for (size_t idx = 1; idx <= 2; idx++) { // check outputs
-            auto&& childEdges = getChildEdgesAtPort(idx);
-            auto itr =
-                std::find_if(childEdges.begin(), childEdges.end(), [=](const EdgePtr& e){ return Type::MemoryOutput == e->getChild()->getType(); });
-            if (itr == childEdges.end()) {
-                return false;
-            }
-        }
-
-        for (size_t idx = orginSDPInputNumber + 0; idx <= orginSDPInputNumber + 1; idx++) { // check inputs
-            auto&& parentEdges = getParentEdgesAtPort(idx);
-            auto itr =
-                std::find_if(parentEdges.begin(), parentEdges.end(), [=](const EdgePtr& e){ return Type::MemoryInput == e->getParent()->getType(); });
-            if (itr == parentEdges.end()) {
-                return false;
-            }
-        }
-
-        return true;
-    };
-
-    auto kvCachePrecision = fp16_kvcache_applicable() ? ov::element::f16 : rtPrecision;
+    auto kvCachePrecision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
