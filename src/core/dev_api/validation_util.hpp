@@ -137,5 +137,15 @@ OPENVINO_API void infer_auto_padding(const Shape& image_shape,
 /// \return True if evaluation was successful.
 OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
 
+/// \brief Propagates value label from 0 input to the only output through an operation. Not applicable for operations
+/// which require values interaction (example: mathematical operations). Could be used for movement operations (example:
+/// gathering, shape change)
+///
+/// \param node Operation to be performed
+/// \param output_labels Vector of TensorLabel objects representing resulting value labels
+///
+/// \return True if label evaluation was successful.
+OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
+
 }  // namespace util
 }  // namespace ov

@@ -12,6 +12,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/reference/gather.hpp"
+#include "validation_util.hpp"
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -255,9 +256,7 @@ bool ov::op::util::GatherBase::evaluate_upper(ov::TensorVector& output_values) c
 bool ov::op::util::GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return ov::util::default_label_evaluator(this, output_labels);
 }
 
 bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

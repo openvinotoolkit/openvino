@@ -1481,5 +1481,8 @@ bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape)
     return shape_defined;
 }
 
+bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+    return default_label_evaluator(node, {0}, output_labels);
+}
 }  // namespace util
 }  // namespace ov

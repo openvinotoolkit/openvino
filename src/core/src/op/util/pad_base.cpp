@@ -10,6 +10,7 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
 #include "pad_shape_inference.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 op::util::PadBase::PadBase(const Output<Node>& arg,
@@ -155,9 +156,7 @@ bool op::util::PadBase::evaluate_upper(TensorVector& output_values) const {
 
 bool op::util::PadBase::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(util_PadBase_evaluate_label);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return ov::util::default_label_evaluator(this, output_labels);
 }
 
 }  // namespace ov
