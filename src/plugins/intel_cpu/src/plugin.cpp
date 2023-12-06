@@ -12,7 +12,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "performance_heuristics.hpp"
 #include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
