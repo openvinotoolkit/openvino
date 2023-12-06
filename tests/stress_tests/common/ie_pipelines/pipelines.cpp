@@ -123,7 +123,7 @@ inference_with_streams(const std::string &model, const std::string &target_devic
         ie_api_wrapper->read_network(model);
         ie_api_wrapper->load_network(target_device);
         try {
-            nireq = ie_api_wrapper->get_property(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
+            nireq = ie_api_wrapper->get_property(ov::optimal_number_of_infer_requests.name());
         } catch (const std::exception &ex) {
             log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
         }
