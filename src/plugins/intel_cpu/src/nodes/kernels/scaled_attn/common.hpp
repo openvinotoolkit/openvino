@@ -106,7 +106,7 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         return o;
     }
     inline void mm256_uni_storeu_ps(ov::float16* a,  __m256 v) {
-        __m128i vec_f16 = _mm256_cvtps_ph(v, 0);  // FIXME: rounding
+        __m128i vec_f16 = _mm256_cvtps_ph(v, 0);
         _mm_storeu_si128(reinterpret_cast<__m128i *>(a), vec_f16);
     }
 
