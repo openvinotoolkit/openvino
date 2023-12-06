@@ -25,10 +25,10 @@
 #include "input.h"
 #include "common/cpu_convert.h"
 
-#include "emitters/x64/jit_emitter.hpp"
-#include "emitters/x64/jit_eltwise_emitters.hpp"
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/common/x64/jit_emitter.hpp"
+#include "emitters/common/x64/jit_eltwise_emitters.hpp"
+#include "emitters/common/x64/jit_dnnl_emitters.hpp"
+#include "emitters/common/x64/jit_bf16_emitters.hpp"
 #include <selective_build.h>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"

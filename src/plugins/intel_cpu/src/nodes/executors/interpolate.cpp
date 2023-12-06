@@ -5,7 +5,7 @@
 #include "interpolate.hpp"
 #include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/common/x64/jit_load_store_emitters.hpp"
 
 bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
                                          const std::vector<MemoryDescPtr>& srcDescs,

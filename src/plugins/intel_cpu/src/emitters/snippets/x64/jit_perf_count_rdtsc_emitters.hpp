@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "jit_emitter.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "emitters/common/x64/jit_emitter.hpp"
+
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+
 
 namespace ov {
 namespace intel_cpu {
@@ -19,6 +20,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
+
     std::shared_ptr<ov::intel_cpu::PerfCountRdtscBegin> m_start_node = nullptr;
 };
 
@@ -30,6 +32,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
+
     std::shared_ptr<ov::intel_cpu::PerfCountRdtscEnd> m_end_node = nullptr;
 };
 

@@ -20,8 +20,8 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/common/x64/jit_bf16_emitters.hpp"
+#include "emitters/common/x64/jit_load_store_emitters.hpp"
 
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset4.hpp>

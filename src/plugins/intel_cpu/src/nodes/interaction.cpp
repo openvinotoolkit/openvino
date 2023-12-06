@@ -18,8 +18,8 @@
 #include <ie_ngraph_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/common/x64/jit_dnnl_emitters.hpp"
+#include "emitters/common/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
