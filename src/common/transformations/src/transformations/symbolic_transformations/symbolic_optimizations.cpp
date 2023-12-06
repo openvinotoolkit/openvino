@@ -202,6 +202,7 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
         REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)   // reduce shape sub-graphs
         REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // figures out that broadcasting didn't happen through Select op
         REGISTER_SYMBOLIC(DeReshapeMatMul)
+        REGISTER_SYMBOLIC(DeReshapeFullyConnected)
         REGISTER_SYMBOLIC(ReshapeOptimizations)
         REGISTER_SYMBOLIC(SimplifyShapeOfSubGraph)
     }
