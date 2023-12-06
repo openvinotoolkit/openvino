@@ -57,13 +57,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        auto streamsExecutorConfig =
-            is_cpu_map_available()
-                ? m_cfg.streamExecutorConfig
-                : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
-        streamsExecutorConfig._name = "CPUStreamsExecutor";
-        m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
+        m_cfg.streamExecutorConfig._name = "CPUStreamsExecutor";
+        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
