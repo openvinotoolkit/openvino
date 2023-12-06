@@ -54,10 +54,9 @@ protected:
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
-        const auto ngPrc = prc;
 
-        const auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(nonConstShape));
-        const auto constNode = ngraph::builder::makeConstant(ngPrc, ov::Shape(constShape), std::vector<float>{}, true);
+        const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));
+        const auto constNode = ngraph::builder::makeConstant(prc, ov::Shape(constShape), std::vector<float>{}, true);
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;
