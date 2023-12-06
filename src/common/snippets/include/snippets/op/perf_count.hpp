@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef ENABLE_OPENVINO_DEBUG
 
 #pragma once
 
@@ -91,3 +92,4 @@ private:
 } // namespace op
 } // namespace snippets
 } // namespace ov
+#endif  // ENABLE_OPENVINO_DEBUG

@@ -24,8 +24,10 @@ OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
 OV_OP(RankNormalization, ov::snippets::op)
 
+#ifdef ENABLE_OPENVINO_DEBUG
 OV_OP(PerfCountBegin, ov::snippets::op)
 OV_OP(PerfCountEnd, ov::snippets::op)
+#endif
 
 // Layout-oblivious from opset1
 
