@@ -34,9 +34,9 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-azure-key-prefix }}
-      ONNX_RUNTIME_REPO: ${{ github.workspace }}/openvino/onnxruntime
-      ONNX_RUNTIME_UTILS: ${{ github.workspace }}/openvino/install/onnxruntime
-      ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/openvino/onnxruntime/build
+      ONNX_RUNTIME_REPO: ${{ github.workspace }}/onnxruntime
+      ONNX_RUNTIME_UTILS: ${{ github.workspace }}/install/onnxruntime
+      ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
