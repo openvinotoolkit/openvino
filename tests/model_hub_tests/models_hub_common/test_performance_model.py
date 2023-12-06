@@ -133,7 +133,7 @@ class TestModelPerformance:
         infer_mean_time_ns = np.mean(time_slices)
         infer_mean_time = infer_mean_time_ns / (10 ** 9)
         infer_variance = (np.std(time_slices, ddof=1) * 100) / infer_mean_time_ns
-        utils.print_stat('model time infer {}', infer_mean_time)
+        utils.print_stat('model time infer {} secs', infer_mean_time)
         utils.print_stat('model time infer var {}', infer_variance)
         utils.print_stat('model time infer throughput {}', infer_throughput)
         results = ModelResults()
@@ -202,7 +202,7 @@ class TestModelPerformance:
         self.result = multiprocessing_run(self.__run, [model_name, model_link, ie_device], model_name,
                                           self.infer_timeout)
         t1 = time.time()
-        utils.print_stat('test run time {}', (t1 - t0))
+        utils.print_stat('test run time {} secs', (t1 - t0))
         if self.result.status == Status.OK:
             return
         err_message = "\n{func} running failed: \n{msg}".format(func=model_name, msg=self.result.error_message)
