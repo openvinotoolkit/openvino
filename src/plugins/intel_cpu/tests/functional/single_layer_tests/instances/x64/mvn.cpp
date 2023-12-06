@@ -34,6 +34,10 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
 };
 
+std::vector<CPUSpecificParams> cpuParams_4D_8 = {
+        CPUSpecificParams({nChw8c}, {nChw8c}, {}, {})
+};
+
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
 };
@@ -188,7 +192,7 @@ const auto Mvn4DStatic_NO_AVX2 = ::testing::Combine(
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn({9.9999997473787516e-06})),
-       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_8)),
        ::testing::ValuesIn({emptyFusingSpec}),
        ::testing::ValuesIn({ElementType::f32}),
        ::testing::ValuesIn({ElementType::f32}),
