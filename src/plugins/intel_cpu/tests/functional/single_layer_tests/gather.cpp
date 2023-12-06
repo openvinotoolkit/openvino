@@ -236,7 +236,7 @@ TEST_P(GatherInPlaceLayerTestCPU, CompareWithRefs) {
 namespace {
 const std::vector<ElementType> netPrecisions = {ElementType::f32, ElementType::bf16, ElementType::i8};
 
-std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision()}},
+std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
                                             {{ov::hint::inference_precision(ov::element::bf16)}}};
 
 std::vector<bool> isAxisConst{true, false};
