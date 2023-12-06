@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "ov_models/builders.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "functional_test_utils/skip_tests_config.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::test;
-
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 class StaticZeroDims : public SubgraphBaseTest {
 protected:
@@ -20,14 +18,14 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto ngPrc = ngraph::element::f32;
+        auto ngPrc = ov::element::f32;
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
-        auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
+        auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
         std::vector<int> splitLenght = {1, 0, 6};
-        auto splitLengthsOp = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{splitLenght.size()}, splitLenght);
+        auto splitLengthsOp = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{splitLenght.size()}, splitLenght);
         auto varSplit = std::make_shared<ov::op::v1::VariadicSplit>(inputParams[0], splitAxisOp, splitLengthsOp);
 
         auto relu1 = std::make_shared<ov::op::v0::Relu>(varSplit->output(0));
@@ -38,8 +36,8 @@ protected:
 
         auto relu3 = std::make_shared<ov::op::v0::Relu>(varSplit->output(2));
 
-        ngraph::NodeVector results{relu1, relu2, relu3};
-        function = std::make_shared<ngraph::Function>(results, inputParams, "StaticZeroDims");
+        ov::NodeVector results{relu1, relu2, relu3};
+        function = std::make_shared<ov::Model>(results, inputParams, "StaticZeroDims");
     }
 
     void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
@@ -59,4 +57,5 @@ TEST_F(StaticZeroDims, smoke_CompareWithRefs) {
     run();
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

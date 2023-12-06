@@ -6,7 +6,6 @@
 
 #include "backend.hpp"
 #include "evaluate_node.hpp"
-#include "tensor_conversion_util.hpp"
 
 namespace ti_v0 {
 ov::reference::custom_evaluate_function evaluate =
