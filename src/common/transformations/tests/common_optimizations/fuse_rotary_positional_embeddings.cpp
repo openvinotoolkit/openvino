@@ -62,14 +62,20 @@ TEST_F(TransformationTestsF, FuseRPE) {
 }
 
 TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
+    /* Transformation matcher searches for a single source as a beginning of the pattern:
+                 VariadicSplit ...
+     source ____/
+                \
+                 Multiply ...
+    This test is designed to check that in case we feed VariadicSplit and Multiply from different outputs of the same
+    node, the transformation won't happen since the source isn't the same
+     */
     {
         auto data_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto sin_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto cos_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto sin = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto cos = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
 
         auto data = make_shared<v1::Split>(data_, v0::Constant::create(element::i64, {}, {-1}), 2);
-        auto sin = make_shared<v1::Split>(sin_, v0::Constant::create(element::i64, {}, {-1}), 2)->output(1);
-        auto cos = make_shared<v1::Split>(cos_, v0::Constant::create(element::i64, {}, {-1}), 2)->output(1);
 
         auto axis = v0::Constant::create(element::i64, {}, {-1});
         auto split_lengths = v0::Constant::create(element::i64, {2}, {10, 10});
@@ -84,7 +90,7 @@ TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
         auto mul_cos = make_shared<op::v1::Multiply>(data->output(1), cos);
         auto add = make_shared<op::v1::Add>(mul_cos, mul_sin);
 
-        model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data_, sin_, cos_});
+        model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data_, sin, cos});
 
         manager.register_pass<ov::pass::RPE_Fusion>();
     }

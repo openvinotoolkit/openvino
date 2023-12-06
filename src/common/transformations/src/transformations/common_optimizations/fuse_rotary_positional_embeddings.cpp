@@ -14,6 +14,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using ov::op::v0::Concat;
 using ov::op::v1::Add;
@@ -68,9 +69,7 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         auto concat_node = ov::as_type_ptr<Concat>(value_map.at(concat).get_node_shared_ptr());
         if (!concat_node)
             return false;
-        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split_axis_node = ov::util::get_constant_from_source(value_map.at(axis));
-        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!split_axis_node)
             return false;
         auto value = split_axis_node->cast_vector<int64_t>();
@@ -79,18 +78,20 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         auto concat_axis = concat_node->get_concatenation_axis();
         auto split_axis = value[0];
         if (concat_axis != split_axis) {
-            if (input.get_partial_shape().is_static()) {
+            if (input.get_partial_shape().rank().is_static()) {
                 auto rank = input.get_partial_shape().rank().get_length();
-                concat_axis = ov::util:::normalize(concat_axis, rank);
-                split_axis = ov::util:::normalize(split_axis, rank);
+                concat_axis = ov::util::normalize(concat_axis, rank);
+                split_axis = ov::util::normalize(split_axis, rank);
             }
             if (concat_axis != split_axis)
                 return false;
         }
         auto rpe =
             std::make_shared<ov::op::internal::RPE>(input, value_map.at(sin), cos_output, concat_node->get_axis());
-        ov::replace_output_update_name(value_map.at(add), rpe->output(0));
-        return true;
+
+        for (const auto& label : {vsplit, neg, concat, mul_sin, mul_cos, add})
+            ov::copy_runtime_info(value_map.at(label).get_node_shared_ptr(), rpe);
+        return ov::replace_output_update_name(value_map.at(add), rpe->output(0));
     };
     auto m = std::make_shared<pattern::Matcher>(add, matcher_name);
     register_matcher(m, matcher_pass_callback);
