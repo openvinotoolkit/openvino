@@ -151,20 +151,17 @@ protected:
                         break;
                     }
                     default:
-                        IE_THROW() << "roi_pooling. Unsupported precision";
+                        OPENVINO_THROW("roi_pooling. Unsupported precision");
                     }
                 } else {
                     switch (funcInput.get_element_type()) {
-                    case ngraph::element::f32: {
-                        ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
-                        break;
-                    }
-                    case ngraph::element::bf16: {
-                        ov::test::utils::fill_data_roi<InferenceEngine::Precision::BF16>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                    case ov::element::f32:
+                    case ov::element::bf16: {
+                        ov::test::utils::fill_data_roi(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
                         break;
                     }
                     default:
-                        IE_THROW() << "roi_pooling. Unsupported precision";
+                        OPENVINO_THROW("roi_pooling. Unsupported precision");
                     }
                 }
             } else {
@@ -206,13 +203,15 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0], paramOuts[1], poolShape, spatial_scale, pool_method);
+        std::shared_ptr<ov::Node> roi_pooling;
+        if (ov::test::utils::ROIPoolingTypes::ROI_MAX == pool_method) {
+            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "max");
+        } else {
+            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
+        }
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "ROIPooling");

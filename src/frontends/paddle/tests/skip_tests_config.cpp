@@ -9,7 +9,7 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-#ifndef BUILD_SHARED_LIBS
+#ifdef OPENVINO_STATIC_LIBRARY
         // Disable tests for static libraries
         ".*FrontendLibCloseTest.*"
 #endif

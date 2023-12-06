@@ -38,7 +38,7 @@ describe('Tensor without data parameters', () => {
 describe('Tensor data', () => {
 
   params.forEach(([type, stringType, data]) => {
-    it(`Set tensor data with ${stringType} precision`, () => {
+    it(`Set tensor data with ${stringType} element type`, () => {
       const tensor = new ov.Tensor(type, shape, data);
       assert.deepStrictEqual(tensor.data, data);
     });
@@ -64,8 +64,7 @@ describe('Tensor data', () => {
     const view = new Float32Array(buffer);
     view.set(data);
     assert.throws( () => new ov.Tensor(ov.element.f32, shape, view),
-      {message: 'Invalid tensor argument. Memory allocated using shape '
-          + 'and element::type mismatch passed data\'s size'});
+      {message: /Memory allocated using shape and element::type mismatch/});
   });
 
   it('Third argument of a tensor cannot be an ArrayBuffer', () => {
@@ -134,7 +133,7 @@ describe('Tensor element type', () => {
   params.forEach(([elemType, , data]) => {
     it(`Comparison of ov.element ${elemType} got from Tensor object`, () => {
       const tensor = new ov.Tensor(elemType, shape, data);
-      assert.strictEqual(tensor.getPrecision(), elemType);
+      assert.strictEqual(tensor.getElementType(), elemType);
     });
   });
 });

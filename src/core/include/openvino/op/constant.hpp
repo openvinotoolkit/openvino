@@ -12,8 +12,6 @@
 #    define WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
@@ -21,11 +19,13 @@
 #    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 namespace ov {
+
+class AlignedBuffer;
+
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
@@ -36,10 +36,25 @@ public:
 
     Constant() = default;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Initialize a constant from tensor
     /// \param tensor The tensor with data
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
+
+    /// \brief Constructs a tensor constant with the supplied data
+    ///
+    /// \param type The element type of the tensor constant.
+    /// \param shape The shape of the tensor constant.
+    /// \param data A pointer to pre-allocated shared data.
+    template <typename T>
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
+    Constant(const element::Type& type, const Shape& shape, std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
+        : m_element_type(type),
+          m_shape(shape) {
+        m_data = legacy_to_ov_aligned_buffer(data);
+        constructor_validate_and_infer_types();
+    }
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// \brief Initialize a constant from ov::Tensor
@@ -55,19 +70,22 @@ public:
     template <typename T>
     Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
         : Constant(false, type, shape) {
+        const auto this_shape_size = shape_size(m_shape);
+        const auto values_size = values.size();
+        const auto has_single_value = (values_size == 1);
         NODE_VALIDATION_CHECK(this,
-                              values.size() == 1 || values.size() == shape_size(m_shape),
+                              has_single_value || values_size == this_shape_size,
                               "Did not get the expected number of literals for a constant of shape ",
                               m_shape,
                               " (got ",
-                              values.size(),
+                              values_size,
                               ", expected ",
-                              (shape_size(m_shape) == 1 ? "" : "1 or "),
-                              shape_size(m_shape),
+                              (this_shape_size == 1 ? "" : "1 or "),
+                              this_shape_size,
                               ").");
 
-        if (values.size() == 1) {
-            fill_data(type, values.front());
+        if (has_single_value) {
+            fill_data(type, values[0]);
         } else {
             write_values(values);
         }
@@ -146,6 +164,9 @@ public:
         case Type_t::nf4:
             fill_data<Type_t::nf4>(value);
             break;
+        case Type_t::string:
+            fill_data<Type_t::string>(value);
+            break;
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -170,20 +191,12 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /// \brief Constructs a tensor constant with the supplied data
-    ///
-    /// \param type The element type of the tensor constant.
-    /// \param shape The shape of the tensor constant.
-    /// \param data A pointer to pre-allocated shared data.
-    template <typename T>
-    Constant(const element::Type& type, const Shape& shape, std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
+    Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
         : m_element_type(type),
           m_shape(shape) {
         m_data = data;
         constructor_validate_and_infer_types();
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     Constant(const Constant& other);
     Constant(const Constant& other, const Shape& new_shape);
@@ -241,11 +254,7 @@ public:
     AxisSet get_axis_set_val() const;
 
     /// \brief Return data size in bytes
-    size_t get_byte_size() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return m_data->size();
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    size_t get_byte_size() const;
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///
@@ -361,6 +370,9 @@ public:
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
+        case Type_t::string:
+            cast_vector<Type_t::string>(rc, num_elements_to_cast);
+            break;
         default:
             OPENVINO_THROW("unsupported type");
         }
@@ -370,11 +382,8 @@ public:
         return rc;
     }
 
-    const void* get_data_ptr() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return (m_data ? m_data->get_ptr() : nullptr);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    const void* get_data_ptr() const;
+
     template <typename T>
     const T* get_data_ptr() const {
         OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
@@ -406,6 +415,11 @@ public:
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<ov::AlignedBuffer> legacy_to_ov_aligned_buffer(
+        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
@@ -426,7 +440,7 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
-        return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+        return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
     }
 
     template <element::Type_t Type,
@@ -440,7 +454,7 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::i4, bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
-        const uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+        const uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
         const bool is_negative_number = (i4data >> 3) & 0x01;
         const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
         return data;
@@ -449,21 +463,18 @@ private:
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::string,
                                       bool>::type = true>
     void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
         // this function is workaround for waring during windows building
         // build complains for vector creation based on iterators
         // which point on different type than destination vector::value_type
         using IN_T = fundamental_type_for<Type>;
-        auto source_vector = get_vector<IN_T>();
-        auto output_size = std::min(num_elements, source_vector.size());
+        auto first = get_data_ptr<IN_T>();
+        auto output_size = std::min(num_elements, shape_size(m_shape));
         output_vector.reserve(output_size);
 
-        std::transform(source_vector.begin(),
-                       source_vector.begin() + output_size,
-                       std::back_inserter(output_vector),
-                       [](IN_T c) {
+        std::transform(first, first + output_size, std::back_inserter(output_vector), [](IN_T c) {
 #ifdef __clang__
 #    pragma clang diagnostic push
 #    ifdef __has_warning
@@ -482,13 +493,22 @@ private:
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
 #endif
-                           if (!std::is_same<OUT_T, IN_T>::value) {
-                               OPENVINO_ASSERT(
-                                   !std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
-                                   "Cannot cast vector from constant. Some values are outside the range.");
-                               OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
-                                               "Cannot cast vector from constant. Some values are outside the range.");
-                           }
+            if (!std::is_same<OUT_T, IN_T>::value) {
+                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
+                                "Cannot cast vector from ",
+                                Type,
+                                " constant to ",
+                                element::from<OUT_T>(),
+                                ". Some values are outside the range. Example: ",
+                                c);
+                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
+                                "Cannot cast vector from ",
+                                Type,
+                                " constant to ",
+                                element::from<OUT_T>(),
+                                ". Some values are outside the range. Example: ",
+                                c);
+            }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
@@ -496,8 +516,31 @@ private:
 #elif defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
-                           return static_cast<OUT_T>(c);
-                       });
+            return static_cast<OUT_T>(c);
+        });
+    }
+
+    template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void cast_vector(std::vector<std::string>& output_vector, size_t num_elements) const {
+        auto output_size = std::min(num_elements, shape_size(m_shape));
+        output_vector.reserve(output_size);
+        const auto p = get_data_ptr<Type>();
+        std::copy_n(p, output_size, std::back_inserter(output_vector));
+    }
+
+    template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
+    void cast_vector(std::vector<std::string>& output_vector, size_t num_elements) const {
+        OPENVINO_THROW("cast_vector does not support casting ov::Tensor of type " +
+                       ov::element::Type(Type).to_string() + "to std::vector of std::string elements");
+    }
+
+    template <element::Type_t Type,
+              typename OUT_T,
+              typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
+        auto output_type = std::string(typeid(OUT_T{}).name());
+        OPENVINO_THROW("cast_vector does not support casting string ov::Tensor to std::vector with elements of type " +
+                       output_type);
     }
 
     template <element::Type_t Type,
@@ -530,7 +573,7 @@ private:
         const auto round_element_no = element_number % 2 ? element_number + 1 : element_number;
         output.reserve(round_element_no);  // adds 1 more elements here?
         std::for_each(source_begin, source_end, [&](IN_T c) {
-            for (const auto i : {4, 0}) {
+            for (const auto i : {0, 4}) {
                 const uint8_t data = (c >> i) & 0x0F;
                 output.push_back(data);
             }
@@ -548,7 +591,7 @@ private:
         const auto round_element_no = element_number % 2 ? element_number + 1 : element_number;
         output.reserve(round_element_no);  // adds 1 more elements here?
         std::for_each(source_begin, source_end, [&](IN_T c) {
-            for (const auto i : {4, 0}) {
+            for (const auto i : {0, 4}) {
                 const uint8_t i4data = (c >> i) & 0x0F;
                 const bool is_negative_number = (i4data >> 3) & 0x01;
                 const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
@@ -559,10 +602,18 @@ private:
     }
 
     template <element::Type_t Type,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
+    void fill_data(const std::string& value) {
+        OPENVINO_THROW("Called fill_data(std::string) with non-string element_type");
+    }
+
+    template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4 && Type != element::Type_t::nf4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::nf4 &&
+                                          Type != element::Type_t::string,
                                       bool>::type = true>
     void fill_data(const T& value) {
 #ifdef __clang__
@@ -603,6 +654,21 @@ private:
         std::fill_n(get_data_ptr_nc<Type>(), size, v);
     }
 
+    template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void fill_data(const std::string& value) {
+        auto num_elements = shape_size(m_shape);
+        std::uninitialized_fill_n(get_data_ptr_nc<Type>(), num_elements, value);
+    }
+
+    template <element::Type_t Type,
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void fill_data(const T& value) {
+        std::string type_name(typeid(value).name());
+        OPENVINO_THROW("fill_data does not support to fill ov::Tensor of string type with value of " + type_name);
+    }
+
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
@@ -627,11 +693,7 @@ private:
 
     void allocate_buffer(bool memset_allocation);
 
-    void* get_data_ptr_nc() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return (m_data ? m_data->get_ptr() : nullptr);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    void* get_data_ptr_nc();
 
     template <element::Type_t ET>
     typename element_type_traits<ET>::value_type* get_data_ptr_nc() {
@@ -651,7 +713,8 @@ private:
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::nf4 && Type != element::Type_t::u1 &&
-                                          Type != element::Type_t::u4 && Type != element::Type_t::i4,
+                                          Type != element::Type_t::u4 && Type != element::Type_t::i4 &&
+                                          Type != element::Type_t::string,
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
@@ -660,30 +723,37 @@ private:
         }
     }
 
+    template <element::Type_t Type, typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
+    void write_buffer(const std::vector<std::string>& source) {
+        // elements of string ov::Tensor is already pre-initialized in allocate_buffer
+        auto p = get_data_ptr_nc<Type>();
+        auto num_elements = std::min(shape_size(m_shape), source.size());
+        std::uninitialized_copy_n(source.begin(), num_elements, p);
+    }
+
+    template <element::Type_t Type, typename std::enable_if<Type != element::Type_t::string, bool>::type = true>
+    void write_buffer(const std::vector<std::string>& source) {
+        OPENVINO_THROW("write_buffer does not support writing std::string elements into ov::Tensor of type:" +
+                       ov::element::Type(Type).to_string());
+    }
+
     template <element::Type_t Type,
               typename T,
-              typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4, bool>::type = true>
+              typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
-        auto p = get_data_ptr_nc<Type>();
-        size_t i = 0;
-        for (; i < source.size() / 2; i++) {
-            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
-            const auto v2 = value_in_range<Type>(source[i * 2 + 1]) & 0x0F;
-            const auto v = (v1 << 4) | v2;
-            p[i] = static_cast<StorageDataType>(v);
-        }
-        if (source.size() % 2) {
-            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
-            const auto v = v1 << 4;
-            p[i] = static_cast<StorageDataType>(v);
+        if (source.size() > 0) {
+            auto source_type = std::string(typeid(source[0]).name());
+            OPENVINO_THROW("write_buffer does not support writing elements of type " + source_type +
+                           " into string ov::Tensor");
         }
     }
 
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type == element::Type_t::nf4 && std::is_integral<T>::value, bool>::type = true>
+              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4 ||
+                                          (Type == element::Type_t::nf4 && std::is_integral<T>::value),
+                                      bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
@@ -710,15 +780,15 @@ private:
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
         for (; i < source.size() / 2; i++) {
-            const auto idx1 = ConvertNF4::quantize(static_cast<float>(source[i * 2]));
-            const auto idx2 = ConvertNF4::quantize(static_cast<float>(source[i * 2 + 1]));
+            const auto idx1 = quantize_nf4(static_cast<float>(source[i * 2]));
+            const auto idx2 = quantize_nf4(static_cast<float>(source[i * 2 + 1]));
             const auto v1 = value_in_range<Type>(idx1) & 0x0F;
             const auto v2 = value_in_range<Type>(idx2) & 0x0F;
             const auto v = (v2 << 4) | v1;
             p[i] = static_cast<StorageDataType>(v);
         }
         if (source.size() % 2) {
-            const auto idx1 = ConvertNF4::quantize(static_cast<float>(source[i * 2]));
+            const auto idx1 = quantize_nf4(static_cast<float>(source[i * 2]));
             const auto v = value_in_range<Type>(idx1) & 0x0F;
             p[i] = static_cast<StorageDataType>(v);
         }
@@ -812,6 +882,9 @@ private:
         case Type_t::nf4:
             write_buffer<Type_t::nf4>(source);
             break;
+        case Type_t::string:
+            write_buffer<Type_t::string>(source);
+            break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -820,13 +893,23 @@ private:
 #    pragma GCC diagnostic pop
 #endif
     }
+
+    template <class T>
+    void fill_or_write(const bool fill, const element::Type& et, const std::vector<T>& values) {
+        if (fill) {
+            fill_data(et, values[0]);
+        } else {
+            write_values(values);
+        }
+    }
+
     template <ov::element::Type_t Type,
               typename ValueT,
               typename std::enable_if<Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::u4 ||
                                           Type == ov::element::Type_t::nf4,
                                       bool>::type = true>
     static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
-        const auto result = ov::fundamental_type_for<Type>(value);
+        const auto result = static_cast<ov::fundamental_type_for<Type>>(value);
         OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
         return result;
     }
@@ -848,22 +931,24 @@ private:
     }
 
     size_t mem_size() const {
-        const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;
-        if (bitwidth_less_than_byte) {
-            const auto size = shape_size(m_shape);
-            const auto bitwidth = size * m_element_type.bitwidth();
-            // for rounding by `(bitwidth + 7) / 8` will work for
-            // `bitwidth < numeric_limits<size_t>::max() - 7`
-            return bitwidth / 8 + (bitwidth % 8 ? 1 : 0);
+        constexpr size_t bits_in_byte = 8;
+        const auto bit_width = m_element_type.bitwidth();
+        auto size = shape_size(m_shape);
+        if (bit_width < bits_in_byte) {
+            size *= bit_width;
+            return (size % bits_in_byte) ? (size / bits_in_byte) + 1 : (size / bits_in_byte);
+        } else {
+            return size * m_element_type.size();
         }
-        return shape_size(m_shape) * m_element_type.size();
     }
+
+    static uint8_t quantize_nf4(float x);
+
+    friend struct ValueToString;
 
     element::Type m_element_type;
     Shape m_shape{};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::shared_ptr<ov::AlignedBuffer> m_data;
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;

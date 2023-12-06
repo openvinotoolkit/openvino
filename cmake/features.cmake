@@ -80,14 +80,16 @@ else()
     set(THREADING_DEFAULT "TBB")
 endif()
 
+set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ")
+if(NOT APPLE)
+    list(APPEND THREADING_OPTIONS "OMP")
+endif()
+
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
-set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
+set_property(CACHE THREADING PROPERTY STRINGS ${THREADING_OPTIONS})
 list (APPEND OV_OPTIONS THREADING)
-if (NOT THREADING STREQUAL "TBB" AND
-    NOT THREADING STREQUAL "TBB_AUTO" AND
-    NOT THREADING STREQUAL "OMP" AND
-    NOT THREADING STREQUAL "SEQ")
-    message(FATAL_ERROR "THREADING should be set to TBB (default), TBB_AUTO, OMP or SEQ")
+if(NOT THREADING IN_LIST THREADING_OPTIONS)
+    message(FATAL_ERROR "THREADING should be set to either ${THREADING_OPTIONS}")
 endif()
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
@@ -150,15 +152,6 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-if(BUILD_SHARED_LIBS)
-    set(ENABLE_SYSTEM_PUGIXML_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
-else()
-    # for static libraries case libpugixml.a must be compiled with -fPIC
-    # but we still need an ability to compile with system PugiXML and BUILD_SHARED_LIBS
-    # for Conan case where everything is compiled statically
-    set(ENABLE_SYSTEM_PUGIXML_DEFAULT OFF)
-endif()
-
 if(ANDROID)
     # when protobuf from /usr/include is used, then Android toolchain ignores include paths
     # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
@@ -177,9 +170,7 @@ endif()
 
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
     "THREADING MATCHES TBB" OFF)
-# TODO: turn it off by default during the work on cross-os distribution, because pugixml is not
-# available out of box on all systems (like RHEL, UBI)
-ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" ${ENABLE_SYSTEM_PUGIXML_DEFAULT})
+ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
     "ENABLE_OV_TF_LITE_FRONTEND" OFF)

@@ -25,6 +25,7 @@ const auto cpuParams_nCdhw16c = CPUSpecificParams {{nCdhw16c}, {}, {}, {}};
 
 const auto cpuParams_nChw8c = CPUSpecificParams {{nChw8c}, {}, {}, {}};
 const auto cpuParams_nCdhw8c = CPUSpecificParams {{nCdhw8c}, {}, {}, {}};
+const auto cpuParams_nspc = CPUSpecificParams {{acdb}, {}, {}, {}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::I8,
@@ -64,7 +65,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_Transpose, TransposeLayerCPUTest,
                                  ::testing::Values(Precision::BF16),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
-                                 ::testing::Values(CPUSpecificParams{})),
+                                 ::testing::ValuesIn({CPUSpecificParams{}, cpuParams_nspc})),
                          TransposeLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> staticInputShapes5DC16 = {InputShape{

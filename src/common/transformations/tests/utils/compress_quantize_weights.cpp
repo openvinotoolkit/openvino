@@ -82,7 +82,12 @@ class CompressQuantizeWeightsTests
     }
 };
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: CVS-122397
+TEST_P(CompressQuantizeWeightsTests, DISABLED_FusionTest) {}
+#else
 TEST_P(CompressQuantizeWeightsTests, FusionTest) {}
+#endif
 
 static std::vector<CompressQuantizeWeightsParams> params = {
     {Shape{2, 3, 1, 1},
@@ -225,6 +230,30 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminated) {
         auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-46, 29, 42});
         auto convert = std::make_shared<opset8::Convert>(data, element::f32);
         auto scale = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.00314577, 0.00299335, 0.00266047});
+        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedZeroScale) {
+    {
+        auto data = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
+        auto input_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
+        auto input_high = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
+        auto output_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, 0.0, -0.34054});
+        auto output_high = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.0, 0.33788});
+        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
+        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-46, 29, 42});
+        auto convert = std::make_shared<opset8::Convert>(data, element::f32);
+        auto scale = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.00314577, 0.0, 0.00266047});
         auto mul = std::make_shared<opset8::Multiply>(convert, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }

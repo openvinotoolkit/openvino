@@ -51,6 +51,7 @@
 #include "legacy/ngraph_ops/selu_ie.hpp"
 #include "legacy/ngraph_ops/tile_ie.hpp"
 #include "legacy/ngraph_ops/topk_ie.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -471,6 +472,11 @@ void CNNLayerCreator::on_adapter(const std::string& name, ::ngraph::ValueAccesso
         (void)a;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                    &adapter)) {
+        if (std::string(node->get_type_name()) != "Constant") {
+            const auto data_beg = static_cast<char*>(a->get()->get_ptr());
+            params[name] = std::string(data_beg, a->get()->size());
+        }
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (std::string(node->get_type_name()) != "Constant") {
             const auto data_beg = static_cast<char*>(a->get()->get_ptr());
             params[name] = std::string(data_beg, a->get()->size());

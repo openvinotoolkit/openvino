@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -59,8 +60,11 @@ public:
 
 protected:
     void SetUp() override {
-        if (core)
+        if (core) {
             core.reset();
+            core = ov::test::utils::PluginCache::get().core();
+        }
+
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
 
         init_input_shapes(inputShape);
@@ -73,6 +77,7 @@ protected:
         dynShape["input_tensor"] = inputShape.front().first;
         function->reshape(dynShape);
     }
+
     std::shared_ptr<ov::Model> src_func;
     // std::map<std::string, std::string> configuration;
     std::vector<InputShape> inputShape;
@@ -81,7 +86,6 @@ protected:
 
 TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    core = std::make_shared<ov::Core>();
     run();
 }
 
@@ -97,12 +101,12 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
         ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
         ov::test::utils::removeDir(cacheFolderName);
 
-        core = std::make_shared<ov::Core>();
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
     }
     {
-        core = std::make_shared<ov::Core>();
+        core.reset();
+        core = ov::test::utils::PluginCache::get().core();
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
 

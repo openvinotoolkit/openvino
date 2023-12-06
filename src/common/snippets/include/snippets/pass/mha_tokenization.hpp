@@ -43,6 +43,9 @@ class TokenizeMHASnippets: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TokenizeMHASnippets", "0");
     TokenizeMHASnippets(const SnippetsTokenization::Config& config = {});
+
+    static std::vector<int32_t> get_fusion_transpose_order(size_t rank);
+    static std::vector<int32_t> get_decomposed_transpose_order(size_t rank);
     static bool is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul);
 };
 

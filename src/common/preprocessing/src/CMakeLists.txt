@@ -211,7 +211,7 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(TARGET ${TARGET_NAME})
 
 # install
 

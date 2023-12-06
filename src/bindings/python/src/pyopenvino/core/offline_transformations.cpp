@@ -95,6 +95,16 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("param_res_names"));
 
     m_offline_transformations.def(
+        "apply_make_stateful_transformation",
+        [](std::shared_ptr<ov::Model> model, const ov::pass::MakeStateful::ParamResPairs& pairs_to_replace) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::MakeStateful>(pairs_to_replace);
+            manager.run_passes(model);
+        },
+        py::arg("model"),
+        py::arg("pairs_to_replace"));
+
+    m_offline_transformations.def(
         "compress_model_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;

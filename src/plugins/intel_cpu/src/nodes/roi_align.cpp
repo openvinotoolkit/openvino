@@ -10,9 +10,9 @@
 #include <dnnl_extension_utils.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset9.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/x64/jit_load_store_emitters.hpp"
@@ -29,8 +29,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
-using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
+using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
+using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
 #if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
@@ -159,26 +159,26 @@ private:
     }
 
     inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
-        emit_load(reg_src, vmm_src, jcp_.data_prc, Precision::FP32, elt_num, offset);
+        emit_load(reg_src, vmm_src, jcp_.data_prc, ov::element::f32, elt_num, offset);
     }
 
     inline void load_buffer(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
-        emit_load(reg_src, vmm_src, Precision::FP32, Precision::FP32, elt_num, offset);
+        emit_load(reg_src, vmm_src, ov::element::f32, ov::element::f32, elt_num, offset);
     }
 
     inline void load_idx(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
-        emit_load(reg_src, vmm_src, Precision::I32, Precision::I32, elt_num, offset);
+        emit_load(reg_src, vmm_src, ov::element::i32, ov::element::i32, elt_num, offset);
     }
 
     inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
-        emit_store(vmm_dst, reg_dst, Precision::FP32, jcp_.data_prc, elt_num, offset);
+        emit_store(vmm_dst, reg_dst, ov::element::f32, jcp_.data_prc, elt_num, offset);
     }
 
     inline void store_buffer(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
-        emit_store(vmm_dst, reg_dst, Precision::FP32, Precision::FP32, elt_num, offset);
+        emit_store(vmm_dst, reg_dst, ov::element::f32, ov::element::f32, elt_num, offset);
     }
 
-    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
@@ -188,7 +188,7 @@ private:
                                   {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
     }
 
-    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
@@ -469,9 +469,9 @@ private:
 
             load_idx(reg_buf, vmm_buf, v_step);
 
-            if (jcp_.data_prc == Precision::FP32)
+            if (jcp_.data_prc == ov::element::f32)
                 gather_f32(vmm_src, reg_src, vmm_buf);
-            else if (jcp_.data_prc == Precision::BF16)
+            else if (jcp_.data_prc == ov::element::bf16)
                 gather_bf16_to_f32_zmm(vmm_src, reg_src, vmm_buf);
 
             uni_vmovups(vmm_weights, ptr[reg_weights]);
@@ -519,9 +519,9 @@ private:
 
             load_idx(reg_buf, vmm_buf, x_step);
 
-            if (jcp_.data_prc == Precision::FP32)
+            if (jcp_.data_prc == ov::element::f32)
                 gather_f32_xmm(xmm_src, reg_src, xmm_buf);
-            else if (jcp_.data_prc == Precision::BF16)
+            else if (jcp_.data_prc == ov::element::bf16)
                 gather_bf16_to_f32_xmm(xmm_src, reg_src, xmm_buf);
 
             uni_vmovups(xmm_weights, ptr[reg_weights]);
@@ -549,9 +549,9 @@ private:
         }
 
         // xmm_dst[0] of f32 is the dst value
-        if (jcp_.data_prc == Precision::FP32)
+        if (jcp_.data_prc == ov::element::f32)
             uni_vpextrd(ptr[reg_dst], xmm_dst, 0);
-        else if (jcp_.data_prc == Precision::BF16)
+        else if (jcp_.data_prc == ov::element::bf16)
             uni_vpextrw(ptr[reg_dst], xmm_dst, 1);
     }
 
@@ -587,7 +587,7 @@ private:
     // bf16 is needed from avx512_core
     inline void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
         if (!std::is_same<Vmm, Xbyak::Zmm>::value)
-            IE_THROW() << "bf16 is only supported from avx512_core platform for ROIAlign node.";
+            OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
@@ -649,9 +649,9 @@ private:
     }
 };
 #endif
-bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         if (!roiAlign) {
             errorMessage = "Only opset9 ROIAlign operation is supported";
             return false;
@@ -659,13 +659,13 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
 
         const ngPoolingMode mode = roiAlign->get_mode();
         if (mode != ngPoolingMode::AVG && mode != ngPoolingMode::MAX) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
+            errorMessage = "Doesn't support mode: " + ov::as_string(mode);
             return false;
         }
 
         const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
         if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(alignedMode);
+            errorMessage = "Doesn't support mode: " + ov::as_string(alignedMode);
             return false;
         }
     } catch (...) {
@@ -674,13 +674,13 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
@@ -700,45 +700,49 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
             alignedMode = ROIAlignedMode::ra_half_pixel;
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ROIAlign::getSupportedDescriptors() {
     if (getParentEdges().size() != 3)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getInputShapeAtPort(2).getRank() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
     if (proposalsDims[1] != 4) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << proposalsDims[0] << "," << proposalsDims[1] << "]";
+        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
     }
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
     if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                   << proposalsDims[0] << ") and indexes (" << indexesDims[0] << ")";
+        OPENVINO_THROW(errorPrefix,
+                       "has different sizes of inputs for proposals (",
+                       proposalsDims[0],
+                       ") and indexes (",
+                       indexesDims[0],
+                       ")");
     }
 }
 
-void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout) {
+void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout) {
     auto jcp = jit_roi_align_params();
     jcp.alg = algorithm;
     jcp.data_prc = dataPrec;
@@ -763,14 +767,14 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrec0 = getOriginalInputPrecisionAtPort(0);
-    Precision outputPrec = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    if (inputPrec0 != Precision::FP32 || outputPrec != Precision::FP32) {
-        if ((outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16) && mayiuse(avx512_core)) {
-            outputPrec = inputPrec0 = Precision::BF16;
+    if (inputPrec0 != ov::element::f32 || outputPrec != ov::element::f32) {
+        if ((outputPrec == ov::element::bf16 || inputPrec0 == ov::element::bf16) && mayiuse(avx512_core)) {
+            outputPrec = inputPrec0 = ov::element::bf16;
         } else {
-            outputPrec = inputPrec0 = Precision::FP32;
+            outputPrec = inputPrec0 = ov::element::f32;
         }
     }
 
@@ -803,8 +807,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 
     for (auto fmts : supportedFormats) {
         addSupportedPrimDesc({{fmts.first, inputPrec0},
-                              {LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::I32}},
+                              {LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              {{fmts.second, outputPrec}},
                               impl_type);
     }
@@ -814,9 +818,9 @@ void ROIAlign::createPrimitive() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -851,7 +855,7 @@ void ROIAlign::execute(dnnl::stream strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
           (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
-        IE_THROW() <<"ROIAlign doesn't support demanded precisions";
+        OPENVINO_THROW("ROIAlign doesn't support demanded precisions");
 
     ROIAlignContext ctx = {
             *this
@@ -939,9 +943,9 @@ void ROIAlign::executeSpecified() {
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
-            IE_THROW() << "Batch index cannot be less, than -1";
+            OPENVINO_THROW("Batch index cannot be less, than -1");
         } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
-            IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
+            OPENVINO_THROW("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
         }
 
         float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
@@ -1064,7 +1068,7 @@ void ROIAlign::executeSpecified() {
     });
 
     if (realRois == 0) {
-        IE_THROW() << "realRois must be greater than 0";
+        OPENVINO_THROW("realRois must be greater than 0");
     }
 
     if (roi_align_kernel) {

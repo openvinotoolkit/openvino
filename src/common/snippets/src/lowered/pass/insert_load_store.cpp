@@ -3,7 +3,7 @@
 //
 
 #include "snippets/lowered/pass/insert_load_store.hpp"
-
+#include "snippets/op/rank_normalization.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -30,14 +30,18 @@ size_t InsertLoadStore::get_count(const PortDescriptorPtr& port_desc) const {
 }
 
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
+    std::shared_ptr<Expression> data_expr = *data_expr_it;
+    auto consumer_inputs = data_expr->get_output_port_connector(0)->get_consumers();
+    const auto& first_consumer = consumer_inputs.begin()->get_expr();
+    if (is_type<op::RankNormalization>(first_consumer->get_node())) {
+        OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
+        data_expr = first_consumer;
+    }
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto& data_expr = *data_expr_it;
-    const auto& data_node = data_expr->get_node();
+    const auto& data_ngraph_output = data_expr->get_node()->output(0);
     const auto& output_connector = data_expr->get_output_port_connector(0);
-    const auto consumer_inputs = output_connector->get_consumers();
-
     bool was_inserted = false;
-    for (const auto& consumer_input : consumer_inputs) {
+    for (const auto& consumer_input : output_connector->get_consumers()) {
         const auto& consumer_expr = consumer_input.get_expr();
         const auto port = consumer_input.get_index();
         const auto& consumer = consumer_expr->get_node();
@@ -46,7 +50,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
             return false;
 
         const auto loop_ids = consumer_expr->get_loop_ids();
-        const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
+        const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         const auto load_expr = linear_ir.create_expression(load, {output_connector});
         linear_ir.insert(linear_ir.find_after(data_expr_it, consumer_expr), load_expr);
@@ -55,7 +59,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         load_expr->set_loop_ids(loop_ids);
 
         // Need to update all the corresponding Loops with the same Entry Point
-        const auto prev_entry_point = consumer_input;
+        const auto& prev_entry_point = consumer_input;
         const auto new_entry_point = load_expr->get_input_port(0);
         loop_manager->update_loops_port(loop_ids, prev_entry_point, {new_entry_point}, true);
         was_inserted = true;
@@ -116,20 +120,14 @@ bool InsertLoadStore::run(LinearIR& linear_ir) {
         const auto& node = expr->get_node();
         if (ov::is_type<ov::op::v0::Parameter>(node)) {
             modified |= insert_load(linear_ir, expr_it);
-            continue;
-        }
-        if (ov::is_type<ov::op::v0::Result>(node)) {
+        } else if (ov::is_type<ov::op::v0::Result>(node)) {
             modified |= insert_store(linear_ir, expr_it);
-            continue;
-        }
-        if (auto buffer = ov::as_type_ptr<op::Buffer>(node)) {
+        } else if (auto buffer = ov::as_type_ptr<op::Buffer>(node)) {
             modified |= insert_load(linear_ir, expr_it);
             if (buffer->is_intermediate_memory())
                 modified |= insert_store(linear_ir, expr_it);
-            continue;
         }
     }
-
     return modified;
 }
 

@@ -396,9 +396,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         auto ev = instance.get_network().get_stream().create_user_event(false);
         im_info_t im_info;
         if (instance.dep_memory(proposal_inst::image_info_index).get_layout().data_type == data_types::f16) {
-            read_image_info<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
+            read_image_info<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
         } else {
-            read_image_info<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
+            read_image_info<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
         }
 
         if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type !=
@@ -408,26 +408,26 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         if (instance.dependencies().size() == 4) {
             auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f32>::value_type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else if (instance.outputs_memory_count() == 2) {
             auto proposal_probabilities = instance.output_memory_ptr(1);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f32>::value_type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else {
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
             } else {
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
             }
         }
 

@@ -56,3 +56,16 @@ ENCODING = 'UTF-8'
 META_EXTENSION = ".meta"
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
+
+SUPPORTED_MODEL_EXTENSION = [
+    # ONNX
+    "*.onnx",
+    #PDPD
+    "*.pdmodel",
+    # TF
+    "*.pb",
+    # OV IR
+    "*.xml",
+    # TFLITE
+    "*.tflite",
+]

@@ -51,18 +51,21 @@ async function main(modelPath, imagePath, deviceName) {
   const inputTensor = new ov.Tensor(ov.element.u8, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
-  new ov.PrePostProcessor(model)
-    .setInputTensorShape(shape)
-    .preprocessResizeAlgorithm(ov.resizeAlgorithm.RESIZE_LINEAR)
-    .setInputElementType(0, ov.element.u8)
-    .setInputTensorLayout('NHWC')
-    .setInputModelLayout('NCHW')
-    // TODO: add output tensor element type setup
-    .build();
+  const _ppp = new ov.preprocess.PrePostProcessor(model);
+  _ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
+
+  _ppp.input().tensor()
+    .setShape(shape)
+    .setElementType(ov.element.u8)
+    .setLayout('NHWC');
+
+  _ppp.input().model().setLayout('NCHW');
+  _ppp.output().tensor().setElementType(ov.element.f32);
+  _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
-  const compiledModel = core.compileModel(model, deviceName);
+  const compiledModel = await core.compileModel(model, deviceName);
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');

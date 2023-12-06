@@ -78,7 +78,7 @@ Supported configurations:
 ```sh
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
 cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
-ninja .
+cmake --build . --parallel
 ```
 
 ## See also

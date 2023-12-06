@@ -9,10 +9,11 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
-@pytest.mark.parametrize('input_rhs', (np.random.randn(2, 5, 3, 4).astype(np.float32),
-                                       np.random.randn(
-                                           1, 5, 3, 4).astype(np.float32),
-                                       np.random.randn(1).astype(np.float32)))
+@pytest.mark.parametrize('input_shape_rhs', [
+    [2, 5, 3, 4],
+    [1, 5, 3, 4],
+    [1]
+])
 class TestAdd(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -41,9 +42,9 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("op_type", ["add", "add_"])
-    def test_add(self, ie_device, precision, ir_version, alpha, input_rhs, op_type):
-        self.input_rhs = input_rhs
-        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version)
+    def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
+        self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestAddTypes(PytorchLayerTest):

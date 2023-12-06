@@ -10,9 +10,9 @@
 #include "model_wrap.hpp"
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
-#include "pre_post_process_wrap.hpp"
-#include "resize_algorithm.hpp"
 #include "tensor.hpp"
+#include "partial_shape_wrap.hpp"
+#include "preprocess/preprocess.hpp"
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
@@ -21,14 +21,13 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     CompiledModelWrap::Init(env, exports);
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
-    PrePostProcessorWrap::Init(env, exports);
     Output<const ov::Node>::Init(env, exports);
     Output<ov::Node>::Init(env, exports);
-    Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
-    exports.DefineProperty(element);
-    Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
-    exports.DefineProperty(preprocess);
-
+    PartialShapeWrap::Init(env, exports);
+    
+    preprocess::init(env, exports);
+    element::init(env, exports);
+    
     return exports;
 }
 

@@ -6,11 +6,9 @@
 
 #include <cstring>
 
-#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "multinomial_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/multinomial.hpp"
 
@@ -47,9 +45,7 @@ bool op::v13::Multinomial::visit_attributes(AttributeVisitor& visitor) {
 void op::v13::Multinomial::validate_and_infer_types() {
     OV_OP_SCOPE(v13_Multinomial_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -60,7 +56,7 @@ void op::v13::Multinomial::validate_and_infer_types() {
 
 std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v13_Multinomial_clone_with_new_inputs);
-    check_new_args_count<OutputVector>(this, new_args);
+    check_new_args_count(this, new_args);
 
     return std::make_shared<op::v13::Multinomial>(new_args.at(0),
                                                   new_args.at(1),

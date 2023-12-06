@@ -23,6 +23,8 @@ const char API_REPORT_FILENAME[] = "report_api";
 const char REPORT_EXTENSION[] = ".xml";
 const char LST_EXTENSION[] = ".lst";
 
+const char TEMPLATE_LIB[] = "openvino_template_plugin";
+
 const char DEVICE_SUFFIX_SEPARATOR = '.';
 
 const unsigned int maxFileNameLength = 140;

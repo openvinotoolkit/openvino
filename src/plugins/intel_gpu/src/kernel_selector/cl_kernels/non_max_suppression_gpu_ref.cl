@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (c) Facebook, Inc. and its affiliates.
+// The implementation for rotated boxes intersection is based on the code from:
+// https://github.com/facebookresearch/detectron2/blob/v0.6/detectron2/layers/csrc/box_iou_rotated/box_iou_rotated_utils.h
 
 #include "include/batch_headers/fetch_data.cl"
 
@@ -62,7 +65,7 @@ inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE *boxes, const 
                                        boxes[INPUT0_GET_INDEX(batch, boxId, 2, 0)],
                                        boxes[INPUT0_GET_INDEX(batch, boxId, 3, 0)]);
 
-#if BOX_ENCODING == 0
+#if !defined(ROTATION) && BOX_ENCODING == 0
     const COORD_TYPE ax1 = min(coords[1], coords[3]);
     const COORD_TYPE ax2 = max(coords[1], coords[3]);
     const COORD_TYPE ay1 = min(coords[0], coords[2]);
@@ -76,9 +79,331 @@ inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE *boxes, const 
     return coords;
 }
 
+#ifdef ROTATION
+
+typedef struct {
+    float x, y;
+} FUNC(Point2D);
+#define POINT_2D FUNC(Point2D)
+
+inline void FUNC(getRotatedVertices)(const COORD_TYPE_4 box, const INPUT0_TYPE angle, POINT_2D* pts) {
+    const float theta = angle
+                        #if ROTATION == 2
+                            * -1.0f
+                        #endif
+                        ;
+    float cosTheta2 = cos(theta) * 0.5f;
+    float sinTheta2 = sin(theta) * 0.5f;
+
+    // y: top --> down; x: left --> right
+    // Left-Down
+    pts[0].x = box[0]/*.x_ctr*/ - sinTheta2 * box[3]/*.h*/ - cosTheta2 * box[2]/*.w*/;
+    pts[0].y = box[1]/*.y_ctr*/ + cosTheta2 * box[3]/*.h*/ - sinTheta2 * box[2]/*.w*/;
+    // Left-Top
+    pts[1].x = box[0]/*.x_ctr*/ + sinTheta2 * box[3]/*.h*/ - cosTheta2 * box[2]/*.w*/;
+    pts[1].y = box[1]/*.y_ctr*/ - cosTheta2 * box[3]/*.h*/ - sinTheta2 * box[2]/*.w*/;
+    // Right-Top
+    pts[2].x = 2 * box[0]/*.x_ctr*/ - pts[0].x;
+    pts[2].y = 2 * box[1]/*.y_ctr*/ - pts[0].y;
+    // Right-Down
+    pts[3].x = 2 * box[0]/*.x_ctr*/ - pts[1].x;
+    pts[3].y = 2 * box[1]/*.y_ctr*/ - pts[1].y;
+}
+
+inline float FUNC(dot2D)(const POINT_2D A, const POINT_2D B) {
+    return A.x * B.x + A.y * B.y;
+}
+
+inline float FUNC(cross2D)(const POINT_2D A, const POINT_2D B) {
+    return A.x * B.y - B.x * A.y;
+}
+
+inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1, const POINT_2D* pts2, POINT_2D* intersections) {
+    // Line vector
+    // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
+    POINT_2D vec1[4], vec2[4];
+    for (int i = 0; i < 4; i++) {
+        vec1[i].x = pts1[(i + 1) % 4].x - pts1[i].x;
+        vec1[i].y = pts1[(i + 1) % 4].y - pts1[i].y;
+        vec2[i].x = pts2[(i + 1) % 4].x - pts2[i].x;
+        vec2[i].y = pts2[(i + 1) % 4].y - pts2[i].y;
+    }
+
+    // Line test - test all line combos for intersection
+    int num = 0;  // number of intersections
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            // Solve for 2x2 Ax=b
+            float det = FUNC_CALL(cross2D)(vec2[j], vec1[i]);
+            // This takes care of parallel lines
+            if (fabs(det) <= 1e-14f) {
+                continue;
+            }
+
+            POINT_2D vec12;
+            vec12.x= pts2[j].x - pts1[i].x;
+            vec12.y= pts2[j].y - pts1[i].y;
+
+            float t1 = FUNC_CALL(cross2D)(vec2[j], vec12) / det;
+            float t2 = FUNC_CALL(cross2D)(vec1[i], vec12) / det;
+
+            if (t1 >= 0.0f && t1 <= 1.0f && t2 >= 0.0f && t2 <= 1.0f) {
+                intersections[num].x = pts1[i].x + vec1[i].x * t1;
+                intersections[num].y = pts1[i].y + vec1[i].y * t1;
+                ++num;
+            }
+        }
+    }
+
+    // Check for vertices of rect1 inside rect2
+    {
+        const POINT_2D AB = vec2[0];
+        const POINT_2D DA = vec2[3];
+        float ABdotAB = FUNC_CALL(dot2D)(AB, AB);
+        float ADdotAD = FUNC_CALL(dot2D)(DA, DA);
+        for (int i = 0; i < 4; i++) {
+            // assume ABCD is the rectangle, and P is the point to be judged
+            // P is inside ABCD iff. P's projection on AB lies within AB
+            // and P's projection on AD lies within AD
+
+            POINT_2D AP;
+            AP.x = pts1[i].x - pts2[0].x;
+            AP.y = pts1[i].y - pts2[0].y;
+
+            float APdotAB = FUNC_CALL(dot2D)(AP, AB);
+            float APdotAD = -FUNC_CALL(dot2D)(AP, DA);
+
+            if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
+                intersections[num].x = pts1[i].x;
+                intersections[num].y = pts1[i].y;
+                ++num;
+            }
+        }
+    }
+
+    // Reverse the check - check for vertices of rect2 inside rect1
+    {
+        const POINT_2D AB = vec1[0];
+        const POINT_2D DA = vec1[3];
+        float ABdotAB = FUNC_CALL(dot2D)(AB, AB);
+        float ADdotAD = FUNC_CALL(dot2D)(DA, DA);
+        for (int i = 0; i < 4; i++) {
+            POINT_2D AP;
+            AP.x = pts2[i].x - pts1[0].x;
+            AP.y = pts2[i].y - pts1[0].y;
+
+            float APdotAB = FUNC_CALL(dot2D)(AP, AB);
+            float APdotAD = -FUNC_CALL(dot2D)(AP, DA);
+
+            if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
+                intersections[num].x = pts2[i].x;
+                intersections[num].y = pts2[i].y;
+                ++num;
+            }
+        }
+    }
+
+    return num;
+}
+
+inline void FUNC(swapPoints)(POINT_2D* a, POINT_2D* b)
+{
+    POINT_2D temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+inline void FUNC(sortPoints)(POINT_2D* arr, int l, int h)
+{
+    for (int i = 0; i < h-l; i++) {
+        bool swapped = false;
+
+        for (int j = l; j < h-i; j++) {
+            bool is_less = false;
+            const float temp = FUNC_CALL(cross2D)(arr[j], arr[j+1]);
+            if (fabs(temp) < 1e-6f) {
+                is_less = FUNC_CALL(dot2D)(arr[j], arr[j]) < FUNC_CALL(dot2D)(arr[j+1], arr[j+1]);
+            } else {
+                is_less = temp > 0;
+            }
+
+            if (is_less) {
+                continue;
+            }
+
+            FUNC_CALL(swapPoints)(&arr[j], &arr[j+1]);
+            swapped = true;
+        }
+
+        if (!swapped) {
+            break;
+        }
+    }
+}
+
+inline int FUNC(convex_hull_graham)(const POINT_2D* p, const int num_in, POINT_2D* q, bool shift_to_zero) {
+    if (num_in < 2) {
+        return -1;
+    }
+
+    // Step 1:
+    // Find point with minimum y
+    // if more than 1 points have the same minimum y,
+    // pick the one with the minimum x.
+    int t = 0;
+    for (int i = 1; i < num_in; i++) {
+        if (p[i].y < p[t].y || (p[i].y == p[t].y && p[i].x < p[t].x)) {
+            t = i;
+        }
+    }
+    const POINT_2D start = p[t];  // starting point
+
+    // Step 2:
+    // Subtract starting point from every points (for sorting in the next step)
+    for (int i = 0; i < num_in; i++) {
+        q[i].x = p[i].x - start.x;
+        q[i].y = p[i].y - start.y;
+    }
+
+    // Swap the starting point to position 0
+    FUNC_CALL(swapPoints)(&q[t], &q[0]);
+
+    // Step 3:
+    // Sort point 1 ~ num_in according to their relative cross-product values
+    // (essentially sorting according to angles)
+    // If the angles are the same, sort according to their distance to origin
+    float dist[24];
+    for (int i = 0; i < num_in; i++) {
+        dist[i] = FUNC_CALL(dot2D)(q[i], q[i]);
+    }
+
+    FUNC_CALL(sortPoints)(q, 1, num_in - 1);
+
+    // compute distance to origin after sort, since the points are now different.
+    for (int i = 0; i < num_in; i++) {
+        dist[i] = FUNC_CALL(dot2D)(q[i], q[i]);
+    }
+
+    // Step 4:
+    // Make sure there are at least 2 points (that don't overlap with each other)
+    // in the stack
+    int k;  // index of the non-overlapped second point
+    for (k = 1; k < num_in; k++) {
+        if (dist[k] > 1e-8f) {
+            break;
+        }
+    }
+    if (k == num_in) {
+        // We reach the end, which means the convex hull is just one point
+        q[0].x = p[t].x;
+        q[0].y = p[t].y;
+        return 1;
+    }
+
+    q[1].x = q[k].x;
+    q[1].y = q[k].y;
+    int m = 2;  // 2 points in the stack
+    // Step 5:
+    // Finally we can start the scanning process.
+    // When a non-convex relationship between the 3 points is found
+    // (either concave shape or duplicated points),
+    // we pop the previous point from the stack
+    // until the 3-point relationship is convex again, or
+    // until the stack only contains two points
+    for (int i = k + 1; i < num_in; i++) {
+        POINT_2D diff1, diff2;
+        diff1.x = q[i].x - q[m - 2].x;
+        diff1.y = q[i].y - q[m - 2].y;
+        diff2.x = q[m - 1].x - q[m - 2].x;
+        diff2.y = q[m - 1].y - q[m - 2].y;
+
+        float cross2d_diff = FUNC_CALL(cross2D)(diff1, diff2);
+
+        while (m > 1 && cross2d_diff >= 0) {
+            m--;
+        }
+        q[m].x = q[i].x;
+        q[m].y = q[i].y;
+        ++m;
+    }
+
+    // Step 6 (Optional):
+    // In general sense we need the original coordinates, so we
+    // need to shift the points back (reverting Step 2)
+    // But if we're only interested in getting the area/perimeter of the shape
+    // We can simply return.
+    if (!shift_to_zero) {
+        for (int i = 0; i < m; i++) {
+            q[i].x += start.x;
+            q[i].y += start.y;
+        }
+    }
+
+    return m;
+}
+
+inline float FUNC(polygon_area)(const POINT_2D* q, const int m) {
+    if (m <= 2) {
+        return 0.f;
+    }
+
+    float area = 0.f;
+    for (int i = 1; i < m - 1; i++) {
+        POINT_2D diff1, diff2;
+        diff1.x = q[i].x - q[0].x;
+        diff1.y = q[i].y - q[0].y;
+        diff2.x = q[i + 1].x - q[0].x;
+        diff2.y = q[i + 1].y - q[0].y;
+        float cross_result = FUNC_CALL(cross2D)(diff1, diff2);
+
+        area += fabs(cross_result);
+    }
+
+    return area / 2.0f;
+}
+
+inline float FUNC(rotatedBoxesIntersection)(const COORD_TYPE_4 boxA, const INPUT0_TYPE angleA,
+        const COORD_TYPE_4 boxB, const INPUT0_TYPE angleB) {
+    // There are up to 4 x 4 + 4 + 4 = 24 intersections (including dups) returned
+    // from get_intersection_points
+    POINT_2D intersectPts[24], orderedPts[24];
+    POINT_2D pts1[4];
+    POINT_2D pts2[4];
+    FUNC_CALL(getRotatedVertices)(boxA, angleA, pts1);
+    FUNC_CALL(getRotatedVertices)(boxB, angleB, pts2);
+    // Find points defining area of the boxes intersection
+    int num = FUNC_CALL(getIntersectionPoints)(pts1, pts2, intersectPts);
+
+    if (num <= 2) {
+        return 0.f;
+    }
+
+    // Convex Hull to order the intersection points in clockwise order and find
+    // the contour area.
+    int num_convex = FUNC_CALL(convex_hull_graham)(intersectPts, num, orderedPts, true);
+    return FUNC_CALL(polygon_area)(orderedPts, num_convex);
+}
+
+
+inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const INPUT0_TYPE angleA,
+        const COORD_TYPE_4 boxB, const INPUT0_TYPE angleB)
+{
+    const float areaA = convert_float(boxA[3]) * convert_float(boxA[2]);
+    const float areaB = convert_float(boxB[3]) * convert_float(boxB[2]);
+
+    if (areaA <= 0.0f || areaB <= 0.0f)
+        return 0.0f;
+
+    const float intersection_area = FUNC_CALL(rotatedBoxesIntersection)(boxA, angleA, boxB, angleB);
+    const float union_area = areaA + areaB - intersection_area;
+    return intersection_area / union_area;
+}
+
+#else
+
 inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TYPE_4 boxB)
 {
-#if BOX_ENCODING == 0
+#if !defined(ROTATION) && BOX_ENCODING == 0
     /// CORNER
     const float areaA = convert_float(boxA[3] - boxA[1]) * convert_float(boxA[2] - boxA[0]);
     const float areaB = convert_float(boxB[3] - boxB[1]) * convert_float(boxB[2] - boxB[0]);
@@ -110,6 +435,7 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
     const float union_area = areaA + areaB - intersection_area;
     return intersection_area / union_area;
 }
+#endif // ROTATION
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
 {
@@ -427,9 +753,11 @@ KERNEL (non_max_suppression_ref_stage_2)(
     const ushort classId = get_global_id(1);
 
     float scale = 0.0f;
+    #ifndef ROTATION
     if (SOFT_NMS_SIGMA_VAL > 0.0f) {
         scale = -0.5f / SOFT_NMS_SIGMA_VAL;
     }
+    #endif
 
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     const int kSortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
@@ -442,12 +770,22 @@ KERNEL (non_max_suppression_ref_stage_2)(
         SBOX_INFO next_candidate = sortedBoxList[i];
         INPUT1_TYPE original_score = next_candidate.score;
         const COORD_TYPE_4 next_candidate_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, next_candidate.boxId);
+        #ifdef ROTATION
+        const INPUT0_TYPE next_candidate_angle = boxes[INPUT0_GET_INDEX(batchId, next_candidate.boxId, 4, 0)];
+        #endif
+
         ++i;
 
         bool should_hard_suppress = false;
         for (int j = selectedBoxNum - 1; j >= next_candidate.suppress_begin_index; --j) {
             const COORD_TYPE_4 selected_box_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, selectedBoxList[j].boxId);
+            #ifdef ROTATION
+            const INPUT0_TYPE selected_box_angle = boxes[INPUT0_GET_INDEX(batchId, selectedBoxList[j].boxId, 4, 0)];
+            const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, next_candidate_angle,
+                    selected_box_coord, selected_box_angle);
+            #else
             const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, selected_box_coord);
+            #endif
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
 
             if (iou >= IOU_THRESHOLD_VAL && !(SOFT_NMS_SIGMA_VAL > 0.0f)) {

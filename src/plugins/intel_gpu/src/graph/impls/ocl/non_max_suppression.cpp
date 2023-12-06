@@ -143,6 +143,17 @@ public:
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
+        switch (primitive->rotation) {
+            case non_max_suppression::Rotation::CLOCKWISE:
+                params.rotation = kernel_selector::NMSRotationType::CLOCKWISE;
+                break;
+            case non_max_suppression::Rotation::COUNTERCLOCKWISE:
+                params.rotation = kernel_selector::NMSRotationType::COUNTERCLOCKWISE;
+                break;
+            default:
+                params.rotation = kernel_selector::NMSRotationType::NONE;
+        }
+
         if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
             params.reuse_internal_buffer = true;
         }

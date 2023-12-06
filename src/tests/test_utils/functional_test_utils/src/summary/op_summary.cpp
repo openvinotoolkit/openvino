@@ -8,6 +8,7 @@
 #include <pugixml.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "functional_test_utils/summary/op_info.hpp"
 
 using namespace ov::test::utils;
 
@@ -59,15 +60,15 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
         opsStats.insert({op, PassRate()});
     }
     auto& passrate = opsStats[op];
-    if (isCrashReported) {
-        isCrashReported = false;
+    if (passrate.isCrashReported) {
+        passrate.isCrashReported = false;
         if (passrate.crashed > 0)
             passrate.crashed--;
     } else {
         passrate.rel_all += rel_influence_coef;
     }
-    if (isHangReported) {
-        isHangReported = false;
+    if (passrate.isHangReported) {
+        passrate.isHangReported = false;
         return;
     }
     switch (status) {
@@ -86,12 +87,12 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
         break;
     case PassRate::CRASHED: {
         passrate.crashed++;
-        isCrashReported = true;
+        passrate.isCrashReported = true;
         break;
     }
     case PassRate::HANGED: {
         passrate.hanged++;
-        isHangReported = true;
+        passrate.isHangReported = true;
         break;
     }
     }
@@ -109,13 +110,13 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo& op, const bool implS
     }
 }
 
-std::string OpSummary::getOpVersion(const std::string& version) {
+std::string OpSummary::get_opset_number(const std::string& opset_full_name) {
     std::string opset_name = "opset";
-    auto pos = version.find(opset_name);
+    auto pos = opset_full_name.find(opset_name);
     if (pos == std::string::npos) {
         return "undefined";
     } else {
-        return version.substr(pos + opset_name.size());
+        return opset_full_name.substr(pos + opset_name.size());
     }
 }
 
@@ -259,7 +260,7 @@ void OpSummary::saveReport() {
         const auto& type_info_set = opset.get_type_info_set();
         for (const auto& type_info : type_info_set) {
             auto it = opsInfo.find(type_info);
-            std::string op_version = getOpVersion(opset_version);
+            std::string op_version = get_opset_number(opset_version);
             if (it == opsInfo.end()) {
                 opsInfo.insert({type_info, op_version});
             } else {
@@ -304,7 +305,7 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto& op : opsInfo) {
-        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
+        std::string name = functional::get_node_version(op.first);
         opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
@@ -315,7 +316,7 @@ void OpSummary::saveReport() {
         it.second.rel_passed /= downgrade_coefficient;
         it.second.rel_all /= downgrade_coefficient;
 
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
+        std::string name = functional::get_node_version(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);

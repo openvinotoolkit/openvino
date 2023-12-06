@@ -2,39 +2,38 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME subgraphsDumper)
+set(TARGET_NAME ov_subgraphs_dumper)
 
 list(APPEND LIBRARIES
         gflags
-        openvino::runtime
-        func_test_utils
-        openvino::pugixml
+        op_conformance_utils
 )
 
 # add subgraphs_dumpers tool
-ov_add_target(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         TYPE EXECUTABLE
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
         INCLUDES
             PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PRIVATE
                 ${LIBRARIES}
         DEPENDENCIES
             ov_frontends
+            ${LIBRARIES}
         ADD_CPPLINT
 )
 
 # add subgraphs_dumpers lib to get API
 ov_add_target(
-        NAME "${TARGET_NAME}Util"
+        NAME "${TARGET_NAME}_util"
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
         INCLUDES
             PUBLIC
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PUBLIC
                 ${LIBRARIES}
@@ -43,6 +42,7 @@ ov_add_target(
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/gflag_config.hpp
         DEPENDENCIES
             ov_frontends
+            ${LIBRARIES}
         ADD_CPPLINT
 )
 

@@ -4,23 +4,26 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "shared_test_classes/single_layer/shape_of.hpp"
+namespace ov {
+namespace test {
 
-#include "ov_models/builders.hpp"
+typedef std::tuple<ov::element::Type,  // Input type
+                   ov::element::Type,  // Output type
+                   ov::Shape,          // Input shapes
+                   std::string         // Device name
+                   >
+    ShapeOfParams;
 
-namespace SubgraphTestsDefinitions {
-
-class ReluShapeOfSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::shapeOfParamsCommon>,
-        virtual public LayerTestsUtils::LayerTestsCommon {
+class ReluShapeOfSubgraphTest : public testing::WithParamInterface<ov::test::ShapeOfParams>,
+                                virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::shapeOfParamsCommon>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::ShapeOfParams>& obj);
+
 protected:
     void SetUp() override;
 };
-}  // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

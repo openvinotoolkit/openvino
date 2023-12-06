@@ -20,7 +20,20 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED
                  PATHS "${InferenceEngineDeveloperPackage_DIR}")
+
+    # we assume that OpenVINODeveloperPackage is generated in OpenVINO build tree
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
+    # but this can be invalid for cases of OpenVINODeveloperPackage relocatable installation
+    # so, we need to disable wheen generation for this case
+    if(NOT EXISTS "${OpenVINO_BINARY_DIR}/cmake_install.cmake")
+        set(OpenVINODeveloperPackage_RELOCATABLE ON)
+    endif()
+
+    set(OpenVINO_SOURCE_DIR "${OpenVINOPython_SOURCE_DIR}/../../../")
+endif()
+
+if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
+    set(OpenVINODeveloperPackage_RELOCATABLE OFF)
 endif()
 
 #
@@ -141,11 +154,10 @@ function(ov_check_init_files_alignment init_files)
     endforeach()
 endfunction()
 
-set(INIT_FILES_RUNTIME
-"${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
-"${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
-"${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
-"${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
+set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
+                       "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
+                       "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
 
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
@@ -175,7 +187,7 @@ if(LINUX)
                       DOC "Path to patchelf tool")
     if(NOT patchelf_program)
         set(ENABLE_WHEEL_DEFAULT OFF)
-        message(${message_mode} "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via apt-get install patchelf")
+        message(${message_mode} "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via `pip install patchelf` or `apt install patchelf`.")
     endif()
 endif()
 
@@ -193,7 +205,7 @@ endif()
 
 # this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
-ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
+ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON;NOT OpenVINODeveloperPackage_RELOCATABLE" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
@@ -391,6 +403,14 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
+    install(FILES constraints.txt
+            DESTINATION tests/bindings/python
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+    install(FILES src/openvino/preprocess/torchvision/requirements.txt
+            DESTINATION tests/python/preprocess/torchvision
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)

@@ -61,7 +61,7 @@ public:
     /** @return Napi::Array containing a tensor shape. */
     Napi::Value get_shape(const Napi::CallbackInfo& info);
     /** @return Napi::String containing ov::element type. */
-    Napi::Value get_precision(const Napi::CallbackInfo& info);
+    Napi::Value get_element_type(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;

@@ -123,6 +123,7 @@ class TestListUnpack(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
+            use_convert_model=True,
         )
 
 class TestMeshgridListUnpack(PytorchLayerTest):

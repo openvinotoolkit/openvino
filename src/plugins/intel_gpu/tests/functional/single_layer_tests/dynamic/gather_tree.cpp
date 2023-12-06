@@ -79,13 +79,16 @@ protected:
 
         ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
         if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
-            inp2 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
-            inp3 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);
-            inp4 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[3]);
+            auto param2 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[1]);
+            auto param3 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[2]);
+            auto param4 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[3]);
+            inp2 = param2;
+            inp3 = param3;
+            inp4 = param4;
 
-            paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp2));
-            paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp3));
-            paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp4));
+            paramsIn.push_back(param2);
+            paramsIn.push_back(param3);
+            paramsIn.push_back(param4);
         } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 

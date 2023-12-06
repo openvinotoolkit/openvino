@@ -140,6 +140,7 @@ TEST_P(CustomOpScalarCPUTest, CompareWithRefs) {
 
 const std::vector<InputShape> inputShapes = {
     {{}, {{2, 3, 16}}},
+    {{2, 3, -1}, {{2, 3, 0}}},
     {{}, {{}}}
 };
 

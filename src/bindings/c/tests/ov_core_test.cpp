@@ -33,7 +33,8 @@ public:
         ov_capi_test_base::TearDown();
     }
 };
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core_test, ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(ov_core, ov_core_test, ::testing::Values("CPU"));
 
 TEST_P(ov_core_test, ov_core_create_with_config) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
@@ -698,5 +699,38 @@ TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
     ov_core_free(core);
 }
 #endif
+
+using ov_util_test = ov_core_test;
+INSTANTIATE_TEST_SUITE_P(ov_capi_test, ov_util_test, ::testing::Values("CPU"));
+
+TEST_P(ov_util_test, ov_get_last_err_msg_check) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key = ov_property_key_inference_num_threads;
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, "abc"));
+
+    char* ret = nullptr;
+    OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+
+    auto err_msg = ov_get_last_err_msg();
+    EXPECT_NE(nullptr, err_msg);
+    ov_free(err_msg);
+    ov_free(ret);
+    ov_core_free(core);
+}
+
+TEST_P(ov_util_test, ov_get_last_err_msg_check_empty_msg) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    auto err_msg = ov_get_last_err_msg();
+    EXPECT_EQ(nullptr, err_msg);
+    ov_core_free(core);
+}
 
 }  // namespace

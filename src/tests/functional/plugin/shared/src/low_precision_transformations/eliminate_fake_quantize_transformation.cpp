@@ -73,7 +73,7 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
         if (type == "Convolution") {
             const auto& precision_it = it.second.find("runtimePrecision");
             const auto& precision = precision_it->second.as<std::string>();
-            if (precision == "U8") {
+            if (precision == "u8") {
                 int8_convolutions++;
             }
         }

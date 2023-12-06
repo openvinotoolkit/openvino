@@ -17,9 +17,15 @@ iMatcherConfig::Ptr MatchersManager::get_config(const std::shared_ptr<ov::Node> 
     return nullptr;
 }
 
+void MatchersManager::set_shape_strict_match(bool shape_strict_match) {
+    for (const auto& matcher : m_matchers) {
+        matcher.second->set_strict_shape_match(shape_strict_match);
+    }
+}
+
 bool MatchersManager::match(const std::shared_ptr<ov::Node> &node,
                             const std::shared_ptr<ov::Node> &ref) const {
-    for (const auto &it : m_matchers) {
+    for (const auto& it : m_matchers) {
         if (it.second->match(node, ref)) {
             return true;
         }

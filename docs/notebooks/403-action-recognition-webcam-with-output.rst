@@ -1,8 +1,6 @@
 Human Action Recognition with OpenVINO™
 =======================================
 
-
-
 This notebook demonstrates live human action recognition with OpenVINO,
 using the `Action Recognition
 Models <https://docs.openvino.ai/2020.2/usergroup13.html>`__ from `Open
@@ -20,15 +18,13 @@ notebook shows how to create the following pipeline:
 Final part of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-.. note::
-
-   To use a webcam, you must run this Jupyter notebook on a computer with a webcam. 
-   If you run on a server, the webcam will not work. However, you can still do 
-   inference on a video in the final step.
+**NOTE**: To use a webcam, you must run this Jupyter notebook on a
+computer with a webcam. If you run on a server, the webcam will not
+work. However, you can still do inference on a video in the final step.
 
 --------------
 
-[1] ``seq2seq``: Deep learning models that take a sequence of items to the
+[1] seq2seq: Deep learning models that take a sequence of items to the
 input and output. In this case, input: video frames, output: actions
 sequence. This ``"seq2seq"`` is composed of an encoder and a decoder.
 The encoder captures ``"context"`` of the inputs to be analyzed by the
@@ -39,54 +35,69 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Imports <#imports>`__
-- `The models <#the-models>`__
 
-  - `Download the models <#download-the-models>`__
-  - `Load your labels <#load-your-labels>`__
-  - `Load the models <#load-the-models>`__
+-  `The models <#the-models>`__
 
-    - `Model Initialization function <#model-initialization-function>`__
-    - `Initialization for Encoder and Decoder <#initialization-for-encoder-and-decoder>`__
+   -  `Download the models <#download-the-models>`__
+   -  `Load your labels <#load-your-labels>`__
+   -  `Load the models <#load-the-models>`__
 
-  - `Helper functions <#helper-functions>`__
-  - `AI Functions <#ai-functions>`__
-  - `Main Processing Function <#main-processing-function>`__
-  - `Run Action Recognition on a Video File <#run-action-recognition-on-a-video-file>`__
-  - `Run Action Recognition Using a Webcam <#run-action-recognition-using-a-webcam>`__
+      -  `Model Initialization
+         function <#model-initialization-function>`__
+      -  `Initialization for Encoder and
+         Decoder <#initialization-for-encoder-and-decoder>`__
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
+   -  `Helper functions <#helper-functions>`__
+   -  `AI Functions <#ai-functions>`__
+   -  `Main Processing Function <#main-processing-function>`__
+   -  `Run Action Recognition on a Video
+      File <#run-action-recognition-on-a-video-file>`__
+   -  `Run Action Recognition Using a
+      Webcam <#run-action-recognition-using-a-webcam>`__
 
+.. code:: ipython3
+
+    %pip install -q "openvino-dev>=2023.1.0"
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
     import collections
     import os
-    import sys
     import time
     from typing import Tuple, List
     
     import cv2
     import numpy as np
     from IPython import display
-    from openvino.runtime import Core
+    import openvino as ov
     from openvino.runtime.ie_api import CompiledModel
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
     import notebook_utils as utils
 
-The models `⇑ <#top>`__
-###############################################################################################################################
+The models 
+----------------------------------------------------
 
-
-Download the models `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Download the models 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. It automatically creates a directory structure
@@ -97,11 +108,10 @@ and the system automatically downloads the two models
 ``"action-recognition-0001-encoder"`` and
 ``"action-recognition-0001-decoder"``
 
-.. note::
-
-   If you want to download another model, such as 
-   ``"driver-action-recognition-adas-0002"`` (``"driver-action-recognition-adas-0002-encoder"`` 
-   + ``"driver-action-recognition-adas-0002-decoder"``), replace the name 
+   **NOTE**: If you want to download another model, such as
+   ``"driver-action-recognition-adas-0002"``
+   (``"driver-action-recognition-adas-0002-encoder"`` +
+   ``"driver-action-recognition-adas-0002-decoder"``), replace the name
    of the model in the code below. Using a model outside the list can
    require different pre- and post-processing.
 
@@ -147,29 +157,35 @@ and the system automatically downloads the two models
     
 
 
-Load your labels `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Load your labels 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This tutorial uses `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__, and
 also provides the text file embedded into this notebook.
 
-.. note::
-
-   If you want to run
+   **NOTE**: If you want to run
    ``"driver-action-recognition-adas-0002"`` model, replace the
    ``kinetics.txt`` file to ``driver_actions.txt``.
 
-
 .. code:: ipython3
 
-    labels = "../data/text/kinetics.txt"
+    # Download the text from the openvino_notebooks storage
+    vocab_file_path = utils.download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/kinetics.txt",
+        directory="data"
+    )
     
-    with open(labels) as f:
+    with vocab_file_path.open(mode='r') as f:
         labels = [line.strip() for line in f]
     
     print(labels[0:9], np.shape(labels))
+
+
+
+.. parsed-literal::
+
+    data/kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -177,9 +193,8 @@ also provides the text file embedded into this notebook.
     ['abseiling', 'air drumming', 'answering questions', 'applauding', 'applying cream', 'archery', 'arm wrestling', 'arranging flowers', 'assembling computer'] (400,)
 
 
-Load the models `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Load the models 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load the two models for this particular architecture, Encoder and
 Decoder. Downloaded models are located in a fixed structure, indicating
@@ -199,7 +214,7 @@ Select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -218,14 +233,13 @@ Select device from dropdown list for running inference using OpenVINO
 
 
 
-Model Initialization function `⇑ <#top>`__
--------------------------------------------------------------------------------------------------------------------------------
-
+Model Initialization function 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    core = Core()
+    core = ov.Core()
     
     
     def model_init(model_path: str, device: str) -> Tuple:
@@ -251,9 +265,8 @@ Model Initialization function `⇑ <#top>`__
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Initialization for Encoder and Decoder `⇑ <#top>`__
--------------------------------------------------------------------------------------------------------------------------------
-
+Initialization for Encoder and Decoder 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
 
@@ -267,9 +280,8 @@ Initialization for Encoder and Decoder `⇑ <#top>`__
     # Get input size - Decoder.
     frames2decode = list(input_key_de.shape)[0:][1]
 
-Helper functions `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Helper functions 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the following helper functions for preprocessing and postprocessing
 frames:
@@ -389,9 +401,8 @@ frames:
         cv2.putText(frame, display_text, text_loc2, FONT_STYLE, FONT_SIZE, FONT_COLOR2)
         cv2.putText(frame, display_text, text_loc, FONT_STYLE, FONT_SIZE, FONT_COLOR)
 
-AI Functions `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+AI Functions 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Following the pipeline above, you will use the next functions to:
 
@@ -480,9 +491,8 @@ Following the pipeline above, you will use the next functions to:
         exp = np.exp(x)
         return exp / np.sum(exp, axis=None)
 
-Main Processing Function `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Main Processing Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Running action recognition function will run in different operations,
 either a webcam or a video file. See the list of procedures below:
@@ -632,9 +642,8 @@ either a webcam or a video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Action Recognition on a Video File `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Action Recognition on a Video File 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Find out how the model works in a video file. `Any format
 supported <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
@@ -642,11 +651,10 @@ by OpenCV will work. You can press the stop button anytime while the
 video file is running, and it will activate the webcam for the next
 step.
 
-.. note::
-
-   Sometimes, the video can be cut off if there are corrupted frames. In that 
-   case, you can convert it. If you experience any problems with your video, 
-   use the `HandBrake <https://handbrake.fr/>`__ and select the MPEG format.
+   **NOTE**: Sometimes, the video can be cut off if there are corrupted
+   frames. In that case, you can convert it. If you experience any
+   problems with your video, use the
+   `HandBrake <https://handbrake.fr/>`__ and select the MPEG format.
 
 .. code:: ipython3
 
@@ -655,7 +663,7 @@ step.
 
 
 
-.. image:: 403-action-recognition-webcam-with-output_files/403-action-recognition-webcam-with-output_21_0.png
+.. image:: 403-action-recognition-webcam-with-output_files/403-action-recognition-webcam-with-output_22_0.png
 
 
 .. parsed-literal::
@@ -663,19 +671,15 @@ step.
     Source ended
 
 
-Run Action Recognition Using a Webcam `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Action Recognition Using a Webcam 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, try to see yourself in your webcam.
 
-.. note::
-
-   To use a webcam, you must run this Jupyter notebook on a
+   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a server, the webcam will not
    work. However, you can still do inference on a video file in the
    final step.
-
 
 .. code:: ipython3
 
@@ -689,6 +693,6 @@ Now, try to see yourself in your webcam.
 
 .. parsed-literal::
 
-    [ WARN:0@319.035] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@319.035] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@320.581] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@320.581] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 

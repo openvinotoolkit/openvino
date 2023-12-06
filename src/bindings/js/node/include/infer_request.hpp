@@ -92,6 +92,9 @@ public:
     /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
     Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
 
+    /** @brief  Checks incoming Napi::Value and asynchronously returns the result of inference. */
+    Napi::Value infer_async(const Napi::CallbackInfo& info);
+
     /** @brief Infers specified inputs in synchronous mode.
      * @param inputs  An object with a collection of pairs key (input_name) and a value (tensor, tensor's data)
      */

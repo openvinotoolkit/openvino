@@ -6,6 +6,9 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+# GNA plugin will be removed before 2024.0 together with API 1.0
+ov_disable_deprecated_warnings()
+
 add_subdirectory(legacy)
 
 set(TARGET_NAME "openvino_intel_gna_plugin")

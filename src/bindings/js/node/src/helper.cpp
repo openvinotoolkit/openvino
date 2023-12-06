@@ -153,6 +153,63 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 }
 
 template <>
+ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types) {
+    const auto& elem = info[idx];
+
+    if (!acceptableType(elem, acceptable_types))
+        OPENVINO_THROW(std::string("Cannot convert Napi::Value to resizeAlgorithm"));
+
+    const std::string& algorithm = elem.ToString();
+    if (algorithm == "RESIZE_CUBIC") {
+        return ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC;
+    } else if (algorithm == "RESIZE_NEAREST") {
+        return ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST;
+    } else if (algorithm == "RESIZE_LINEAR") {
+        return ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR;
+    } else {
+        OPENVINO_THROW(std::string("Not supported resizeAlgorithm."));
+    }
+}
+
+template <>
+ov::Any js_to_cpp<ov::Any>(Napi::Value value, const std::vector<napi_types>& acceptable_types) {
+    if (!acceptableType(value, acceptable_types)) {
+        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::Any"));
+    }
+    if (value.IsString()) {
+        return value.ToString().Utf8Value();
+    } else if (value.IsNumber()) {
+        return value.ToNumber().Int32Value();
+    } else {
+        OPENVINO_THROW(std::string("The conversion is not supported yet."));
+    }
+}
+
+template <>
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types) {
+    const auto elem = info[idx];
+    if (!acceptableType(elem, acceptable_types)) {
+        OPENVINO_THROW(std::string("Cannot convert Napi::Value to std::map<std::string, ov::Any>"));
+    }
+    std::map<std::string, ov::Any> properties_to_cpp;
+    const auto& config = elem.ToObject();
+    const auto& keys = config.GetPropertyNames();
+
+    for (size_t i = 0; i < keys.Length(); ++i) {
+        const std::string& option = static_cast<Napi::Value>(keys[i]).ToString();
+        properties_to_cpp[option] = js_to_cpp<ov::Any>(config.Get(option), {napi_string});
+    }
+
+    return properties_to_cpp;
+}
+
+template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type) {
     return Napi::String::New(info.Env(), ov::element::Type(type).to_string());
@@ -168,19 +225,67 @@ Napi::Array cpp_to_js<ov::Shape, Napi::Array>(const Napi::CallbackInfo& info, co
 
 template <>
 Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& info, const ov::PartialShape shape) {
-    auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); ++i) {
-        int64_t value;
+    size_t size = shape.size();
+    Napi::Array dimensions = Napi::Array::New(info.Env(), size);
+    
+    for (size_t i = 0; i < size; i++) {
+        ov::Dimension dim = shape[i];
 
-        if (shape[i].is_dynamic()) {
-            value = -1;
-        } else {
-            value = shape[i].get_length();
+        if (dim.is_static()) {
+            dimensions[i] = dim.get_length();
+            continue;
         }
 
-        arr[i] = value;
+        auto min = dim.get_min_length();
+        auto max = dim.get_max_length();
+
+        if (min > max) {
+            dimensions[i] = -1;
+            continue;
+        }
+
+        dimensions[i] = cpp_to_js<ov::Dimension, Napi::Array>(info, dim);        
     }
-    return arr;
+
+    return dimensions;
+}
+
+template <>
+Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info, const ov::Dimension dim) {
+    Napi::Array interval = Napi::Array::New(info.Env(), 2);
+
+    // Indexes looks wierd, but clear assignment, 
+    // like: interval[0] = value doesn't work here
+    size_t indexes[] = {0, 1};
+    interval[indexes[0]] = dim.get_min_length();
+    interval[indexes[1]] = dim.get_max_length();
+ 
+    return interval;
+}
+
+template <>
+Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value) {
+    return Napi::Boolean::New(info.Env(), value);
+}
+
+ov::TensorVector parse_input_data(const Napi::Value& input) {
+    ov::TensorVector parsed_input;
+    if (input.IsArray()) {
+        auto inputs = input.As<Napi::Array>();
+        for (size_t i = 0; i < inputs.Length(); ++i) {
+            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(inputs[i])));
+        }
+    } else if (input.IsObject()) {
+        auto inputs = input.ToObject();
+        const auto& keys = inputs.GetPropertyNames();
+        for (size_t i = 0; i < keys.Length(); ++i) {
+            auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
+            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
+        }
+    } else {
+        OPENVINO_THROW("parse_input_data(): wrong arg");
+    }
+    return parsed_input;
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
@@ -191,21 +296,25 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor cast_to_tensor(Napi::Object obj) {
-    auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
-    return tensor_wrap->get_tensor();
+ov::Tensor cast_to_tensor(Napi::Value value) {
+    if (value.IsObject()) {
+        auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(value.ToObject());
+        return tensor_wrap->get_tensor();
+    } else {
+        OPENVINO_THROW("Cannot create a tensor from the passed Napi::Value.");
+    }
 }
 
 ov::Tensor cast_to_tensor(Napi::TypedArray typed_array, const ov::Shape& shape, const ov::element::Type_t& type) {
     /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
     because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
     if (typed_array.ByteOffset() != 0) {
-        throw std::invalid_argument("TypedArray.byteOffset has to be equal to zero.");
+        OPENVINO_THROW("TypedArray.byteOffset has to be equal to zero.");
     }
     auto array_buffer = typed_array.ArrayBuffer();
     auto tensor = ov::Tensor(type, shape, array_buffer.Data());
     if (tensor.get_byte_size() != array_buffer.ByteLength()) {
-        throw std::invalid_argument("Memory allocated using shape and element::type mismatch passed data's size");
+        OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
     }
     return tensor;
 }

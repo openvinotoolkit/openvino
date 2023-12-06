@@ -10,6 +10,7 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
+#include "ngraph/op/negative.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
@@ -910,61 +911,13 @@ void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
 }
 
 std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t) {
-#define OPENVINO_TYPE_TO_MAX_CONST(t)                                                   \
-    case t:                                                                             \
-        return ov::op::v0::Constant::create(                                            \
-            t,                                                                          \
-            {},                                                                         \
-            {std::numeric_limits<typename element_type_traits<t>::value_type>::max()}); \
-        break
-
-    switch (t) {
-        OPENVINO_TYPE_TO_MAX_CONST(element::boolean);
-        OPENVINO_TYPE_TO_MAX_CONST(element::bf16);
-        OPENVINO_TYPE_TO_MAX_CONST(element::f16);
-        OPENVINO_TYPE_TO_MAX_CONST(element::f32);
-        OPENVINO_TYPE_TO_MAX_CONST(element::f64);
-        OPENVINO_TYPE_TO_MAX_CONST(element::i8);
-        OPENVINO_TYPE_TO_MAX_CONST(element::i16);
-        OPENVINO_TYPE_TO_MAX_CONST(element::i32);
-        OPENVINO_TYPE_TO_MAX_CONST(element::i64);
-        OPENVINO_TYPE_TO_MAX_CONST(element::u1);
-        OPENVINO_TYPE_TO_MAX_CONST(element::u8);
-        OPENVINO_TYPE_TO_MAX_CONST(element::u16);
-        OPENVINO_TYPE_TO_MAX_CONST(element::u32);
-        OPENVINO_TYPE_TO_MAX_CONST(element::u64);
-    default:
-        return nullptr;
-    }
+    auto tensor = ov::util::make_tensor_of_max_value(t);
+    return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
 }
 
 std::shared_ptr<op::v0::Constant> get_constant_min_of_type(element::Type_t t) {
-#define OPENVINO_TYPE_TO_MIN_CONST(t)                                                   \
-    case t:                                                                             \
-        return ov::op::v0::Constant::create(                                            \
-            t,                                                                          \
-            {},                                                                         \
-            {std::numeric_limits<typename element_type_traits<t>::value_type>::min()}); \
-        break
-
-    switch (t) {
-        OPENVINO_TYPE_TO_MIN_CONST(element::boolean);
-        OPENVINO_TYPE_TO_MIN_CONST(element::bf16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::f16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::f32);
-        OPENVINO_TYPE_TO_MIN_CONST(element::f64);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i8);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i32);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i64);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u1);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u8);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u32);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u64);
-    default:
-        return nullptr;
-    }
+    auto tensor = ov::util::make_tensor_of_min_value(t);
+    return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
 }
 
 std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t) {
@@ -1003,6 +956,9 @@ bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const si
            std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
 }
 
+std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
+    return std::make_shared<op::Negative>(arg0);
+}
 }  // namespace ngraph
 
 void ov::infer_auto_padding(const Shape& image_shape,
@@ -1199,21 +1155,6 @@ bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
-std::vector<ov::PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node) {
-    std::vector<PartialShape> out;
-    out.reserve(node.get_input_size());
-    for (size_t i = 0; i < node.get_input_size(); ++i) {
-        out.push_back(node.get_input_partial_shape(i));
-    }
-    return out;
-}
-
-bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>& ranks) {
-    return std::any_of(ranks.cbegin(), ranks.cend(), [&rank](const Rank& r) {
-        return rank.compatible(r);
-    });
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
@@ -1231,6 +1172,15 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
     const auto num_inputs = node->get_input_size();
     if (num_inputs == 0)
         return nullptr;
+
+    if (subgraph_sink.get_tensor().has_and_set_bound()) {
+        const auto& lower = subgraph_sink.get_tensor().get_lower_value();
+        return std::make_shared<ov::op::v0::Constant>(lower);
+    }
+
+    if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
+        return nullptr;
+    }
 
     OutputVector inputs;
     inputs.reserve(num_inputs);
@@ -1383,6 +1333,114 @@ std::shared_ptr<Constant> get_constant_from_source(const Output<Node>& source) {
     } else {
         return {};
     }
+}
+
+template <class T>
+Tensor make_tensor_of_max_value(const element::Type_t et) {
+    Tensor t{et, Shape{}};
+    *t.data<T>() = std::numeric_limits<T>::max();
+    return t;
+}
+
+Tensor make_tensor_of_max_value(const element::Type_t et) {
+    switch (et) {
+    case element::boolean:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::boolean>>(et);
+    case element::bf16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::bf16>>(et);
+    case element::f16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f16>>(et);
+    case element::f32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f32>>(et);
+    case element::f64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f64>>(et);
+    case element::i8:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i8>>(et);
+    case element::i16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i16>>(et);
+    case element::i32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i32>>(et);
+    case element::i64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i64>>(et);
+    case element::u1:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u1>>(et);
+    case element::u8:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u8>>(et);
+    case element::u16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u16>>(et);
+    case element::u32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u32>>(et);
+    case element::u64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u64>>(et);
+    default:
+        return {};
+    }
+}
+
+template <class T>
+Tensor make_tensor_of_min_value(const element::Type_t et) {
+    Tensor t{et, Shape{}};
+    *t.data<T>() = std::numeric_limits<T>::min();
+    return t;
+}
+
+Tensor make_tensor_of_min_value(const element::Type_t et) {
+    switch (et) {
+    case element::boolean:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::boolean>>(et);
+    case element::bf16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::bf16>>(et);
+    case element::f16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f16>>(et);
+    case element::f32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f32>>(et);
+    case element::f64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f64>>(et);
+    case element::i8:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i8>>(et);
+    case element::i16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i16>>(et);
+    case element::i32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i32>>(et);
+    case element::i64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i64>>(et);
+    case element::u1:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u1>>(et);
+    case element::u8:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u8>>(et);
+    case element::u16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u16>>(et);
+    case element::u32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u32>>(et);
+    case element::u64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u64>>(et);
+    default:
+        return {};
+    }
+}
+
+std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors) {
+    std::vector<PartialShape> shapes;
+    shapes.reserve(tensors.size());
+    for (const auto& t : tensors) {
+        shapes.emplace_back(t.get_shape());
+    }
+    return shapes;
+}
+
+std::vector<PartialShape> get_node_input_partial_shapes(const Node& node) {
+    std::vector<PartialShape> shapes;
+    shapes.reserve(node.get_input_size());
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        shapes.push_back(node.get_input_partial_shape(i));
+    }
+    return shapes;
+}
+
+bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others) {
+    return std::any_of(others.begin(), others.end(), [&r](const Rank& other) {
+        return r.compatible(other);
+    });
 }
 }  // namespace util
 }  // namespace ov

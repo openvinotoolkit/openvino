@@ -9,7 +9,7 @@ from openvino.runtime import Node, Output
 from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
 
 
-def _set_node_friendly_name(node: Node, **kwargs: Any) -> Node:
+def _set_node_friendly_name(node: Node, /, **kwargs: Any) -> Node:
     if "name" in kwargs:
         node.friendly_name = kwargs["name"]
     return node

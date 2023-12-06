@@ -13,7 +13,7 @@ from . import constants
 from . import conformance_utils
 
 # generates file list file inside directory. Returns path to saved filelist
-def prepare_filelist(input_dir: os.path, patterns: list):
+def prepare_filelist(input_dir: os.path, patterns: list, is_save_to_file = True):
     filelist_path = input_dir
     if os.path.isdir(filelist_path):
         filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
@@ -24,15 +24,17 @@ def prepare_filelist(input_dir: os.path, patterns: list):
         conformance_utils.UTILS_LOGGER.info(f"{filelist_path} is exists! The script will update it!")
     model_list = list()
     for pattern in patterns:
-        for model in Path(input_dir).rglob(pattern):
-            model_list.append(model)
-    try:
-        with open(filelist_path, 'w') as file:
-            for xml in model_list:
-                file.write(str(xml) + '\n')
-            file.close()
-    except:
-        conformance_utils.UTILS_LOGGER.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
+        model_list.extend(Path(input_dir).rglob(pattern))
+    if is_save_to_file:
+        try:
+            with open(filelist_path, 'w') as file:
+                for xml in model_list:
+                    file.write(str(xml) + '\n')
+                file.close()
+        except:
+            conformance_utils.UTILS_LOGGER.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
+    else:
+        return model_list
     return filelist_path
 
 def is_archieve(input_path: os.path):
@@ -68,27 +70,22 @@ def unzip_archieve(zip_path: os.path, dst_path: os.path):
     return dst_dir
 
 # find latest changed directory
-def find_latest_dir(in_dir: Path, pattern_list = list()):
-    get_latest_dir = lambda path: sorted(Path(path).iterdir(), key=os.path.getmtime)
+def find_latest_dir(in_dir: Path, pattern = "*"):
+    get_latest_dir = lambda path: sorted(Path(path).glob(pattern), key=os.path.getmtime)
     entities = get_latest_dir(in_dir)
     entities.reverse()
 
     for entity in entities:
         if entity.is_dir():
-            if not pattern_list:
-                return entity
-            else:
-                for pattern in pattern_list: 
-                    if pattern in str(os.fspath(PurePath(entity))):
-                        return entity
-    conformance_utils.UTILS_LOGGER.error(f"{in_dir} does not contain applicable directories to patterns: {pattern_list}")
+            return entity
+    conformance_utils.UTILS_LOGGER.error(f"{in_dir} does not contain applicable directories to pattern: {pattern}")
     exit(-1)
 
 def get_ov_path(script_dir_path: os.path, ov_dir=None, is_bin=False):
     if ov_dir is None or not os.path.isdir(ov_dir):
         ov_dir = os.path.abspath(script_dir_path)[:os.path.abspath(script_dir_path).find(constants.OPENVINO_NAME) + len(constants.OPENVINO_NAME)]
     if is_bin:
-        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, ['bin']))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, 'bin'))
         ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
         ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, [constants.DEBUG_DIR, constants.RELEASE_DIR]))
     return ov_dir

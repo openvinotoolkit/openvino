@@ -19,9 +19,9 @@ class Eltwise;
 
 class Convolution : public Node {
 public:
-    Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -32,7 +32,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     dnnl::memory getWeights() const;
@@ -55,7 +55,7 @@ public:
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
-    const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
+    const VectorDims &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
     const std::vector<ptrdiff_t> &getDilation() { return dilation; }
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
@@ -67,7 +67,7 @@ public:
     }
 
 protected:
-    InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
+    ov::element::Type fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
@@ -142,7 +142,7 @@ private:
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    InferenceEngine::SizeVector weightDims;
+    VectorDims weightDims;
     std::unordered_map<int, MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;
@@ -157,7 +157,7 @@ private:
     size_t groupIC;
     size_t groupOC;
 
-    InferenceEngine::Precision eltwisePrecision;
+    ov::element::Type eltwisePrecision;
 
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
@@ -174,7 +174,7 @@ private:
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
-    InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+    ov::element::Type sumPrc = ov::element::undefined;
 
     // TODO: migrate on convolution_auto algorithm for x64
 #if defined(OPENVINO_ARCH_X86_64)

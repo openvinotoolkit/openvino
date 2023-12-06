@@ -71,11 +71,11 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
         if (!engine.get_device_info().supports_immad) {
-            ASSERT_EQ(primitive_hash, 6924775129729406941UL);
-            ASSERT_EQ(params_hash, 8142839956977133460UL);
+            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
+            ASSERT_EQ(params_hash, 1637150664489130388UL);
         } else {
-            ASSERT_EQ(primitive_hash, 6924775129729406941UL);
-            ASSERT_EQ(params_hash, 9266224209991282259UL);
+            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
+            ASSERT_EQ(params_hash, 6343702278017463925UL);
         }
     }
 
@@ -94,7 +94,7 @@ public:
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(
-            gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
+            gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, 5, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
         );
 
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);

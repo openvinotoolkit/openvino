@@ -8,6 +8,7 @@
 #include <openvino/runtime/core.hpp>
 
 #include "model_wrap.hpp"
+#include "read_model_args.hpp"
 
 class ReaderWorker : public Napi::AsyncWorker {
 public:
@@ -15,11 +16,10 @@ public:
      * @brief Constructs ReaderWorker from the Napi::Env.
      * @param info contains passed arguments. Can be empty.
      */
-    ReaderWorker(const Napi::Env& env, std::string model_path, std::string bin_path)
+    ReaderWorker(const Napi::Env& env, ReadModelArgs* args)
         : Napi::AsyncWorker{env, "ReaderWorker"},
           _deferred{env},
-          _model_path{model_path},
-          _bin_path{bin_path} {}
+          _args{args} {}
 
     Napi::Promise GetPromise();
 
@@ -44,7 +44,6 @@ protected:
 
 private:
     Napi::Promise::Deferred _deferred;
-    std::string _model_path;
-    std::string _bin_path;
+    ReadModelArgs* _args;
     std::shared_ptr<ov::Model> _model;
 };

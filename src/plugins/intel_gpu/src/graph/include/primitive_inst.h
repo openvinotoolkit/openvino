@@ -63,15 +63,36 @@ struct primitive_impl {
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
+    virtual bool is_onednn() const { return false; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
-    virtual void init_by_cached_kernels(const kernels_cache&) {}
-    virtual void set_cached_kernel_ids(const kernels_cache&) {}
+    virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
+    virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
-    virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
-    virtual void load(cldnn::BinaryInputBuffer& ib) {}
+    virtual void save(cldnn::BinaryOutputBuffer& ob) const {
+        ob << can_reuse_memory;
+        ob << _kernel_name;
+        ob << _is_dynamic;
+        if (_weights_reorder_params == nullptr) {
+            ob << false;
+        } else {
+            ob << true;
+            _weights_reorder_params->save(ob);
+        }
+    }
+    virtual void load(cldnn::BinaryInputBuffer& ib) {
+        ib >> can_reuse_memory;
+        ib >> _kernel_name;
+        ib >> _is_dynamic;
+        bool has_weights_reorder_params;
+        ib >> has_weights_reorder_params;
+        if (has_weights_reorder_params) {
+            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            _weights_reorder_params->load(ib);
+        }
+    }
     // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
     virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
         return std::make_pair("", "");
@@ -195,10 +216,6 @@ public:
         _impl->init_kernels(kernels_cache, *_impl_params);
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache) {
-        _impl->init_by_cached_kernels(kernels_cache);
-    }
-
     void set_arguments();
 
     void validate() const {
@@ -252,8 +269,6 @@ public:
 
     std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
-    virtual void save(cldnn::BinaryOutputBuffer& ob) const;
-    virtual void load(cldnn::BinaryInputBuffer& ib);
     void rebuild_deps(
         std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     void rebuild_exec_deps(

@@ -78,8 +78,14 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
+        auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
+        auto normalize = std::make_shared<ov::op::v0::NormalizeL2>(params[0], normAxes, eps, epsMode);
+
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
+
+        if (inType == ov::element::bf16) {
+            abs_threshold = 1e-1f;
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {

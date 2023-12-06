@@ -7,9 +7,9 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "intel_gpu/runtime/compilation_context.hpp"
 
 #include "fully_connected_inst.h"
-#include "compilation_context.hpp"
 
 #include "program_wrapper.h"
 

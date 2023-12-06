@@ -43,7 +43,7 @@ macro(ov_option_enum variable description value)
 endmacro()
 
 function (ov_print_enabled_features)
-    if(NOT COMMAND set_ci_build_number)
+    if(NOT COMMAND ov_set_ci_build_number)
         message(FATAL_ERROR "CI_BUILD_NUMBER is not set yet")
     endif()
 

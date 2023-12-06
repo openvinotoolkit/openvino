@@ -11,10 +11,34 @@ type SupportedTypedArray =
   | Float32Array
   | Float64Array;
 
+type elementTypeString =
+  | 'u8'
+  | 'u32'
+  | 'u16'
+  | 'u64'
+  | 'i8'
+  | 'i64'
+  | 'i32'
+  | 'i16'
+  | 'f64'
+  | 'f32';
+
 interface Core {
-  compileModel(model: Model, device: string): CompiledModel;
-  readModel(modelPath: string, binPath?: string): Promise<Model>;
-  readModelSync(modelPath: string, binPath?: string): Model;
+  compileModel(
+    model: Model,
+    device: string,
+    config?: { [option: string]: string }
+  ): Promise<CompiledModel>;
+  compileModelSync(
+    model: Model,
+    device: string,
+    config?: { [option: string]: string }
+  ): CompiledModel;
+  readModel(modelPath: string, weightsPath?: string): Promise<Model>;
+  readModel(
+    modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
+  readModelSync(modelPath: string, weightsPath?: string): Model;
+  readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
 }
 interface CoreConstructor {
   new(): Core;
@@ -38,12 +62,12 @@ interface CompiledModel {
 
 interface Tensor {
   data: number[];
-  getPrecision(): element;
+  getElementType(): element;
   getShape(): number[];
   getData(): number[];
 }
 interface TensorConstructor {
-  new(type: element,
+  new(type: element | elementTypeString,
       shape: number[],
       tensorData?: number[] | SupportedTypedArray): Tensor;
 }
@@ -57,8 +81,12 @@ interface InferRequest {
   getOutputTensor(idx?: number): Tensor;
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
+  inferAsync(inputData: { [inputName: string]: Tensor}
+    | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
 }
+
+type Dimension = number | [number, number];
 
 interface Output {
   anyName: string;
@@ -66,32 +94,67 @@ interface Output {
   toString(): string;
   getAnyName(): string;
   getShape(): number[];
-  getPartialShape(): number[];
+  getPartialShape(): PartialShape;
+}
+
+interface InputTensorInfo {
+  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setLayout(layout: string): InputTensorInfo;
+  setShape(shape: number[]): InputTensorInfo;
+}
+
+interface OutputTensorInfo {
+  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setLayout(layout: string): InputTensorInfo;
+}
+interface PreProcessSteps {
+  resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
+}
+
+interface InputModelInfo {
+  setLayout(layout: string): InputModelInfo;
+}
+
+interface InputInfo {
+  tensor(): InputTensorInfo;
+  preprocess(): PreProcessSteps;
+  model(): InputModelInfo;
+}
+
+interface OutputInfo {
+  tensor(): OutputTensorInfo;
 }
 
 interface PrePostProcessor {
   build(): PrePostProcessor;
-  setInputElementType(idx: number, type: element): PrePostProcessor;
-  setInputModelLayout(layout: string[]): PrePostProcessor;
-  setInputTensorLayout(layout: string[]): PrePostProcessor;
-  preprocessResizeAlgorithm(resizeAlgorithm: resizeAlgorithm)
-    : PrePostProcessor;
-  setInputTensorShape(shape: number[]): PrePostProcessor;
+  input(idxOrTensorName?: number | string): InputInfo;
+  output(idxOrTensorName?: number | string): OutputInfo;
 }
 interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;
+}
+
+interface PartialShape {
+  isStatic(): boolean;
+  isDynamic(): boolean;
+  toString(): string;
+  getDimensions(): Dimension[];
+}
+interface PartialShapeConstructor {
+  new(shape: string): PartialShape;
 }
 
 declare enum element {
   u8,
   u32,
   u16,
+  u64,
   i8,
-  i64,
-  i32,
   i16,
-  f64,
+  i32,
+  i64,
   f32,
+  f64,
 }
 
 declare enum resizeAlgorithm {
@@ -103,17 +166,13 @@ declare enum resizeAlgorithm {
 export interface NodeAddon {
   Core: CoreConstructor,
   Tensor: TensorConstructor,
-  PrePostProcessor: PrePostProcessorConstructor,
+  PartialShape: PartialShapeConstructor,
 
+  preprocess: {
+    resizeAlgorithm: typeof resizeAlgorithm,
+    PrePostProcessor: PrePostProcessorConstructor,
+  },
   element: typeof element,
-  resizeAlgorithm: typeof resizeAlgorithm,
-
-  asyncInfer(
-    InferRequest: InferRequest,
-    inputData: { [inputName: string]: Tensor | SupportedTypedArray }
-      | Tensor[] | SupportedTypedArray[],
-    callback: (err: Error | null, inputData: Tensor[]) => void,
-  ): void;
 }
 
 setPath();

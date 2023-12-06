@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(QuantGroupConvLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

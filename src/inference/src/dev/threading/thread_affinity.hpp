@@ -53,7 +53,11 @@ struct ReleaseProcessMaskDeleter {
  * @brief A unique pointer to CPU set structure with the ReleaseProcessMaskDeleter deleter
  * @ingroup ov_dev_api_threading
  */
+#if defined(_WIN32)
+using CpuSet = std::unique_ptr<cpu_set_t>;
+#else
 using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
+#endif
 
 /**
  * @brief Get the cores affinity mask for the current process

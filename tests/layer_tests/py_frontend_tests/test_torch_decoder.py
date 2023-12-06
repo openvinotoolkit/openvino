@@ -250,6 +250,28 @@ def test_pytorch_decoder_can_convert_i8_tensor():
 
 
 @pytest.mark.precommit
+def test_pytorch_decoder_can_convert_i16_tensor():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            return torch.tensor([1, 2], dtype=torch.int16)
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[0]
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.i16
+    assert ov_const[0].get_partial_shape() == PartialShape([2])
+
+
+@pytest.mark.precommit
 def test_pytorch_decoder_can_convert_i32_tensor():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
@@ -641,7 +663,7 @@ def f(x, y):
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_scripted_function():
-    from openvino.tools.mo import convert_model
+    from openvino import convert_model, Type
     scripted = torch.jit.script(f)
-    model = convert_model(scripted)
+    model = convert_model(scripted, input=[Type.f32, Type.f32])
     assert model is not None

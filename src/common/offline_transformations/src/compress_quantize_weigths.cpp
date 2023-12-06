@@ -357,7 +357,7 @@ static void compute_scale_and_zero_point_internal(const std::shared_ptr<ov::op::
                                                                        float output_high_value) mutable {
             float output_range = output_high_value - output_low_value;
             float scale = output_range / input_range;
-            float zero_point_value = (new_output_low - output_low_value / scale) * (scale != 0);
+            float zero_point_value = (scale != 0) ? (new_output_low - output_low_value / scale) : 0;
             zero_point_is_zero =
                 zero_point_is_zero && std::fabs(zero_point_value) < std::numeric_limits<float>::epsilon();
             *zero_point++ = zero_point_value;
