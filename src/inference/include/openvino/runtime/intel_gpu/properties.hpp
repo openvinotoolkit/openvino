@@ -71,15 +71,6 @@ static constexpr Property<bool> enable_loop_unrolling{"GPU_ENABLE_LOOP_UNROLLING
  */
 static constexpr Property<bool> disable_winograd_convolution{"GPU_DISABLE_WINOGRAD_CONVOLUTION"};
 
-/**
- * @brief Turning on this key enables full model caching.
- * Default model caching policy serializes only OpenCL kernels. Full model caching serializes OpenCL kernels and
- * all types of parameters. If faster loading time is a priority over smaller cache file size,
- * full model caching should be enabled.
- * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
- */
-static constexpr Property<bool> enable_full_model_caching{"GPU_ENABLE_FULL_MODEL_CACHING"};
-
 namespace hint {
 /**
  * @brief This enum represents the possible value of ov::intel_gpu::hint::queue_throttle property:
