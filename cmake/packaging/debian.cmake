@@ -92,6 +92,7 @@ macro(ov_cpack_settings)
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
         2023.0.0 2023.0.1 2023.0.2 2023.0.3
         2023.1.0
+        2023.2.0
         )
 
     #
@@ -316,7 +317,7 @@ macro(ov_cpack_settings)
         list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${installed_plugins})
         list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${frontends})
 
-        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino-${cpack_name_ver}")
         set(python_package "${CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
         set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
 
@@ -367,6 +368,7 @@ macro(ov_cpack_settings)
         set(python_samples_package "${CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME} (= ${cpack_full_ver})")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3, ${python_package}")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
+        ov_debian_generate_conflicts(${OV_CPACK_COMP_PYTHON_SAMPLES} ${conflicting_versions})
         set(python_samples_copyright "generic")
     endif()
 

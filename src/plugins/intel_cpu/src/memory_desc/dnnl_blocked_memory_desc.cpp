@@ -21,7 +21,7 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides)
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
     const auto ndims = shape.getRank();
     const auto &dims = shape.getDims();
@@ -31,7 +31,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
             OPENVINO_THROW("Can't create DnnlBlockedMemoryDesc with zero dim, but with non zero strides");
         }
         desc = {DnnlExtensionUtils::convertToDnnlDims(dims),
-                DnnlExtensionUtils::IEPrecisionToDataType(prc),
+                DnnlExtensionUtils::ElementTypeToDataType(prc),
                 DnnlExtensionUtils::convertToDnnlDims(strides)};
     } else {
         dnnl::memory::dims plain_strides;
@@ -46,7 +46,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
             }
         }
 
-        desc = {DnnlExtensionUtils::convertToDnnlDims(dims), DnnlExtensionUtils::IEPrecisionToDataType(prc), plain_strides};
+        desc = {DnnlExtensionUtils::convertToDnnlDims(dims), DnnlExtensionUtils::ElementTypeToDataType(prc), plain_strides};
     }
 
     order.resize(ndims);
@@ -74,14 +74,14 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
  *
  *   Limitation of conversion first N elements of order should be permutation of [0,1,2 ... N]
  */
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
                                              const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                                              const VectorDims& strides) : MemoryDesc(shape, DnnlBlocked) {
     using namespace dnnl;
     // scalar case
     if (shape.getRank() == 0) {
         desc.get()->format_kind = dnnl_blocked;
-        desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::IEPrecisionToDataType(prc));
+        desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataType(prc));
         desc.get()->ndims = 1;
         desc.get()->dims[0] = 1;
         desc.get()->padded_dims[0] = 1;
@@ -162,7 +162,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     // Fill general memory desc fields
     desc.get()->format_kind = dnnl_blocked;
     desc.get()->extra.flags = 0;
-    desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::IEPrecisionToDataType(prc));
+    desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataType(prc));
     desc.get()->ndims = dims.size();
     desc.get()->offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
     std::copy(dims.begin(), dims.end(), desc.get()->dims);
@@ -655,7 +655,7 @@ void DnnlBlockedMemoryDesc::initOffsetPadding() {
     offsetPaddingToData = VectorDims(std::begin(padded_offset), std::begin(padded_offset) + getOrder().size());
 }
 
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {
     auto newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
 

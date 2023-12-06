@@ -420,6 +420,7 @@
         "Transformers"
     ],
     "261-fast-segment-anything": [
+        "NNCF",
         "ONNX",
         "Pytorch"
     ],
@@ -427,8 +428,33 @@
         "Pytorch"
     ],
     "263-latent-consistency-models-image-generation": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
+    ],
+    "264-qrcode-monster": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "265-wuerstchen-image-generation": [
+        "Pytorch"
+    ],
+    "266-speculative-sampling": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "267-distil-whisper-asr": [
+        "Async Inference",
+        "NNCF",
+        "Transformers"
+    ],
+    "268-table-question-answering": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "269-film-slowmo": [
+        "Tensorflow"
     ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",

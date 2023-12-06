@@ -12,8 +12,8 @@ from sys import platform
 from pathlib import Path
 
 import openvino
+from openvino import Model, Core, Shape
 import openvino.runtime.opset13 as ops
-from openvino.runtime import Model, Core, Shape
 
 
 def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
@@ -172,7 +172,7 @@ def get_model_with_template_extension():
     return core, core.read_model(ir)
 
 
-def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.runtime.Model:
+def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     param = ops.parameter(input_shape, input_dtype, name="data")
@@ -188,7 +188,7 @@ def generate_relu_compiled_model(
     device,
     input_shape: List[int] = None,
     input_dtype=np.float32,
-) -> openvino.runtime.CompiledModel:
+) -> openvino.CompiledModel:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     model = get_relu_model(input_shape, input_dtype)
@@ -206,7 +206,17 @@ def generate_add_model() -> openvino._pyopenvino.Model:
     param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
-    return Model(add, [param1, param2], "TestFunction")
+    return Model(add, [param1, param2], "TestModel")
+
+
+def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.Model:
+    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
+    rv = ops.read_value(input_data, "var_id_667", data_type, input_shape)
+    add = ops.add(rv, input_data, name="MemoryAdd")
+    node = ops.assign(add, "var_id_667")
+    res = ops.result(add, "res")
+    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    return model
 
 
 def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):

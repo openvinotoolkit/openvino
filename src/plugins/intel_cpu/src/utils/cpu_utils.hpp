@@ -97,37 +97,37 @@ inline bool isEmptyTensorDesc(const InferenceEngine::TensorDesc &td) {
 * precision for convert
 * @return plug-in supported precision or UNSPECIFIED if precision unsupported
 */
-inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine::Precision precision) {
+inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precision) {
     switch (precision) {
-        case InferenceEngine::Precision::BF16:
-        case InferenceEngine::Precision::FP16: {
+        case ov::element::bf16:
+        case ov::element::f16: {
             if (!hasHardwareSupport(precision))
-                precision = InferenceEngine::Precision::FP32;
+                precision = ov::element::f32;
         }
-        case InferenceEngine::Precision::U8:
-        case InferenceEngine::Precision::I8:
-        case InferenceEngine::Precision::I32:
-        case InferenceEngine::Precision::FP32: {
+        case ov::element::u8:
+        case ov::element::i8:
+        case ov::element::i32:
+        case ov::element::f32: {
             break;
         }
-        case InferenceEngine::Precision::FP64: {
-            precision = InferenceEngine::Precision::FP32;
+        case ov::element::f64: {
+            precision = ov::element::f32;
             break;
         }
-        case InferenceEngine::Precision::BOOL: {
-            precision = InferenceEngine::Precision::U8;
+        case ov::element::boolean: {
+            precision = ov::element::u8;
             break;
         }
-        case InferenceEngine::Precision::U16:
-        case InferenceEngine::Precision::I16:
-        case InferenceEngine::Precision::U32:
-        case InferenceEngine::Precision::I64:
-        case InferenceEngine::Precision::U64: {
-            precision = InferenceEngine::Precision::I32;
+        case ov::element::u16:
+        case ov::element::i16:
+        case ov::element::u32:
+        case ov::element::i64:
+        case ov::element::u64: {
+            precision = ov::element::i32;
             break;
         }
         default: {
-            precision = InferenceEngine::Precision::UNSPECIFIED;
+            precision = ov::element::undefined;
         }
     }
 

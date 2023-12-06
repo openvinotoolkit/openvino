@@ -118,7 +118,7 @@ protected:
                 } else if (offsetType == OffsetType::REAL_MISC) {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 4, -2, 100);
                 } else {
-                    IE_THROW() << "Unexpected offset type";
+                    OPENVINO_THROW("Unexpected offset type");
                 }
             } else if (i == 2) {  // "c_filter_vals"
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), filtShape, 2, -1, 100);
@@ -126,7 +126,7 @@ protected:
                 auto modShape = targetInputStaticShapes[3];
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), modShape, 1, 0, 100);
             } else {
-                IE_THROW() << "Unknown input of DeformableConvolution";
+                OPENVINO_THROW("Unknown input of DeformableConvolution");
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

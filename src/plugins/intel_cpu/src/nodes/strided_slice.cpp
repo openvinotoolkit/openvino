@@ -210,8 +210,8 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    const InferenceEngine::Precision iPrecision = Precision::I32;
+    const ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    const ov::element::Type iPrecision = ov::element::i32;
     attrs.dataSize = dataPrecision.size();
 
     const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();

@@ -23,8 +23,8 @@ struct jit_eltwise_params {
     size_t inputs_number;
     size_t input_size;
 
-    InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc[MAX_ELTWISE_INPUTS];
+    ov::element::Type dst_prc;
 
     VectorDims dims;
     VectorDims src_offsets[MAX_ELTWISE_INPUTS];
@@ -116,7 +116,7 @@ public:
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
     bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
     void fuseInto(NodePtr& parentNode) override;
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
@@ -156,8 +156,8 @@ private:
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
 
-    std::vector<InferenceEngine::Precision> inpPrc;
-    InferenceEngine::Precision outPrc;
+    std::vector<ov::element::Type> inpPrc;
+    ov::element::Type outPrc;
 
     // blocked dims for which kernel compiled and params prepared
     std::vector<VectorDims> currentInBlkDims = {};
@@ -205,8 +205,8 @@ private:
 
 class eltwise_precision_helper {
 public:
-    static InferenceEngine::Precision get_precision(const size_t inputs_number,
-                                                    const InferenceEngine::Precision (&src_prc)[MAX_ELTWISE_INPUTS],
+    static ov::element::Type get_precision(const size_t inputs_number,
+                                                    const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
                                                     const std::vector<Eltwise::EltwiseData>& eltwise_data);
 
 private:

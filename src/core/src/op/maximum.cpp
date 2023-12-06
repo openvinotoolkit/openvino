@@ -48,13 +48,16 @@ bool Maximum::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<maximum::Evaluate>(inputs[0].get_element_type(),
-                                                                            inputs[0],
-                                                                            inputs[1],
-                                                                            outputs[0],
-                                                                            inputs[0].get_shape(),
-                                                                            inputs[1].get_shape(),
-                                                                            get_autob());
+    return IF_TYPE_OF(v1_Maximum_evaluate,
+                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
+                      maximum::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      inputs[1].get_shape(),
+                      get_autob());
 }
 
 bool Maximum::has_evaluate() const {

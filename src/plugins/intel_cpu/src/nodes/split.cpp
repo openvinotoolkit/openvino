@@ -98,8 +98,8 @@ void Split::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto axisPrecision = Precision::I32;
+    ov::element::Type inpPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto axisPrecision = ov::element::i32;
 
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };

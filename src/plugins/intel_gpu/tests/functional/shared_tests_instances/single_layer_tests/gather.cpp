@@ -534,4 +534,29 @@ INSTANTIATE_TEST_CASE_P(smoke,
         Gather8withIndicesDataLayerTest::getTestCaseName
 );
 
+std::vector<std::vector<int64_t>> nagativeSingleindicesData = {
+        {-1},
+        {-2},
+        {-3}
+};
+
+gather7ParamsTuple dummyParams2 = {
+        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{4, 8, 2, 2}})),
+        ov::Shape({}),
+        std::tuple<int, int>{0, 0},
+        ov::element::f32,
+        ov::test::utils::DEVICE_GPU,
+};
+
+const auto gatherWithNagativeIndicesParams = testing::Combine(
+        testing::Values(dummyParams2),
+        testing::ValuesIn(nagativeSingleindicesData)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Gather8NagativeIndice,
+        Gather8withIndicesDataLayerTest,
+        gatherWithNagativeIndicesParams,
+        Gather8withIndicesDataLayerTest::getTestCaseName
+);
+
 }  // namespace

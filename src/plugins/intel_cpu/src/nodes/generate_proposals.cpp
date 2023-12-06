@@ -247,7 +247,7 @@ void nms_cpu(const int num_boxes, int is_dead[],
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores, uint8_t* roi_num,
                        const int num_proposals, const size_t num_rois, const int post_nms_topn,
-                       Precision roi_num_type) {
+                       ov::element::Type roi_num_type) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
@@ -263,10 +263,10 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
         scores[i] = src_score[index];
     });
 
-    if (roi_num_type == Precision::I32) {
+    if (roi_num_type == ov::element::i32) {
         int32_t num = static_cast<int32_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int32_t));
-    } else if (roi_num_type == Precision::I64) {
+    } else if (roi_num_type == ov::element::i64) {
         int64_t num = static_cast<int64_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int64_t));
     } else {
@@ -313,12 +313,12 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
         return;
 
     auto roiNumPrecision = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, roiNumPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -405,7 +405,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         std::vector<int64_t> roi_num(batch_size);
         uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
-        const auto roi_num_item_size = roi_num_type == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t);
+        const auto roi_num_item_size = roi_num_type == ov::element::i32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
             // input image height & width
             const float img_H = p_img_info_cpu[0];

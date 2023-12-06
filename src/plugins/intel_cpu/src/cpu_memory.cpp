@@ -49,7 +49,7 @@ namespace {
         if (!ftz) {
             return;
         }
-        if (src.getDesc().getPrecision() != Precision::FP32 || dst.getDesc().getPrecision() == Precision::BF16) {
+        if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
             return;
         }
         size_t offset = 0;
@@ -245,6 +245,49 @@ void MemoryMngrWithReuse::destroy(void *ptr) {
     dnnl::impl::free(ptr);
 }
 
+void* MemoryMngrRealloc::getRawPtr() const noexcept {
+    return m_data.get();
+}
+
+void MemoryMngrRealloc::setExtBuff(void *ptr, size_t size) {
+    m_useExternalStorage = true;
+    m_memUpperBound = size;
+    m_data = decltype(m_data)(ptr, release);
+}
+
+bool MemoryMngrRealloc::resize(size_t size) {
+    constexpr int cacheLineSize = 64;
+    constexpr size_t growFactor = 2;
+    bool sizeChanged = false;
+    if (size > m_memUpperBound) {
+        size *= growFactor;
+        void *ptr = dnnl::impl::malloc(size, cacheLineSize);
+        if (!ptr) {
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
+        }
+
+        if (auto src = m_data.get()) {
+            std::memcpy(ptr, src, m_memUpperBound);
+        }
+
+        m_memUpperBound = size;
+        m_useExternalStorage = false;
+        m_data = decltype(m_data)(ptr, destroy);
+        sizeChanged = true;
+    }
+    return sizeChanged;
+}
+
+bool MemoryMngrRealloc::hasExtBuffer() const noexcept {
+    return m_useExternalStorage;
+}
+
+void MemoryMngrRealloc::release(void *ptr) {}
+
+void MemoryMngrRealloc::destroy(void *ptr) {
+    dnnl::impl::free(ptr);
+}
+
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
     return m_pMemMngr->getRawPtr();
 }
@@ -294,24 +337,28 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
 
     m_size = m_pMemDesc->getCurrentMemSize();
 
-    auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
-
     if (data) {
         m_pMemMngr = std::make_shared<StaticMemoryMngr>(const_cast<void*>(data), m_size);
     } else {
         m_pMemMngr = std::make_shared<StaticMemoryMngr>(m_size);
     }
 
-    // ========================
-    // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-    // but with ability to skip pads zeroing.
-    m_prim = memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
-    //
-    // ========================
-    if (pads_zeroing)
-        m_prim.set_data_handle(m_pMemMngr->getRawPtr());
-    else
-        m_prim.set_data_handle_no_pads_proc(m_pMemMngr->getRawPtr());
+    try {
+        auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
+        // ========================
+        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
+        // but with ability to skip pads zeroing.
+        m_prim = memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
+        //
+        // ========================
+        if (pads_zeroing)
+            m_prim.set_data_handle(m_pMemMngr->getRawPtr());
+        else
+            m_prim.set_data_handle_no_pads_proc(m_pMemMngr->getRawPtr());
+    }
+    catch (const std::exception& exc) {
+        dnnlErrorCtx = exc.what();
+    }
 }
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing) :
@@ -359,6 +406,9 @@ MemoryMngrPtr StaticMemory::getMemoryMngr() const {
 
 //oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
+    if (!m_prim) {
+        OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
+    }
     return m_prim;
 }
 

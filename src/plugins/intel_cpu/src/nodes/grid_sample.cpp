@@ -94,8 +94,8 @@ void GridSample::initSupportedPrimitiveDescriptors() {
         return;
 
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != Precision::I32) {
-        dataPrecision = Precision::FP32;
+    if (dataPrecision != ov::element::i32) {
+        dataPrecision = ov::element::f32;
     }
     dataTypeSize = dataPrecision.size();
     gridTypeSize = gridPrecision.size();

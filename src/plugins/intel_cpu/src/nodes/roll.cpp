@@ -9,7 +9,6 @@
 
 #include "roll.h"
 #include "openvino/core/parallel.hpp"
-#include "ie_precision.hpp"
 #include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
@@ -47,7 +46,7 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         const auto &dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
         if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
-            OPENVINO_THROW(layerErrorPrefix, "has unsupported precision: ", dataPrecision.name());
+            OPENVINO_THROW(layerErrorPrefix, "has unsupported precision: ", dataPrecision.get_type_name());
 
         const auto dataRank = getInputShapeAtPort(DATA_INDEX).getRank();
         if (dataRank < 1) {
@@ -59,8 +58,8 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
 
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
-        if (axesTensorPrec != Precision::I32 && axesTensorPrec != Precision::I64) {
-            OPENVINO_THROW(layerErrorPrefix, " has unsupported 'axes' input precision: ", axesTensorPrec.name());
+        if (axesTensorPrec != ov::element::i32 && axesTensorPrec != ov::element::i64) {
+            OPENVINO_THROW(layerErrorPrefix, " has unsupported 'axes' input precision: ", axesTensorPrec.get_type_name());
         }
 
         const auto axesTensorRank = getInputShapeAtPort(AXES_INDEX).getRank();
@@ -70,8 +69,8 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
 
         /* Shift */
         const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
-        if (shiftTensorPrec != Precision::I32 && shiftTensorPrec != Precision::I64) {
-            OPENVINO_THROW(layerErrorPrefix, " has unsupported 'shift' input precision: ", shiftTensorPrec.name());
+        if (shiftTensorPrec != ov::element::i32 && shiftTensorPrec != ov::element::i64) {
+            OPENVINO_THROW(layerErrorPrefix, " has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
         }
 
         const auto shiftTensorRank = getInputShapeAtPort(SHIFT_INDEX).getRank();
@@ -89,11 +88,11 @@ void Roll::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp, InferenceEngine::Precision::I32},
-                          {LayoutType::ncsp, InferenceEngine::Precision::I32}},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref);
 }
@@ -134,29 +133,29 @@ void Roll::execute(dnnl::stream strm) {
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
-        case sizeof(PrecisionTrait<Precision::I8>::value_type): {
-            execPtr->exec<PrecisionTrait<Precision::I8>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
+        case sizeof(element_type_traits<ov::element::i8>::value_type): {
+            execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
                                                                      getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
                                                                      getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
                                                                      getChildEdgeAt(0)->getMemoryPtr());
             break;
         }
-        case sizeof(PrecisionTrait<Precision::I16>::value_type): {
-            execPtr->exec<PrecisionTrait<Precision::I16>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
+        case sizeof(element_type_traits<ov::element::i16>::value_type): {
+            execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
                                                                      getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
                                                                      getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
                                                                      getChildEdgeAt(0)->getMemoryPtr());
             break;
         }
-        case sizeof(PrecisionTrait<Precision::I32>::value_type): {
-            execPtr->exec<PrecisionTrait<Precision::I32>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
+        case sizeof(element_type_traits<ov::element::i32>::value_type): {
+            execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
                                                                      getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
                                                                      getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
                                                                      getChildEdgeAt(0)->getMemoryPtr());
             break;
         }
         default:
-            OPENVINO_THROW(layerErrorPrefix,  "has unsupported 'data' input precision: ", dataPrecision.name());
+            OPENVINO_THROW(layerErrorPrefix,  "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 }
 

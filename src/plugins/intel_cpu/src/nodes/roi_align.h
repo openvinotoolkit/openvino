@@ -29,7 +29,7 @@ enum ROIAlignedMode {
 
 struct jit_roi_align_params {
     Algorithm alg;
-    InferenceEngine::Precision data_prc;
+    ov::element::Type data_prc;
     int data_size;
     ROIAlignLayoutType layout;
     int pooled_h;
@@ -91,7 +91,7 @@ private:
     template<typename T>
     struct ROIAlignExecute;
 
-    void createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout);
+    void createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout);
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
 
     std::string errorPrefix;

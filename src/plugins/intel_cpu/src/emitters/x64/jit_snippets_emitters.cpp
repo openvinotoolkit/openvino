@@ -26,10 +26,6 @@ using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-namespace {
-constexpr size_t gpr_size = 8;
-} // namespace
-
 inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::vector<Reg64>& regs) {
     regs.resize(idxs.size());
     std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
@@ -540,16 +536,16 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 
 MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
-    src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
-    dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
+    src_prc = n->get_input_element_type(0);
+    dst_prc = n->get_output_element_type(0);
 }
 
 StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("StoreEmitter supports only equal input and output types but gets: ",
-                       src_prc.name(),
+                       src_prc.get_type_name(),
                        " and ",
-                       dst_prc.name());
+                       dst_prc.get_type_name());
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     count = store->get_count();
@@ -585,9 +581,9 @@ void StoreEmitter::emit_data() const {
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
-                       src_prc.name(),
+                       src_prc.get_type_name(),
                        " and ",
-                       dst_prc.name());
+                       dst_prc.get_type_name());
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     count = load->get_count();
@@ -624,9 +620,9 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, cons
     : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("BroadcastEmitters support only equal input and output types but gets: ",
-                       src_prc.name(),
+                       src_prc.get_type_name(),
                        " and ",
-                       dst_prc.name());
+                       dst_prc.get_type_name());
 
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     byte_offset = broadcast_load->get_offset();
@@ -820,9 +816,8 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 
     if (brgemm_node->is_with_data_repacking())
         leading_dimensions[1] = rnd_up(m_N, brgemm_copy->get_n_block_size());
-
-    auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
-    auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
+    auto brg0Prc = brgemm_node->get_input_element_type(0);
+    auto brg1Prc = brgemm_node->get_input_element_type(1);
     m_brg0VnniFactor = 4 / brg0Prc.size();
     bool brgWithAMX = brgemm_node->is_amx();
 
@@ -873,8 +868,8 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             brgemmCtx.LDA = leading_dimensions[0];
             brgemmCtx.LDB = leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
-            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
+            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
             brgemmCtx.beta = has_K_kernel ? 1 : 0;
 
             if (brgemmCtx.N == 0 || brgemmCtx.N > m_N ||
@@ -1115,32 +1110,7 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
         h->add(h->rsp, n_gprs_to_save * gpr_size);
     }
 
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-
-    h->sub(h->rsp, n_gprs_to_save * gpr_size);
-    for (size_t i = 0; i < n_gprs_to_save; ++i)
-        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-
-    // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
-    h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
-    for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-        else
-            h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-    }
-
-    // 1. Caller obligation to save vector registers as callee may use them.
-    // 2. There is an implicit assumption that the host code uses the same
-    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
-    // `vlen` should be replaced with `host_isa::vlen` and
-    // `host_isa::vecs_count`.
-    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
-    for (size_t i = 0; i < get_max_vecs_count(); ++i)
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
+    internal_call_preamble();
 
     // save function address in gpr to pass in call instruction
     const auto& brgemm_kernel_overload = static_cast<void (*)(const brgemm_kernel_t*,
@@ -1194,38 +1164,15 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
     h->mov(abi_param6, static_cast<int>(m_with_comp));
 #endif
 
-    // align stack on 16-byte as ABI requires
-    // note that RBX must not be changed by the callee
-    h->mov(h->rbx, h->rsp);
-    h->and_(h->rbx, 0xf);
-    h->sub(h->rsp, h->rbx);
-
+    internal_call_rsp_align();
     h->call(h->rbp);
-
-    h->add(h->rsp, h->rbx);
+    internal_call_rsp_restore();
 
 #ifdef _WIN32
     h->add(h->rsp, num_args_passed_on_stack * gpr_size);
 #endif
-    // restore vector registers
-    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
-        h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
-    }
-    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
 
-    // restore k registers
-    for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-        else
-            h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-    }
-    h->add(h->rsp, n_k_regs_to_save * k_mask_size);
-
-    // restore gpr registers
-    for (int i = n_gprs_to_save - 1; i >= 0; --i)
-        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-    h->add(h->rsp, n_gprs_to_save * gpr_size);
+    internal_call_postamble();
 }
 
 void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
@@ -1283,8 +1230,8 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     m_K_tail = m_K % m_K_blk;
     m_LDB = m_brgemm_prc_in1 == ov::element::f32 ? leading_dimension : rnd_up(m_N, m_N_blk);
 
-    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in0)));
-    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in1)));
+    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc_in0));
+    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc_in1));
 
     const bool isAMXSupported = mayiuse(avx512_core_amx);
     const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
@@ -1359,32 +1306,7 @@ void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
 
 void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, Reg64 src, Reg64 dst, Reg64 comp,
                                           size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) const {
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-
-    h->sub(h->rsp, n_gprs_to_save * gpr_size);
-    for (size_t i = 0; i < n_gprs_to_save; ++i)
-        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-
-    // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
-    h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
-    for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-        else
-            h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-    }
-
-    // 1. Caller obligation to save vector registers as callee may use them.
-    // 2. There is an implicit assumption that the host code uses the same
-    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
-    // `vlen` should be replaced with `host_isa::vlen` and
-    // `host_isa::vecs_count`.
-    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
-    for (size_t i = 0; i < get_max_vecs_count(); ++i)
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
+    internal_call_preamble();
 
     const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
@@ -1438,38 +1360,16 @@ void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b
     h->mov(abi_param5, N);
     h->mov(abi_param6, K);
 #endif
-    // align stack on 16-byte as ABI requires
-    // note that RBX must not be changed by the callee
-    h->mov(h->rbx, h->rsp);
-    h->and_(h->rbx, 0xf);
-    h->sub(h->rsp, h->rbx);
 
+    internal_call_rsp_align();
     h->call(h->rbp);
-
-    h->add(h->rsp, h->rbx);
+    internal_call_rsp_restore();
 
 #ifdef _WIN32
         h->add(h->rsp, gpr_size * num_args_passed_on_stack);
 #endif
-    // restore vector registers
-    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
-        h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
-    }
-    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
 
-    // restore k registers
-    for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-        else
-            h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-    }
-    h->add(h->rsp, n_k_regs_to_save * k_mask_size);
-
-    // restore gpr registers
-    for (int i = n_gprs_to_save - 1; i >= 0; --i)
-        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-    h->add(h->rsp, n_gprs_to_save * gpr_size);
+    internal_call_postamble();
 }
 
 void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, const void *src,
@@ -1491,7 +1391,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 }
 
 HorizonEmitter::HorizonEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
         m_op_type = OpType::max;
     } else if (ov::is_type<const snippets::op::HorizonSum>(expr->get_node())) {
@@ -1559,7 +1459,7 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
 }
 
 FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
         OPENVINO_THROW("Fill emitter supports only 4 Byte element types but gets: ", fill->get_element_type());

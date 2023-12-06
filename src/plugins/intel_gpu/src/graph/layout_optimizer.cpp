@@ -33,6 +33,7 @@
 #include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "gather_inst.h"
+#include "loop_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -414,6 +415,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
+    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
@@ -474,6 +476,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         }
         // permute kernel doesn't support reorder fusion for ranks > 6
         if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
+            return false;
+
+        // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
+        if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
             return false;
 
         return true;
@@ -1807,6 +1813,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // Gather needs the original input/output rank because
         // the parameters as indices, batch_dims and axis depend on the rank.
         node.set_preferred_input_fmt(0, format::get_default_format(node.as<gather>().get_primitive()->input_rank));
+    } else if (node.is_type<loop>()) {
+        expected = format::get_default_format(node.get_output_layout().get_rank());
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {

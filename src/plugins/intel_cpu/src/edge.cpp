@@ -66,7 +66,7 @@ void Edge::drop() {
 }
 
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
-    if (this->inPlace(LOOK_DOWN)) {
+    if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
         if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
@@ -531,7 +531,7 @@ bool Edge::inPlace(LOOK look) const {
 
 NodePtr Edge::modifiedInPlace() const {
     auto childNode = getChild();
-    if (!childNode || !childNode->isInPlace()) {
+    if (!childNode || !childNode->isInPlace() || childNode->getChildEdges().empty()) {
         return nullptr;
     }
     // check if the children nodes are able to modify the memory

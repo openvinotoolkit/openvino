@@ -263,12 +263,12 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 

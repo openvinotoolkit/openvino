@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
-    ov::test::utils::disable_tests_skipping = FLAGS_disable_test_config;
+    ov::test::utils::disable_tests_skipping = true;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
@@ -103,10 +103,6 @@ int main(int argc, char* argv[]) {
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
-    }
-    if (!FLAGS_skip_config_path.empty()) {
-        ov::test::conformance::disabledTests =
-            ov::test::utils::readListFiles(ov::test::utils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {
         ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);

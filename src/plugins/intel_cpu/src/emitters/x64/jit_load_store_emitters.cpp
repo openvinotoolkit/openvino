@@ -47,8 +47,8 @@ constexpr int threshold_for_mask_emu_store = 6;
 size_t load_emitter_params::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, std::string("jit_load_emitter"));
-    seed = hash_combine(seed, src_prc_.getPrecVal());
-    seed = hash_combine(seed, dst_prc_.getPrecVal());
+    seed = hash_combine(seed, src_prc_.hash());
+    seed = hash_combine(seed, dst_prc_.hash());
     seed = hash_combine(seed, load_num_);
     seed = hash_combine(seed, is_fill_);
     seed = hash_combine(seed, fill_value_);
@@ -58,8 +58,8 @@ size_t load_emitter_params::hash() const {
 size_t store_emitter_params::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, std::string("jit_store_emitter"));
-    seed = hash_combine(seed, src_prc_.getPrecVal());
-    seed = hash_combine(seed, dst_prc_.getPrecVal());
+    seed = hash_combine(seed, src_prc_.hash());
+    seed = hash_combine(seed, dst_prc_.hash());
     seed = hash_combine(seed, store_num_);
     return seed;
 }
@@ -74,7 +74,7 @@ static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = fal
 
 /// LOAD ///
 jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                   Precision src_prc, Precision dst_prc, int load_num, Precision exec_prc,
+                                   ov::element::Type src_prc, ov::element::Type dst_prc, int load_num, ov::element::Type exec_prc,
                                    bool is_fill, std::string fill_value, emitter_in_out_map in_out_type)
 : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), src_prc_(src_prc),
     dst_prc_(dst_prc), is_fill_(is_fill), fill_value_(fill_value) {
@@ -111,7 +111,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_idx, const int offset) const {
-    bool matched_prc = (dst_prc_ == src_prc_) || (dst_prc_ == Precision::FP32) || (dst_prc_ == Precision::I32);
+    bool matched_prc = (dst_prc_ == src_prc_) || (dst_prc_ == ov::element::f32) || (dst_prc_ == ov::element::i32);
     if (!matched_prc) {
         OPENVINO_THROW("Load emitter in ",
                        name_,
@@ -129,20 +129,20 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_i
     } else {
     // "pure load" + convert. dst_prc must be FP32 or I32.
         switch (src_prc_) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 load_bytes<Vmm>(Vmm(out_vec_idx), reg_src, offset, load_size_);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 load_bytes_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset, true, load_size_);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 load_bytes_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset, false, load_size_);
                 break;
-            case Precision::I16:
-            case Precision::U16:
-            case Precision::BF16:
-            case Precision::FP16:
+            case ov::element::i16:
+            case ov::element::u16:
+            case ov::element::bf16:
+            case ov::element::f16:
                 load_words_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset, src_prc_, load_size_);
                 break;
             default:
@@ -153,12 +153,12 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_i
     // post convert between I32 and FP32
     if (src_prc_ != dst_prc_) {
         switch (dst_prc_) {
-            case Precision::FP32:
-                if (!src_prc_.is_float())
+            case ov::element::f32:
+                if (!src_prc_.is_real())
                     h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 break;
-            case Precision::I32:
-                if (src_prc_.is_float()) {
+            case ov::element::i32:
+                if (src_prc_.is_real()) {
                     h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 }
                 break;
@@ -464,7 +464,7 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
 * [0.. 32] for ZMM version of the function. i.e. 16 words -> 16 * 32 bit == 512 bit
 */
 template <typename Vmm>
-void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, InferenceEngine::Precision prc, int load_size) const {
+void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, ov::element::Type prc, int load_size) const {
     constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
     constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
     constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
@@ -473,9 +473,9 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     MAYBE_UNUSED(is_ymm);
     MAYBE_UNUSED(is_zmm);
 
-    bool is_bf16 = (prc == Precision::BF16);
-    bool is_f16 = (prc == Precision::FP16);
-    bool is_signed = prc.isSigned();
+    bool is_bf16 = (prc == ov::element::bf16);
+    bool is_f16 = (prc == ov::element::f16);
+    bool is_signed = prc.is_signed();
 
     if (is_f16 && !mayiuse(cpu::x64::avx512_core_fp16))
         OPENVINO_THROW("Load emitter in ", name_, " only support fp16 on platform with avx512_core_fp16.");
@@ -615,7 +615,7 @@ void jit_load_emitter::register_table_entries() {
 
 /// STORE ///
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                     Precision src_prc, Precision dst_prc, int store_num, arithmetic_mode mode, Precision exec_prc,
+                                     ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, arithmetic_mode mode, ov::element::Type exec_prc,
                                      emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), mode_(mode) {
     prepare_table();
@@ -631,7 +631,7 @@ inline bool jit_store_emitter::is_saturation() const {
 // case for SSE and AVX2 when we should use AND to truncate values
 inline bool jit_store_emitter::is_truncation_emulation() const {
     return !mayiuse(cpu::x64::avx512_core) && !is_saturation() &&
-        src_prc_ != dst_prc_ && one_of(dst_prc_, Precision::U16, Precision::I16, Precision::U8, Precision::I8);
+        src_prc_ != dst_prc_ && one_of(dst_prc_, ov::element::u16, ov::element::i16, ov::element::u8, ov::element::i8);
 }
 
 size_t jit_store_emitter::aux_gprs_count() const {
@@ -654,11 +654,11 @@ size_t jit_store_emitter::aux_vecs_count() const {
         count++;
 
     // for data swapping to avoid using Xmm(0) as I/O xmm for jit_uni_vcvtneps2bf16
-    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
+    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == ov::element::f32 && dst_prc_ == ov::element::bf16))
         count++;
 
     // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and restore status)
-    if (mayiuse(cpu::x64::avx512_core) && one_of(dst_prc_, Precision::U8, Precision::U16))
+    if (mayiuse(cpu::x64::avx512_core) && one_of(dst_prc_, ov::element::u8, ov::element::u16))
         count++;
 
     return count;
@@ -687,13 +687,13 @@ void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std:
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_dst, const int offset) const {
-    bool matched_prc = (src_prc_ == dst_prc_) || (src_prc_ == Precision::FP32) || (src_prc_ == Precision::I32);
+    bool matched_prc = (src_prc_ == dst_prc_) || (src_prc_ == ov::element::f32) || (src_prc_ == ov::element::i32);
     if (!matched_prc) {
         OPENVINO_THROW("Store emitter in ",
                        name_,
                        " only support input precision of FP32 or I32 or the same precision as output.");
     }
-    if ((src_prc_ == Precision::FP32) || (src_prc_ == Precision::I32)) {
+    if ((src_prc_ == ov::element::f32) || (src_prc_ == ov::element::i32)) {
         if ((isa == cpu::x64::sse41 && store_num_ > 4) || (isa == cpu::x64::avx2 && store_num_ > 8) ||
             (isa == cpu::x64::avx512_core && store_num_ > 16) || store_num_ < 0) {
             OPENVINO_THROW("Store emitter in ", name_, " has unexpected number of values to store.");
@@ -706,8 +706,8 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
     aux_src_idx = aux_vec_idxs.back(); // for avoid src pollution
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
-            case Precision::FP32:
-                if (!dst_prc_.is_float()) {
+            case ov::element::f32:
+                if (!dst_prc_.is_real()) {
                     if (is_saturation()) {
                         h->uni_vcvtps2dq(Vmm(aux_src_idx), Vmm(data_idx));
                     } else {
@@ -717,8 +717,8 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
                     data_reg_updated = true;
                 }
                 break;
-            case Precision::I32:
-                if (dst_prc_.is_float()) {
+            case ov::element::i32:
+                if (dst_prc_.is_real()) {
                     h->uni_vcvtdq2ps(Vmm(aux_src_idx), Vmm(data_idx));
                     data_idx = aux_src_idx;
                     data_reg_updated = true;
@@ -733,20 +733,20 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
         store_bytes<Vmm>(reg_dst, offset, store_size_);
     } else {
         switch (dst_prc_) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 store_bytes<Vmm>(reg_dst, offset, store_size_);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 store_dword_to_byte_extension<Vmm>(reg_dst, offset, true, store_num_);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 store_dword_to_byte_extension<Vmm>(reg_dst, offset, false, store_num_);
                 break;
-            case Precision::I16:
-            case Precision::U16:
-            case Precision::BF16:
-            case Precision::FP16:
+            case ov::element::i16:
+            case ov::element::u16:
+            case ov::element::bf16:
+            case ov::element::f16:
                 store_dword_to_word_extension<Vmm>(reg_dst, offset, dst_prc_, store_num_);
                 break;
             default:
@@ -1082,10 +1082,10 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
 */
 template <typename Vmm>
 void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
-    int offset, InferenceEngine::Precision precision, int store_num) const {
-    const bool is_bf16 = (precision == Precision::BF16);
-    const bool is_f16 = (precision == Precision::FP16);
-    const bool is_signed = precision.isSigned();
+    int offset, ov::element::Type precision, int store_num) const {
+    const bool is_bf16 = (precision == ov::element::bf16);
+    const bool is_f16 = (precision == ov::element::f16);
+    const bool is_signed = precision.is_signed();
 
     constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
     constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
@@ -1160,7 +1160,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
     if (is_bf16) {
         if (mayiuse(cpu::x64::avx512_core)) {
             // to avoid src vmm pollution, this check means no precision convert happens, so data_idx is still original_data_idx.
-            if (src_prc_ == Precision::FP32) {
+            if (src_prc_ == ov::element::f32) {
                 ymm = Ymm(aux_vec_idxs[0]);
             }
             uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(zmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
@@ -1172,11 +1172,11 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
             }
         } else {
             // to avoid src vmm pollution
-            if (src_prc_ == Precision::FP32) {
+            if (src_prc_ == ov::element::f32) {
                 xmm = Xmm(aux_vec_idxs[0]);
             }
             // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in uni_vcvtneps2bf16_
-            if (host_isa_ == cpu::x64::sse41 && src_prc_ == Precision::FP32) {
+            if (host_isa_ == cpu::x64::sse41 && src_prc_ == ov::element::f32) {
                 auto xmm_aux1 = Xmm(aux_vec_idxs[1]);
                 h->uni_vmovups(xmm_aux1, vmm);
                 uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
@@ -1194,7 +1194,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
         if (!mayiuse(cpu::x64::avx512_core_fp16))
             OPENVINO_THROW("Store emitter in ", name_, " only support fp16 on platform with avx512_core_fp16.");
         // to avoid src vmm pollution
-        if (src_prc_ == Precision::FP32) {
+        if (src_prc_ == ov::element::f32) {
             // since avx512, zmm(fp32) => ymm(fp16)
             ymm = Ymm(aux_vec_idxs[0]);
         } // in I32 case, zmm&ymm is already in aux reg

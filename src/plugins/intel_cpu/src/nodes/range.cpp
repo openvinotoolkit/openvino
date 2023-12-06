@@ -63,19 +63,19 @@ void Range::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     std::vector<PortConfigurator> outDataConf;
 
-    if (!(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::I32 &&
-            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::I32 &&
-            getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::I32 &&
-            getOriginalOutputPrecisionAtPort(0)     == Precision::I32) &&
-        !(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::FP32 &&
-            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
-            getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
-            getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
+    if (!(getOriginalInputPrecisionAtPort(RANGE_START) == ov::element::i32 &&
+            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::i32 &&
+            getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::i32 &&
+            getOriginalOutputPrecisionAtPort(0)     == ov::element::i32) &&
+        !(getOriginalInputPrecisionAtPort(RANGE_START) == ov::element::f32 &&
+            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::f32 &&
+            getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::f32 &&
+            getOriginalOutputPrecisionAtPort(0) == ov::element::f32)) {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i)
-            inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+            inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
         outDataConf.reserve(1);
-        outDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+        outDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     } else {
         inDataConf.reserve(inputShapes.size());
@@ -94,10 +94,10 @@ void Range::executeDynamicImpl(dnnl::stream strm) {
 void Range::execute(dnnl::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
-        case Precision::FP32:
+        case ov::element::f32:
             retcode = rangeKernel<float>();
             break;
-        case Precision::I32:
+        case ov::element::i32:
             retcode = rangeKernel<int32_t>();
             break;
         default:

@@ -338,7 +338,7 @@ def create_api_summary(xml_paths: list, output_folder: str, expected_devices:lis
         timestamp = None
 
         api_info = {}
-        sw_plugins = set()
+        sw_plugins = ['MULTI', 'BATCH', 'AUTO', 'HETERO']
         api_devices = set(expected_devices) if expected_devices else set()
 
         logger.info("Statistic collecting is started")
@@ -358,34 +358,28 @@ def create_api_summary(xml_paths: list, output_folder: str, expected_devices:lis
                     api_devices.add(device.tag)
                     for test_type in xml_root.findall(f"results/{device.tag}/*"):
                         api_info.setdefault(test_type.tag, {})
-                        for sw_plugin in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
-                            sw_plugin_name = 'HW_PLUGIN' if str(sw_plugin.tag).upper() == str(device.tag).upper() else sw_plugin.tag
-                            sw_plugins.add(sw_plugin_name)
-                            api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {}})
-                            api_info[test_type.tag][sw_plugin_name][device.tag] = {'passrate': float(sw_plugin.get('passrate', 0)),
-                                                                                   'relative_passrate': float(sw_plugin.get('relative_passrate', 0)),
-                                                                                   'relative_all': int(float(sw_plugin.get('relative_all', 0))),
-                                                                                   'relative_passed': int(float(sw_plugin.get('relative_passed', 0))),
-                                                                                   'passed': int(sw_plugin.get('passed', 0)), 
-                                                                                   'failed': int(sw_plugin.get('failed', 0)),
-                                                                                   'crashed': int(sw_plugin.get('crashed', 0)),
-                                                                                   'skipped': int(sw_plugin.get('skipped', 0)),
-                                                                                   'hanged': int(sw_plugin.get('hanged', 0)),
-                                                                                   'test_amout': int(sw_plugin.get('passed', 0)) +\
-                                                                                                    int(sw_plugin.get('failed', 0)) +\
-                                                                                                    int(sw_plugin.get('crashed', 0)) +\
-                                                                                                    int(sw_plugin.get('skipped', 0)) +\
-                                                                                                    int(sw_plugin.get('hanged', 0))}
+                        for plugin_info in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
+                            if str(plugin_info.tag).upper() != str(device.tag).upper() and\
+                               (plugin_info.tag in sw_plugins and str(plugin_info.tag).upper() != 'TEMPLATE'):
+                                continue
+
+                            api_info[test_type.tag].setdefault(device.tag, {'test_amout': 0})
+                            for key in ['passed', 'failed', 'crashed', 'skipped', 'hanged', 'relative_all', 'relative_passed']:
+                                val = int(float(plugin_info.get(key, 0)))
+                                api_info[test_type.tag][device.tag]['test_amout'] += val if 'relative' not in key else 0
+                                val += api_info[test_type.tag][device.tag].setdefault(key, 0)
+                                api_info[test_type.tag][device.tag][key] = val
+
+                            if api_info[test_type.tag][device.tag]['relative_all'] > 0:
+                                api_info[test_type.tag][device.tag]['relative_passrate'] = round(api_info[test_type.tag][device.tag]['relative_passed'] * 100 /\
+                                                                                                 api_info[test_type.tag][device.tag]['relative_all'], 2)
+                            if api_info[test_type.tag][device.tag]['test_amout'] > 0:
+                                api_info[test_type.tag][device.tag]['passrate'] = round(api_info[test_type.tag][device.tag]['passed'] * 100 /\
+                                                                                        api_info[test_type.tag][device.tag]['test_amout'], 2)
 
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
         logger.info("Statistic collecting is completed")
-
-        sw_plugins = list(sw_plugins)
-        sw_plugins.sort()
-        if 'HW_PLUGIN' in sw_plugins:
-            sw_plugins.remove('HW_PLUGIN')
-            sw_plugins.insert(0, 'HW_PLUGIN')
 
         logger.info("File with report creating is started")
         script_dir = Path(__file__).parent.absolute()
@@ -395,7 +389,6 @@ def create_api_summary(xml_paths: list, output_folder: str, expected_devices:lis
 
         res_summary = template.render(devices=api_devices,
                                       api_info=api_info,
-                                      sw_plugins=sw_plugins,
                                       timestamp=timestamp,
                                       report_tag=report_tag,
                                       report_version=report_version)

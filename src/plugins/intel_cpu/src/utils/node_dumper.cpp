@@ -10,6 +10,7 @@
 #include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "ie_ngraph_utils.hpp"
 
 #include <regex>
 #include <sstream>
@@ -107,7 +108,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
         auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
 
         TensorDesc desc = blb->getTensorDesc();
-        if (desc.getPrecision() == Precision::BIN)
+        if (InferenceEngine::details::convertPrecision(desc.getPrecision()) == ov::element::u1)
             continue;
 
         MemoryPtr memory = std::make_shared<Memory>(node->getEngine(), MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
@@ -140,7 +141,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
         auto& desc = prEdge->getMemory().getDesc();
-        if (desc.getPrecision() == Precision::BIN)
+        if (desc.getPrecision() == ov::element::u1)
             continue;
 
         BlobDumper dumper(prEdge->getMemoryPtr());
@@ -173,7 +174,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
         auto& desc = childEdge->getMemory().getDesc();
-        if (desc.getPrecision() == Precision::BIN)
+        if (desc.getPrecision() == ov::element::u1)
             continue;
 
         BlobDumper dumper(childEdge->getMemoryPtr());

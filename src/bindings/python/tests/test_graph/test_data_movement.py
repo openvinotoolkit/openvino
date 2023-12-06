@@ -5,7 +5,7 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Type, Shape
+from openvino import Type, Shape
 
 
 def test_reverse_sequence():

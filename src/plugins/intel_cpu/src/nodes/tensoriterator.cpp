@@ -32,7 +32,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &origShape = op->get_input_partial_shape(i);
         const auto& shape = Shape(origShape.rank().get_length() == 0 ? ov::PartialShape{1} : origShape);
-        const auto prec = InferenceEngine::details::convertPrecision(op->get_input_element_type(i));
+        const auto prec = op->get_input_element_type(i);
 
         PortConfig data_conf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
@@ -43,7 +43,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     for (size_t i = 0; i < op->get_output_size(); i++) {
         const auto &origShape = op->get_output_partial_shape(i);
         const auto& shape = Shape(origShape.rank().get_length() == 0 ? ov::PartialShape{1} : origShape);
-        const auto prec = InferenceEngine::details::convertPrecision(op->get_output_element_type(i));
+        const auto prec = op->get_output_element_type(i);
 
         PortConfig data_conf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);

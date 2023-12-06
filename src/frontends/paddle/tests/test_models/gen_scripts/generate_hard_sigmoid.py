@@ -15,7 +15,7 @@ def hard_sigmoid(name: str, x, slope: float = 0.2, offset: float = 0.5, data_typ
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.fluid.layers.hard_sigmoid(node_x, slope=slope, offset=offset, name='hard_sigmoid')
+        out = paddle.nn.functional.hardsigmoid(node_x, slope=slope, offset=offset, name='hard_sigmoid')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

@@ -58,7 +58,7 @@ void DnnlPostOpsComposer::updateWeiScales() {
     DEBUG_LOG("Set weight scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
 
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({wei_scale_values.size()}));
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), wei_scale_values.data(), wei_scale_values.size() * sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
@@ -71,7 +71,7 @@ void DnnlPostOpsComposer::updateDestScales() {
     DEBUG_LOG("Set dest scale mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
     attr.set_scales_mask(DNNL_ARG_DST, 0);
 
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({1}));
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), &dst_scale_val, sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
@@ -86,7 +86,7 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg));
 
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(*pdims));
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
     // copy the data as args
@@ -259,7 +259,7 @@ MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const MemoryCPtr& para
 
     if (needTranspose) {
         VectorDims dnnlShape = {shape[0], shape[1]};
-        DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(dnnlShape));
+        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(dnnlShape));
         mem = std::make_shared<Memory>(engine, memoryDesc);
         auto memory_buf = static_cast<float*>(mem->getData());
 
@@ -271,7 +271,7 @@ MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const MemoryCPtr& para
         }
     } else {
         VectorDims dnnlShape = {shape[shape.size() - 1], shape[0]};
-        DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(dnnlShape));
+        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(dnnlShape));
         mem = std::make_shared<Memory>(engine, memoryDesc);
         auto memory_buf = static_cast<float*>(mem->getData());
         const size_t elements_count = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());

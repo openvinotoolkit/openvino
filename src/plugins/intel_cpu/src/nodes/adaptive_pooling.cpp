@@ -103,7 +103,7 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
         return;
 
     // we supports only fp32 currently
-    precision = Precision::FP32;
+    precision = ov::element::f32;
 
     InferenceEngine::LayerConfig config;
     config.inConfs.resize(2);
@@ -118,12 +118,12 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     }
     for (const auto &df : dataFormats) {
         if (algorithm == Algorithm::AdaptivePoolingAvg) {
-            addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, Precision::I32}},
+            addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, ov::element::i32}},
                                  {{df, precision}},
                                  impl_desc_type::unknown);
         } else {
-            addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, Precision::I32}},
-                                 {{df, precision}, {LayoutType::ncsp, Precision::I32}},
+            addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, ov::element::i32}},
+                                 {{df, precision}, {LayoutType::ncsp, ov::element::i32}},
                                  impl_desc_type::unknown);
         }
     }

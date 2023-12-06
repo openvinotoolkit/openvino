@@ -41,6 +41,7 @@
 #include "intel_gpu/primitives/lstm_dynamic_input.hpp"
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/multinomial.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
@@ -125,6 +126,7 @@ REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);
+REGISTER_OCL(multinomial);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);

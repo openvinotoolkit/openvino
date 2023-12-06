@@ -7,6 +7,7 @@
 #include <ostream>
 #include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -67,6 +68,27 @@ inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) 
             return ov::element::i32;
         default: return et;
     }
+}
+
+inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
+    ov::Shape res(pshape.size());
+    for (size_t i = 0; i < pshape.size(); i++) {
+        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
+    }
+
+    return res;
+}
+
+inline ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
+    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
+    const auto& preallocation_shape = prealloc_info.second;
+    auto can_preallocate_buffer = prealloc_info.first &&
+                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
+    if (can_preallocate_buffer) {
+        return preallocation_shape;
+    }
+
+    return current_shape;
 }
 
 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.

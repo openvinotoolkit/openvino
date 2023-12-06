@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2023.0
+OpenVINO 2023.2
 ============================
 
 .. meta::
@@ -14,7 +14,7 @@ OpenVINO 2023.0
 .. container::
    :name: ov-homepage-banner
 
-   OpenVINO 2023.1
+   OpenVINO 2023.2
 
    .. raw:: html
 
@@ -67,13 +67,6 @@ OpenVINO 2023.0
       :link-type: doc
 
       Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to the OpenVINO format.
-
-   .. grid-item-card:: Run Inference
-      :link: openvino_docs_OV_UG_Integrate_OV_with_your_application
-      :link-alt: integrating OpenVINO with your app     
-      :link-type: doc
-
-      Get results in just a few lines of code
 
    .. grid-item-card:: Deploy at Scale With OpenVINO Model Server
       :link: ovms_what_is_openvino_model_server

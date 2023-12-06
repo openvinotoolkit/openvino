@@ -7,14 +7,11 @@
 #include "subgraph_tests/quantized_group_convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
-};
-
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
 const std::vector<size_t> numOutChannels = {3, 24, 48};
 const std::vector<size_t> numGroups = {3};
@@ -26,12 +23,12 @@ const std::vector<ov::test::utils::QuantizationGranularity> granularity = {
 const std::vector<bool> quantizeWeights = {false, true};
 
 /* ============= 2D GroupConvolution ============= */
-const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 10, 10}, {1, 24, 10, 10}};
-const std::vector<std::vector<size_t >> kernels2D = {{1, 1}, {3, 3}};
-const std::vector<std::vector<size_t >> strides2D = {{1, 1}};
+const std::vector<ov::Shape> inputShapes2D = {{1, 3, 10, 10}, {1, 24, 10, 10}};
+const std::vector<ov::Shape> kernels2D = {{1, 1}, {3, 3}};
+const std::vector<ov::Shape> strides2D = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
-const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
+const std::vector<ov::Shape> dilations2D = {{1, 1}};
 
 
 const auto quantGroupConv2DParams = ::testing::Combine(
@@ -56,12 +53,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv2D, QuantGroupConvLayerTest,
                         QuantGroupConvLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
-const std::vector<std::vector<size_t >> inputShapes3D = {{1, 3, 5, 5, 5}, {1, 24, 5, 5, 5}};
-const std::vector<std::vector<size_t >> kernels3D = {{3, 3, 3}};
-const std::vector<std::vector<size_t >> strides3D = {{1, 1, 1}};
+const std::vector<ov::Shape> inputShapes3D = {{1, 3, 5, 5, 5}, {1, 24, 5, 5, 5}};
+const std::vector<ov::Shape> kernels3D = {{3, 3, 3}};
+const std::vector<ov::Shape> strides3D = {{1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{0, 0, 0}};
-const std::vector<std::vector<size_t >> dilations3D = {{1, 1, 1}};
+const std::vector<ov::Shape> dilations3D = {{1, 1, 1}};
 
 const auto quantGroupConv3DParams = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),

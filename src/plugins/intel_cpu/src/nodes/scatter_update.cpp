@@ -44,9 +44,9 @@ bool ScatterUpdate::isExecutable() const {
 ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
           dataSize(0lu), indicesSize(0lu), axisSize(0lu),
-          dataPrec(Precision::UNSPECIFIED),
-          indicesPrec(Precision::UNSPECIFIED),
-          axisPrec(Precision::UNSPECIFIED) {
+          dataPrec(ov::element::undefined),
+          indicesPrec(ov::element::undefined),
+          axisPrec(ov::element::undefined) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
@@ -172,25 +172,25 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
 
     indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
-    auto indicesType = DnnlExtensionUtils::IEPrecisionToDataType(indicesPrec);
+    auto indicesType = DnnlExtensionUtils::ElementTypeToDataType(indicesPrec);
     indicesSize = DnnlExtensionUtils::sizeOfDataType(indicesType);
     if (indicesSize >= 8) {
-        indicesPrec = Precision::I64;
+        indicesPrec = ov::element::i64;
         indicesSize = 8;
     } else {
-        indicesPrec = Precision::I32;
+        indicesPrec = ov::element::i32;
         indicesSize = 4;
     }
 
     if (axisRelaxed) {
         axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
-        auto axisType = DnnlExtensionUtils::IEPrecisionToDataType(axisPrec);
+        auto axisType = DnnlExtensionUtils::ElementTypeToDataType(axisPrec);
         axisSize = DnnlExtensionUtils::sizeOfDataType(axisType);
         if (axisSize >= 8) {
-            axisPrec = Precision::I64;
+            axisPrec = ov::element::i64;
             axisSize = 8;
         } else {
-            axisPrec = Precision::I32;
+            axisPrec = ov::element::i32;
             axisSize = 4;
         }
     }
