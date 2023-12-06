@@ -52,7 +52,7 @@ jobs:
 
       - name: Install dependencies (Ubuntu)
         if: ${{ contains(matrix.machine, 'ubuntu') }}
-        run: sudo -E apt update && sudo -E apt install -y libtbb-dev
+        run: sudo -E apt update && sudo -E apt install -y libtbb-dev libpugixml-dev
 
       #
       # Configure JS API
