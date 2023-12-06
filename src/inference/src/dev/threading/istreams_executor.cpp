@@ -231,19 +231,18 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(c
                        << streamExecutorConfig._threads_per_stream_small << ")";
     }
 #endif
-    const auto hwCores =
-        !bLatencyCase && numaNodesNum == 1
-            // throughput case on a single-NUMA node machine uses all available cores
-            ? num_cores_default
-            // in the rest of cases:
-            //    multi-node machine
-            //    or
-            //    latency case, single-node yet hybrid case that uses
-            //      all core types
-            //      or
-            //      big-cores only, but the #cores is "enough" (pls see the logic above)
-            // it is usually beneficial not to use the hyper-threading (which is default)
-            : num_cores_default;
+    const auto hwCores = !bLatencyCase && numaNodesNum == 1
+                             // throughput case on a single-NUMA node machine uses all available cores
+                             ? num_cores_default
+                             // in the rest of cases:
+                             //    multi-node machine
+                             //    or
+                             //    latency case, single-node yet hybrid case that uses
+                             //      all core types
+                             //      or
+                             //      big-cores only, but the #cores is "enough" (pls see the logic above)
+                             // it is usually beneficial not to use the hyper-threading (which is default)
+                             : num_cores_default;
     const auto threads =
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =
