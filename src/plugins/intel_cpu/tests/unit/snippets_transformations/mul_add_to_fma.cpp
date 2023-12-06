@@ -147,7 +147,7 @@ TEST_P(MulAddToFMATests, MulAddToFMATests) {
     auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(),
                                        master_shape,
                                        backend_passes,
-                                       {},
+                                       std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                        {},
                                        generator,
                                        8, 256,

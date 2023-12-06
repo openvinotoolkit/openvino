@@ -424,7 +424,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
-    lowered::pass::PassPipeline pipeline(lowered_pass_config ? lowered_pass_config : std::make_shared<lowered::pass::PassConfig>());
+    lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();

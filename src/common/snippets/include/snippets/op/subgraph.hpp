@@ -104,15 +104,16 @@ public:
                                 const std::vector<ov::element::Type>& input_precisions = {},
                                 const std::vector<ov::element::Type>& output_precisions = {},
                                 const std::vector<pass::Manager::PositionedPass>& data_flow_passes = {},
-                                const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = nullptr,
+                                const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
                                 const std::vector<lowered::pass::PassPipeline::PositionedPass>& lowered_backend_passes = {},
                                 size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
                                 const void* compile_params = nullptr);
 
-    snippets::Schedule generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = nullptr,
-                                               const std::vector<lowered::pass::PassPipeline::PositionedPass>& lowered_backend_passes = {},
-                                               const void* compile_params = nullptr) const;
+    snippets::Schedule
+    generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                            const std::vector<lowered::pass::PassPipeline::PositionedPass>& lowered_backend_passes = {},
+                            const void* compile_params = nullptr) const;
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
@@ -149,7 +150,7 @@ public:
 private:
     void control_flow_transformations(lowered::LinearIR& linear_ir,
                                       LoweringResult& lowering_result,
-                                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = nullptr,
+                                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
                                       const std::vector<lowered::pass::PassPipeline::PositionedPass>& lowered_backend_passes = {}) const;
     void init_config();
     // Count of Subgraph virtual ports:
