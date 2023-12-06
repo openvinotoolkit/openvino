@@ -486,33 +486,37 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 }
 
 void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const fully_connected_params&>(params);
+    if (kd.kernels.size() == 1) {
+        Parent::GetUpdateDispatchDataFunc(kd);
+    } else {
+        kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+            const auto& prim_params = static_cast<const fully_connected_params&>(params);
 
-        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func, expected 2, got ", kd.kernels.size());
+            OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func, expected 2, got ", kd.kernels.size());
 
-        size_t output_batch = prim_params.outputs[0].Batch().v;
-        if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
-            output_batch *= prim_params.outputs[0].Feature().v;
+            size_t output_batch = prim_params.outputs[0].Batch().v;
+            if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
+                output_batch *= prim_params.outputs[0].Feature().v;
 
-        // Choose one of the two shape agnostic kernels:
-        // - kd.kernels[0] for batches <= 240 (default version)
-        // - kd.kernels[1] for batches >= 256 (slm version)
-        const auto default_alignment = 16;
-        // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
-        const auto skip_kernel_idx = output_batch + default_alignment > 256 ? 0 : 1;
-        const auto execute_kernel_idx = 1 - skip_kernel_idx;
+            // Choose one of the two shape agnostic kernels:
+            // - kd.kernels[0] for batches <= 240 (default version)
+            // - kd.kernels[1] for batches >= 256 (slm version)
+            const auto default_alignment = 16;
+            // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
+            const auto skip_kernel_idx = output_batch + default_alignment > 256 ? 0 : 1;
+            const auto execute_kernel_idx = 1 - skip_kernel_idx;
 
-        kd.kernels[skip_kernel_idx].skip_execution = true;
+            kd.kernels[skip_kernel_idx].skip_execution = true;
 
-        GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
-                                << "will be used for batch size = " << output_batch << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
+                                    << "will be used for batch size = " << output_batch << "\n";
 
-        auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
-        kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
-        kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
-        kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+            auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
+            kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
+            kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
+            kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        };
+    }
 }
 
 KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
