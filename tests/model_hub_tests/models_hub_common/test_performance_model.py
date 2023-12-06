@@ -4,6 +4,7 @@
 
 import sys
 import traceback
+import time
 from enum import Enum
 import pytest
 from openvino.runtime.utils.types import openvino_to_numpy_types_map
@@ -173,7 +174,6 @@ class TestModelPerformance:
                                                                self.infer_model,
                                                                (read_model, inputs))
 
-            results.read_model_results = self.infer_model(read_model, inputs)
             infer_time_ratio = (results.converted_model_results.infer_mean_time /
                                 results.read_model_results.infer_mean_time)
             utils.print_stat('infer ratio converted_model_time/read_model_time {}', infer_time_ratio)
@@ -198,8 +198,11 @@ class TestModelPerformance:
 
     def run(self, model_name, model_link, ie_device):
         self.result = Results()
+        t0 = time.time()
         self.result = multiprocessing_run(self.__run, [model_name, model_link, ie_device], model_name,
                                           self.infer_timeout)
+        t1 = time.time()
+        utils.print_stat('test run time {}', (t1 - t0))
         if self.result.status == Status.OK:
             return
         err_message = "\n{func} running failed: \n{msg}".format(func=model_name, msg=self.result.error_message)
