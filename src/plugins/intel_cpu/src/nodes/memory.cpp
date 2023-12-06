@@ -22,6 +22,65 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+namespace {
+class MemoryStub : public IMemory {
+public:
+    MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc) : m_eng(eng), m_pMemDesc(pMemDesc) {}
+
+    bool isAllocated() const noexcept override {
+       return true;
+    }
+
+    const MemoryDesc& getDesc() const override {
+        return *m_pMemDesc;
+    }
+
+    MemoryDescPtr getDescPtr() const override {
+        return m_pMemDesc;
+    }
+
+    void* getData() const override {
+        OPENVINO_THROW("Unexpected call MemoryStub::getData()");
+    }
+
+    size_t getSize() const override {
+        return 0;
+    }
+
+    const Shape& getShape() const override {
+        return m_pMemDesc->getShape();
+    }
+
+    const VectorDims& getStaticDims() const override {
+        return m_pMemDesc->getShape().getStaticDims();
+    }
+
+    void redefineDesc(MemoryDescPtr desc) override {
+        m_pMemDesc = desc;
+    }
+
+    void load(const IMemory& src, bool ftz = true) const override {
+        OPENVINO_THROW("Unexpected call MemoryStub::load()");
+    }
+
+    MemoryMngrPtr getMemoryMngr() const override {
+        OPENVINO_THROW("Unexpected call MemoryStub::getMemoryMngr()");
+    }
+
+    dnnl::memory getPrimitive() const override {
+        OPENVINO_THROW("Unexpected call MemoryStub::getPrimitive()");
+    }
+
+    void nullify() override {
+        // nothing to do
+    }
+
+private:
+    dnnl::engine m_eng;
+    MemoryDescPtr m_pMemDesc;
+};
+} // namespace
+
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
@@ -260,7 +319,8 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
     // make a fake memory
-    //parentEdge->reuse(edgeMem);
+    auto edgeMem = std::make_shared<MemoryStub>(getEngine(), memDesc);
+    parentEdge->reuse(edgeMem);
 }
 
 void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
@@ -639,7 +699,16 @@ MemStatePtr MemoryInputSDPA::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    return std::make_shared<VariableStateKVcache>(state_name, original_desc);
+    // somehow retrieve the internal precision and axis order from the SDPA node
+    // m_sdpa->get_kv_precision();
+    // m_sdpa->get_kv_axis_order();
+
+    auto kv_precision = element::bf16;
+    VectorDims order = {0, 1, 2, 3};
+
+    auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
+
+    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc);
 }
 
 bool MemoryInputSDPA::isExecutable() const {
@@ -656,7 +725,14 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     if (getParentEdgeAt(0)) {
         Node::resolveInPlaceEdges(look);
     } else {
-        // place some kind of fake memory simply to transfer the the shape
+        auto memDesc = getBaseMemDescAtOutputPort(0);
+        for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
+            OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+                " Unexpected inplace resolve call to an allocated edge: ", edge->name());
+
+            auto edgeMem = std::make_shared<MemoryStub>(getEngine(), memDesc);
+            edge->reuse(edgeMem);
+        }
     }
 }
 

@@ -196,16 +196,39 @@ void VariableStateSingleBuffer::commit_impl() {
 }
 
 
-VariableStateKVcache::VariableStateKVcache(const std::string& name, const MemoryDescPtr& external_desc) :
-    VariableStateBase(name, external_desc) {
+VariableStateKVcache::VariableStateKVcache(
+    const std::string& name,
+    const MemoryDescPtr& external_desc,
+    const BlockedMemoryDescPtr& dense_internal_desc) :
+    VariableStateBase(name, external_desc), m_dense_internal_desc(dense_internal_desc) {
     auto&& shape = external_desc->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
-    //TBD
-    return {};
+    auto actual_internal_desc = m_internal_mem->getDescWithType<BlockedMemoryDesc>();
+    auto&& dims = actual_internal_desc->getShape().getStaticDims();
+
+    auto actual_external_desc = get_external_desc()->cloneWithNewDims(dims);
+
+    auto intermed_external_mem =
+        std::make_shared<Memory>(get_engine(), actual_external_desc->cloneWithNewPrecision(actual_internal_desc->getPrecision()));
+
+    auto external_mem = std::make_shared<Memory>(get_engine(), actual_external_desc);
+
+    // let's assume 4th rank KV tensors. This may be extended later
+    OPENVINO_ASSERT(actual_internal_desc->getShape().getRank() == 4);
+    OPENVINO_ASSERT(actual_external_desc->getShape().getRank() == 4);
+
+    auto&& actual_internal_order = actual_internal_desc->getOrder();
+    //sanity check
+    OPENVINO_ASSERT(actual_internal_order == m_dense_internal_desc->getOrder());
+
+    //TBD very naive implementation
+    // 1. map m_internal_mem to the intermed_external_mem (the same precision)
+    // 2. perform precision conversion from intermed_external_mem to external_mem
+    return std::make_shared<Tensor>(external_mem);
 }
 
 void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
@@ -214,17 +237,19 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
 
     //May be optimized by reusing the state tensor underlining memory pointer, but corner cases should be considered
-    m_internal_mem = std::make_shared<Memory>(get_engine(), state_desc);
-    auto src = m_state->data();
-    auto dst = m_internal_mem->getData();
-    if (src && dst) {
-        std::memcpy(dst, src, m_state->get_byte_size());
-    }
+    auto dense_internal_desc = m_dense_internal_desc->cloneWithNewDims(state_desc->getShape().getStaticDims());
+
+    m_internal_mem = std::make_shared<Memory>(get_engine(), dense_internal_desc);
+    Memory external_mem(get_engine(), state_desc, m_state->data());
+
+    m_internal_mem->load(external_mem);
 
     //2. Reset the beam search table
-    auto&& stateDims = state_desc->getShape().getStaticDims();
-    const size_t size_B = stateDims[axis_B];
-    const size_t size_L = stateDims[axis_L];
+    auto&& state_dims = dense_internal_desc->getShape().getStaticDims();
+    auto&& order = m_dense_internal_desc->getOrder();
+
+    const size_t size_B = state_dims[order.at(0)];
+    const size_t size_L = state_dims[order.at(2)];
     auto mem_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
 
@@ -239,14 +264,16 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
 
 void VariableStateKVcache::reset_impl() {
     // 1. reset internal state
-    auto internal_state_desc = to_static(get_external_desc());
+    auto internal_state_desc = to_static(m_dense_internal_desc);
     m_internal_mem = std::make_shared<Memory>(get_engine(), internal_state_desc);
     m_internal_mem->nullify();
 
     // 2. reset hidden state
-    auto&& stateDims = internal_state_desc->getShape().getStaticDims();
-    const size_t size_B = stateDims[axis_B];
-    const size_t size_L = stateDims[axis_L];
+    auto&& state_dims = internal_state_desc->getShape().getStaticDims();
+    auto&& order = m_dense_internal_desc->getOrder();
+
+    const size_t size_B = state_dims[order.at(0)];
+    const size_t size_L = state_dims[order.at(2)];
     auto hidden_state_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
 
