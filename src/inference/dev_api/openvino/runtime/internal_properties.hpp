@@ -65,7 +65,7 @@ static constexpr Property<ov::threading::IStreamsExecutor::ThreadBindingType, Pr
  * @brief Limit \#threads that are used by IStreamsExecutor to execute `parallel_for` calls
  * @ingroup ov_dev_api_plugin_api
  */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream{"THREADS_PER_STREAM"};
+static constexpr Property<int32_t, PropertyMutability::RW> threads_per_stream{"THREADS_PER_STREAM"};
 
 /**
  * @brief It contains compiled_model_runtime_properties information to make plugin runtime can check whether it is
