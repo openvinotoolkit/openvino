@@ -66,6 +66,12 @@ jobs:
       # Tests
       #
 
-      - name: Run tests
+      - name: Run tests (Unix)
+        if: ${{ !contains(matrix.machine, 'windows') }}
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: npm test
+        run: source ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/setupvars.sh && npm test
+
+      - name: Run tests (Windows)
+        if: ${{ contains(matrix.machine, 'windows') }}
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: call "${{ env.JS_BINDINGS_DIR }}\\node\\ov_runtime\\setupvars.bat" && npm test
