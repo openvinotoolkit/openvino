@@ -118,7 +118,7 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
       - name: Run onnxruntime_test_all
-        if: ${{ runner.arch != "ARM64" }} # Ticket: 126277
+        if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
