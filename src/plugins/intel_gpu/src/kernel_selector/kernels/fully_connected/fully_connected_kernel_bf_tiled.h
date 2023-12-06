@@ -72,6 +72,7 @@ protected:
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& params, const optional_params& options) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     tune_params GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type = KernelType::DEFAULT, int idx = -1) const;
 
