@@ -37,6 +37,7 @@ bool RPE::visit_attributes(ov::AttributeVisitor& visitor) {
 
 std::shared_ptr<ov::Node> RPE::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_RoPE_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
     return std::make_shared<RPE>(new_args.at(0), new_args.at(1), new_args.at(2), m_axis);
 }
 

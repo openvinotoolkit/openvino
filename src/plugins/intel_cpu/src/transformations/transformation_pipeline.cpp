@@ -475,7 +475,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::RPE_Fusion); // should be disabled until CPU supports this internal op
+    // CVS-126827: should be disabled until CPU supports this internal op
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::RPE_Fusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
