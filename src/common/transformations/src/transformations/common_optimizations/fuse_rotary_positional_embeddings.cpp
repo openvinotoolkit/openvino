@@ -69,7 +69,7 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         if (!concat_node)
             return false;
         OPENVINO_SUPPRESS_DEPRECATED_START
-        auto split_axis_node = ov::get_constant_from_source(value_map.at(axis));
+        auto split_axis_node = ov::util::get_constant_from_source(value_map.at(axis));
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!split_axis_node)
             return false;
