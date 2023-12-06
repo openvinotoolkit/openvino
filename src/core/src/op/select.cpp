@@ -120,6 +120,15 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostT
     OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto autob = get_auto_broadcast();
+
+    auto out_shape = shape_infer(this,
+                                 std::vector<PartialShape>{input_values[0]->get_partial_shape(),
+                                                           input_values[1]->get_partial_shape(),
+                                                           input_values[2]->get_partial_shape()})[0]
+                         .to_shape();
+
+    output_values[0]->set_shape(out_shape);
+
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
 }
 
