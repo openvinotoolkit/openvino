@@ -54,6 +54,13 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             gather.reset(inputs[config.gather_position_arg_id]);
         }
 
+        if (t_cos.m_rank == 2) {
+            t_cos = t_cos.reshape({1, 1, t_cos.size(0), t_cos.size(1)});
+        }
+        if (t_sin.m_rank == 2) {
+            t_sin = t_sin.reshape({1, 1, t_sin.size(0), t_sin.size(1)});
+        }
+
         auto batch_size = t_src.size(0);
         auto head_cnt = t_src.size(1);
         auto seq_len = t_src.size(2);
@@ -124,6 +131,48 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
     }
 };
 
+template <typename T>
+struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
+    void execute(dnnl::stream strm,
+                 const RoPENode::Config& config,
+                 const std::vector<MemoryPtr>& inputs,
+                 const std::vector<MemoryPtr>& outputs) override {
+        ov::intel_cpu::PlainTensor<T> t_src(inputs[0]);
+        ov::intel_cpu::PlainTensor<float> t_cos_sin(inputs[1]);
+        ov::intel_cpu::PlainTensor<T> t_dst(outputs[0]);
+
+        // [seq_len, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
+        if (config.slice_stop - config.slice_start > 0) {
+            t_src = t_src.slice(2, config.slice_start, config.slice_stop);
+        }
+        auto seq_len = t_src.size(0);
+        auto batch_size = t_src.size(1);
+
+        auto head_cnt = config.head_cnt;
+        auto head_size = config.head_size;
+
+        auto rotary_dims = config.rotary_ndims;
+
+        parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
+            auto* src = &t_src.at({p, b, h * head_size});
+            // [length, batch_size, ndims//2, 2]
+            auto* cos_sin = &t_cos_sin.at({p, b, 0, 0}, true);
+            auto* dst = &t_dst.at({p, b, h, 0});
+
+            size_t i = 0;
+            for (; i < rotary_dims; i += 2) {
+                auto cosv = cos_sin[i];
+                auto sinv = cos_sin[i + 1];
+                dst[i] = cosv * src[i] - sinv * src[i + 1];
+                dst[i + 1] = sinv * src[i] + cosv * src[i + 1];
+            }
+            for (; i < head_size; i++) {
+                dst[i] = src[i];
+            }
+        });
+    }
+};
+
 void RoPE::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -132,7 +181,14 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = srcPrecision;
     auto CosSinPrecision = ov::element::f32;
 
-    if (m_config.is_interleaved) {
+    if (m_config.is_chatglm) {
+        if (rtPrecision == ov::element::bf16) {
+            m_executor = std::make_shared<RoPEExecutorChatGLM<ov::bfloat16>>();
+        } else {
+            m_executor = std::make_shared<RoPEExecutorChatGLM<float>>();
+            rtPrecision = ov::element::f32;
+        }
+    } else if (m_config.is_interleaved) {
         OPENVINO_ASSERT(m_config.input_trans0213 == false);
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);

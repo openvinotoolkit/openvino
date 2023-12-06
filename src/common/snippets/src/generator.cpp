@@ -44,7 +44,8 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     }
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
 
-    // Note: some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
+    // 1. some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
+    // 2. perf count node as field of emitter should be alive at runtime.
     if (linear_ir.get_config().m_save_expressions) {
         for (const auto& expr : linear_ir) {
             const auto& emitter = expr->get_emitter();
@@ -66,7 +67,9 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
         std::dynamic_pointer_cast<op::Buffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op))
+        std::dynamic_pointer_cast<op::RankNormalization>(op) ||
+        std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
+        std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
         return gpr2gpr;
     else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
              std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
