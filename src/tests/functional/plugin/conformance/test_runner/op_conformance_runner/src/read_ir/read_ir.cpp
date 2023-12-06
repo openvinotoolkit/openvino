@@ -122,9 +122,6 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
-    // todo: find the optimal way to find TEST_P instances
-    // inference + query_model + import_export
-    summary.setDowngradeCoefficient(3);
     std::pair<std::string, std::string> model_pair;
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_ref_tensor) = model_pair;
