@@ -89,10 +89,10 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                 const auto increment = loop_to_fuse->get_increment();
                 const auto tail_size = work_amount % increment;
                 // TODO: current logic doesn't handle the case when loop has first iteration handlers too.
-                // Need to skip this transformation for sich cases or improve the logic
+                // Need to skip this transformation for such cases or improve the logic
                 if (tail_size != 0) {
                     // TODO: should we remove previous tail loop handler?
-                    new_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                    register_default_tail_handlers(new_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                     new_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<TransformInnerSplitLoop>(tail_size);
                     if (work_amount > increment) {
                         new_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);

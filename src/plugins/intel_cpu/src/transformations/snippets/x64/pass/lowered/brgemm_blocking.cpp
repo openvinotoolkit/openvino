@@ -95,10 +95,10 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                 const auto tail_size = m % block_size_m;
                 if (tail_size != 0) {
                     const auto& loop_info = loop_manager->get_loop_info(id);
+                    register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
+                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmMBlockSize>(tail_size);
                     loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
                     loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
-                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
-                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmMBlockSize>(tail_size);
                 }
             }
         };
@@ -124,7 +124,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                 const auto tail_size = n % block_size_n;
                 if (tail_size != 0) {
                     const auto& loop_info = loop_manager->get_loop_info(id);
-                    loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                    register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                     loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmNBlockSize>(tail_size);
                     loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
                     loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
@@ -158,7 +158,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                         // First iter and tail loop
                         loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<SetSingleIterationWithWorkAmount>(block_size_k);
                         loop_info->handlers[LoopInfo::FIRST_ITER].register_pass<ZeroFinalizationOffsets>();
-                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                        register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                         loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmKBlockSize>(tail_size);
                         loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmBeta>(1.f);
                     } else {
@@ -168,7 +168,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                         loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(block_size_k + tail_size);
                         loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
                         loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<SetBrgemmBeta>(1.f);
-                        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                        register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                         loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmKBlockSize>(tail_size);
                         loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetBrgemmBeta>(1.f);
                     }

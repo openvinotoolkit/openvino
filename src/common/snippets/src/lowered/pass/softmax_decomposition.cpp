@@ -75,7 +75,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto& reduce_max_loop_info = loop_manager->get_loop_info(reduce_max_loop_id);
             const auto tail_size = inner_work_amount % m_vector_size;
             if (tail_size != 0) {
-                reduce_max_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                lowered::pass::register_default_tail_handlers(reduce_max_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                 reduce_max_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
                 if (inner_work_amount > m_vector_size) {
                     reduce_max_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
@@ -104,7 +104,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                                                                                 (*sum.first)->get_output_port(0)});
             const auto& reduce_sum_loop_info = loop_manager->get_loop_info(reduce_sum_loop_id);
             if (tail_size != 0) {
-                reduce_sum_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                lowered::pass::register_default_tail_handlers(reduce_sum_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                 reduce_sum_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
                 if (inner_work_amount > m_vector_size) {
                     reduce_sum_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
@@ -131,7 +131,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                                              std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)});
             const auto& mul_loop_info = loop_manager->get_loop_info(mul_loop_id);
             if (tail_size != 0) {
-                mul_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
+                lowered::pass::register_default_tail_handlers(mul_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                 if (inner_work_amount > m_vector_size) {
                     mul_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
                     mul_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();

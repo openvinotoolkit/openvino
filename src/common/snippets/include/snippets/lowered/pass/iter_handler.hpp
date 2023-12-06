@@ -5,23 +5,16 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/loop.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/pass/pass_pipeline.hpp"
+#include "snippets/op/loop.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-class DefaultTailLoopHandler : public pass::SubgraphPass {
-public:
-    DefaultTailLoopHandler(size_t tail_size);
-    OPENVINO_RTTI("DefaultTailLoopHandler", "Pass")
-    bool run(const LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
-
-private:
-    size_t m_tail_size;
-};
+void register_default_tail_handlers(lowered::pass::SubgraphPassPipeline& pipeline, size_t tail_size);
 
 class SetSingleIterationWithWorkAmount : public pass::SubgraphPass {
 public:

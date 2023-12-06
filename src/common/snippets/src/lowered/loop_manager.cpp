@@ -356,7 +356,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 
         const auto tail_size = work_amount % increment;
         if (tail_size != 0) {
-            loop_info->handlers[LoopInfo::LAST_ITER].register_pass<lowered::pass::DefaultTailLoopHandler>(tail_size);
+            lowered::pass::register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
             loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ReduceWorkAmount>(tail_size);
             loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ZeroFinalizationOffsets>();
         }

@@ -16,12 +16,9 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-DefaultTailLoopHandler::DefaultTailLoopHandler(size_t tail_size) : SubgraphPass(), m_tail_size(tail_size) {}
-
-bool DefaultTailLoopHandler::run(const LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
-    SetSingleIterationWithWorkAmount(m_tail_size).run(linear_ir, begin, end);
-    UpdateMemoryAccessOps(m_tail_size).run(linear_ir, begin, end);
-    return true;
+void register_default_tail_handlers(lowered::pass::SubgraphPassPipeline& pipeline, size_t tail_size) {
+    pipeline.register_pass<SetSingleIterationWithWorkAmount>(tail_size);
+    pipeline.register_pass<UpdateMemoryAccessOps>(tail_size);
 }
 
 SetSingleIterationWithWorkAmount::SetSingleIterationWithWorkAmount(size_t work_amount)

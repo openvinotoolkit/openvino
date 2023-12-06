@@ -99,13 +99,13 @@ bool ReduceDecomposition::run(LinearIR& linear_ir) {
             0,
             std::vector<ExpressionPort>{(*fill.first)->get_input_port(0), (*accumulation.first)->get_input_port(1)},
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
-        const auto reduce_loop_info = loop_manager->get_loop_info(reduce_loop_id);
+        const auto loop_info = loop_manager->get_loop_info(reduce_loop_id);
         const auto tail_size = work_amount % increment;
         if (tail_size != 0) {
-            reduce_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<DefaultTailLoopHandler>(tail_size);
-            reduce_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
-            reduce_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-            reduce_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
+            lowered::pass::register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
+            loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
+            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
+            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
         }
         const auto horizon = push_node(get_horizon_node(accumulation.second, reduce_type_info));
 
