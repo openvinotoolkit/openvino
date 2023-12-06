@@ -205,7 +205,6 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "MatrixNms", Type::MatrixNms},
             { "MulticlassNms", Type::MulticlassNms},
             { "MulticlassNmsIEInternal", Type::MulticlassNms},
-            { "Multinomial", Type::Multinomial},
             { "Reference", Type::Reference},
             { "Subgraph", Type::Subgraph},
             { "PriorBox", Type::PriorBox},
@@ -322,7 +321,6 @@ std::string NameFromType(const Type type) {
         CASE(NonMaxSuppression);
         CASE(MatrixNms);
         CASE(MulticlassNms);
-        CASE(Multinomial);
         CASE(Reference);
         CASE(Subgraph);
         CASE(PriorBox);
