@@ -527,9 +527,6 @@ class TestParallelRunner:
 
     def __prepare_smart_filters(self, proved_test_dict: dict):
         def_length = len(self._command) + len(" --gtest_filter=")
-        if constants.IS_WIN:
-            # subprocess add cmd.exe to the command line on Windows if shell=True
-            def_length += len(f'{os.environ.get("COMSPEC", "cmd.exe")} /C ')
 
         longest_device = ""
         for device in self._available_devices:
