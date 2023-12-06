@@ -76,23 +76,34 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.set_property(key, val.as<std::string>());
             if (key == ov::affinity.name()) {
-                changedCpuPinning = true;
-                try {
-                    const auto affinity_val = val.as<ov::Affinity>();
-                    enableCpuPinning =
-                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
-                                                                                                           : false;
-                } catch (const ov::Exception&) {
-                    OPENVINO_THROW("Wrong value ",
-                                   val.as<std::string>(),
-                                   "for property key ",
-                                   key,
-                                   ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
+                if (!changedCpuPinning) {
+                    changedCpuPinning = true;
+                    try {
+                        const auto affinity_val = val.as<ov::Affinity>();
+                        enableCpuPinning =
+                            (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
+                                                                                                               : false;
+                    } catch (const ov::Exception&) {
+                        OPENVINO_THROW("Wrong value ",
+                                       val.as<std::string>(),
+                                       "for property key ",
+                                       key,
+                                       ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
+                    }
+                }
+            }
+            if (key == ov::num_streams.name()) {
+                auto streams_value = val.as<ov::streams::Num>();
+                if (streams_value == ov::streams::NUMA) {
+                    latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
+                } else if (streams_value == ov::streams::AUTO) {
+                    hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
+                    changedHintPerfMode = true;
                 }
             }
         } else if (key == ov::hint::performance_mode.name()) {
             try {
-                hintPerfMode = val.as<ov::hint::PerformanceMode>();
+                hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),

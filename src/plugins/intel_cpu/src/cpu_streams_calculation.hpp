@@ -83,16 +83,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    std::vector<std::vector<int>>& proc_type_table,
                                                    int preferred_nthreads_per_stream = -1);
 
-struct StreamCfg {
-    int num_streams;               // Number of streams
-    int num_threads;               // Number of threads
-    int big_core_streams;          // Number of streams in Performance-core(big core)
-    int small_core_streams;        // Number of streams in Efficient-core(small core)
-    int threads_per_stream_big;    // Threads per stream in big cores
-    int threads_per_stream_small;  // Threads per stream in small cores
-    int small_core_offset;
-};
-
 /**
  * @brief      Get information about number of streams, threads and pinning threads on different processors
  * @param[in]  streams number of streams

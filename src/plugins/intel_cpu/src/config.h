@@ -64,6 +64,7 @@ struct Config {
 #endif
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    bool changedHintPerfMode = false;
     ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
