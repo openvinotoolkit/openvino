@@ -219,7 +219,7 @@ class TaskManager:
                     self._process_list.append(
                         Popen(
                             args,
-                            shell=constants.IS_WIN,
+                            shell=False,
                             stdout=log_file,
                             stderr=log_file,
                         )
