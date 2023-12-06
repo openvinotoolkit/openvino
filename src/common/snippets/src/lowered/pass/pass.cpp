@@ -17,15 +17,18 @@ PassPipeline::PassPipeline(const std::shared_ptr<PassConfig>& pass_config) : m_p
 }
 
 void PassPipeline::register_pass(const snippets::pass::PassPosition& position, const std::shared_ptr<Pass>& pass) {
+    OPENVINO_ASSERT(pass != nullptr, "PassPipeline cannot register empty pass!");
     m_passes.insert(position.get_insert_position(m_passes), pass);
 }
 
 void PassPipeline::register_pass(const std::shared_ptr<Pass>& pass) {
+    OPENVINO_ASSERT(pass != nullptr, "PassPipeline cannot register empty pass!");
     m_passes.push_back(pass);
 }
 
 void PassPipeline::run(LinearIR& linear_ir) const {
     for (const auto& pass : m_passes) {
+        OPENVINO_ASSERT(pass != nullptr, "PassPipeline has empty pass!");
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             continue;
         }
