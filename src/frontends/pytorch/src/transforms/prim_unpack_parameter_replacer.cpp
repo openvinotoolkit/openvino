@@ -41,7 +41,7 @@ bool DecomposeUnpackParameters::run_on_model(const std::shared_ptr<Model>& model
             std::shared_ptr<ov::op::util::FrameworkNode> unpack = cast_fw_node(node, "prim::TupleUnpack");
             if (!unpack) {
                 unpack = cast_fw_node(node, "prim::ListUnpack");
-            }            
+            }
             if (!unpack) {
                 all_unpacks = false;
                 continue;  // need to look at all consumers to form good diagnostics
