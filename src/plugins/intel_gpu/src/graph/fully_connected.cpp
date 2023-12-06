@@ -167,7 +167,6 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
-
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
@@ -187,7 +186,14 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             return std::move(orig_impl_param);
         }
 
-        size_t fake_align_base = (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) ? 16 : 8;
+        size_t fake_align_base = 8;
+        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
+            auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
+            auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_extra_alignment_needed = output_shape[output_row_idx] >= 256;
+            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+        }
+
         input_shape[input_row_idx] = align_to(input_shape[input_row_idx], fake_align_base);
         output_shape[output_row_idx] = align_to(output_shape[output_row_idx], fake_align_base);
 

@@ -32,7 +32,8 @@ DeviceFeaturesKey FullyConnected_bf_io_input_spatial::get_required_device_featur
 
 FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spatial::SetDefault(
     const fully_connected_params& arg,
-    int) const {
+    int,
+    int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
     dispatchData.gws[0] = Align(arg.outputs[0].LogicalSize() / arg.inputs[0].Batch().v, 16);
