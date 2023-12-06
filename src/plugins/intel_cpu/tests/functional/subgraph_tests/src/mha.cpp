@@ -189,16 +189,6 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-<<<<<<< HEAD
-            if (funcInput.get_element_type() == ov::element::bf16)
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i], ov::test::utils::InputGenerateData(-1, 2, 256));
-            else
-                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(),
-                                                                                 targetInputStaticShapes[i],
-                                                                                 -1,
-                                                                                 5);
-=======
             if (funcInput.get_element_type() == ov::element::bf16) {
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -1;
@@ -208,7 +198,6 @@ public:
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, 5);
             }
->>>>>>> 6e89e08114 (Apply comments)
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
