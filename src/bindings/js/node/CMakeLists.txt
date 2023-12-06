@@ -67,3 +67,11 @@ install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION . COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
     RUNTIME DESTINATION . COMPONENT ${PROJECT_NAME} EXCLUDE_FROM_ALL
 )
+
+#
+# cpack
+#
+
+# install npm package bindings
+
+# ov_cpack_add_component(${OV_CPACK_COMP_NPM} HIDDEN)
