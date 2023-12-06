@@ -57,6 +57,7 @@ ov_add_test_target(
             inference_engine_lp_transformations
             openvino::shape_inference
             inference_engine_s
+            openvino_frontend_common_obj
             unit_test_utils
             ov_models
             ov_snippets_models
