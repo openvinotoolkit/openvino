@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/op/op.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/op.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::test;
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 /* This is a synthetic op that mimics the general behaviour of operations with internal dynamics, i.e. nodes where the
    the output shapes may only be defined after the actual computations. */
@@ -26,20 +23,19 @@ public:
 
     void validate_and_infer_types() override {
         const auto& inputs_count = input_values().size();
-        OPENVINO_ASSERT(inputs_count == 1,
-                        "Input count must be 1, Got: ",
-                        inputs_count);
+        OPENVINO_ASSERT(inputs_count == 1, "Input count must be 1, Got: ", inputs_count);
         set_output_size(2);
 
         auto shape0 = get_input_partial_shape(0);
-        auto rank0  = shape0.rank();
+        auto rank0 = shape0.rank();
 
-        OPENVINO_ASSERT(rank0.compatible(3),
-                        "The input must be 3D.");
+        OPENVINO_ASSERT(rank0.compatible(3), "The input must be 3D.");
 
-        //here we set undefined shapes since they can only be determined after the actual calculations
+        // here we set undefined shapes since they can only be determined after the actual calculations
         set_output_type(0, get_input_element_type(0), ov::PartialShape({ov::Dimension()}));
-        set_output_type(1, get_input_element_type(0), ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension()}));
+        set_output_type(1,
+                        get_input_element_type(0),
+                        ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension()}));
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
@@ -88,16 +84,16 @@ protected:
         ov::ParameterVector inputParams;
         ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            auto param = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape);
+            auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
             inputParams.push_back(param);
             paramsOuts.push_back(param);
         }
         auto customOp = std::make_shared<CustomOp>(paramsOuts);
-        auto shapeOf = std::make_shared<ov::opset10::ShapeOf>(customOp->output(1));
+        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(customOp->output(1));
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(customOp->output(0)),
-                                    std::make_shared<ngraph::opset3::Result>(shapeOf)};
-        function = std::make_shared<ngraph::Function>(results, inputParams, "customOpTest");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(customOp->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(shapeOf)};
+        function = std::make_shared<ov::Model>(results, inputParams, "customOpTest");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -105,7 +101,8 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            auto tensor =
+                ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -126,4 +123,5 @@ protected:
 TEST_F(CustomOpCPUTest, smoke_CustomOpInternalDynamismCPUTest) {
     run();
 }
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
