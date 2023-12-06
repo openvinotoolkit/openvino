@@ -76,19 +76,19 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: '3.11'
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-
       - name: Install dependencies
         if: ${{ runner.os == 'Linux' }}
         run: |
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
+
+      - name: Setup Python 3.11
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
