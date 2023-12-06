@@ -49,12 +49,11 @@ private:
     struct Config {
         ScaledDotProductAttentionWithKVCache::Config config;
         bool is_concat_inplaced = false;
-        ov::element::Type kvCachePrecision;
     };
 
     Config m_config;
     std::shared_ptr<Executor> m_executor;
-    template <KernelTypes KType, typename T, typename T2> struct AttentionExecutor;
+    template <KernelTypes KType, typename T> struct AttentionExecutor;
 };
 
 }  // namespace node

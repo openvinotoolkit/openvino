@@ -477,7 +477,7 @@ struct MHASingleToken {
     }
 };
 
-template <ScaledDotProductAttention::KernelTypes KType, typename T, typename T2>
+template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor q_input;           // f32[B, H, L1, S]
     PlainTensor k_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
@@ -702,8 +702,6 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         config.outConfs[2].inPlace(-1);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
     }
-
-    m_config.kvCachePrecision = kvCachePrecision;
 }
 
 void ScaledDotProductAttention::createPrimitive() {
@@ -717,20 +715,14 @@ void ScaledDotProductAttention::createPrimitive() {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
     if (rtPrecision == ov::element::bf16) {
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16, ov::bfloat16>>(m_config);
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
     } else {
         // only support bf16/f32
         rtPrecision = ov::element::f32;
 #ifdef OV_CPU_WITH_MLAS
-        if (m_config.kvCachePrecision == ov::element::f16)
-            m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float, ov::float16>>(m_config);
-        else
-            m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float, float>>(m_config);
+        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
 #else
-        if (m_config.kvCachePrecision == ov::element::f16)
-            m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float, ov::float16>>(m_config);
-        else
-            m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float, float>>(m_config);
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
 #endif
     }
 }
