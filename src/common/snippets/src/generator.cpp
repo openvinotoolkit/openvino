@@ -27,7 +27,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
         return get_op_reg_type(op);
     };
-
+    linear_ir.serialize("snsdebug_linear_1.xml", "snsdebug_linear_1.xml");
     lowered::pass::PassPipeline lowered_pipeline;
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
@@ -78,38 +78,37 @@ std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
 Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op) const {
     auto reg_type = get_specific_op_reg_type(op);
     if (reg_type == opRegType::undefined) {
-            if (std::dynamic_pointer_cast<modifier::MemoryAccess>(op) ||
-        std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-        std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
-        std::dynamic_pointer_cast<op::LoopBegin>(op) ||
-        std::dynamic_pointer_cast<op::LoopEnd>(op) ||
-        std::dynamic_pointer_cast<op::Brgemm>(op) ||
-        std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
-        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op) ||
-        std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
-        std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
-        reg_type = gpr2gpr;
-    else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
-             std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
-        reg_type = gpr2vec;
-    else if (std::dynamic_pointer_cast<snippets::op::Store>(op))
-        reg_type = vec2gpr;
-    else if (ov::op::util::is_unary_elementwise_arithmetic(op) ||
-             ov::op::util::is_binary_elementwise_arithmetic(op) ||
-             ov::op::util::is_binary_elementwise_comparison(op) ||
-             ov::op::util::is_binary_elementwise_logical(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
-             std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
-             std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
-             std::dynamic_pointer_cast<op::Scalar>(op) ||
-             std::dynamic_pointer_cast<op::HorizonMax>(op) ||
-             std::dynamic_pointer_cast<op::HorizonSum>(op) ||
-             std::dynamic_pointer_cast<op::Fill>(op))
-        reg_type = vec2vec;
+        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+            std::dynamic_pointer_cast<op::LoopBegin>(op) ||
+            std::dynamic_pointer_cast<op::LoopEnd>(op) ||
+            std::dynamic_pointer_cast<op::Brgemm>(op) ||
+            std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
+            std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
+            std::dynamic_pointer_cast<op::RankNormalization>(op) ||
+            std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
+            std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
+            reg_type = gpr2gpr;
+        else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
+                 std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
+            reg_type = gpr2vec;
+        else if (std::dynamic_pointer_cast<snippets::op::Store>(op))
+            reg_type = vec2gpr;
+        else if (ov::op::util::is_unary_elementwise_arithmetic(op) ||
+                ov::op::util::is_binary_elementwise_arithmetic(op) ||
+                ov::op::util::is_binary_elementwise_comparison(op) ||
+                ov::op::util::is_binary_elementwise_logical(op) ||
+                std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
+                std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
+                std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
+                std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
+                std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
+                std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
+                std::dynamic_pointer_cast<op::Scalar>(op) ||
+                std::dynamic_pointer_cast<op::HorizonMax>(op) ||
+                std::dynamic_pointer_cast<op::HorizonSum>(op) ||
+                std::dynamic_pointer_cast<op::Fill>(op))
+            reg_type = vec2vec;
     }
 
     OPENVINO_ASSERT(reg_type != opRegType::undefined,

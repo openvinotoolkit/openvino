@@ -65,7 +65,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
     // 2. Buffer is inside M_loop_idx loop => allocation shape is not changed
     // 3. Buffer is outside N_loop_idx loop => the corresponding allocation shape value is replaced with N loop work amount
     // So the result allocation shape is [M_blk, N_loop_work_amount]
-    const auto& subtensor =  expr_port.get_descriptor_ptr()->get_subtensor();
+    const auto& subtensor =  parent_expr_output.get_descriptor_ptr()->get_subtensor();
     if (!subtensor.empty()) {
         for (size_t i = 0; i < std::min(rank, subtensor.size()); ++i) {
             auto& cur_val = *(allocation_shape.rbegin() + i);
@@ -78,8 +78,8 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                 const auto& exit_points = loop_info->get_exit_points();
                 auto it = std::find_if(exit_points.begin(),
                                        exit_points.end(),
-                                       [&expr_port](const LinearIR::LoopManager::LoopPort& port) {
-                                           return *port.expr_port == expr_port;
+                                       [&parent_expr_output](const LinearIR::LoopManager::LoopPort& port) {
+                                           return *port.expr_port == parent_expr_output;
                                        });
                 OPENVINO_ASSERT(it != exit_points.end(), "compute_allocation_shape: exit point of parent loop can not be found");
                 const auto& loop_port = *it;

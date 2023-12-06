@@ -54,12 +54,14 @@ bool MemoryAccess::visit_attributes(AttributeVisitor& visitor) {
         auto port = p.second;
         visitor.on_attribute("count_in_" + std::to_string(idx), port.count);
         visitor.on_attribute("offset_in_" + std::to_string(idx), port.offset);
+        visitor.on_attribute("stride_in_" + std::to_string(idx), port.stride);
     }
     for (const auto& p : m_output_ports) {
         auto idx = p.first;
         auto port = p.second;
         visitor.on_attribute("count_out_" + std::to_string(idx), port.count);
         visitor.on_attribute("offset_out_" + std::to_string(idx), port.offset);
+        visitor.on_attribute("stride_out_" + std::to_string(idx), port.stride);
     }
     return true;
 }
