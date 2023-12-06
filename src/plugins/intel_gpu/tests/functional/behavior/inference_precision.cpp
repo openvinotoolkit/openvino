@@ -40,7 +40,7 @@ static const std::vector<params> test_params = {
     {ov::element::f32, ov::element::f16},
 };
 
-//INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferencePrecisionTests, ::testing::ValuesIn(test_params), InferencePrecisionTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferencePrecisionTests, ::testing::ValuesIn(test_params), InferencePrecisionTests::getTestCaseName);
 
 TEST(InferencePrecisionTests, CantSetInvalidInferencePrecision) {
     ov::Core core;
