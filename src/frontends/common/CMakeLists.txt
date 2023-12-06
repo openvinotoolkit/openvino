@@ -21,8 +21,9 @@ add_library(${TARGET_NAME} INTERFACE)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${FRONTEND_DEV_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-    $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
+
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 
@@ -37,7 +38,7 @@ target_include_directories(${TARGET_NAME}_obj
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::frontend::common,INTERFACE_INCLUDE_DIRECTORIES>
         # for ov_frontends.hpp in static build
         ${CMAKE_CURRENT_BINARY_DIR}/src)
 
@@ -47,7 +48,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev openvino::frontend::common)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev)
 
 # TODO: fix lto
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
