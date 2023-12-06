@@ -16,7 +16,9 @@ NamedOutputs matmul_v2(const NodeContext& node) {
     const auto mm = std::make_shared<default_opset::MatMul>(x, y, transpose_a, transpose_b);
 
     std::shared_ptr<Node> result = mm;
-    if (is_scalar(mm->get_output_partial_shape(0))) {
+    const auto output_info = node.get_output_port_infos("Out");
+    size_t output_size = output_info[0].second.size();
+    if (is_scalar(mm->get_output_partial_shape(0)) && output_size) {
         auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {0});
         result = std::make_shared<default_opset::Unsqueeze>(mm, unsqueeze_scalar);
     }

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #
-# fill_any_like paddle model generator
+# full_like paddle model generator
 #
 import numpy as np
 from save_model import saveModel
@@ -11,7 +11,7 @@ import sys
 
 data_type = 'float32'
 
-def fill_any_like(name:str, x, value, dtype=None):
+def full_like(name:str, x, value, dtype=None):
     paddle.enable_static()
     
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
@@ -35,18 +35,18 @@ def fill_any_like(name:str, x, value, dtype=None):
 def main():
     x = np.random.rand(8, 24, 32).astype(data_type)
 
-    fill_any_like("fill_any_like", x, 1.2)
-    fill_any_like("fill_any_like_f16", x, 1.0, dtype='float16')
-    fill_any_like("fill_any_like_f32", x, 1.2, dtype='float32')
-    fill_any_like("fill_any_like_f64", x, 1.2, dtype='float64')
-    fill_any_like("fill_any_like_i16", x, 3, dtype='int16')
-    fill_any_like("fill_any_like_i32", x, 2, dtype='int32')
-    fill_any_like("fill_any_like_i64", x, 10, dtype='int64')
-    fill_any_like("fill_any_like_bool", x, True, dtype='bool')
+    full_like("full_like", x, 1.2)
+    full_like("full_like_f16", x, 1.0, dtype='float16')
+    full_like("full_like_f32", x, 1.2, dtype='float32')
+    full_like("full_like_f64", x, 1.2, dtype='float64')
+    full_like("full_like_i16", x, 3, dtype='int16')
+    full_like("full_like_i32", x, 2, dtype='int32')
+    full_like("full_like_i64", x, 10, dtype='int64')
+    full_like("full_like_bool", x, True, dtype='bool')
 
     sample_arr = [True, False]
     x = np.random.choice(sample_arr, size=(13,17,11))
-    fill_any_like("fill_any_like_bool_2", x, False, dtype=None)
+    full_like("full_like_bool_2", x, False, dtype=None)
 
 if __name__ == "__main__":
     main()

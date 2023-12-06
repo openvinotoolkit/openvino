@@ -16,7 +16,10 @@ def reduce_all(name : str, x, axis=None, keepdim=False):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         data_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
-        reduced = paddle.fluid.layers.reduce_all(data_x, dim=axis, keep_dim=keepdim)
+        if paddle.__version__ >= '2.0.0':
+            reduced = paddle.all(data_x, axis=axis, keepdim=keepdim)
+        else:
+            reduced = paddle.fluid.layers.reduce_all(data_x, dim=axis, keep_dim=keepdim)
         out = paddle.cast(reduced, 'int32')
 
         cpu = paddle.static.cpu_places(1)

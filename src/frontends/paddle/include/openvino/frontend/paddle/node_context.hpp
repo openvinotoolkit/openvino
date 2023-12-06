@@ -98,6 +98,10 @@ public:
         return decoder->get_output_port_infos(port_name);
     }
 
+    int64_t get_version() const {
+        return decoder->get_version();
+    }
+
 private:
     ov::Any apply_additional_conversion_rules(const ov::Any& any, const std::type_info& type_info) const override {
         auto res = decoder->convert_attribute(any, type_info);
