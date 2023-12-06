@@ -211,7 +211,7 @@ jobs:
 
   Samples:
     needs: Build
-    uses: ./.github/workflows/samples_tests.yml
+    uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'macos-13-xlarge'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -219,7 +219,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/cxx_unit_tests.yml
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'macos-13-xlarge'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -227,7 +227,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/python_unit_tests.yml
+    uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'macos-13-xlarge'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -236,6 +236,6 @@ jobs:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/cpu_functional_tests.yml
+    uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'macos-13-xlarge'

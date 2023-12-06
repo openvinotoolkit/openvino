@@ -261,62 +261,15 @@ jobs:
   Debian_Packages:
     name: Debian Packages
     needs: Build
-    timeout-minutes: 5
-    defaults:
-      run:
-        shell: bash
-    runs-on: ubuntu-20.04
-    container:
-      image: ubuntu:20.04
-    env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
-
-    steps:
-      - name: Download OpenVINO debian packages
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_debian_packages
-          path: ${{ env.DEBIAN_PACKAGES_DIR }}
-
-      - name: Install debian packages & check conflicts
-        run: |
-          apt-get update -y
-          # Install debian packages from previous release
-          apt-get install --no-install-recommends -y gnupg wget ca-certificates
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
-          apt-get update -y
-          apt-get install -y openvino
-          # install our local one and make sure the conflicts are resolved
-          apt-get install --no-install-recommends -y dpkg-dev
-          dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-          echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
-          apt-get update -y
-          apt-get install openvino -y
-        working-directory: ${{ env.DEBIAN_PACKAGES_DIR }}
-
-      - name: Test debian packages
-        run: |
-          /usr/share/openvino/samples/cpp/build_samples.sh
-          /usr/share/openvino/samples/c/build_samples.sh
-          ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
-          python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
-          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-          python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
-          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
-          benchmark_app --help
-          ovc --help
+    uses: ./.github/workflows/job_debian_packages.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
 
   Samples:
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
-    uses: ./.github/workflows/samples_tests.yml
+    uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
@@ -567,7 +520,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/cxx_unit_tests.yml
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
@@ -576,7 +529,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/python_unit_tests.yml
+    uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount/caches:/mount/caches"]}'
@@ -586,7 +539,7 @@ jobs:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/cpu_functional_tests.yml
+    uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'

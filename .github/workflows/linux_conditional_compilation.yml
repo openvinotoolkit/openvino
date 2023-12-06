@@ -327,7 +327,7 @@ jobs:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/cpu_functional_tests.yml
+    uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
