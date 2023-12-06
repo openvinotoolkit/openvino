@@ -44,13 +44,18 @@ protected:
                                 std::list<std::vector<ExtractedRepeatPattern>>& secondary_extracted_patterns);
     void update_extractor_cache(std::list<std::vector<ExtractedRepeatPattern>>& extracted_patterns,
                                 const std::shared_ptr<ov::Model>& pattern,
-                                const ov::NodeVector& pattern_node_vector,
+                                const std::vector<ov::NodeVector>& pattern_node_vector,
                                 const std::map<std::string, ov::conformance::InputInfo>& in_info);
-    std::vector<ov::NodeVector>
+    std::vector<std::vector<std::vector<size_t>>>
     get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
                           const ov::NodeVector& ordered_ops);
-    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>>
-    get_matched_nodes(const ov::NodeVector& ordered_ops);
+    void NewFunction(std::__1::vector<std::__1::vector<size_t>>& potential_patterns,
+                     size_t i_orig,
+                     size_t intersection_len,
+                     size_t i_ref,
+                     int& retFlag);
+    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>> get_matched_nodes(
+        const ov::NodeVector& ordered_ops);
 };
 
 }  // namespace subgraph_dumper
