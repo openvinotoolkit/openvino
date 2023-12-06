@@ -126,6 +126,9 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
+#ifdef CPU_DEBUG_CAPS
+    void print_debug_info() const override;
+#endif
 
 private:
     using jit_emitter::emit_code;
@@ -148,6 +151,9 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
+#ifdef CPU_DEBUG_CAPS
+    void print_debug_info() const override;
+#endif
 
 private:
     using jit_emitter::emit_code;
@@ -209,6 +215,9 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+#ifdef CPU_DEBUG_CAPS
+    void print_debug_info() const override;
+#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -272,7 +281,7 @@ protected:
     size_t byte_offset = 0;
 
 #ifdef CPU_DEBUG_CAPS
-    // memoryEmitters is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
+    // MemoryEmitter is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
     // memory_track function is to record start subtensor address and current subtensor address and iteration.
     // If segfault happens, build_in segfault capabilty will give developers these info to understand what is wrong.
     mutable size_t start_address = 0;
@@ -446,7 +455,9 @@ private:
                                  size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
                                  size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
-    std::shared_ptr<ov::intel_cpu::BrgemmCPU> brgemm_node = nullptr;
+#ifdef CPU_DEBUG_CAPS
+    std::shared_ptr<ov::intel_cpu::BrgemmCPU> brgemm_node_ptr = nullptr;
+#endif
 
     brgemmCtx m_brgCtx;
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_brgKernel = nullptr;
@@ -491,7 +502,9 @@ private:
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
-    std::shared_ptr<ov::intel_cpu::BrgemmCopyB> brgemm_repack = nullptr;
+#ifdef CPU_DEBUG_CAPS
+    std::shared_ptr<ov::intel_cpu::BrgemmCopyB> brgemm_repack_node = nullptr;
+#endif
 
     ov::element::Type m_brgemm_prc_in0, m_brgemm_prc_in1;
     size_t m_N, m_N_blk, m_N_tail;

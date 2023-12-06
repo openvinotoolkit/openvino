@@ -357,6 +357,13 @@ LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
+#ifdef CPU_DEBUG_CAPS
+void LoopBeginEmitter::print_debug_info() const {
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
+    std::cerr << "where evaluate_once:" << evaluate_once << " work_amount:" << work_amount << "\n";
+}
+#endif
+
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
@@ -409,6 +416,14 @@ LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const Expression
     io_data_size = loop_end->get_element_type_sizes();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
+
+#ifdef CPU_DEBUG_CAPS
+void LoopEndEmitter::print_debug_info() const {
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
+    std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs
+        << " wa_increment:" << wa_increment << " work_amount:" << work_amount << " evaluate_once:" << evaluate_once << "\n";
+}
+#endif
 
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
@@ -510,6 +525,13 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
         default: assert(!"unsupported data type");
     }
 }
+
+#ifdef CPU_DEBUG_CAPS
+void BroadcastMoveEmitter::print_debug_info() const {
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
+    std::cerr << "where byte_size:" << byte_size << "\n";
+}
+#endif
 
 ScalarEmitter::ScalarEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
@@ -896,9 +918,12 @@ size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::ve
 
 BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+    auto brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OPENVINO_ASSERT(brgemm_node, "Node in expression is not ov::intel_cpu::BrgemmCPU in constructor of BrgemmEmitter!");
     OPENVINO_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
+#ifdef CPU_DEBUG_CAPS
+    brgemm_node_ptr = brgemm_node;
+#endif
 
     std::vector<size_t> leading_dimensions;
      auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
@@ -1165,7 +1190,7 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
 
 #ifdef CPU_DEBUG_CAPS
 void BrgemmEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << brgemm_node->get_friendly_name() << std::endl;
+    std::cerr << "Node name:" << brgemm_node_ptr->get_friendly_name() << std::endl;
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where m_M:" << m_M << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
         << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
@@ -1179,8 +1204,11 @@ void BrgemmEmitter::print_debug_info() const {
 BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
+    auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     OPENVINO_ASSERT(brgemm_repack, "Node in expression is not ov::intel_cpu::BrgemmCopyB in constructor of BrgemmEmitter!");
+#ifdef CPU_DEBUG_CAPS
+    brgemm_repack_node = brgemm_repack;
+#endif
 
     m_brgemm_prc_in0 = brgemm_repack->get_src_element_type();
     m_brgemm_prc_in1 = brgemm_repack->get_input_element_type(0);
@@ -1373,7 +1401,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 
 #ifdef CPU_DEBUG_CAPS
 void BrgemmCopyBEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << brgemm_repack->get_friendly_name() << std::endl;
+    std::cerr << "Node name:" << brgemm_repack_node->get_friendly_name() << std::endl;
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where m_LDB:" << m_LDB << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
         << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail

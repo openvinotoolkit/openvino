@@ -10,16 +10,17 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
 #include <node.h>
-
-#include "openvino/runtime/threading/thread_local.hpp"
-
 #include <set>
+
+#ifdef CPU_DEBUG_CAPS
+#include "openvino/runtime/threading/thread_local.hpp"
 
 #ifndef _WIN32
 #include <cxxabi.h>
 #endif
 
 using namespace ov::threading;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -180,7 +181,6 @@ protected:
     // callee is responsible to save and restore rbx. rbx must not be changed after call callee.
     void internal_call_rsp_align() const;
     void internal_call_rsp_restore() const;
-    
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;

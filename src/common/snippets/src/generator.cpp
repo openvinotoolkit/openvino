@@ -46,6 +46,11 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     loops2DKernel->compile_params = compile_params;
     auto loops2DKernelExpr = linear_ir.create_expression(loops2DKernel, std::vector<lowered::PortConnectorPtr>{});
     std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernelExpr);
+#ifdef ENABLE_OPENVINO_DEBUG
+    // This is entrance emitter outside of LIR and not derived from MemoryAccess, but access memory, manually enable it.
+    if (target->custom_segfault_detector)
+        kernel->set_custom_segfault_detector(true);
+#endif
 
     kernel->emit_code({}, {});
 
