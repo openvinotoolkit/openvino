@@ -623,8 +623,8 @@ static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADE
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class CacheMode {
-    OPTIMIZE_SIZE  = 0,   //!< smaller cache size
-    OPTIMIZE_SPEED = 1,   //!< faster loading time
+    OPTIMIZE_SIZE = 0,   //!< smaller cache size
+    OPTIMIZE_SPEED = 1,  //!< faster loading time
 };
 
 /** @cond INTERNAL */
