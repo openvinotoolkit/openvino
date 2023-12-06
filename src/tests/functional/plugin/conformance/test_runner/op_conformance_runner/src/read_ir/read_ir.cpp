@@ -74,9 +74,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                         op_version = op_name.substr(pos + 1);
                         op_name = op_name.substr(0, pos);
                     }
-                    if (std::find(unique_ops[op_name].begin(),
-                                unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
-                        unique_ops.find(op_name) != unique_ops.end()) {
+                    if (unique_ops.find(op_name) != unique_ops.end() &&
+                        std::find(unique_ops[op_name].begin(), unique_ops[op_name].end(), op_version) !=
+                            unique_ops[op_name].end()) {
                         filled_info["op_name"] = op_name + "." + op_version;
                         continue;
                     }
@@ -195,20 +195,23 @@ void ReadIRTest::SetUp() {
         // Try to resolve missing info
         if (splittedFilename.size() > 2) {
             auto pos = splittedFilename[2].find('-');
-            std::string op_name = "", op_version = "opset";
+            std::string op_name = "", op_version = "";
             if (pos != std::string::npos) {
                 op_name = splittedFilename[2].substr(0, pos);
-                op_version += splittedFilename[2].substr(pos + 1);
-                if (ov::test::op_conformance::unique_ops.find(op_name) != ov::test::op_conformance::unique_ops.end() &&
-                    std::find(ov::test::op_conformance::unique_ops[op_name].begin(),
-                              ov::test::op_conformance::unique_ops[op_name].end(),
-                              op_version) != ov::test::op_conformance::unique_ops[op_name].end()) {
+                op_version = splittedFilename[2].substr(pos + 1);
+                if (unique_ops.find(op_name) != unique_ops.end() &&
+                    std::find(unique_ops[op_name].begin(),
+                              unique_ops[op_name].end(),
+                              op_version) != unique_ops[op_name].end()) {
                     pgLink->set_custom_field("opName", op_name, true);
                     pgLink->set_custom_field("opSet", op_version, true);
                 }
+            } else if (splittedFilename.size() > 3 && splittedFilename[3] == "subgraph") {
+                pgLink->set_custom_field("opName", splittedFilename[1], true);
+                pgLink->set_custom_field("opSet", "subgraph", true);
             } else {
                 for (const auto& path_part : splittedFilename) {
-                    if (ov::test::op_conformance::unique_ops.find(path_part) != ov::test::op_conformance::unique_ops.end()) {
+                    if (unique_ops.find(path_part) != unique_ops.end()) {
                         op_name = path_part;
                         break;
                     }
