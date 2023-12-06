@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -54,6 +56,10 @@ class TestComplexFFT(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
+                                                                                         'aarch64',
+                                                                                         'arm64', 'ARM64'],
+                       reason='Ticket - 126314')
     def test_complex_fft_basic(self, params, fft_op,
                                ie_device, precision, ir_version, temp_dir,
                                use_new_frontend, use_old_api):
