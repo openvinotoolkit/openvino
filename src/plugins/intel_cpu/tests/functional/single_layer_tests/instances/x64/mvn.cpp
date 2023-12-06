@@ -182,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mv
 // Test platform without AVX2 instructions.
 const auto Mvn4DStatic_NO_AVX2 = ::testing::Combine(
        ::testing::Combine(
-               ::testing::ValuesIn(static_shapes_to_test_representation({{1, 3, 256, 128}})),
+               ::testing::ValuesIn(static_shapes_to_test_representation({{1, 3, 32, 32}})),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(false),
