@@ -585,7 +585,7 @@ Note that benchmark_app only requires the model path to run but both the
 device and hint arguments will be useful to us. For more advanced
 usages, the tool itself has other options that can be checked by running
 ``benchmark_app -h`` or reading the
-`docs <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+`docs <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 The following example shows how to benchmark a simple model, using a GPU
 with a latency focus:
 
@@ -1347,6 +1347,10 @@ corresponding documentation:
 -  `Configurations for GPUs with
    OpenVINO <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
 -  `Benchmark Python
+<<<<<<< HEAD
    Tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+=======
+   Tool <https://docs.openvino.ai/2023.0/openvino_sample_benchmark_tool.html>`__
+>>>>>>> cf2b238df2 (Merge samples)
 -  `Asynchronous
    Inferencing <https://docs.openvino.ai/2023.3/openvino_docs_ov_plugin_dg_async_infer_request.html>`__

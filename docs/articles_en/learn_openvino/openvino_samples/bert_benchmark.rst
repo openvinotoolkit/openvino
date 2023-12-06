@@ -1,4 +1,4 @@
-.. {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
+.. {#openvino_sample_bert_benchmark}
 
 Bert Benchmark Python Sample
 ============================
@@ -8,13 +8,31 @@ Bert Benchmark Python Sample
    :description: Learn how to estimate performance of a Bert model using Asynchronous Inference Request (Python) API.
 
 
-This sample demonstrates how to estimate performance of a Bert model using Asynchronous Inference Request API. Unlike :doc:`demos <omz_demos>` this sample doesn't have configurable command line arguments. Feel free to modify sample's source code to try out different options.
+This sample demonstrates how to estimate performance of a Bert model using Asynchronous 
+Inference Request API. Unlike :doc:`demos <omz_demos>` this sample does not have 
+configurable command line arguments. Feel free to modify sample's source code to 
+try out different options.
 
-The following Python API is used in the application:
+
+How It Works
+####################
+
+The sample downloads a model and a tokenizer, exports the model to ONNX format, reads the 
+exported model and reshapes it to enforce dynamic input shapes. Then, it compiles the 
+resulting model, downloads a dataset and runs a benchmark on the dataset.
 
 .. tab-set::
 
-   .. tab-item:: Python API 
+   .. tab-item:: Sample Code
+
+      .. scrollbox::
+
+         .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
+            :language: python
+
+   .. tab-item:: Python API
+
+      The following API is used in the application:
 
       +--------------------------------+-------------------------------------------------+----------------------------------------------+
       | Feature                        | API                                             | Description                                  |
@@ -30,42 +48,33 @@ The following Python API is used in the application:
       +--------------------------------+-------------------------------------------------+----------------------------------------------+
       | Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
       +--------------------------------+-------------------------------------------------+----------------------------------------------+
-   
-   .. tab-item:: Sample Code
 
-      .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
-         :language: python
 
-How It Works
-####################
-
-The sample downloads a model and a tokenizer, export the model to onnx, reads the exported model and reshapes it to enforce dynamic input shapes, compiles the resulting model, downloads a dataset and runs benchmarking on the dataset.
-
-You can see the explicit description of
-each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+You can see the explicit description of each sample step at 
+:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
+section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
 ####################
 
-Install the ``openvino`` Python package:
+1. Install the ``openvino`` Python package:
 
-.. code-block:: sh
+   .. code-block:: console
 
-   python -m pip install openvino
-
-
-Install packages from ``requirements.txt``:
-
-.. code-block:: sh
-
-   python -m pip install -r requirements.txt
+      python -m pip install openvino
 
 
-Run the sample
+2. Install packages from ``requirements.txt``:
 
-.. code-block:: sh
+   .. code-block:: console
 
-   python bert_benchmark.py
+      python -m pip install -r requirements.txt
+
+3. Run the sample
+
+   .. code-block:: console
+
+      python bert_benchmark.py
 
 
 Sample Output
@@ -73,11 +82,9 @@ Sample Output
 
 The sample outputs how long it takes to process a dataset.
 
-See Also
+Additional Resources
 ####################
 
 * :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Model Downloader <omz_tools_downloader>`
 * :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
-
