@@ -8,8 +8,8 @@
 #include <memory>
 
 #include <openvino/opsets/opset13.hpp>
-#include <transformations/cpu_opset/common/op/sdp.hpp>
-#include <transformations/cpu_opset/common/pass/stateful_sdp_fusion.hpp>
+#include <transformations/cpu_opset/common/op/sdpa.hpp>
+#include <transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/manager.hpp>
@@ -38,9 +38,9 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
         pastv = std::make_shared<ov::op::v0::Convert>(pastv, element::f32);
     }
     if (isRef) {
-        ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
+        ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
         config.fuse_concat = true;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(OutputVector{q, k, v, pastk, pastv}, config);
+        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(OutputVector{q, k, v, pastk, pastv}, config);
         sdp = new_node->output(0);
         concatK = new_node->output(1);
         concatV = new_node->output(2);
@@ -71,7 +71,7 @@ TEST(TransformationTests, StateConcatSDPA) {
             f = makeSDPA(inputShape);
             pass::Manager m;
             m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPFusion>();
+            m.register_pass<StatefulSDPAFusion>();
             m.run_passes(f);
         }
         //construct ref interaction
@@ -92,7 +92,7 @@ TEST(TransformationTests, StateConcatSDPAWithConvert) {
             f = makeSDPA(inputShape, false, true);
             pass::Manager m;
             m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPFusion>();
+            m.register_pass<StatefulSDPAFusion>();
             m.run_passes(f);
         }
         //construct ref interaction

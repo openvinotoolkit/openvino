@@ -22,6 +22,7 @@
 #include "ov_models/builders.hpp"
 #include "nodes/scaled_attn.h"
 #include "nodes/input.h"
+#include "nodes/convert.h"
 #include "graph.h"
 #include "cpu_tensor.h"
 
@@ -31,21 +32,25 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
     auto build_graph = [](const ov::Shape& shape, float* qkv_val, float* past_kv_val) {
         auto qkv = ov::op::v0::Constant::create(ov::element::f32, shape, qkv_val);
         qkv->set_friendly_name("qkv_const");
-        auto pastkv = ov::op::v0::Constant::create(ov::element::f32, shape, past_kv_val);
+        auto pastkv_f32 = ov::op::v0::Constant::create(ov::element::f32, shape, past_kv_val);
+        pastkv_f32->set_friendly_name("pastkv_const_f32");
+        auto pastkv = std::make_shared<ov::op::v0::Convert>(pastkv_f32, ov::element::f16);
         pastkv->set_friendly_name("pastkv_const");
         // only need a dynamic parameter but its value will not be used
         auto attn = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
         attn->set_friendly_name("attn");
 
-        ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
+        ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
         config.fuse_concat = true;
         config.is_causal = true;
-        auto sdpa = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(ov::OutputVector{qkv, qkv, qkv, attn, pastkv, pastkv}, config);
+        auto sdpa = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(ov::OutputVector{qkv, qkv, qkv, attn, pastkv, pastkv}, config);
+        auto out_pastk_convert = std::make_shared<ov::op::v0::Convert>(sdpa->output(1), ov::element::f32);
+        auto out_pastv_convert = std::make_shared<ov::op::v0::Convert>(sdpa->output(2), ov::element::f32);
         auto out_qkv = std::make_shared<ov::op::v0::Result>(sdpa->output(0));
         out_qkv->set_friendly_name("qkv");
-        auto out_pastk = std::make_shared<ov::op::v0::Result>(sdpa->output(1));
+        auto out_pastk = std::make_shared<ov::op::v0::Result>(out_pastk_convert);
         out_pastk->set_friendly_name("pastk");
-        auto out_pastv = std::make_shared<ov::op::v0::Result>(sdpa->output(2));
+        auto out_pastv = std::make_shared<ov::op::v0::Result>(out_pastv_convert);
         out_pastv->set_friendly_name("pastv");
 
         std::unordered_set<NodePtr> nodes_set;
@@ -65,9 +70,12 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
         auto context = std::make_shared<GraphContext>(conf, nullptr, nullptr, false);
 
         auto qkv_node = std::make_shared<node::Input>(qkv, context);
-        auto pastkv_node = std::make_shared<node::Input>(pastkv, context);
+        auto pastkv_f32_node = std::make_shared<node::Input>(pastkv_f32, context);
         auto attn_node = std::make_shared<node::Input>(attn, context);
+        auto pastkv_node = std::make_shared<node::Convert>(pastkv, context);
         auto sdpa_node = std::make_shared<node::ScaledDotProductAttention>(sdpa, context);
+        auto out_pastk_node_convert = std::make_shared<node::Convert>(out_pastk_convert, context);
+        auto out_pastv_node_convert = std::make_shared<node::Convert>(out_pastv_convert, context);
         auto out_qkv_node = std::make_shared<node::Input>(out_qkv, context);
         auto out_pastk_node = std::make_shared<node::Input>(out_pastk, context);
         auto out_pastv_node = std::make_shared<node::Input>(out_pastv, context);
@@ -76,11 +84,14 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
         add_edge(qkv_node, sdpa_node, 0, 1);
         add_edge(qkv_node, sdpa_node, 0, 2);
         add_edge(attn_node, sdpa_node, 0, 3);
+        add_edge(pastkv_f32_node, pastkv_node, 0, 0);
         add_edge(pastkv_node, sdpa_node, 0, 4);
         add_edge(pastkv_node, sdpa_node, 0, 5);
         add_edge(sdpa_node, out_qkv_node, 0, 0);
-        add_edge(sdpa_node, out_pastk_node, 1, 0);
-        add_edge(sdpa_node, out_pastv_node, 2, 0);
+        add_edge(sdpa_node, out_pastk_node_convert, 1, 0);
+        add_edge(sdpa_node, out_pastv_node_convert, 2, 0);
+        add_edge(out_pastk_node_convert, out_pastk_node, 0, 0);
+        add_edge(out_pastv_node_convert, out_pastv_node, 0, 0);
 
         std::vector<NodePtr> graph_nodes(nodes_set.begin(), nodes_set.end());
 
@@ -104,7 +115,7 @@ TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
     auto check_graph = [] (Graph& graph, std::map<std::string, std::pair<float*, ov::Shape>>& expected) {
         auto& outputNodesMap = graph.GetOutputNodesMap();
         auto is_same = [] (float a, float b) {
-            return std::abs(a - b) < 0.0001f;
+            return std::abs(a - b) < 0.01f;
         };
         for (auto &outputMap : outputNodesMap) {
             auto name = outputMap.first;

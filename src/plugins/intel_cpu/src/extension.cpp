@@ -6,7 +6,7 @@
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
-#include "transformations/cpu_opset/common/op/sdp.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
@@ -61,7 +61,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(NgramNode, ov::intel_cpu)
         NGRAPH_OP_X64(MHANode, ov::intel_cpu)
         NGRAPH_OP_X64(InteractionNode, ov::intel_cpu)
-        NGRAPH_OP_X64(ScaledDotProductAttentionStub, ov::intel_cpu)
+        NGRAPH_OP_X64(ScaledDotProductAttentionWithKVCache, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
