@@ -8,9 +8,9 @@ using namespace std;
 using namespace ov::op;
 
 namespace ov {
-namespace frontend{
-namespace tensorflow{
-namespace op{
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_mul_no_nan_op(const NodeContext& node) {
     default_op_checks(node, 2, {"MulNoNan"});
 
