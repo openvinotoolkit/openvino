@@ -20,6 +20,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -39,6 +40,24 @@ using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
+void update_failures_unsupported_ops(const std::string& op_type,
+                                     const ov::op::util::FrameworkNodeAttrs& fw_node_attrs,
+                                     std::set<std::string>& unsupported_operations,
+                                     std::unordered_map<std::string, std::string>& failures) {
+    // if this operation is encountered among unsupported operations
+    // or conversion failures, skip it
+    if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
+        return;
+    }
+    if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
+        // save only the first encountered failure that is more improtant for developer
+        // that means the translator is found but the conversion is failed
+        failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
+    } else {
+        // found new unsupported operation
+        unsupported_operations.insert(op_type);
+    }
+}
 
 void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
                                              std::set<std::string>& unsupported_operations,
@@ -55,20 +74,13 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
             unsupported_operations.insert(op_type);
         } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
-            // if this operation is encountered among unsupported operations
-            // or conversion failures, skip it
-            if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
-                continue;
-            }
             auto fw_node_attrs = fw_node->get_attrs();
-            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
-                // save only the first encountered failure that is more improtant for developer
-                // that means the translator is found but the conversion is failed
-                failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
-            } else {
-                // found new unsupported operation
-                unsupported_operations.insert(op_type);
-            }
+            update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
+        } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
+            // handle auxiliary operations from common frontend like ComplexTypeMark
+            auto op_type = std::string(fw_node->get_type_name());
+            auto fw_node_attrs = fw_node->get_attrs();
+            update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());
