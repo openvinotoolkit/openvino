@@ -15,7 +15,7 @@
 #include <openvino/opsets/opset9.hpp>
 
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/common/x64/jit_load_store_emitters.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;

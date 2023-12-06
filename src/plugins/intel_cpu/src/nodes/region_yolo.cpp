@@ -12,8 +12,8 @@
 #include "openvino/opsets/opset1.hpp"
 #include "common/cpu_convert.h"
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "emitters/common/x64/jit_bf16_emitters.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl::impl::cpu;
