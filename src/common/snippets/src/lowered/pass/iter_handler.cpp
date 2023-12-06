@@ -4,22 +4,17 @@
 
 #include "snippets/lowered/pass/iter_handler.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
+#include "snippets/lowered/pass/propagate_subtensors.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
-
-void register_default_tail_handlers(lowered::pass::SubgraphPassPipeline& pipeline, size_t tail_size) {
-    pipeline.register_pass<SetSingleIterationWithWorkAmount>(tail_size);
-    pipeline.register_pass<UpdateMemoryAccessOps>(tail_size);
-}
 
 SetSingleIterationWithWorkAmount::SetSingleIterationWithWorkAmount(size_t work_amount)
     : SubgraphPass(),

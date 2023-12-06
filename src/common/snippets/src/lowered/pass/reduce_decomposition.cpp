@@ -102,10 +102,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir) {
         const auto loop_info = loop_manager->get_loop_info(reduce_loop_id);
         const auto tail_size = work_amount % increment;
         if (tail_size != 0) {
-            lowered::pass::register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
             loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
-            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
         }
         const auto horizon = push_node(get_horizon_node(accumulation.second, reduce_type_info));
 

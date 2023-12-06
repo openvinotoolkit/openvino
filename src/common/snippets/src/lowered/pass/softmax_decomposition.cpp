@@ -75,12 +75,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto& reduce_max_loop_info = loop_manager->get_loop_info(reduce_max_loop_id);
             const auto tail_size = inner_work_amount % m_vector_size;
             if (tail_size != 0) {
-                lowered::pass::register_default_tail_handlers(reduce_max_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                 reduce_max_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
-                if (inner_work_amount > m_vector_size) {
-                    reduce_max_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-                    reduce_max_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
-                }
             }
             const auto broadcast_horizon_max = push_node(std::make_shared<op::BroadcastMove>(horizon_max.second, broadcasted_dim));
             const auto vector_buffer_sum = push_node(std::make_shared<op::VectorBuffer>());
@@ -104,12 +99,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                                                                                 (*sum.first)->get_output_port(0)});
             const auto& reduce_sum_loop_info = loop_manager->get_loop_info(reduce_sum_loop_id);
             if (tail_size != 0) {
-                lowered::pass::register_default_tail_handlers(reduce_sum_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                 reduce_sum_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<SetFillOffset>(tail_size);
-                if (inner_work_amount > m_vector_size) {
-                    reduce_sum_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-                    reduce_sum_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
-                }
             }
 
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
@@ -125,18 +115,9 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             linear_ir.replace_input(output_connector->get_consumers(), (*mul.first)->get_output_port_connector(0));
 
             // Markup of Mul Loop
-            const auto mul_loop_id = loop_manager->mark_loop(mul.first, expr_it, inner_work_amount, m_vector_size, 0,
-                                                             std::vector<ExpressionPort>{(*mul.first)->get_input_port(0),
-                                                                                         (*mul.first)->get_input_port(1)},
-                                                             std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)});
-            const auto& mul_loop_info = loop_manager->get_loop_info(mul_loop_id);
-            if (tail_size != 0) {
-                lowered::pass::register_default_tail_handlers(mul_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
-                if (inner_work_amount > m_vector_size) {
-                    mul_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-                    mul_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
-                }
-            }
+            loop_manager->mark_loop(mul.first, expr_it, inner_work_amount, m_vector_size, 0,
+                                    std::vector<ExpressionPort>{(*mul.first)->get_input_port(0), (*mul.first)->get_input_port(1)},
+                                    std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)});
 
             // Update Loop info for outer loops
             const auto entry_points = std::vector<ExpressionPort>{(*fill_max_tail.first)->get_input_port(0),

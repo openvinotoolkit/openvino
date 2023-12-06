@@ -14,8 +14,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-void register_default_tail_handlers(lowered::pass::SubgraphPassPipeline& pipeline, size_t tail_size);
-
 class SetSingleIterationWithWorkAmount : public pass::SubgraphPass {
 public:
     SetSingleIterationWithWorkAmount(size_t work_amount);

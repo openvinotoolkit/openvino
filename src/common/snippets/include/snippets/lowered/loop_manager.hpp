@@ -107,15 +107,21 @@ public:
     size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
                      LinearIR::constExprIt loop_end_pos,
                      size_t work_amount,
-                     size_t work_amount_increment,
+                     size_t increment,
                      size_t dim_idx,
                      const std::vector<T>& entries,
-                     const std::vector<T>& exits) {
-        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
+                     const std::vector<T>& exits,
+                     bool set_default_handlers = true) {
+        if (increment > work_amount)
+            increment = work_amount;
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
         loop_info->set_dim_idx(dim_idx);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
+        }
+        if (set_default_handlers) {
+            set_default_loop_handlers(loop_info);
         }
         return loop_id;
     }
@@ -126,11 +132,17 @@ public:
                      size_t work_amount,
                      size_t increment,
                      const std::vector<T>& entries,
-                     const std::vector<T>& exits) {
+                     const std::vector<T>& exits,
+                     bool set_default_handlers = true) {
+        if (increment > work_amount)
+            increment = work_amount;
         const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
+        }
+        if (set_default_handlers) {
+            set_default_loop_handlers(loop_info);
         }
         return loop_id;
     }
@@ -186,6 +198,7 @@ public:
                                 size_t loop_id, bool loop_ops_inserted = false);
 
     LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
+    static void set_default_loop_handlers(const LoopInfoPtr& loop_info);
 
 private:
     static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,

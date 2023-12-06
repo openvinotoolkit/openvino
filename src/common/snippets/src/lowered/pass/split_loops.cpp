@@ -92,12 +92,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                 // Need to skip this transformation for such cases or improve the logic
                 if (tail_size != 0) {
                     // TODO: should we remove previous tail loop handler?
-                    register_default_tail_handlers(new_loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
                     new_loop_info->handlers[LoopInfo::LAST_ITER].register_pass<TransformInnerSplitLoop>(tail_size);
-                    if (work_amount > increment) {
-                        new_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ReduceWorkAmount>(tail_size);
-                        new_loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<ZeroFinalizationOffsets>();
-                    }
                 }
                 break;
             }

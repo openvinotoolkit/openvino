@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
+#include "snippets/lowered/pass/propagate_subtensors.hpp"
 #include "snippets/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
@@ -260,6 +261,17 @@ LinearIR::LoopManager::LoopPort LinearIR::LoopManager::get_loop_port_by_expr_por
                                                          : get_loop_port(loop_info->get_exit_points());
 }
 
+void LinearIR::LoopManager::set_default_loop_handlers(const LoopInfoPtr& loop_info) {
+    const auto tail_size = loop_info->get_work_amount() % loop_info->get_increment();
+    if (tail_size != 0) {
+        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<lowered::pass::SetSingleIterationWithWorkAmount>(tail_size);
+        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<lowered::pass::UpdateMemoryAccessOps>(tail_size);
+        loop_info->handlers[LoopInfo::LAST_ITER].register_pass<lowered::pass::UpdateSubtensors>(tail_size);
+        loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ReduceWorkAmount>(tail_size);
+        loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ZeroFinalizationOffsets>();
+    }
+}
+
 void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                               LinearIR::constExprIt loop_end_pos,
                                               std::vector<ExpressionPort> &entries,
@@ -350,16 +362,9 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 
         OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
         const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
-        const auto increment = subtensor_value <= work_amount ? subtensor_value : work_amount;
+        const auto increment = subtensor_value;
         const auto id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_entry_points, loop_exit_points);
         const auto loop_info = get_loop_info(id);
-
-        const auto tail_size = work_amount % increment;
-        if (tail_size != 0) {
-            lowered::pass::register_default_tail_handlers(loop_info->handlers[LoopInfo::LAST_ITER], tail_size);
-            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ReduceWorkAmount>(tail_size);
-            loop_info->handlers[LoopInfo::MAIN_BODY].register_pass<lowered::pass::ZeroFinalizationOffsets>();
-        }
     }
 }
 
