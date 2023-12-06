@@ -132,10 +132,9 @@ jobs:
         run: '& "$Env:SCCACHE_PATH" --zero-stats'
 
       - name: Cmake build - CC COLLECT
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }}
-
-      - name: Cmake build - sea_itt_lib
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+        run: |
+          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show sccache stats
         run: '& "$Env:SCCACHE_PATH" --show-stats'
