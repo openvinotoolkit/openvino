@@ -80,7 +80,8 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         run: |
           # install git (required to build pip deps from the sources)
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
+          # install python3 (required to use the install Python action)
+          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates python3
 
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
