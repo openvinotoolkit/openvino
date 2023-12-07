@@ -581,8 +581,7 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
 ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionQwen);
 
-    if (std::getenv("NOQWEN"))
-        return;
+    //if (std::getenv("NOQWEN")) return;
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
     auto rotary_emb_cos = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
@@ -717,7 +716,7 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         new_args.push_back(pattern_map.at(rotary_emb_cos));
         new_args.push_back(pattern_map.at(rotary_emb_sin));
 
-        std::cout << " RoPEFusionQwen: " << split_output_id << " : " << root << std::endl;
+        //std::cout << " RoPEFusionQwen: " << split_output_id << " : " << root << std::endl;
         auto old_node = root;
         auto new_node = std::make_shared<RoPENode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
