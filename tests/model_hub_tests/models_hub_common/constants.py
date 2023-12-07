@@ -10,7 +10,7 @@ import tempfile
 loading and heating and includes measurement only one of 2 models - got through convert and read_model.
 Both "converted" and "read_model" modes will be 2 * runtime_measure_duration 
 '''
-runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '60')
+runtime_measure_duration = os.environ.get('RUNTIME_MEASURE_DURATION', '15')
 '''
 @brief Time in seconds of heating before measurement
 '''
