@@ -451,7 +451,26 @@ event::ptr primitive_inst::realloc_if_needed() {
         variable.set_layout(actual_layout);
     }
 
-    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
+    // Update output layout with respect to FC's fake alignment
+    auto updated_layout = actual_layout;
+    for (auto user : get_user_insts()) {
+        // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
+        // to prevemt reading beyound the allocated memory bounds
+        if (user->get_node().is_type<fully_connected>()) {
+            user->update_shape();
+            user->update_shape_done_by_other = true;
+
+            auto fc_impl_params = *user->_impl_params;
+            auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+            if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
+                GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
+                                       << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
+                updated_layout = fc_input_layout;
+            }
+        }
+    }
+
+    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -468,6 +487,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;
     }
+
+    if (updated_params.output_layouts[0].count() < updated_layout.count())
+        updated_params.output_layouts[0] = updated_layout;
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
