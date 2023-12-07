@@ -45,6 +45,8 @@ private:
     struct RoPEExecutorRotateHalf;
     template <typename T>
     struct RoPEExecutorInterleaved;
+    template <typename T>
+    struct RoPEExecutorChatGLM;
     RoPENode::Config m_config;
     std::shared_ptr<Executor> m_executor;
 };

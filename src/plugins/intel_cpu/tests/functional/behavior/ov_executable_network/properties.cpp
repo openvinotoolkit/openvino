@@ -147,11 +147,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
 
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
 
-#if defined(OPENVINO_ARCH_ARM) || \
-    defined(OPENVINO_ARCH_ARM64)  // Will be removed after multiple streams is supported on ARM
-    streams = 1;
-#endif
-
     ASSERT_EQ(streams, value);
 }
 

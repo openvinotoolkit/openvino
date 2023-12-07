@@ -12,6 +12,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_fmod(const NodeContext& context) {
+    // aten::fmod with schema aten::fmod.Tensor(Tensor self, Tensor other) -> Tensor
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);

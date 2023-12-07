@@ -64,7 +64,8 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_engine(engine)
     , queryMode(false)
     , m_task_executor(task_executor)
-    , m_compilation_context(compilation_context) {
+    , m_compilation_context(compilation_context)
+    , m_is_inner_program(is_inner_program) {
     if (m_task_executor == nullptr)
         m_task_executor = cldnn::program::make_task_executor(m_config);
 
@@ -284,14 +285,6 @@ void ProgramBuilder::init_profile_info(const cldnn::primitive& prim) {
     perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
     perfEntry.isCPU = false;
     perfEntry.parentPrimitive = prim.origin_op_name;
-}
-
-void ProgramBuilder::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
-    auto it = m_variablesStateInfo.find(variable_id);
-    if (it != m_variablesStateInfo.end())
-        it->second.insert(layout);
-    else
-        m_variablesStateInfo.insert({variable_id, { layout }});
 }
 
 void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases) {
