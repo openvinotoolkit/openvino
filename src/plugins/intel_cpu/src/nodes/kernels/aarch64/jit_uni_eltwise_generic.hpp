@@ -118,59 +118,76 @@ private:
     // Scalar architecture specific registers mapping
     // aarch64| function     | x64 | function
     // ===========================================
-    // X0     | <abi param>  | RAX | post_op_ptrs
-    // X1     | <abi param>  | RBX | dst ptr
-    // X2     | <abi param>  | RCX | [not used]
-    // X3     | <abi param>  | RDX | work amount
-    // X4     | <abi param>  | RDI | [not used]
-    // X5     | <abi param>  | RSI | d_bias
-    // X6     | <abi param>  | RBP | d_weights
-    // X7     | <abi param>  | RSP | <stack pointer>
+    // X0     | [not used]   | RAX | post_op_ptrs
+    // X1     | [not used]   | RBX | dst ptr
+    // X2     | [not used]   | RCX | [not used]
+    // X3     | [not used]   | RDX | work amount
+    // X4     | [not used]   | RDI | [not used]
+    // X5     | [not used]   | RSI | d_bias
+    // X6     | [not used]   | RBP | d_weights
+    // X7     | [not used]   | RSP | <stack pointer>
     // X8     | [not used]   | R8  | src ptr
     // X9     | work amount  | R9  | src ptr
-    // X10    | dst ptr      | R10 | src ptr
-    // X11    | src ptr      | R11 | src ptr
-    // X12    | src ptr      | R12 | src ptr
-    // X13    | src ptr      | R13 | src ptr
-    // X14    | src ptr      | R14 | src ptr
-    // X15    | src ptr      | R15 | temporary
-    // X16    | src ptr
-    // X17    | src ptr
-    // X18-24 | [not used]
-    // X25    | temporary
-    // X26    | temporary
-    // X27-30 | [not used]
+    // X10    | [not used]   | R10 | src ptr
+    // X11    | [not used]   | R11 | src ptr
+    // X12    | [not used]   | R12 | src ptr
+    // X13    | [not used]   | R13 | src ptr
+    // X14    | [not used]   | R14 | src ptr
+    // X15    | [not used]   | R15 | temporary
+    // X16    | [not used]
+    // X17    | [not used]
+    // X18    | [not used: Apple: The platforms reserve register x18. Don't use this register.]
+
+    // ABI: X19-28: Callee-saved registers
+    // X19    | dst ptr
+    // X20    | src ptr
+    // X21    | src ptr
+    // X22    | src ptr
+    // X23    | src ptr
+    // X24    | src ptr
+    // X25    | src ptr
+    // X26    | src ptr
+    // X27    | temporary
+    // X28    | temporary
+
+    // X29    | [not used: The Frame Pointer (FP)]
+    // X30    | [not used: The Link Register (LR)]
+    // X31    | [not used: The Stack Pointer (SP)]
 
     const XReg reg_work_amount = x9;
-    const XReg reg_dst = x10;
+    const XReg reg_dst = x19;
 
     inline XReg get_src_reg(uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             IE_THROW(Unexpected) << "source vector ptr register " << idx << " is not supported";
         }
-        return XReg(11 + idx);
+        return XReg(20 + idx);
+    }
+
+    inline XReg get_aux_gpr(const uint32_t idx) {
+        if (idx > 2) {
+            IE_THROW(Unexpected) << "aux gpr register " << idx << " is not supported";
+        }
+        return XReg(27 + idx);
     }
 
     // Vector registers mapping
-    // A64/X64 | function
+    // A64     | function
     // =======================
-    // 0       | [not used]
-    // 01      | srs
-    // 02      | srs
-    // 03      | srs
-    // 04      | srs
-    // 05      | srs
-    // 06      | srs
-    // 07      | srs
-    // 08      | srs
+    // 00-08   | [not used]
     // 09      | dst
     // 10      | aux
     // 11      | aux
-    // 12      | d_weights
-    // 13      | d_bias
-    // 14      | [not used]
-    // 15      | zero
-    // 16 - 30 | [not used]
+    // 12-15   | [not used]
+    // 16      | src
+    // 17      | src
+    // 18      | src
+    // 19      | src
+    // 20      | src
+    // 21      | src
+    // 22      | src
+    // 23-31   | [not used]
+
 
     TReg vmm_dst {9};
 
@@ -193,13 +210,6 @@ private:
             IE_THROW(Unexpected) << "aux vector register " << idx << " is not supported";
         }
         return TReg(10 + idx);
-    }
-
-    inline XReg get_aux_gpr(const uint32_t idx) {
-        if (idx > 2) {
-            IE_THROW(Unexpected) << "aux gpr register " << idx << " is not supported";
-        }
-        return XReg(25 + idx);
     }
 
     void load_vector(const TReg& data,
