@@ -355,7 +355,9 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
                                                  : jit_emitter(h, isa) {
     using PortDescriptorPtr = snippets::lowered::PortDescriptorPtr;
     const auto& node = expr->get_node();
-    const auto& tpp_node = std::dynamic_pointer_cast<tpp::op::BinaryEltwiseTPP>(node);
+    const auto& tpp_node = std::dynamic_pointer_cast<tpp::op::EltwiseTPP>(node);
+    const auto& tpp_op_type = tpp_node->get_libxsmm_op_type();
+
     OPENVINO_ASSERT(tpp_node, "BinaryEltwiseTppEmitter invoked with invalid node type");
     const auto& dtype_in0 = ov_to_xsmm_dtype(node->get_input_element_type(0));
     const auto& dtype_in1 = ov_to_xsmm_dtype(node->get_input_element_type(1));
@@ -391,23 +393,6 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
     const auto M_in0 = static_cast<libxsmm_blasint>(*++subtensor_in0.rbegin());
     const auto N_in1 = static_cast<libxsmm_blasint>(*subtensor_in1.rbegin());
     const auto M_in1 = static_cast<libxsmm_blasint>(*++subtensor_in1.rbegin());
-
-    // TODO: move LDA params to node fields and set them in a pass (validation pass?)
-    auto get_lda = [&](std::set<snippets::lowered::ExpressionPort> connected_ports) {
-        size_t LDA = 0;
-        for (const auto& port : connected_ports) {
-            if (const auto& buf = ov::as_type_ptr<snippets::op::Buffer>(port.get_expr()->get_node())) {
-                OPENVINO_ASSERT(LDA == 0, "Only one Buffer can be connected to TPP Eltwise");
-                LDA = buf->get_allocation_shape().back();
-            } else if (ov::is_type<ov::op::v0::Parameter>(port.get_expr()->get_node()) ||
-                       ov::is_type<ov::op::v0::Result>(port.get_expr()->get_node())) {
-                const size_t new_LDA = port.get_descriptor_ptr()->get_shape().back();
-                OPENVINO_ASSERT(LDA == 0 || LDA == new_LDA, "Incompatible leading dimensions detected");
-                LDA = new_LDA;
-            }
-        }
-        return LDA;
-    };
 
     std::pair<bool, bool> n_bcast_flags, m_bcast_flags;
     const auto N = get_broadcasted_dim(N_in0, N_in1, n_bcast_flags);
