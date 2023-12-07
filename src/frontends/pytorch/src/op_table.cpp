@@ -186,6 +186,7 @@ OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
+OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_sub);
@@ -230,6 +231,7 @@ OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
+OP_CONVERTER(translate_max_dim);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
 OP_CONVERTER(translate_slice_fx);
@@ -588,6 +590,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
 const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
     return {
         {"aten._adaptive_avg_pool2d.default", op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>},
+        {"aten::_log_softmax.default", op::translate_log_softmax},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::skip_node},
         {"aten._unsafe_view.default", op::translate_reshape},
@@ -633,6 +636,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.lt.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten.masked_fill_.Scalar", op::inplace_op<op::translate_masked_fill>},
         {"aten.masked_fill.Tensor", op::translate_masked_fill},
+        {"aten.max.dim", op::translate_max_dim},
         {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten.mean.dim", op::translate_mean},
         {"aten.mm.default", op::translate_1to1_match_2_inputs<opset10::MatMul>},
@@ -644,6 +648,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
         {"aten.native_layer_norm.default", op::translate_layer_norm_fx},
         {"aten.neg.default", op::translate_neg},
+        {"aten.new_full.default", op::translate_new_full},
         {"aten.new_ones.default", op::translate_new_ones},
         {"aten.permute.default", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten.pow.Tensor_Scalar", op::translate_pow},
@@ -658,6 +663,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.sin.default", op::translate_1to1_match_1_inputs<opset10::Sin>},
         {"aten.slice.Tensor", op::translate_slice_fx},
         {"aten.split.Tensor", op::translate_chunk_fx},
+        {"aten.squeeze.dim", op::quantizable_op<op::translate_squeeze>},
+        {"aten.stack.default", op::translate_stack},
         {"aten.sub.default", op::translate_sub},
         {"aten.sub.Tensor", op::translate_sub},
         {"aten.t.default", op::translate_t},
