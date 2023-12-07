@@ -1,5 +1,4 @@
 #include "common_op_table.hpp"
-#include "utils.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/select.hpp"
 
