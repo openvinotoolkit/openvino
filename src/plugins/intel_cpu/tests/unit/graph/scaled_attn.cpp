@@ -27,7 +27,12 @@
 
 using namespace ov::intel_cpu;
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 126975
+TEST(ScaledAttnGraphTest, DISABLED_smoke_Check_Scaled_Concat_Noplace) {
+#else
 TEST(ScaledAttnGraphTest, smoke_Check_Scaled_Concat_Noplace) {
+#endif
     auto build_graph = [](const ov::Shape& shape, float* qkv_val, float* past_kv_val) {
         auto qkv = ov::op::v0::Constant::create(ov::element::f32, shape, qkv_val);
         qkv->set_friendly_name("qkv_const");
