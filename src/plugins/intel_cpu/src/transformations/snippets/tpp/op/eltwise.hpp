@@ -9,6 +9,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
 
 #include "libxsmm_typedefs.h"
 
@@ -18,12 +19,28 @@ namespace tpp {
 namespace op {
 using AutoBroadcastSpec = ov::op::AutoBroadcastSpec;
 using AutoBroadcastType = ov::op::AutoBroadcastType;
-class BinaryEltwiseTPP : public modifier::TensorProcessingPrimitive {
+
+class EltwiseTPP : public modifier::TensorProcessingPrimitive {
 public:
-    BinaryEltwiseTPP();
+    EltwiseTPP();
     static bool is_supported(const std::shared_ptr<ov::Node>& node);
-    virtual libxsmm_meltw_binary_type get_op_type() const = 0;
     bool visit_attributes(AttributeVisitor& visitor);
+};
+
+class BinaryEltwiseTPP : public EltwiseTPP {
+public:
+    BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type) : m_op_type(op_type) {}
+    libxsmm_meltw_binary_type get_op_type() const { return m_op_type; }
+private:
+    libxsmm_meltw_binary_type m_op_type;
+};
+
+class UnaryEltwiseTPP : public EltwiseTPP {
+public:
+    UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type) : m_op_type(op_type) {}
+    libxsmm_meltw_unary_type get_op_type() const { return m_op_type; }
+private:
+    libxsmm_meltw_unary_type m_op_type;
 };
 
 class Add : public BinaryEltwiseTPP, public ov::op::v1::Add {
@@ -32,9 +49,6 @@ public:
     Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    libxsmm_meltw_binary_type get_op_type() const override {
-        return libxsmm_meltw_binary_type::LIBXSMM_MELTW_TYPE_BINARY_ADD;
-    }
 };
 
 class Subtract : public BinaryEltwiseTPP, public ov::op::v1::Subtract {
@@ -43,9 +57,6 @@ public:
     Subtract(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    libxsmm_meltw_binary_type get_op_type() const override {
-        return libxsmm_meltw_binary_type::LIBXSMM_MELTW_TYPE_BINARY_SUB;
-    }
 };
 
 class Multiply : public BinaryEltwiseTPP, public ov::op::v1::Multiply {
@@ -54,9 +65,6 @@ public:
     Multiply(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    libxsmm_meltw_binary_type get_op_type() const override {
-        return libxsmm_meltw_binary_type::LIBXSMM_MELTW_TYPE_BINARY_MUL;
-    }
 };
 
 class Divide : public BinaryEltwiseTPP, public ov::op::v1::Divide {
@@ -65,9 +73,14 @@ public:
     Divide(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    libxsmm_meltw_binary_type get_op_type() const override {
-        return libxsmm_meltw_binary_type::LIBXSMM_MELTW_TYPE_BINARY_DIV;
-    }
+};
+
+class Exp : public UnaryEltwiseTPP, public ov::op::v0::Exp {
+public:
+    OPENVINO_OP("Exp", "TppOpset", ov::op::v0::Exp);
+    Exp(const Output<Node>& arg);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 } // namespace op

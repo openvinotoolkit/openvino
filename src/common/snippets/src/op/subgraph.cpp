@@ -436,6 +436,8 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
+    linear_ir.serialize("snsdebug_linear_0.xml", "snsdebug_linear_0.xml");
+
     PassPipeline pipeline;
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     // TODO: remove SoftmaxDecomposition pass

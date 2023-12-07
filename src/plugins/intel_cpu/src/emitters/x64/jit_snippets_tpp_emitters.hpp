@@ -69,31 +69,51 @@ private:
     std::vector<size_t> io_data_size {};
 };
 
-class BinaryEltwiseTppEmitter : public jit_emitter {
+class EltwiseTppEmitter : public jit_emitter {
 public:
-    BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    EltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr);
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
-    size_t get_inputs_num() const override { return 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
-    static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 //    size_t aux_gprs_count() const override;
     static libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type);
 
-private:
+protected:
     using jit_emitter::emit_code;
-    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
+    virtual void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const  = 0;
+    static ov::snippets::VectorDims get_projected_subtensor(const snippets::lowered::PortDescriptorPtr& desc);
+
+    virtual uintptr_t get_execute_funcion_ptr() const = 0;
+    virtual uintptr_t get_compiled_kernel_ptr() const = 0;
+
+    std::vector<size_t> io_offsets{};
+    std::vector<libxsmm_datatype> io_dtypes{};
+    // Note: almost all emitters use fp32 for internal compulations
+    const libxsmm_datatype dtype_comp {LIBXSMM_DATATYPE_F32};
+    // aka leading dimensions
+    std::vector<size_t> io_strides{};
+    std::vector<snippets::lowered::PortDescriptorPtr> io_port_descriptors{};
+};
+
+class BinaryEltwiseTppEmitter : public EltwiseTppEmitter {
+public:
+    BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                            dnnl::impl::cpu::x64::cpu_isa_t isa,
+                            const ov::snippets::lowered::ExpressionPtr& expr);
+    size_t get_inputs_num() const override { return 2; }
+    static void execute_binary_eltw_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
+    uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_binary_eltw_kernel); }
+    uintptr_t get_compiled_kernel_ptr() const override { return reinterpret_cast<uintptr_t>(libxsmm_kernel); }
+
+protected:
+    libxsmm_meltwfunction_binary libxsmm_kernel;
+    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     static void execute_libxsmm_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
-    struct libxsmm_meltw_binary_cfg {
-        libxsmm_meltw_binary_shape shape;
-        libxsmm_meltw_binary_type op_type{LIBXSMM_MELTW_TYPE_BINARY_NONE};
-        libxsmm_bitfield flags{LIBXSMM_MELTW_FLAG_BINARY_NONE};
-    } libxsmm_cfg;
-    std::array<size_t, 3> io_offsets{};
+    static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 };
 
 }   // namespace intel_cpu
