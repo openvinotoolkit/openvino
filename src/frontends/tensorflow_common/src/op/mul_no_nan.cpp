@@ -1,6 +1,5 @@
 #include "common_op_table.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
+#include "utils.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/select.hpp"
 
@@ -18,15 +17,14 @@ OutputVector translate_mul_no_nan_op(const NodeContext& node) {
     auto x = node.get_input(0);
     auto y = node.get_input(1);
 
-    // prepare zero constants of the same type as the inputs
-    auto zero = make_shared<v0::Constant>(element::f32, Shape{}, 0.0f)->output(0);
-    zero = make_shared<v1::ConvertLike>(zero, y);
+    // prepare zero constant of the same type as the inputs
+    auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
 
     // get mask where y equals 0
-    auto is_zero = make_shared<v1::Equal>(y, zero);
+    auto is_zero = make_shared<v1::Equal>(y, const_zero);
 
     // replace all values in x at is_zero mask with zeros
-    auto x_zeros = make_shared<v1::Select>(is_zero, zero, x);
+    auto x_zeros = make_shared<v1::Select>(is_zero, const_zero, x);
 
     // multiply y with the updated x
     auto mul_no_nan = make_shared<v1::Multiply>(x_zeros, y);
