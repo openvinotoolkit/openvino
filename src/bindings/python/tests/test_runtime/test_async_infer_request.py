@@ -328,7 +328,3 @@ def test_shared_memory_deprecation(device, shared_flag):
     with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
         queue.start_async(input_data, shared_memory=shared_flag)
     queue.wait_all()
-
-
-
-
