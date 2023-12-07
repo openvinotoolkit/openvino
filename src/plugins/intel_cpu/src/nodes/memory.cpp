@@ -548,6 +548,7 @@ void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
 
     // Since this is a very specialized implementation, lets mimic SDPA precision and set cabd layout
     precision = SDPA->getOriginalInputPrecisionAtPort(childPort);
+   // Just used a place holder here, the actual layout is obtained at initOptimalPrimitiveDescriptor
     ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
 
     PortConfig outPortConfig;
@@ -582,8 +583,9 @@ void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
         " failed initOptimalPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selectedPd->getConfig();
-    auto memDesc = config.outConfs.front().getMemDesc();
-    auto newMemDesc = memDesc->cloneWithNewPrecision(childPrecision);
+    // The pyscial layout varies from models, e.g. [LBHS]chatglm, [BHLS]Llama
+    // The SDPA knows details info, so should trust the layout config provided by SPDA
+    auto newMemDesc = childPd->getConfig().outConfs.back().getMemDesc();
     config.outConfs.front().setMemDesc(newMemDesc);
     //bypass any checks, we enforce the child descriptor precision
     selectedPd->setConfig(config);
