@@ -134,7 +134,7 @@ OPENVINO_API void infer_auto_padding(const Shape& image_shape,
 /// \param output Node output pointing to the tensor for estimation.
 /// \param pshape Resulting estimation would be stored in this PartialShape.
 ///
-/// \return True if evaluation was successful.
+/// \return True if estimations evaluation was successful, false otherwise.
 OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
 
 /// \brief Propagates value label from 0 input to the only output through an operation. Not applicable for operations
@@ -144,7 +144,7 @@ OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialS
 /// \param node Operation to be performed
 /// \param output_labels Vector of TensorLabel objects representing resulting value labels
 ///
-/// \return True if label evaluation was successful.
+/// \return True if label evaluation was successful, false otherwise.
 OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
 
 /// \brief Generates default order of axes transposition at the end of input vector.
@@ -154,5 +154,15 @@ OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& o
 /// \param axes_order  Vector where default order will be generated.
 /// \param length      Sequence length of axes order.
 OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_order, size_t length);
+
+/// \brief Checks whether axes order has valid values.
+///
+/// Axes order has to be a set of unique numbers in range [0, size).
+///
+/// \param axes_order  Vector with axes order to check.
+/// \param size        Input for transpose rank size.
+///
+/// \return True if axes order is valid, false otherwise.
+OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, size_t size);
 }  // namespace util
 }  // namespace ov

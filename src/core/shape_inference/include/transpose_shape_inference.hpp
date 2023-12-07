@@ -29,14 +29,12 @@ TRShape calc_output_shape(const Transpose* const op, const T& input_shape, std::
     if (axes_order.empty()) {
         ov::util::generate_transpose_default_order(axes_order, output_rank);
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         NODE_VALIDATION_CHECK(op,
-                              is_valid_axes_order(axes_order, output_rank),
+                              ov::util::is_valid_axes_order(axes_order, output_rank),
                               "Permutation ",
                               AxisVector(axes_order.begin(), axes_order.end()),
                               " is not valid for input shape ",
                               input_shape);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     TRShape output_shape;

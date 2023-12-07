@@ -1070,7 +1070,7 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    return default_label_evaluator(node, {0}, output_labels);
+    return ov::util::default_label_evaluator(node, output_labels);
 }
 
 std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<Node>& source) {
@@ -1082,13 +1082,11 @@ bool ov::has_no_labels(const ov::TensorLabel& labels) {
 }
 
 void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
-    axes_order.reserve(length);
-    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+    ov::util::generate_transpose_default_order(axes_order, length);
 }
 
 bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return util::are_unique(axes_order) &&
-           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+    return ov::util::is_valid_axes_order(axes_order, size);
 }
 
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
@@ -1488,6 +1486,11 @@ bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels)
 void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
     axes_order.reserve(axes_order.size() + length);
     std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return are_unique(axes_order) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 }  // namespace util
 }  // namespace ov
