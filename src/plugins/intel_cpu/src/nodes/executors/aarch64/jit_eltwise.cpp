@@ -49,6 +49,7 @@ bool JitEltwiseExecutor::isSupported(
     };
 
     const std::set<ov::element::Type> supported_precisions = {
+        ov::element::f16,
         ov::element::f32
     };
 
