@@ -335,10 +335,12 @@ def constant(
 
 
 @unary_op
-def result(data: Node, name: Optional[str] = None) -> Node:
+def result(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which represents an output of a graph (Model).
 
     :param data: The tensor containing the input data
     :return: Result node
     """
-    return Result(data.output(0))
+    if isinstance(data, Node):
+        return Result(data.output(0))
+    return Result(data)
