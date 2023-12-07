@@ -112,7 +112,7 @@
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
-#include "transformations/cpu_opset/common/pass/stateful_sdp_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -661,7 +661,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
     postLPTPassManager.run_passes(model);
 }
 
