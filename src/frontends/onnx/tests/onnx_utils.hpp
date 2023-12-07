@@ -33,6 +33,8 @@ extern const std::string ONNX_FE;
 // A wrapper to create ONNX Frontend and configure the conversion pipeline
 std::shared_ptr<ov::Model> convert_model(const std::string& model_path,
                                          const ov::frontend::ConversionExtensionBase::Ptr& conv_ext = nullptr);
+// A wrapper to create ONNX Frontend and configure the conversion pipeline
+std::shared_ptr<ov::Model> convert_model(std::ifstream& model_stream);
 // A wrapper to create ONNX Frontend and configure the conversion pipeline to get
 // a model with possible Framework Nodes
 std::shared_ptr<ov::Model> convert_partially(const std::string& model_path);

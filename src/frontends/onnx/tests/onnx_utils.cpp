@@ -62,6 +62,26 @@ shared_ptr<Model> convert_model(const string& model_path, const ov::frontend::Co
     return model;
 }
 
+shared_ptr<Model> convert_model(ifstream& model_stream) {
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr front_end = fem.load_by_framework(ONNX_FE);
+    if (!front_end) {
+        throw "ONNX FrontEnd is not initialized";
+    }
+
+    InputModel::Ptr input_model = front_end->load(dynamic_cast<istream*>(&model_stream));
+    if (!input_model) {
+        throw "Input Model is not loaded";
+    }
+
+    shared_ptr<Model> model = front_end->convert(input_model);
+    if (!model) {
+        throw "Model is not converted";
+    }
+
+    return model;
+}
+
 shared_ptr<Model> convert_partially(const string& model_path) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr front_end = fem.load_by_framework(ONNX_FE);
