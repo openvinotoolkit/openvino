@@ -117,7 +117,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
           show-cache-info: 'true'
 
       - name: Install python dependencies
@@ -151,7 +150,8 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
-            -DTHREADING=SEQ \
+            -DTHREADING=TBB \
+            -DENABLE_SYSTEM_TBB=OFF \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -197,6 +197,7 @@ jobs:
           popd
 
       - name: Build Debian packages
+        if: ${{ 'false' }}
         run: |
           /usr/bin/python3.8 -m pip install -U pip
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
@@ -240,7 +241,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino debian packages
-        if: ${{ always() }}
+        if: ${{ 'false' }}
         uses: actions/upload-artifact@v3
         with:
           name: openvino_debian_packages
@@ -268,6 +269,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
+    if: ${{ 'false' }}
 
     steps:
       - name: Download OpenVINO debian packages
@@ -358,7 +360,6 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'true'
 
       - name: Build cpp samples - GCC
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -1241,7 +1242,6 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1322,7 +1322,6 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1416,7 +1415,6 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
