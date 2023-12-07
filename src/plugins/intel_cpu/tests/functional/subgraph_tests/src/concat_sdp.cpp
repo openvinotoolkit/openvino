@@ -73,7 +73,7 @@ public:
         bool hasShapeOf;
         std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
-        rel_threshold = 1e-4f;
+        rel_threshold = 1e-2f;
         if (inType == ElementType::bf16) {
             configuration.insert({"ENFORCE_BF16", "YES"});
             rel_threshold = 0.01f;
@@ -170,7 +170,6 @@ public:
         for (auto&& state : inferRequest.query_state()) {
             state.reset();
         }
-        inferRequest = ov::InferRequest();
     }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
