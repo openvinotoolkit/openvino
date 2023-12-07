@@ -52,11 +52,11 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
 
   As the name suggests, a model in this state consists of one or more files that fully represent the neural network. As OpenVINO not only supports their proprietary format but also other frameworks, how a model is stored can vary. For example:
 
-    * OpenVINO IR: pair of .xml and .bin files
-    * ONNX: .onnx file
-    * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
-    * TensorFlow Lite: .tflite file
-    * PaddlePaddle: .pdmodel file
+   * OpenVINO IR: pair of .xml and .bin files
+   * ONNX: .onnx file
+   * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
+   * TensorFlow Lite: .tflite file
+   * PaddlePaddle: .pdmodel file
 
 * Loaded but not compiled
 
@@ -105,7 +105,7 @@ Also note that even though files from frameworks such as TensorFlow can be used 
 TensorFLow Import Options
 ##############################################
 
-OpenVINO’s direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. See Other considerations for more details.
+OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. See Other considerations for more details.
 
 
 TF flow image
@@ -190,7 +190,7 @@ The code below shows how to convert a model with ovc and then load it for infere
 PyTorch Import Options
 ##############################################
 
-OpenVINO’s direct support of PyTorch allows developers to use their models in an OpenVINO inference pipeline without changes. OpenVINO provides multiple ways of using PyTorch, so it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. See Other considerations for more details.
+OpenVINO direct support of PyTorch allows developers to use their models in an OpenVINO inference pipeline without changes. OpenVINO provides multiple ways of using PyTorch, so it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. See Other considerations for more details.
 
 PT image
 

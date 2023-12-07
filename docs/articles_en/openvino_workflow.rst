@@ -15,7 +15,6 @@ OpenVINO Workflow
    :hidden:
 
    Model Preparation <openvino_docs_model_processing_introduction>
-   Model Preparation draft <openvino_docs_model_processing_introduction_draft>
    Model Optimization and Compression <openvino_docs_model_optimization_guide>
    Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
    Deployment on a Local System  <openvino_deployment_guide>
