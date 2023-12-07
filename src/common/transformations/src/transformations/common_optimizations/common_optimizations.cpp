@@ -113,6 +113,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/op_conversions/lstmsequence_to_multilstmsequence_fusion.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -140,6 +141,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
     ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
     ADD_MATCHER(common_fusions, ReduceMerge)
+    ADD_MATCHER(common_fusions, LSTMSequenceToMultiLSTMSequenceFusion)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     manager.register_pass<ConcatReduceFusion>();
