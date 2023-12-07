@@ -173,7 +173,7 @@ __is_test_config__ = True
 2. Add the test class inheriting pipelines.pipeline_base_classes.common_base_class.CommonConfig with attribute `__is_test_config__ = True` to the file. Add to class following `__init__` method:
     
     ```python
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
     ```
 3. Add reference pipeline 
     * `ref_pipeline` is test class method that is responsible for preprocessing and getting the output of the reference model. The function returns `OrderedDict` with info required to process ref model.  

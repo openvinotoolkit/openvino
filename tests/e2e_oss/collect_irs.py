@@ -21,8 +21,7 @@ def _add_ir_to_html_report(xml, record_property):
         record_property("ir_link", ir_http_path)
 
 
-def test_collect_irs(instance, pregen_irs, record_property, use_mo_legacy_frontend, use_mo_new_frontend, skip_mo_args,
-                     prepare_test_info, copy_input_files):
+def test_collect_irs(instance, pregen_irs, record_property, skip_mo_args, prepare_test_info, copy_input_files):
     """ Collect IRs for models and prepare CSV-formatted mapping file for simple navigating and IRs reuse.
     :param instance: test instance
     :param pregen_irs: custom fixture. Provides path to a CSV-formatted file with IRs mapping
@@ -40,10 +39,10 @@ def test_collect_irs(instance, pregen_irs, record_property, use_mo_legacy_fronte
     irs_mapping = {}
     if irs_mapping_path.exists():
         irs_mapping = read_irs_mapping_file(irs_mapping_path, lock_access=True)
-    instance.required_params = {"sequence_length": instance.sequence_length} if type(instance.sequence_length) == int else {}
+    instance.required_params = {"sequence_length": instance.sequence_length} if type(
+        instance.sequence_length) == int else {}
     ir_tag = get_ir_tag(instance.__class__.__name__, ir_version, instance.precision,
-                        instance.batch, instance.required_params.get("sequence_length", None), use_mo_legacy_frontend,
-                        use_mo_new_frontend, skip_mo_args)
+                        instance.batch, instance.required_params.get("sequence_length", None))
     if ir_tag in irs_mapping:
         log.info("Record is already in mapping file: {}. Skipping test ...".format({ir_tag: irs_mapping[ir_tag]}))
         _add_ir_to_html_report(irs_mapping[ir_tag][2], record_property)
@@ -56,7 +55,7 @@ def test_collect_irs(instance, pregen_irs, record_property, use_mo_legacy_fronte
         log.info("No step for IR generation, skipping test ...")
         return
 
-    if "mo" not in instance.ie_pipeline["get_ir"].keys():
+    if "get_ovc_model" not in instance.ie_pipeline["get_ir"].keys():
         if "pregenerated" in instance.ie_pipeline["get_ir"]:
             log.info("Reuse already pre-generated IR. Copying files ...")
             irs_mapping[ir_tag] = [True, None]
@@ -79,7 +78,6 @@ def test_collect_irs(instance, pregen_irs, record_property, use_mo_legacy_fronte
         # reuse IR with batch == 1 and change batch via IE
         ref_ir_tag = get_ir_tag(instance.__class__.__name__, ir_version, instance.precision,
                                 batch=1, sequence_length=instance.required_params.get("sequence_length", None),
-                                use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                                 skip_mo_args=skip_mo_args)
         log.info("Trying to reuse IR with tag '{}'".format(ref_ir_tag))
         if ref_ir_tag in irs_mapping:
@@ -95,22 +93,15 @@ def test_collect_irs(instance, pregen_irs, record_property, use_mo_legacy_fronte
         }
     else:
         get_ir_pipeline = {"get_ir": instance.ie_pipeline["get_ir"]}
-    get_ir_pipeline["get_ir"]["mo"].update({"mo_out": instance.environment["pregen_irs_path"],
-                                            "target_ir_name": ir_tag,
-                                            "use_mo_cmd_tool": instance.use_mo_cmd_tool})
-
-    if use_mo_legacy_frontend:
-        instance.ie_pipeline["get_ir"]["mo"]["additional_args"].update({"use_legacy_frontend": True})
-
-    if use_mo_new_frontend:
-        instance.ie_pipeline["get_ir"]["mo"]["additional_args"].update({"use_new_frontend": True})
+    get_ir_pipeline["get_ir"]["get_ovc_model"].update({"mo_out": instance.environment["pregen_irs_path"],
+                                                       "target_ir_name": ir_tag})
 
     if skip_mo_args:
-        mo_additional_args = get_ir_pipeline['get_ir']['mo'].get('additional_args', {})
+        mo_additional_args = get_ir_pipeline['get_ir']['get_ovc_model'].get('additional_args', {})
         if mo_additional_args:
-            get_ir_pipeline['get_ir']['mo']['additional_args'] = remove_mo_args_oob(skip_mo_args,
-                                                                                    mo_additional_args,
-                                                                                    get_ir_pipeline)
+            get_ir_pipeline['get_ir']['get_ovc_model']['additional_args'] = remove_mo_args_oob(skip_mo_args,
+                                                                                               mo_additional_args,
+                                                                                               get_ir_pipeline)
 
     exe_pipeline = Pipeline(get_ir_pipeline)
     try:

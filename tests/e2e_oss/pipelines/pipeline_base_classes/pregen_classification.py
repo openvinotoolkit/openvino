@@ -31,7 +31,7 @@ class Pregenerated_classification_base(CommonConfig):
     model_env_key = "models"
     align_results = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += (mark("classification", is_simple_mark=True),
                                   mark("pregenerated", is_simple_mark=True),
                                   mark("downloader", is_simple_mark=True))
@@ -42,7 +42,7 @@ class Pregenerated_classification_base(CommonConfig):
             read_npz_input(path=self.input_file),
             assemble_preproc_caffe(batch=batch, h=self.h, w=self.w, **self.preproc),
             ir_pregenerated(xml=self.xml),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = classification_comparators(postproc=parse_classification(),
                                                       precision=precision, device=device)
@@ -53,9 +53,9 @@ class Pregenerated_classification_downloader(Pregenerated_classification_base):
         Base class for E2E test classes. Used for pregenerated models from Model Downloader.
         """
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         assert self.model_env_key == "models", "This class is intended only for models from Model Downloader"
         self.ref_file = ref_from_model(model_name=self.model, framework="ie")
         self.xml = search_model_path_recursively(config_key="models",
                                                  model_name=os.path.join(precision, self.model + '.xml'))
-        super().__init__(batch, device, precision, api_2, **kwargs)
+        super().__init__(batch, device, precision, **kwargs)

@@ -26,8 +26,8 @@ from utils.e2e.comparator.container import ComparatorsContainer
 pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 
 
-def test_compare_onnx_ir(instance, pregen_irs, record_property, use_mo_legacy_frontend, use_mo_new_frontend,
-                         prepare_test_info, inference_precision_hint):
+def test_compare_onnx_ir(instance, pregen_irs, record_property, prepare_test_info, inference_precision_hint):
+
     """Parameterized test.
 
     :param instance: test instance
@@ -43,15 +43,6 @@ def test_compare_onnx_ir(instance, pregen_irs, record_property, use_mo_legacy_fr
 
     ir_version = "v11"
 
-    if next(iter(instance_ie_pipeline["get_ir"])) == "mo" and use_mo_legacy_frontend:
-        instance_ie_pipeline["get_ir"]["mo"]["additional_args"].update({"use_legacy_frontend": True})
-        prepare_test_info['pytestEntrypoint'] = 'Compare IR vs ONNX model inference results: legacy frontend'
-        if not instance.api_2:
-            prepare_test_info['pytestEntrypoint'] = 'Compare IR vs ONNX model inference results: legacy frontend old API'
-
-    if next(iter(instance_ie_pipeline["get_ir"])) == "mo" and use_mo_new_frontend:
-        instance_ie_pipeline["get_ir"]["mo"]["additional_args"].update({"use_new_frontend": True})
-
     if instance_ie_pipeline.get('infer'):
         instance_ie_pipeline = set_infer_precision_hint(instance, instance_ie_pipeline, inference_precision_hint)
 
@@ -60,8 +51,8 @@ def test_compare_onnx_ir(instance, pregen_irs, record_property, use_mo_legacy_fr
             log.info("Searching pre-generated IR in IR's mapping: {} ...".format(pregen_irs))
             irs_mapping = read_irs_mapping_file(pregen_irs)
             ir_tag = get_ir_tag(instance.__class__.__name__, ir_version, instance.precision,
-                                instance.batch, instance.required_params.get("sequence_length", None),
-                                use_mo_legacy_frontend, use_mo_new_frontend)
+                                instance.batch, instance.required_params.get("sequence_length", None))
+
             if ir_tag not in irs_mapping:
                 log.warning("IR with tag '{}' not found in IRs mapping. "
                             "IR will be generated in runtime ...".format(ir_tag))

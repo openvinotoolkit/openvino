@@ -2,6 +2,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 from e2e_oss.common_utils.openvino_resources import OpenVINOResources
+from e2e_oss.common_utils.pytest_utils import mark
 from e2e_oss.common_utils.tf_helper import TFVersionHelper
 from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from e2e_oss.pipelines.pipeline_templates.comparators_template import object_detection_comparators
@@ -10,7 +11,6 @@ from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_gene
 from e2e_oss.pipelines.pipeline_templates.postproc_template import parse_object_detection
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
 from e2e_oss.utils.path_utils import prepend_with_env_path, resolve_file_path, ref_from_model
-from e2e_oss.common_utils.pytest_utils import mark
 
 common_input_file = resolve_file_path("test_data/inputs/caffe/object_detection_voc_people.npz")
 
@@ -25,17 +25,13 @@ class TF_OD_Config(CommonConfig):
     json = ''  # mo tf custom operations config
     model_env_key = "models"
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        infer_api = 'ie_sync_api_2' if api_2 else 'ie_sync'
-        reshape_api = 'set_batch_using_reshape_api_2' if api_2 else 'set_batch'
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += (mark("object_detection", is_simple_mark=True),
                                   mark("od", is_simple_mark=True),
                                   mark("tf", is_simple_mark=True))
 
         model_path = prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version, self.model)
         preprocess_args = {'batch': batch, 'h': self.h, 'w': self.w, 'rename_inputs': [('data', 'image_tensor')]}
-        if not api_2:
-            preprocess_args.update({'permute_order': (2, 0, 1)})
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
@@ -56,9 +52,10 @@ class TF_OD_Config(CommonConfig):
                                  input_shape=(1, self.h, self.w, 3),
                                  tensorflow_object_detection_api_pipeline_config=pipeline_cfg,
                                  transformations_config=mo_cfg),
-            ('infer', {infer_api: {"device": device,
-                                   "network_modifiers": {reshape_api: {"batch": batch,
-                                                                       "target_layers": ["image_tensor"]}}}}),
+            ('infer', {'ie_sync': {"device": device,
+                                   "network_modifiers": {'set_batch_using_reshape': {"batch": batch,
+                                                                                     "target_layers": [
+                                                                                         "image_tensor"]}}}}),
         ])
         self.comparators = object_detection_comparators(postproc=parse_object_detection(), precision=precision,
                                                         device=device, p_thr=getattr(self, "p_thr", 0.5))

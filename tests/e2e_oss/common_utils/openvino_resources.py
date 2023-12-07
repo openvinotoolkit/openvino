@@ -121,80 +121,6 @@ class OpenVINOResources:
         )
 
     @property
-    def mo_runner(self):
-        """Return absolute path to Model Optimizer runner (mo)"""
-        return self._get_executable_from_os_path("mo_runner", "mo")
-
-    @property
-    def mo_py(self):
-        """Return absolute path to mo.py script"""
-        resource_name = "mo"
-
-        if os.getenv("OPENVINO_ROOT_DIR"):
-            if self._check_resource(
-                resource_name,
-                Path(os.getenv("OPENVINO_ROOT_DIR"))
-                / "tools"
-                / "mo"
-                / "openvino"
-                / "tools"
-                / "mo"
-                / "mo.py",
-            ):
-                return self._resources[resource_name]
-
-        raise OpenVINOResourceNotFound(
-            f"OpenVINO resource {resource_name} not found, "
-            f"OPENVINO_ROOT_DIR environment variable is not set."
-        )
-
-    @property
-    def mo_extensions(self):
-        """Return absolute path to Model Optimizer extensions"""
-        resource_name = "mo_extensions"
-
-        if self._resources.get(resource_name):
-            return self._resources[resource_name]
-
-        try:
-            # pylint: disable=import-outside-toplevel
-
-            # Import only when really called to avoid import errors when OpenVINOResources is
-            # imported but mo tool is absent on the system.
-            from openvino.tools import mo
-        except ImportError as exc:
-            raise OpenVINOResourceNotFound(f"OpenVINO resource {resource_name} not found") from exc
-
-        if self._check_resource(resource_name, Path(mo.__file__).parent):
-            return self._resources[resource_name]
-        raise OpenVINOResourceNotFound(f"OpenVINO resource {resource_name} not found")
-
-    @property
-    def benchmark_app(self):
-        """Return absolute path to python BenchmarkApp runner (benchmark_app.py)"""
-        return self._get_executable_from_os_path("benchmark_app", "benchmark_app")
-
-    @property
-    def benchmark_app_cpp(self):
-        """Return absolute path to C++ BenchmarkApp runner (benchmark_app[.exe])
-
-        Note: C++ BenchmarkApp is one of IE samples which are delivered to customer as source code
-        (not built executables), so look for c++ benchmark_app executable in ${OPENVINO_TESTS_DIR},
-        where samples built for tests purpose are located.
-        """
-        resource_name = "c++ benchmark_app"
-
-        if os.getenv("OPENVINO_TESTS_DIR"):
-            return self._get_executable_from_os_path(
-                resource_name, Path(os.getenv("OPENVINO_TESTS_DIR")) / "benchmark_app"
-            )
-
-        raise OpenVINOResourceNotFound(
-            f"OpenVINO resource {resource_name} not found, "
-            f"OPENVINO_TESTS_DIR environment variable is not set."
-        )
-
-    @property
     def omz_pytorch_to_onnx_converter(self):
         """Return absolute path to omz pytorch to onnx converter"""
         resource_name = "model_loader"
@@ -256,11 +182,6 @@ class OpenVINOResources:
         return self._get_executable_from_os_path("omz_quantizer", "omz_quantizer")
 
     @property
-    def accuracy_checker(self):
-        """Return absolute path to AccuracyChecker tool"""
-        return self._get_executable_from_os_path("accuracy_checker", "accuracy_check")
-
-    @property
     def pot(self):
         """Return absolute path to Post-training Optimization tool (pot)"""
         return self._get_executable_from_os_path("pot", "pot")
@@ -289,28 +210,6 @@ class OpenVINOResources:
             return self._resources[resource_name]
 
         raise OpenVINOResourceNotFound(f"OpenVINO resource {resource_name} not found")
-
-    @property
-    def compile_tool(self):
-        """Return absolute path to OpenVINO compile tool (compile_tool[.exe])"""
-        return self._get_executable_from_os_path("compile_tool", "compile_tool")
-
-    @property
-    def kaldi_tools_path(self):
-        """Return absolute path to kaldi tools installation directory
-
-        Assuming that kaldi tools are installed and install path is added to PATH try to resolve
-        absolute path to one of kaldi tools (e.g. latgen-faster-mapped), return parent directory if
-        found, raise exception otherwise.
-        """
-        # TODO: remove after adding to kaldi tools path to PATH in docker on Linux
-        if os.getenv("KALDI_APP_PATH"):
-            if self._check_resource("kaldi_tools_path", os.getenv("KALDI_APP_PATH")):
-                return self._resources["kaldi_tools_path"]
-
-        return self._get_executable_from_os_path(
-            "kaldi_latgen-faster-mapped", "latgen-faster-mapped"
-        ).parent
 
     def add_setupvars_cmd(self, cmd):
         """Return final command line with setupvars script"""

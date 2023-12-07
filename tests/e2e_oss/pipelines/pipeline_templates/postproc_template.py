@@ -68,22 +68,6 @@ def squeeze_and_parse_classification(axis=(2, 3), labels_offset=0):
     return [squeeze.unwrap(axis=axis), parse_classification.unwrap(labels_offset=labels_offset)]
 
 
-def assemble_postproc_mxnet(batch, align_with_batch_od=False, **kwargs):
-    """Add mxnet-specific postprocessing. Pass rest of arguments as is.
-
-    :return: "postprocess" step with MXNet specific actions
-    """
-    steps = []
-    if batch is not None and align_with_batch_od:
-        steps.append(("align_with_batch_od", {"batch": batch}))
-    elif batch is not None:
-        steps.append(("align_with_batch", {"batch": batch}))
-    for preproc, config in kwargs.items():
-        steps.append((preproc, config))
-
-    return "postprocess", dict(steps)
-
-
 def assemble_postproc_tf(batch=None, align_with_batch_od=False, **kwargs):
     """Add mxnet-specific postprocessing. Pass rest of arguments as is.
 
@@ -98,14 +82,6 @@ def assemble_postproc_tf(batch=None, align_with_batch_od=False, **kwargs):
         steps.append((preproc, config))
 
     return "postprocess", dict(steps)
-
-
-def parse_ie_scores_to_kaldi_format():
-    """Add kaldi-specific postprocessings.
-
-    :return: "postprocess" step with Kaldi specific actions
-    """
-    return "postprocess", {"parse_ie_scores_to_kaldi_format": {}}
 
 
 def paddlepaddle_od_postproc(target_layers=None):

@@ -3,8 +3,7 @@ import sys
 from copy import deepcopy
 
 from e2e_oss.utils.modify_configs import get_original_model_importer_pipeline_config
-from e2e_oss.utils.reshape_pipeline_executers import mo_pipeline_runner, ie_pipeline_runner, \
-    sbs_reshape_pipeline_runner
+from e2e_oss.utils.reshape_pipeline_executers import mo_pipeline_runner, ie_pipeline_runner
 from e2e_oss.utils.reshape_tests_utils import compare
 from e2e_oss.utils.test_utils import check_mo_precision, set_infer_precision_hint, timestamp
 
@@ -32,7 +31,7 @@ There are 3 fields that should be described for each input layer:
 pytest_plugins = ('e2e_oss.plugins.reshape_tests.conftest',)
 
 
-def test_reshape(instance, configuration, prepare_test_info, inference_precision_hint, use_mo_legacy_frontend):
+def test_reshape(instance, configuration, prepare_test_info, inference_precision_hint):
     test_name = instance.__class__.__name__
     instance_ie_pipeline = deepcopy(instance.ie_pipeline)
     reshape_pipelines = configuration.reshape_pair
@@ -43,12 +42,7 @@ def test_reshape(instance, configuration, prepare_test_info, inference_precision
     prepare_test_info['pytestEntrypoint'] = 'E2E: Reshape'
     prepare_test_info['inputsize'] = "__".join([f"{i}_{v}" for i, v in configuration.shapes.items()])
 
-    if not instance.api_2:
-        prepare_test_info['pytestEntrypoint'] += ' old API'
-        if next(iter(instance_ie_pipeline["get_ir"])) == "mo" and use_mo_legacy_frontend:
-            instance_ie_pipeline["get_ir"]["mo"]["additional_args"].update({"use_legacy_frontend": True})
-
-    supported_pipelines = ['MO', 'IE', 'IE_SBS']
+    supported_pipelines = ['MO', 'IE']
     assert all([reshape_pipeline in supported_pipelines for reshape_pipeline in reshape_pipelines]), \
         'Some of requested reshape pipelines is not supported, \nRequested pipelines: {}\n' \
         'Supported by tests: {}'.format(reshape_pipelines, supported_pipelines)
@@ -67,7 +61,7 @@ def test_reshape(instance, configuration, prepare_test_info, inference_precision
         if pipeline == 'MO':
             pipeline_runner = mo_pipeline_runner
         else:
-            pipeline_runner = ie_pipeline_runner if pipeline == 'IE' else sbs_reshape_pipeline_runner
+            pipeline_runner = ie_pipeline_runner
             if configuration.skip_ir_generation:
                 instance_ie_pipeline = get_original_model_importer_pipeline_config(instance_ie_pipeline)
 

@@ -4,11 +4,9 @@ import logging as log
 import os
 import platform
 import sys
-import time
 from pprint import pformat
 
 import numpy as np
-
 from e2e_oss.utils.test_utils import align_input_names, get_shapes_with_frame_size
 from e2e_oss.utils.test_utils import get_infer_result
 
@@ -20,9 +18,8 @@ except ImportError:
     mem_info_available = False
 
 from openvino.runtime import Core
-from openvino.inference_engine import IECore, get_version as ie_get_version
+from openvino.inference_engine import get_version as ie_get_version
 from e2e_oss.common_utils.multiprocessing_utils import multiprocessing_run
-from e2e_oss.utils.path_utils import resolve_file_path
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -40,6 +37,7 @@ def resolve_library_name(libname):
         return 'lib' + libname + '.dylib'
     return 'lib' + libname + '.so'
 
+
 def parse_device_name(device_name):
     device_name_ = device_name
     if "HETERO:" in device_name:
@@ -52,7 +50,7 @@ def parse_device_name(device_name):
         device_name_ = "BATCH"
     else:
         device_name_ = device_name
-    
+
     return device_name_
 
 
@@ -72,12 +70,6 @@ class Infer(ClassProvider):
         self.plugin_cfg_target_device = config.get("plugin_cfg_target_device", self.device)
         self.consecutive_infer = config.get("consecutive_infer", False)
         self.index_infer = config.get('index_infer')
-
-    def _configure_plugin(self, ie):
-        if self.plugin_cfg:
-            log.info("Setting config to the {} plugin. \nConfig:\n{}".format(self.plugin_cfg_target_device,
-                                                                             pformat(self.plugin_cfg)))
-            ie.set_config(self.plugin_cfg, self.plugin_cfg_target_device)
 
     def _get_thermal_metric(self, exec_net, ie):
         if "MYRIAD" in self.device:
@@ -105,72 +97,6 @@ class Infer(ClassProvider):
 
         else:
             return None
-
-    def _infer(self, input_data):
-        log.info("Using old API")
-        log.info("Inference Engine version: {}".format(ie_get_version()))
-        result, load_net_to_plug_time = None, None
-        if mem_info_available:
-            mem_usage_in_kbytes_before_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-
-        log.info("Creating IE Core Engine...")
-        ie = IECore()
-        self._configure_plugin(ie)
-
-        log.info("Loading network files")
-        if self.model_path:
-            net = ie.read_network(model=self.model_path)
-        else:
-            net = ie.read_network(model=self.xml, weights=self.bin)
-        self.network_modifiers.execute(network=net, input_data=input_data)
-
-        log.info("Loading network to the {} device...".format(self.device))
-        # Measure time of loading network to plugin
-        t_load_to_pl = time.time()
-        exec_net = ie.load_network(net, self.device)
-        load_net_to_plug_time = time.time() - t_load_to_pl
-
-        t0 = self._get_thermal_metric(exec_net=exec_net, ie=ie)
-        if t0 is not None:
-            log.info("{} device thermal metric before infer: \n{}".format(self.device, t0, 3))
-
-        log.info("Starting inference")
-        result = exec_net.infer(input_data)
-
-        t1 = self._get_thermal_metric(exec_net=exec_net, ie=ie)
-        if t1 is not None:
-            if isinstance(t1, list):
-                diff = [round(t - t0[i], 3) for i, t in enumerate(t1)]
-            else:
-                diff = round(t1 - t0, 3)
-            log.info("{} device thermal metric after infer: {}. \t\nHeating: {}".format(self.device, t1, diff))
-
-        if mem_info_available:
-            mem_usage_in_kbytes_after_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            mem_usage_ie = round((mem_usage_in_kbytes_after_run - mem_usage_in_kbytes_before_run) / 1024)
-        else:
-            mem_usage_ie = -1
-
-        if "exec_net" in locals():
-            del exec_net
-        if "ie" in locals():
-            del ie
-
-        return result, load_net_to_plug_time, mem_usage_ie
-
-    def infer(self, input_data):
-        self.res, self.load_net_to_plug_time, self.mem_usage_ie = \
-            multiprocessing_run(self._infer, [input_data], "Inference Engine Python API", self.timeout)
-
-        return self.res
-
-
-class InferAPI20(Infer):
-    """Basic inference engine runner."""
-    __action_name__ = "ie_sync_api_2"
-
-    def __init__(self, config):
-        super().__init__(config=config)
 
     def _configure_plugin(self, ie):
         if self.plugin_cfg:
@@ -243,69 +169,9 @@ class InferAPI20(Infer):
         return self.res
 
 
-class AsyncInfer(Infer):
-    """Basic inference engine runner."""
-    __action_name__ = "ie_async"
-
-    def __init__(self, config):
-        super().__init__(config)
-        self.nireq = config.get("num_requests", 2)
-        self.multi_image = config.get("multi_image", False)
-
-    def _infer(self, input_data):
-        if self.multi_image:
-            log.info("Multi-image mode enabled. Each request will be inferred with it's own input data.")
-            assert isinstance(input_data, list) and all([isinstance(data, dict) for data in input_data]), \
-                "For multi image scenario input_data has to be a list of dictionaries!"
-            assert len(input_data) >= self.nireq, \
-                "Len of input data has to be more or equal to number of infer requests!"
-        log.info("Inference Engine version: {}".format(ie_get_version()))
-
-        result = None
-        log.info("Creating IE Core Engine...")
-        ie = IECore()
-        self._configure_plugin(ie)
-
-        log.info("Loading network files")
-        net = ie.read_network(
-            model=str(resolve_file_path(self.xml)),
-            weights=str(resolve_file_path(self.bin)))
-        self.network_modifiers.execute(network=net)
-
-        log.info("Loading network to the {} device...".format(self.device))
-        exec_net = ie.load_network(network=net, device_name=self.device, num_requests=self.nireq)
-        t0 = self._get_thermal_metric(exec_net=exec_net, ie=ie)
-        if t0 is not None:
-            log.info("{} device thermal metric before infer: {}".format(self.device, t0))
-
-        log.info("Starting async inference for {} requests...".format(self.nireq))
-        for i in range(self.nireq):
-            input = input_data[i] if self.multi_image else input_data
-            exec_net.requests[i].async_infer(input)
-
-        while not all([req.wait(0) == 0 for req in exec_net.requests]):
-            pass
-        t1 = self._get_thermal_metric(exec_net=exec_net, ie=ie)
-        if t1 is not None:
-            if isinstance(t1, list):
-                diff = [round(t - t0[i], 3) for i, t in enumerate(t1)]
-            else:
-                diff = round(t1 - t0, 3)
-            log.info("{} device thermal metric after infer: {}. \t\nHeating: {}".format(self.device, t1, diff))
-
-        result = [req.outputs for req in exec_net.requests]
-
-        if "exec_net" in locals():
-            del exec_net
-        if "ie" in locals():
-            del ie
-
-        return result, -1, -1
-
-
-class SequenceInferenceAPI20(InferAPI20):
+class SequenceInference(Infer):
     """Sequence inference engine runner."""
-    __action_name__ = "ie_sequence_api_2"
+    __action_name__ = "ie_sequence"
 
     def __init__(self, config):
         super().__init__(config=config)
@@ -344,7 +210,7 @@ class SequenceInferenceAPI20(InferAPI20):
         new_input = []
         num_frames = max([input_data[key].shape[0] for key in input_data])
         input_data = {key: value if value.shape[0] == num_frames else np.tile(value, num_frames).reshape(num_frames, *(
-        list(value.shape)[1:])) for key, value in input_data.items()}
+            list(value.shape)[1:])) for key, value in input_data.items()}
         log.info("Total number of input frames: {}".format(num_frames))
 
         for current_frame_index in range(0, num_frames):
@@ -365,78 +231,6 @@ class SequenceInferenceAPI20(InferAPI20):
 
         if "exec_net" in locals():
             del compiled_model
-        if "ie" in locals():
-            del ie
-
-        return result, load_net_to_plug_time, mem_usage_ie
-
-
-class SequenceInference(Infer):
-    """Sequence inference engine runner."""
-    __action_name__ = "ie_sequence"
-
-    def _infer(self, input_data):
-        log.info("Using old API")
-        log.info("Inference Engine version: {}".format(ie_get_version()))
-        result, load_net_to_plug_time = None, None
-        if mem_info_available:
-            mem_usage_in_kbytes_before_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-
-        log.info("Creating IE Core Engine...")
-        ie = IECore()
-        self._configure_plugin(ie)
-
-        log.info("Loading network files")
-        if self.model_path:
-            net = ie.read_network(model=self.model_path)
-        else:
-            net = ie.read_network(model=self.xml, weights=self.bin)
-        self.network_modifiers.execute(network=net, input_data=input_data)
-
-        log.info("Loading network to the {} device...".format(self.device))
-        # Measure time of loading network to plugin
-        t_load_to_pl = time.time()
-        exec_net = ie.load_network(net, self.device)
-        load_net_to_plug_time = time.time() - t_load_to_pl
-
-        t0 = self._get_thermal_metric(exec_net=exec_net, ie=ie)
-        if t0 is not None:
-            log.info("{} device thermal metric before infer: \n{}".format(self.device, t0, 3))
-        # make input_data (dict) a list of frame feed dicts
-        for input_layer in input_data:
-            frame_size = exec_net.input_info[input_layer].input_data.shape
-            input_data[input_layer] = input_data[input_layer].reshape(-1, *frame_size)
-        num_frames = max([input_data[key].shape[0] for key in input_data])
-        input_data = {key: value if value.shape[0] == num_frames else np.tile(value, num_frames).reshape(num_frames, *(
-        list(value.shape)[1:])) for key, value in input_data.items()}
-        log.info("Total number of input frames: {}".format(num_frames))
-        result = []
-        log.info("Starting inference")
-        for frame in range(0, num_frames):
-            cur_frame_data = {key: value[frame] for key, value in input_data.items()}
-            infer_result = exec_net.infer(cur_frame_data)
-            result.append(infer_result)
-        # make result (list of infer result for each frame) a dict (each layer contains infer result for all frames)
-        result = {key: [value[key] for value in result] for key in result[0]}
-        result = {key: np.stack(values, axis=0).reshape(num_frames, *(list(values[0].shape[1:]))) for key, values in
-                  result.items()}
-
-        t1 = self._get_thermal_metric(exec_net=exec_net, ie=ie)
-        if t1 is not None:
-            if isinstance(t1, list):
-                diff = [round(t - t0[i], 3) for i, t in enumerate(t1)]
-            else:
-                diff = round(t1 - t0, 3)
-            log.info("{} device thermal metric after infer: {}. \t\nHeating: {}".format(self.device, t1, diff))
-
-        if mem_info_available:
-            mem_usage_in_kbytes_after_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            mem_usage_ie = round((mem_usage_in_kbytes_after_run - mem_usage_in_kbytes_before_run) / 1024)
-        else:
-            mem_usage_ie = -1
-
-        if "exec_net" in locals():
-            del exec_net
         if "ie" in locals():
             del ie
 

@@ -163,18 +163,6 @@ def pytest_addoption(parser):
         default=None
     )
     parser.addoption(
-        "--use_mo_legacy_frontend",
-        action="store_true",
-        help="Use legacy frontend API for model processing in MO",
-        default=False
-    )
-    parser.addoption(
-        "--use_mo_new_frontend",
-        action="store_true",
-        help="Use new frontend API for model processing in MO",
-        default=False
-    )
-    parser.addoption(
         "--skip_mo_args",
         help="List of args to remove from MO command line",
         required=False
@@ -214,12 +202,6 @@ def pytest_addoption(parser):
         '--inference_precision_hint',
         help='Inference Precision hint for device',
         required=False
-    )
-    parser.addoption(
-        "--use_mo_cmd_tool",
-        action="store_true",
-        help="Use MO command line tool to generate IR",
-        default=False
     )
     parser.addoption(
         "--convert_pytorch_to_onnx",
@@ -346,18 +328,6 @@ def dir_to_dump(request):
 
 
 @pytest.fixture(scope="session")
-def use_mo_legacy_frontend(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('use_mo_legacy_frontend')
-
-
-@pytest.fixture(scope="session")
-def use_mo_new_frontend(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('use_mo_new_frontend')
-
-
-@pytest.fixture(scope="session")
 def skip_mo_args(request):
     """Fixture function for command-line option."""
     return request.config.getoption('skip_mo_args')
@@ -385,12 +355,6 @@ def skip_ir_generation(request):
 def inference_precision_hint(request):
     """Fixture function for command-line option."""
     return request.config.getoption('inference_precision_hint')
-
-
-@pytest.fixture(scope="session")
-def use_mo_cmd_tool(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('use_mo_cmd_tool')
 
 
 @pytest.fixture(scope="session")
@@ -457,7 +421,7 @@ def prepare_test_info(request, instance):
     setattr(request.node._request, 'test_info', {})
 
     test_id = getattr(instance, 'test_id')
-    network_name = re.findall(r'(.*api_2_(?:True|False))', test_id)[0] if 'api_2_' in test_id else test_id
+    network_name = test_id
 
     # add test info
     info = {
@@ -617,7 +581,7 @@ def copy_input_files(instance):
                 time.sleep(1)
                 timeout -= 1
         return isCopied
-    if 'mo' not in instance.ie_pipeline.get('get_ir', "None"):
+    if 'get_ovc_model' not in instance.ie_pipeline.get('get_ir', "None"):
         return
     # define value to copy
     prefix = os.path.join(instance.environment['input_model_dir'], '')
@@ -636,8 +600,8 @@ def copy_input_files(instance):
         if not model:
             return
     else:
-        if isinstance(instance.ie_pipeline['get_ir']['mo']['model'], str):
-            model = Path(instance.ie_pipeline['get_ir']['mo']['model'])
+        if isinstance(instance.ie_pipeline['get_ir']['get_ovc_model']['model'], str):
+            model = Path(instance.ie_pipeline['get_ir']['get_ovc_model']['model'])
         else:
             return
     model = Path(model)
@@ -660,13 +624,13 @@ def copy_input_files(instance):
                 if instance.ie_pipeline.get('prepare_model'):
                     instance = set_path_for_pytorch_files(instance, result_path)
                 else:
-                    instance.ie_pipeline['get_ir']['mo']['model'] = result_path
+                    instance.ie_pipeline['get_ir']['get_ovc_model']['model'] = result_path
             except FileExistsError:
                 if wait_copy_finished(input_path):
                     if instance.ie_pipeline.get('prepare_model'):
                         instance = set_path_for_pytorch_files(instance, result_path)
                     else:
-                        instance.ie_pipeline['get_ir']['mo']['model'] = result_path
+                        instance.ie_pipeline['get_ir']['get_ovc_model']['model'] = result_path
             except BaseException:
                 if i < tries - 1:
                     continue

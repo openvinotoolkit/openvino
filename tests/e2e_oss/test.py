@@ -16,14 +16,14 @@ import os
 import re
 from pathlib import Path
 from shutil import rmtree
-import yaml
 
+import yaml
 from e2e_oss.common_utils.logger import get_logger
+from e2e_oss.common_utils.parsers import pipeline_cfg_to_string
+from e2e_oss.common_utils.test_utils import get_shapes_from_data
 from e2e_oss.utils.modify_configs import get_original_model_importer_pipeline_config
 from e2e_oss.utils.test_utils import log_timestamp, read_irs_mapping_file, get_ir_tag, check_mo_precision, \
     set_infer_precision_hint, remove_mo_args_oob, store_data_to_csv, timestamp
-from e2e_oss.common_utils.parsers import pipeline_cfg_to_string
-from e2e_oss.common_utils.test_utils import get_shapes_from_data
 from utils.e2e.common.pipeline import Pipeline
 from utils.e2e.comparator.container import ComparatorsContainer
 from utils.e2e.env_tools import Environment
@@ -34,8 +34,8 @@ log = get_logger(__name__)
 
 
 def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, mem_usage_mo_csv_name,
-              mem_usage_ie_csv_name, record_property, use_mo_legacy_frontend, use_mo_new_frontend, skip_mo_args,
-              dynamic_inference, prepare_test_info, skip_ir_generation, copy_input_files, inference_precision_hint):
+              mem_usage_ie_csv_name, record_property, skip_mo_args, dynamic_inference, prepare_test_info,
+              skip_ir_generation, copy_input_files, inference_precision_hint):
     """Parameterized test.
 
     :param instance: test instance
@@ -49,18 +49,9 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
     :param dynamic_inference: bool value to enable dynamic inference mode
     :param instance: test instance
     """
-    api_2 = instance.api_2
     model_framework_name = instance.__class__.__name__.split('_')[0]
     # Name of tests group
     prepare_test_info['pytestEntrypoint'] = 'E2E: Base'
-    if not api_2:
-        prepare_test_info['pytestEntrypoint'] = 'E2E: Base old API'
-
-    if use_mo_new_frontend:
-        if 'PDPD' in model_framework_name:
-            prepare_test_info['pytestEntrypoint'] = 'E2E: PDPD new FrontEnd'
-            if not api_2:
-                prepare_test_info['pytestEntrypoint'] = 'E2E: PDPD new FrontEnd with old API'
 
     if hasattr(instance, 'sequence_length'):
         if isinstance(instance.sequence_length, int):
@@ -88,10 +79,10 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
         try:
             log.info("Searching pre-generated IR in IR's mapping: {} ...".format(pregen_irs))
             irs_mapping = read_irs_mapping_file(pregen_irs)
-            instance.required_params = {"sequence_length": instance.sequence_length} if type(instance.sequence_length) == int else {}
+            instance.required_params = {"sequence_length": instance.sequence_length} if type(
+                instance.sequence_length) == int else {}
             ir_tag = get_ir_tag(instance.__class__.__name__, ir_version, instance.precision,
-                                instance.batch, instance.required_params.get("sequence_length", None),
-                                use_mo_legacy_frontend, use_mo_new_frontend, skip_mo_args)
+                                instance.batch, instance.required_params.get("sequence_length", None))
             if ir_tag not in irs_mapping:
                 log.warning("IR with tag '{}' not found in IRs mapping. "
                             "IR will be generated in runtime ...".format(ir_tag))
@@ -120,23 +111,17 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
 
     check_mo_precision(instance_ie_pipeline)
 
-    if next(iter(instance_ie_pipeline["get_ir"])) == "mo" and instance.use_mo_cmd_tool:
-        instance_ie_pipeline["get_ir"]["mo"].update({"use_mo_cmd_tool": instance.use_mo_cmd_tool})
-
-    if next(iter(instance_ie_pipeline["get_ir"])) == "mo" and use_mo_new_frontend:
-        instance_ie_pipeline["get_ir"]["mo"]["additional_args"].update({"use_new_frontend": True})
-
     if instance_ie_pipeline.get('infer'):
         instance_ie_pipeline = set_infer_precision_hint(instance, instance_ie_pipeline, inference_precision_hint)
 
-    if next(iter(instance_ie_pipeline["get_ir"])) == "mo" and skip_mo_args:
+    if next(iter(instance_ie_pipeline["get_ir"])) == "get_ovc_model" and skip_mo_args:
         # Rename of tests group because "skip_mo_args" is other group of E2E tests
         prepare_test_info['pytestEntrypoint'] = 'E2E: OOB'
-        mo_additional_args = instance_ie_pipeline['get_ir']['mo'].get('additional_args', {})
+        mo_additional_args = instance_ie_pipeline['get_ir']['get_ovc_model'].get('additional_args', {})
         if mo_additional_args:
-            instance_ie_pipeline['get_ir']['mo']['additional_args'] = remove_mo_args_oob(skip_mo_args,
-                                                                                         mo_additional_args,
-                                                                                         instance_ie_pipeline)
+            instance_ie_pipeline['get_ir']['get_ovc_model']['additional_args'] = remove_mo_args_oob(skip_mo_args,
+                                                                                                    mo_additional_args,
+                                                                                                    instance_ie_pipeline)
         if dynamic_inference:
             if not instance_ie_pipeline.get('infer'):
                 log.info("No infer step for this test")
@@ -162,16 +147,10 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
             prepare_test_info['pytestEntrypoint'] = 'E2E: PDPD Without MO step'
         if 'TF' in model_framework_name:
             prepare_test_info['pytestEntrypoint'] = 'E2E: TF Without MO step'
-        if not api_2:
-            prepare_test_info['pytestEntrypoint'] += ' old API'
 
     ie_pipeline = Pipeline(instance_ie_pipeline)
     log.debug("Inference Pipeline:\n{}".format(pipeline_cfg_to_string(ie_pipeline._config)))
     ie_pipeline.run()
-
-    if not skip_ir_generation and instance.use_mo_cmd_tool:
-        instance.mapping_file_location = getattr(instance, "mapping_file_location",
-                                                 Path(ie_pipeline.details.xml).with_suffix(".mapping"))
 
     if ir_gen_time_csv_name:
         ir_provider_index = [count for count, step in enumerate(ie_pipeline.steps) if 'ir_provider' in str(step)]
@@ -181,7 +160,6 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
         store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), ir_gen_time_csv_name),
                           instance=instance, device='CPU', ir_version=ir_version, data_name='ir_gen_time',
                           data=ie_pipeline.steps[ir_provider_index[0]].executor.ir_gen_time,
-                          use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                           skip_mo_args=skip_mo_args)
     if mem_usage_mo_csv_name:
         ir_provider_index = [count for count, step in enumerate(ie_pipeline.steps) if 'ir_provider' in str(step)]
@@ -190,7 +168,6 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
             store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), mem_usage_mo_csv_name),
                               instance=instance, device='CPU', ir_version=ir_version, data_name='mem_usage_mo',
                               data=ie_pipeline.steps[ir_provider_index[0]].executor.mem_usage_mo,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                               skip_mo_args=skip_mo_args)
     if load_net_to_plug_time_csv_name or mem_usage_ie_csv_name:
         infer_provider_index = [count for count, step in enumerate(ie_pipeline.steps) if 'infer' in str(step)]
@@ -200,17 +177,15 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
                               instance=instance, device=ie_pipeline.steps[infer_provider_index[0]].executor.device,
                               ir_version=ir_version, data_name='load_net_to_plug_time',
                               data=ie_pipeline.steps[infer_provider_index[0]].executor.load_net_to_plug_time,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                               skip_mo_args=skip_mo_args)
         if mem_usage_ie_csv_name:
             store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), mem_usage_ie_csv_name),
                               instance=instance, device=ie_pipeline.steps[infer_provider_index[0]].executor.device,
                               ir_version=ir_version, data_name='mem_usage_ie',
                               data=ie_pipeline.steps[infer_provider_index[0]].executor.mem_usage_ie,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                               skip_mo_args=skip_mo_args)
-            
-    if model_framework_name.lower() == 'pytorch' and  instance.precision == 'FP16':
+
+    if model_framework_name.lower() == 'pytorch' and instance.precision == 'FP16':
         for name, comparators in instance.comparators.items():
             instance.comparators[name]['a_eps'] = 1e-2
             instance.comparators[name]['r_eps'] = 1e-2
@@ -219,7 +194,7 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
         config=instance.comparators,
         infer_result=ie_pipeline.fetch_results(),
         reference=ref_pipeline.fetch_results(),
-        result_aligner=getattr(instance, 'align_results', None,),
+        result_aligner=getattr(instance, 'align_results', None, ),
         xml=ie_pipeline.details.xml
     )
 
@@ -237,8 +212,8 @@ def empty_dirs(env_conf):
         test_config = yaml.load(fd, Loader=yaml.FullLoader)
 
     for env_clean_dir_flag, test_cfg_dir_to_clean in [("TT_CLEAN_MO_OUT_DIR", 'mo_out'),
-                                                 ("TT_CLEAN_PREGEN_IRS_DIR", 'pregen_irs_path'),
-                                                 ("TT_CLEAN_INPUT_MODEL_DIR", 'input_model_dir')]:
+                                                      ("TT_CLEAN_PREGEN_IRS_DIR", 'pregen_irs_path'),
+                                                      ("TT_CLEAN_INPUT_MODEL_DIR", 'input_model_dir')]:
         clean_flag = True if os.environ.get(env_clean_dir_flag, 'False') == 'True' else False
         if clean_flag:
             dir_to_clean = test_config.get(test_cfg_dir_to_clean, '')
@@ -248,13 +223,12 @@ def empty_dirs(env_conf):
 
 
 def test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, mem_usage_mo_csv_name,
-             mem_usage_ie_csv_name, record_property, use_mo_legacy_frontend, use_mo_new_frontend, skip_mo_args,
-             dynamic_inference, prepare_test_info, skip_ir_generation, copy_input_files, env_conf,
-             inference_precision_hint):
+             mem_usage_ie_csv_name, record_property, skip_mo_args, dynamic_inference, prepare_test_info,
+             skip_ir_generation, copy_input_files, env_conf, inference_precision_hint):
     try:
         _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, mem_usage_mo_csv_name,
-                  mem_usage_ie_csv_name, record_property, use_mo_legacy_frontend, use_mo_new_frontend, skip_mo_args,
-                  dynamic_inference, prepare_test_info, skip_ir_generation, copy_input_files, inference_precision_hint)
+                  mem_usage_ie_csv_name, record_property, skip_mo_args, dynamic_inference, prepare_test_info,
+                  skip_ir_generation, copy_input_files, inference_precision_hint)
     except Exception as ex:
         raise Exception(f'{timestamp()}') from ex
     finally:

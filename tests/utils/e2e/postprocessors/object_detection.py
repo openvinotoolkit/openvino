@@ -144,40 +144,6 @@ class ParseObjectDetectionMaskRCNN(ClassProvider):
         return parsed_data
 
 
-class MxNet2CaffeFormater(ClassProvider):
-    """Object detection parser."""
-    __action_name__ = "mxnet_to_common_od_format"
-
-    def __init__(self, config):
-        self.target_layers = config.get("target_layers", None)
-
-    def apply(self, data):
-        """Parse object detection data."""
-        predictions = {}
-        postprocessed = False
-        target_layers = self.target_layers if self.target_layers else data.keys()
-        for layer in target_layers:
-            # In case of batch = 1 mxnet squeezes first batch dimension and keeps only two dims for data
-            # To make format uniform let's expand it
-            if data[layer].ndim == 2:
-                data[layer] = np.expand_dims(data[layer], axis=0)
-            container = np.zeros(shape=(1, 1, data[layer].shape[0] * data[layer].shape[1] + 1, 7))
-            detections_counter = 0
-            for b in range(data[layer].shape[0]):
-                for box in data[layer][b]:
-                    if np.all(box != -1):
-                        box = np.insert(box, 0, b)
-                        container[0][0][detections_counter] = box
-                        detections_counter += 1
-            else:
-                container[0][0][detections_counter] = [-1, 0, 0, 0, 0, 0, 0]
-            predictions[layer] = container
-            postprocessed = True
-        if postprocessed == False:
-            log.warning("Postprocessor {} has nothing to process".format(str(self.__action_name__)))
-        return predictions
-
-
 class AlignWithBatch(ClassProvider):
     """Batch alignment preprocessor.
 

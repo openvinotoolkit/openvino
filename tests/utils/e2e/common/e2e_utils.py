@@ -6,12 +6,11 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def collect_tensor_names(instance: Model, tensor_type_name: str, out: dict, using_api2: bool) -> dict:
+def collect_tensor_names(instance: Model, tensor_type_name: str, out: dict) -> dict:
     """
     @param instance: Read OpenVino model
     @param tensor_type_name: Type of tensors
     @param out: Dictionary for tensor names
-    @param using_api2: Using API 2.0 flag
     @return: Dictionary with collected tensor names
     """
     tensor_dicts = getattr(instance, tensor_type_name, None)
@@ -20,29 +19,23 @@ def collect_tensor_names(instance: Model, tensor_type_name: str, out: dict, usin
         tensor_names = getattr(tensor, 'names', None)
         assert tensor_names, f"Tensor {tensor_type_name} must have 'names' field"
         for tensor_name in tensor_names:
-            if using_api2:
-                out[tensor_name] = tensor_name
-            else:
-                tensor_name = tensor_name.split(':')[0]
-                out[tensor_name] = tensor_name
+            out[tensor_name] = tensor_name
     return out
 
 
-def get_tensor_names_dict(xml_ir: Any, using_api2: bool) -> dict:
+def get_tensor_names_dict(xml_ir: Any) -> dict:
     """
     @param xml_ir: Path to xml part of IR
-    @param using_api2: Using API 2.0 flag
     @return: output dictionary with collected tensor names
     """
-    api_version = "2.0" if using_api2 else "1.0"
-    log.debug(f"IR xml path: {xml_ir} with using API {api_version}")
+    log.debug(f"IR xml path: {xml_ir}")
 
     core = Core()
     ov_model = core.read_model(model=xml_ir)
     log.debug(f"Read OpenVino model: {ov_model}")
 
-    out_dict = collect_tensor_names(ov_model, 'inputs', {}, using_api2)
-    out_dict = collect_tensor_names(ov_model, 'outputs', out_dict, using_api2)
+    out_dict = collect_tensor_names(ov_model, 'inputs', {})
+    out_dict = collect_tensor_names(ov_model, 'outputs', out_dict)
     log.debug(f"Output dictionary with collected tensor names : {out_dict}")
     return out_dict
 

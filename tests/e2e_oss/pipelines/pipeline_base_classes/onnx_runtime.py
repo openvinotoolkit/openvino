@@ -25,7 +25,7 @@ class ONNXRuntimeEltwiseBaseClass(CommonConfig):
     preproc = {}
     opset = ""
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += tuple([
             mark("onnx_runtime", is_simple_mark=True),
             mark("onnx", is_simple_mark=True),
@@ -50,7 +50,7 @@ class ONNXRuntimeEltwiseBaseClass(CommonConfig):
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision,
                                  **getattr(self, "additional_mo_args", {})),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device, postproc=self.postproc,
                                                a_eps=getattr(self, "a_eps", None), r_eps=getattr(self, "r_eps", None))
@@ -59,8 +59,8 @@ class ONNXRuntimeEltwiseBaseClass(CommonConfig):
 class ONNXRuntimeClassificationBaseClass(ONNXRuntimeEltwiseBaseClass):
     postproc = parse_classification()
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch, device, precision, api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch, device, precision, **kwargs)
         self.__pytest_marks__ += ONNXRuntimeEltwiseBaseClass.__pytest_marks__ + tuple([
             mark("classification", is_simple_mark=True)
         ])
@@ -75,8 +75,8 @@ class ONNXRuntimeObjectDetectionBaseClass(ONNXRuntimeEltwiseBaseClass):
     ])
     postproc = parse_object_detection()
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch, device, precision, api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch, device, precision, **kwargs)
         self.comparators = object_detection_comparators(precision=precision, postproc=self.postproc, device=device,
                                                         a_eps=getattr(self, "a_eps", None),
                                                         r_eps=getattr(self, "r_eps", None))
@@ -88,8 +88,8 @@ class ONNXRuntimeStyleTransferBaseClass(ONNXRuntimeEltwiseBaseClass):
     ])
     postproc = parse_image_modification()
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch, device, precision, api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch, device, precision, **kwargs)
         self.comparators = ssim_comparators(precision=precision, postproc=self.postproc, device=device)
 
 
@@ -99,7 +99,7 @@ class ONNXRuntimeNoComparisonBaseClass(ONNXRuntimeEltwiseBaseClass):
     ])
     align_results = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch, device, precision, api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch, device, precision, **kwargs)
         self.ie_pipeline = OrderedDict()
         self.comparators = dummy_comparators()

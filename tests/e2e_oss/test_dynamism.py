@@ -37,8 +37,7 @@ from utils.e2e.common.pipeline import Pipeline
 pytest_plugins = ('e2e_oss.plugins.reshape_tests.conftest',)
 
 
-def test_dynamism(instance, configuration, prepare_test_info, copy_input_files, inference_precision_hint,
-                  use_mo_cmd_tool):
+def test_dynamism(instance, configuration, prepare_test_info, copy_input_files, inference_precision_hint):
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
     log.info("Running {test_id} test".format(test_id=instance.test_id))
 
@@ -62,9 +61,6 @@ def test_dynamism(instance, configuration, prepare_test_info, copy_input_files, 
     prepare_test_info['inputsize'] = "__".join([f"{i}_{v}" for i, v in ir_input_shapes.items()])
     prepare_test_info['dynamismType'] = configuration.dynamism_type
 
-    xml_file = None
-    bin_file = None
-
     if instance_ie_pipeline.get('postprocess'):
         del instance_ie_pipeline['postprocess']
 
@@ -85,13 +81,6 @@ def test_dynamism(instance, configuration, prepare_test_info, copy_input_files, 
     # first inference
     first_ref_pipeline = ie_reshape_config(ref_pipeline, default_shapes, test_name)
 
-    if use_mo_cmd_tool:
-        xml_file = Path(instance_dynamic_pipeline.details.xml)
-        bin_file = xml_file.with_suffix('.bin')
-        if 'pregenerated' not in first_ref_pipeline['get_ir']:
-            first_ref_pipeline['get_ir'] = {"pregenerated": {"xml": xml_file, "bin": bin_file}}
-            log.info(f"IR from first pipeline will be used, path to folder with IR: \n{xml_file.parent}")
-
     first_ref_pipeline = Pipeline(first_ref_pipeline)
     try:
         log.info('Executing Static reshape pipeline for {}'.format(test_name))
@@ -104,11 +93,6 @@ def test_dynamism(instance, configuration, prepare_test_info, copy_input_files, 
         # second inference
         new_static_input_data_shapes = get_static_shape(default_shapes, changed_values, layout, changed_dims)
         second_ref_pipeline = ie_reshape_config(ref_pipeline, new_static_input_data_shapes, test_name)
-        if use_mo_cmd_tool:
-            if 'pregenerated' not in second_ref_pipeline['get_ir']:
-                second_ref_pipeline['get_ir'] = {"pregenerated": {"xml": xml_file, "bin": bin_file}}
-                log.info(f"IR from first pipeline will be used, path to folder with IR: \n{xml_file.parent}")
-
         second_ref_pipeline = Pipeline(second_ref_pipeline)
 
         try:

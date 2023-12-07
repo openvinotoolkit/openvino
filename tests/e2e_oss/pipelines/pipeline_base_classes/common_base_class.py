@@ -50,7 +50,6 @@ class CommonConfig:
                                 override the value in test subclass to control
                                 the behavior
     """
-    use_mo_cmd_tool = None
     mapping = None
     use_mo_mapping = True
     convert_pytorch_to_onnx = None
@@ -111,11 +110,7 @@ class CommonConfig:
         :return: aligned results (ref_res, optim_model_res) with same keys
         """
 
-        api_2_attr = getattr(self, "api_2", None)
-        if api_2_attr is None:
-            raise Exception("api_2 attribute must be set")
-        api_version = "2.0" if api_2_attr else "1.0"
-        log.debug(f"Aligning results using api: {api_version}")
+        log.debug(f"Aligning results")
         log.debug(f"ref_res.keys() {ref_res.keys()}")
         log.debug(f"optim_model_res.keys() {optim_model_res.keys()}")
         if len(ref_res) == 1 and len(optim_model_res) == 1:
@@ -135,16 +130,16 @@ class CommonConfig:
             return ref_res, optim_model_res
 
         if not self.mapping:
-            log.debug(f"Aligning results with using mapping")
+            log.debug(f"Aligning results using mapping")
             pre_generated_irs = self.ie_pipeline.get('get_ir').get('pregenerated')
             if pre_generated_irs:
                 log.info("Construct mapping attribute from pre-generated IRs")
                 xml_file = pre_generated_irs.get('xml')
                 resolved_path = resolve_file_path(xml_file, as_str=True)
-                self.mapping = get_tensor_names_dict(xml_ir=resolved_path, using_api2=api_2_attr)
+                self.mapping = get_tensor_names_dict(xml_ir=resolved_path)
             elif not pre_generated_irs:
                 resolved_path = resolve_file_path(xml, as_str=True)
-                self.mapping = get_tensor_names_dict(xml_ir=resolved_path, using_api2=api_2_attr)
+                self.mapping = get_tensor_names_dict(xml_ir=resolved_path)
             else:
                 error = f"{self.__class__.__name__} should use 'model' or 'model_path' attribute to define model"
                 raise Exception(error)

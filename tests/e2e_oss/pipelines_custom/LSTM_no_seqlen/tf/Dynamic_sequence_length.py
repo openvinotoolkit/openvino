@@ -17,14 +17,14 @@ class DynamicSequenceLengthBase(CommonConfig):
     """
     align_results = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         if "BATCH={}".format(batch) not in self.model:
             self.__do_not_run__ = True
 
         input_file = "test_data/inputs/tf/DynamicSequenceLength_batch_{}.npz".format(batch)
-        model_path = prepend_with_env_path("tf_internal_models", TFVersionHelper().tf_models_version, "synthetic_lstm", self.model)
+        model_path = prepend_with_env_path("tf_internal_models", TFVersionHelper().tf_models_version, "synthetic_lstm",
+                                           self.model)
         output_nodes = 'Reshape'
-        infer_api = 'ie_sync_api_2' if api_2 else 'ie_sync'
 
         self.ref_pipeline = OrderedDict([
             read_npz_input(path=input_file),
@@ -42,7 +42,7 @@ class DynamicSequenceLengthBase(CommonConfig):
                                  input_shape='[{batch},20,16],[{batch}]'.format(batch=batch),
                                  output=output_nodes),
             # 4. Run inference with IE
-            ("infer", {infer_api: {"device": device, "cpu_extension": "cpu_extension"}}),
+            ("infer", {'ie_sync': {"device": device, "cpu_extension": "cpu_extension"}}),
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device,
                                                target_layers=output_nodes.split(','))

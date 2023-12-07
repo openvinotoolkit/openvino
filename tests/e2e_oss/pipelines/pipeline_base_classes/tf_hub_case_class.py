@@ -15,7 +15,7 @@ class TFHUB_eltwise_Base(CommonConfig):
     model_name = ''
     model = ''
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.ref_pipeline = OrderedDict([
             tf_hub_loader(model_name=self.model_name, model_link=self.model_link),
             generate_tf_hub_inputs(),
@@ -36,6 +36,6 @@ class TFHUB_eltwise_Base(CommonConfig):
             ovc_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                               model=self.model,
                               precision=precision),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)

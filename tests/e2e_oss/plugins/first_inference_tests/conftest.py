@@ -13,7 +13,7 @@ def redefine_mo_out_path(instance, pipeline):
     sub_path = re.sub(r'[^\w\-_\. ]', "_", instance.test_id)  # filter all symbols not supported in a file systems
     tmpdir_sub_path = Path(TemporaryDirectory(prefix=sub_path).name).name
     mo_out = str(Path(Environment.env.get('mo_out')) / tmpdir_sub_path)
-    pipeline['get_ir']['mo']['mo_out'] = mo_out
+    pipeline['get_ir']['get_ovc_model']['mo_out'] = mo_out
 
     return mo_out
 

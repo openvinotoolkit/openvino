@@ -24,16 +24,10 @@ class TF_Mask_RCNN_Config(CommonConfig):
     h = 0
     w = 0
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        infer_api = 'ie_sync_api_2' if api_2 else 'ie_sync'
-        reshape_api = 'set_batch_using_reshape_api_2' if api_2 else 'set_batch'
-        detection_masks = 'SecondStageBoxPredictor_1/Conv_3/BiasAdd'if api_2 else 'masks'
-
+    def __init__(self, batch, device, precision, **kwargs):
         preprocess_args = {'batch': batch, 'h': self.h, 'w': self.w,
                            'add_layer_to_input_data': {'image_info': [(self.h, self.w, 1)]},
                            'rename_inputs': [('data', 'image_tensor')]}
-        if not api_2:
-            preprocess_args.update({'permute_order': (2, 0, 1)})
 
         self.__pytest_marks__ += (mark("object_detection", is_simple_mark=True),
                                   mark("od", is_simple_mark=True),
@@ -70,13 +64,14 @@ class TF_Mask_RCNN_Config(CommonConfig):
                                  input_shape=(1, self.h, self.w, 3),
                                  tensorflow_object_detection_api_pipeline_config=pipeline_cfg,
                                  transformations_config=mo_cfg),
-            ('infer', {infer_api: {"device": device, "network_modifiers": {
-                reshape_api: {"batch": batch, 'target_layers': ['image_tensor']}},
+            ('infer', {'ie_sync': {"device": device, "network_modifiers": {
+                'set_batch_using_reshape': {"batch": batch, 'target_layers': ['image_tensor']}},
                        "timeout": 1000}}),
             ("postprocess", OrderedDict([
                 ("parse_object_detection", {"target_layers": ['reshape_do_2d']}),
                 ("rename_outputs", {"rename_input_pairs": [("reshape_do_2d", "tf_detections"),
-                                                           (detection_masks, "detection_masks")]})
+                                                           ('SecondStageBoxPredictor_1/Conv_3/BiasAdd',
+                                                            "detection_masks")]})
             ]))
         ])
 

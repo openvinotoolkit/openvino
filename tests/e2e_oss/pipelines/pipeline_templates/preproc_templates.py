@@ -174,24 +174,6 @@ def assemble_preproc(batch=None,
     return 'preprocess', OrderedDict(steps)
 
 
-def assemble_preproc_caffe(*args, **kwargs):
-    """Add caffe-specific preprocessings. Pass rest of arguments as is.
-
-    :return: "preprocess" step with Caffe specific actions
-    """
-    return assemble_preproc(*args, permute_order=(2, 0, 1), **kwargs)
-
-
-def assemble_preproc_mxnet(*args, **kwargs):
-    """Add mxnet-specific preprocessings. Pass rest of arguments as is.
-
-    :return: "preprocess" step with MXNet specific actions
-    """
-    reverse = kwargs.pop('reverse_channels', True)
-    order = kwargs.pop('permute_order', (2, 0, 1))
-    return assemble_preproc(*args, permute_order=order, reverse_channels=reverse, **kwargs)
-
-
 def assemble_preproc_tf(*args, **kwargs):
     """Add tensorflow-specific preprocessings. Pass rest of arguments as is.
 
@@ -203,13 +185,3 @@ def assemble_preproc_tf(*args, **kwargs):
 
     return assemble_preproc(*args, permute_order=order, reverse_channels=reverse, **kwargs)
 
-
-def assemble_preproc_kaldi(batch, expand_dims=False):
-    """Add kaldi-specific preprocessings. Pass rest of arguments as is.
-
-    :return: "preprocess" step with Kaldi specific actions
-    """
-
-    steps = [("align_with_batch_kaldi", {"batch": batch, "expand_dims": expand_dims})]
-
-    return 'preprocess', dict(steps)

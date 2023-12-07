@@ -48,7 +48,7 @@ def pytest_generate_tests(metafunc):
         skip_ir_generation = metafunc.config.getoption("skip_ir_generation")
         try:
             test_case = test(test_id=name, batch=1, device="CPU", precision="FP32",
-                             sequence_length=1, qb=8, device_mode="GNA_AUTO", api_2='api_2',
+                             sequence_length=1, qb=8, device_mode="GNA_AUTO",
                              skip_ir_generation=skip_ir_generation).ref_collection
         except Exception as e:
             log.warning(f"Test with name {name} failed to add in row with exception {e}")

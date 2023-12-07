@@ -7,5 +7,4 @@ from . import image_modifications
 from . import mask_rcnn
 from . import object_detection
 from . import semantic_segmentation
-from . import speech_kaldi
 from .provider import StepProvider

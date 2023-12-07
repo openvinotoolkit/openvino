@@ -34,8 +34,8 @@ log = get_logger(__name__)
 
 
 def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, mem_usage_mo_csv_name,
-              mem_usage_ie_csv_name, record_property, use_mo_legacy_frontend, use_mo_new_frontend,
-              prepare_test_info, inference_precision_hint):
+              mem_usage_ie_csv_name, record_property, prepare_test_info, inference_precision_hint):
+
     """Parameterized test.
 
     :param instance: test instance
@@ -47,11 +47,8 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
     :param record_property: extra property for the calling test
     :param instance: test instance
     """
-    api_2 = instance.api_2
     # Name of tests group
     prepare_test_info['pytestEntrypoint'] = 'E2E: Base'
-    if not api_2:
-        pytest.fail("Do not use OVC MO with old OV API")
 
     if hasattr(instance, 'sequence_length'):
         if isinstance(instance.sequence_length, int):
@@ -76,17 +73,13 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
 
     log.info("Running inference pipeline:")
 
-    if instance_ie_pipeline.get('get_ir', {}).get('mo'):
-        instance_ie_pipeline['get_ir']['get_ovc_model'] = instance_ie_pipeline['get_ir'].pop('mo')
-
     if pregen_irs and "get_ir" in instance_ie_pipeline:
         try:
             log.info("Searching pre-generated IR in IR's mapping: {} ...".format(pregen_irs))
             irs_mapping = read_irs_mapping_file(pregen_irs)
             instance.required_params = {"sequence_length": instance.sequence_length} if type(instance.sequence_length) == int else {}
             ir_tag = get_ir_tag(instance.__class__.__name__, ir_version, instance.precision,
-                                instance.batch, instance.required_params.get("sequence_length", None),
-                                use_mo_legacy_frontend, use_mo_new_frontend)
+                                instance.batch, instance.required_params.get("sequence_length", None))
             if ir_tag not in irs_mapping:
                 log.warning("IR with tag '{}' not found in IRs mapping. "
                             "IR will be generated in runtime ...".format(ir_tag))
@@ -129,16 +122,14 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
         assert len(ir_provider_index) == 1, 'Several steps for ir_gen'
         store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), ir_gen_time_csv_name),
                           instance=instance, device='CPU', ir_version=ir_version, data_name='ir_gen_time',
-                          data=ie_pipeline.steps[ir_provider_index[0]].executor.ir_gen_time,
-                          use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend)
+                          data=ie_pipeline.steps[ir_provider_index[0]].executor.ir_gen_time)
     if mem_usage_mo_csv_name:
         ir_provider_index = [count for count, step in enumerate(ie_pipeline.steps) if 'ir_provider' in str(step)]
         if 'model_optimizer_runner' in str(ie_pipeline.steps[ir_provider_index[0]].executor):
             assert len(ir_provider_index) == 1, 'Several steps for ir_gen'
             store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), mem_usage_mo_csv_name),
                               instance=instance, device='CPU', ir_version=ir_version, data_name='mem_usage_mo',
-                              data=ie_pipeline.steps[ir_provider_index[0]].executor.mem_usage_mo,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend)
+                              data=ie_pipeline.steps[ir_provider_index[0]].executor.mem_usage_mo)
     if load_net_to_plug_time_csv_name or mem_usage_ie_csv_name:
         infer_provider_index = [count for count, step in enumerate(ie_pipeline.steps) if 'infer' in str(step)]
         assert len(infer_provider_index) == 1, 'Several steps for ie_infer'
@@ -146,14 +137,12 @@ def _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_
             store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), load_net_to_plug_time_csv_name),
                               instance=instance, device=ie_pipeline.steps[infer_provider_index[0]].executor.device,
                               ir_version=ir_version, data_name='load_net_to_plug_time',
-                              data=ie_pipeline.steps[infer_provider_index[0]].executor.load_net_to_plug_time,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend)
+                              data=ie_pipeline.steps[infer_provider_index[0]].executor.load_net_to_plug_time)
         if mem_usage_ie_csv_name:
             store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), mem_usage_ie_csv_name),
                               instance=instance, device=ie_pipeline.steps[infer_provider_index[0]].executor.device,
                               ir_version=ir_version, data_name='mem_usage_ie',
-                              data=ie_pipeline.steps[infer_provider_index[0]].executor.mem_usage_ie,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend)
+                              data=ie_pipeline.steps[infer_provider_index[0]].executor.mem_usage_ie)
 
     comparators = ComparatorsContainer(
         config=instance.comparators,
@@ -188,12 +177,11 @@ def empty_dirs(env_conf):
 
 
 def test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, mem_usage_mo_csv_name,
-             mem_usage_ie_csv_name, record_property, use_mo_legacy_frontend, use_mo_new_frontend,
-             prepare_test_info, env_conf, inference_precision_hint):
+             mem_usage_ie_csv_name, record_property, prepare_test_info, env_conf, inference_precision_hint):
     try:
         _test_run(instance, pregen_irs, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, mem_usage_mo_csv_name,
-                  mem_usage_ie_csv_name, record_property, use_mo_legacy_frontend, use_mo_new_frontend,
-                  prepare_test_info,  inference_precision_hint)
+                  mem_usage_ie_csv_name, record_property, prepare_test_info,  inference_precision_hint)
+
     except Exception as ex:
         raise Exception(f'{timestamp()}') from ex
     finally:

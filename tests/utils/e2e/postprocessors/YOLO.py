@@ -77,9 +77,7 @@ class YOLOV2Parser(ClassProvider):
         self.coords = config['coords']
         self.num = config['num']
         self.grid = config['grid']
-        is_tiny = config.get("is_tiny", False)  # used for Caffe YOLOs
-        self.anchors = config.get('anchors',
-                                  PRECOMPUTED_ANCHORS["tiny_yolo_v2" if is_tiny else "yolo_v2"])
+        self.anchors = config.get('anchors', PRECOMPUTED_ANCHORS["yolo_v2"])
         self.scale_threshold = config.get('scale_threshold', 0.001)
 
     @staticmethod
@@ -307,44 +305,3 @@ class YOLORegion(ClassProvider):
                 data[layer] = dst_data.reshape((B, C, IH, IW))
 
         return data
-
-
-class MXNetYOLOV3Parser(ClassProvider):
-    __action_name__ = "parse_mxnet_yolo_V3_region"
-
-    def __init__(self, config):
-        self.classes = config.get('classes', 20)
-        self.coords = config.get('coords', 4)
-        self.num = config.get('num', 9)
-        self.mask_length = config.get('mask_length', 3)
-        self.input_w = config.get('input_w', 416)
-        self.input_h = config.get('input_h', 416)
-        self.scale_threshold = config.get('scale_threshold', 0.001)
-        self.anchors = PRECOMPUTED_ANCHORS["yolo_v3"]
-        self.batch = config.get('batch', 1)
-
-    def _parse_yolo_v3_results(self, prediction):
-
-        #backword transform ReorgYolo -> MXNetYolo format
-        sigmoid_output = np.reshape(np.transpose(np.reshape(prediction, newshape=(1, 75, -1)), axes=(0, 2, 1)),
-                                    newshape=(1, -1, 3, 25))
-        sig0 = np.reshape(sigmoid_output[0:,0:,0:,0:2], newshape=(-1))
-        sig1 = np.reshape(sigmoid_output[0:, 0:, 0:, 2:4], newshape=(-1))
-        sig2 = np.reshape(sigmoid_output[0:, 0:, 0:, 4:5], newshape=(-1))
-        sig3 = np.reshape(sigmoid_output[0:, 0:, 0:, 5:], newshape=(-1))
-        ret = np.concatenate([sig0, sig1, sig2, sig3], axis=0)
-
-        return ret
-
-    def apply(self, data):
-        result_out = {}
-        for layer, layer_data in data.items():
-            reslist = []
-            for b in range(self.batch):
-                detections = layer_data[b]
-                parsed = self._parse_yolo_v3_results(detections)
-                arr = np.reshape(parsed, (-1, 1))
-                reslist.append(arr)
-            conarr = np.concatenate(reslist, axis=1)
-            result_out.update({layer: conarr.flatten()})
-        return result_out

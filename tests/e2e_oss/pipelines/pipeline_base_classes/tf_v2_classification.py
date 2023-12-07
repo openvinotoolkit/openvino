@@ -17,7 +17,7 @@ class TF_V2_ClassificationNet(CommonConfig):
     saved_model_dir = ""
     preprocess_mode = ""
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         def common_preprocess(custom_batch=None):
             if self.preprocess_mode == "caffe":
                 return OrderedDict([
@@ -61,9 +61,6 @@ class TF_V2_ClassificationNet(CommonConfig):
                                                batch=batch)
 
         preprocess = common_preprocess()
-        if not api_2:
-            preprocess.update({"permute_shape": {"order": (0, 3, 1, 2)}})
-            preprocess.move_to_end("permute_shape")
 
         self.ie_pipeline = OrderedDict([
             read_img_input(path=self.inputs_map),
@@ -73,7 +70,7 @@ class TF_V2_ClassificationNet(CommonConfig):
                                  model=self.saved_model_dir,
                                  precision=precision,
                                  input_shape=f"(1,{self.h},{self.w},3)"),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
 
         self.comparators = classification_comparators(postproc=parse_classification(), precision=precision,

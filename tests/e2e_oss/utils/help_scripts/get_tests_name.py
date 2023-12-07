@@ -42,7 +42,7 @@ def test_run(instance, skip_mo_args, list_tests):
         """
         Getting test names which using specific keys in MO
         """
-        mo_args = set(instance.ie_pipeline['get_ir']['mo']['additional_args'].keys())
+        mo_args = set(instance.ie_pipeline['get_ir']['get_ovc_model']['additional_args'].keys())
         skip_mo_args = skip_mo_args.split(',')
         if mo_args.intersection(skip_mo_args):
             list_tests.append(instance.__class__.__name__)

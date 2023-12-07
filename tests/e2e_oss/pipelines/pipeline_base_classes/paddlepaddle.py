@@ -27,7 +27,7 @@ class PaddlePaddleEltwise(CommonConfig):
     preproc = {}
     mo_additional_args = {}
 
-    def __init__(self, batch, device, precision, api_2, skip_ir_generation, **kwargs):
+    def __init__(self, batch, device, precision, skip_ir_generation, **kwargs):
         inputs_shapes = [f"{input_name}[{' '.join(map(str, shapes['default_shape']))}]"
                          for input_name, shapes in self.input_descriptor.items()]
 
@@ -54,7 +54,7 @@ class PaddlePaddleEltwise(CommonConfig):
                                  input=self.mo_additional_args.pop("input", ','.join(inputs_shapes)),
                                  precision=precision,
                                  **self.mo_additional_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, skip_ir_generation=skip_ir_generation,
+            common_infer_step(device=device, batch=batch, skip_ir_generation=skip_ir_generation,
                               input_file_path=self.input_file, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device,
@@ -65,8 +65,8 @@ class PaddlePaddleOD(PaddlePaddleEltwise):
     """Base class for PaddlePaddle Object Detection tests"""
     input_file = resolve_file_path("test_data/inputs/onnx/VOC_2012_001863_normalised.npz", as_str=True)
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch=batch, device=device, precision=precision, api_2=api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch=batch, device=device, precision=precision, **kwargs)
         self.comparators = object_detection_comparators(
             precision=precision, device=device,
             postproc=paddlepaddle_od_postproc(self.comparator_target_layers))
@@ -74,7 +74,7 @@ class PaddlePaddleOD(PaddlePaddleEltwise):
 
 class PaddlePaddleSS(PaddlePaddleEltwise):
     """Base class for PaddlePaddle Semantic Segmentation tests"""
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch=batch, device=device, precision=precision, api_2=api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch=batch, device=device, precision=precision, **kwargs)
         self.comparators = segmentation_comparators(precision=precision, device=device,
                                                     target_layers=self.comparator_target_layers)

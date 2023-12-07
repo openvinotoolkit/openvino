@@ -32,8 +32,7 @@ pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 log = get_logger(__name__)
 
 
-def _test_run(instance, pregen_irs, record_property, prepare_test_info, copy_input_files, inference_precision_hint,
-              use_mo_cmd_tool):
+def _test_run(instance, pregen_irs, record_property, prepare_test_info, copy_input_files, inference_precision_hint):
     """Parameterized test.
 
     :param instance: test instance
@@ -99,14 +98,6 @@ def _test_run(instance, pregen_irs, record_property, prepare_test_info, copy_inp
     log.info("Running reference pipeline:")
     ref_pipeline.run()
 
-    if use_mo_cmd_tool:
-        xml_file = Path(ref_pipeline.details.xml)
-        bin_file = xml_file.with_suffix('.bin')
-
-        if 'pregenerated' not in instance_ie_pipeline['get_ir']:
-            instance_ie_pipeline['get_ir'] = {"pregenerated": {"xml": xml_file, "bin": bin_file}}
-            log.info(f"IR from previous pipeline will be used, path to folder with IR: \n{xml_file.parent}")
-
     log.info("Running inference pipeline with AUTO Plugin")
     ie_pipeline = Pipeline(instance_ie_pipeline)
     ie_pipeline.run()
@@ -125,10 +116,9 @@ def _test_run(instance, pregen_irs, record_property, prepare_test_info, copy_inp
 
 
 def test_run(instance, pregen_irs, record_property, prepare_test_info, copy_input_files, env_conf,
-             inference_precision_hint, use_mo_cmd_tool):
+             inference_precision_hint):
     try:
-        _test_run(instance, pregen_irs, record_property, prepare_test_info, copy_input_files, inference_precision_hint,
-                  use_mo_cmd_tool)
+        _test_run(instance, pregen_irs, record_property, prepare_test_info, copy_input_files, inference_precision_hint)
     except Exception as ex:
         raise ex
     finally:

@@ -22,7 +22,7 @@ def should_run_reshape(instance) -> bool:
         # test does not involve Infer step
         return False
 
-    if 'mo' not in instance.ie_pipeline['get_ir']:
+    if 'get_ovc_model' not in instance.ie_pipeline['get_ir']:
         # can not reshape without `mo`
         return False
 
@@ -43,7 +43,7 @@ def should_run_reshape(instance) -> bool:
 
 
 def get_reshape_pipeline_pairs(instance) -> list:
-    supported_pipelines = ['MO', 'IE', 'IE_SBS'] if not instance.api_2 else ['MO', 'IE']
+    supported_pipelines = ['MO', 'IE']
     types = getattr(instance, 'requested_reshape_types', supported_pipelines)
 
     if len(types) == 1 or isinstance(types, str):

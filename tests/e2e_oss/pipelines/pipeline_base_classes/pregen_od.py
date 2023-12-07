@@ -29,7 +29,7 @@ class Pregenerated_od_base(CommonConfig):
     model_env_key = "models"
     align_results = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += (mark("object_detection", is_simple_mark=True),
                                   mark("od", is_simple_mark=True),
                                   mark("pregenerated", is_simple_mark=True),
@@ -59,8 +59,8 @@ class Pregenerated_od_downloader(Pregenerated_od_base):
         Base class for E2E test classes. Used for pregenerated models from Model Downloader.
         """
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         assert self.model_env_key == "models", "This class is intended only for models from Model Downloader"
         self.xml = search_model_path_recursively(config_key="models",
                                                  model_name=os.path.join(precision, self.model + '.xml'))
-        super().__init__(batch, device, precision, api_2, **kwargs)
+        super().__init__(batch, device, precision, **kwargs)

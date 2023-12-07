@@ -122,9 +122,6 @@ def pytest_generate_tests(metafunc):
 
         params_list, addit_params_dict = read_reshape_test_config(required_args, Environment.tconf, rules)
 
-        if not params_list[0]['api_2'] and dynamism_type != 'None':
-            pytest.fail("Old API doesn't support dynamism")
-
         for _params in params_list:
             params = copy(_params)
 

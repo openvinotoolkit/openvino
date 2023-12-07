@@ -16,7 +16,7 @@ class IE_Infer_Only_Base(CommonConfig):
 
     align_results = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += tuple([mark("no_comparison", is_simple_mark=True)])
         model_path = prepend_with_env_path(self.model_env_key, self.model)
         self.ref_pipeline = {}
@@ -26,6 +26,6 @@ class IE_Infer_Only_Base(CommonConfig):
                              permute_order=(2, 0, 1)),
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.additional_mo_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = dummy_comparators()

@@ -18,7 +18,7 @@ class ONNXPrecollectedProtobufBaseClass(CommonConfig):
     additional_mo_args = {}
     comparator_target_layers = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += tuple([
             mark("onnx", is_simple_mark=True),
             mark("onnx_precollected_data", is_simple_mark=True)
@@ -40,7 +40,7 @@ class ONNXPrecollectedProtobufBaseClass(CommonConfig):
             ("preprocess", {"align_with_batch": {"batch": batch, "expand_dims": False}}),
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.additional_mo_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
 
         self.comparators = eltwise_comparators(precision=precision, device=device,
@@ -56,7 +56,7 @@ class ONNXPrecollectedNPYBaseClass(CommonConfig):
     comparator_target_layers = None
     inputs_map = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += tuple([
             mark("onnx", is_simple_mark=True),
             mark("onnx_precollected_data", is_simple_mark=True)
@@ -77,7 +77,7 @@ class ONNXPrecollectedNPYBaseClass(CommonConfig):
             ("preprocess", {"align_with_batch": {"batch": batch, "expand_dims": False}}),
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.additional_mo_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device,
                                                target_layers=self.comparator_target_layers)

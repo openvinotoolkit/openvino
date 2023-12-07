@@ -27,15 +27,13 @@ class TF_ClassificationNet(CommonConfig):
     model_env_key = "models"
     input_file = resolve_file_path("test_data/inputs/tf/classification_imagenet.npz")
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.__pytest_marks__ += (mark("classification", is_simple_mark=True),
                                   mark("tf", is_simple_mark=True))
 
         model_path = prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version, self.model)
 
         preprocess_args = {'batch': batch, 'h': self.h, 'w': self.w, **self.preproc}
-        if not api_2:
-            preprocess_args.update({'permute_order': (2, 0, 1)})
 
         self.ref_collection = collect_tf_refs_pipeline(
             model=model_path, input=self.input_file, h=self.h, w=self.w, preprocessors=self.preproc)
@@ -49,7 +47,7 @@ class TF_ClassificationNet(CommonConfig):
                                  mo_out=self.environment["mo_out"],
                                  model=model_path,
                                  precision=precision, input_shape=(1, self.h, self.w, 3)),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = classification_comparators(postproc=self.postproc, precision=precision, device=device)
 
@@ -58,8 +56,8 @@ class TF_ClassificationNet_v1(TF_ClassificationNet):
     """Class for TensorFlow classification nets with changed ie_pipeline behavior:
        input_file is used in ie_pipeline instead common_input_file"""
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
-        super().__init__(batch, device, precision, api_2, **kwargs)
+    def __init__(self, batch, device, precision, **kwargs):
+        super().__init__(batch, device, precision, **kwargs)
 
         model_path = prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version, self.model)
         preprocess_args = {'batch': batch, 'h': self.h, 'w': self.w, **self.preproc}
@@ -70,9 +68,6 @@ class TF_ClassificationNet_v1(TF_ClassificationNet):
         self.ref_collection = collect_tf_refs_pipeline(
             model=model_path, input=self.ref_input_file, h=self.h, w=self.w, preprocessors=self.preproc)
 
-        if not api_2:
-            preprocess_args.update({'permute_order': (2, 0, 1)})
-
         self.ie_pipeline = OrderedDict([
             read_img_input(path=self.input_file),
             assemble_preproc_tf(**preprocess_args),
@@ -80,7 +75,7 @@ class TF_ClassificationNet_v1(TF_ClassificationNet):
                                  mo_out=self.environment["mo_out"],
                                  model=model_path,
                                  precision=precision, input_shape=(1, self.h, self.w, 3)),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
 
         self.comparators = classification_comparators(postproc=self.postproc, precision=precision, device=device)

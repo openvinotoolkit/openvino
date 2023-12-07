@@ -30,8 +30,8 @@ pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 log = get_logger(__name__)
 
 
-def _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, use_mo_legacy_frontend,
-              use_mo_new_frontend, skip_mo_args, prepare_test_info, copy_input_files, inference_precision_hint):
+def _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, skip_mo_args, prepare_test_info,
+              copy_input_files, inference_precision_hint):
 
     """Parameterized test.
 
@@ -41,7 +41,6 @@ def _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, u
     :param skip_mo_args: line with comma separated args that will be deleted from MO cmd line
     :param instance: test instance
     """
-    api_2 = instance.api_2
     model_framework_name = instance.__class__.__name__.split('_')[0]
     ir_version = "v11"
 
@@ -53,8 +52,6 @@ def _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, u
         prepare_test_info['pytestEntrypoint'] = 'E2E: TF Without MO step'
     if 'TFLite' == model_framework_name:
         prepare_test_info['pytestEntrypoint'] = 'E2E: TFLite Without MO step'
-    if not api_2:
-        prepare_test_info['pytestEntrypoint'] += ' old API'
 
     log.info("Running {test_id} test".format(test_id=instance.test_id))
     instance.prepare_prerequisites()
@@ -89,14 +86,12 @@ def _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, u
                               instance=instance, device=ie_pipeline.steps[infer_provider_index[0]].executor.device,
                               ir_version=ir_version, data_name='load_net_to_plug_time',
                               data=ie_pipeline.steps[infer_provider_index[0]].executor.load_net_to_plug_time,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                               skip_mo_args=skip_mo_args)
         if mem_usage_ie_csv_name:
             store_data_to_csv(csv_path=os.path.join(Environment.abs_path("mo_out"), mem_usage_ie_csv_name),
                               instance=instance, device=ie_pipeline.steps[infer_provider_index[0]].executor.device,
                               ir_version=ir_version, data_name='mem_usage_ie',
                               data=ie_pipeline.steps[infer_provider_index[0]].executor.mem_usage_ie,
-                              use_mo_legacy_frontend=use_mo_legacy_frontend, use_mo_new_frontend=use_mo_new_frontend,
                               skip_mo_args=skip_mo_args)
 
     comparators = ComparatorsContainer(
@@ -131,12 +126,12 @@ def empty_dirs(env_conf):
                 rmtree(dir_to_clean)
 
 
-def test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, use_mo_legacy_frontend,
-             use_mo_new_frontend, skip_mo_args, prepare_test_info, copy_input_files, env_conf,
-             inference_precision_hint):
+def test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, skip_mo_args, prepare_test_info,
+             copy_input_files, env_conf, inference_precision_hint):
+
     try:
-        _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, use_mo_legacy_frontend,
-                  use_mo_new_frontend, skip_mo_args, prepare_test_info, copy_input_files, inference_precision_hint)
+        _test_run(instance, load_net_to_plug_time_csv_name, mem_usage_ie_csv_name, skip_mo_args, prepare_test_info,
+                  copy_input_files, inference_precision_hint)
 
     except Exception as ex:
         raise Exception(f'{timestamp()}') from ex

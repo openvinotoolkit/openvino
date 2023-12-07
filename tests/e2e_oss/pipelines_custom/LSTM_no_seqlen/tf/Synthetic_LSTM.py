@@ -12,12 +12,12 @@ from e2e_oss.utils.path_utils import prepend_with_env_path
 
 class TF_Synthetic_LSTM_Base(CommonConfig):
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         if "BATCH={}".format(batch) not in self.model:
             self.__do_not_run__ = True
 
-        model_path = prepend_with_env_path("tf_internal_models", TFVersionHelper().tf_models_version, "synthetic_lstm", self.model)
-        infer_api = 'ie_sync_api_2' if api_2 else 'ie_sync'
+        model_path = prepend_with_env_path("tf_internal_models", TFVersionHelper().tf_models_version, "synthetic_lstm",
+                                           self.model)
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": os.path.join(os.path.dirname(model_path), "reference.npz")}})
@@ -30,7 +30,7 @@ class TF_Synthetic_LSTM_Base(CommonConfig):
                                  model=model_path,
                                  precision=precision),
             # 4. Run inference with IE
-            ("infer", {infer_api: {"device": device, "cpu_extension": "cpu_extension"}})
+            ("infer", {'ie_sync': {"device": device, "cpu_extension": "cpu_extension"}})
         ])
         self.comparators = eltwise_comparators(precision=precision, target_layers=['add'], device=device)
 

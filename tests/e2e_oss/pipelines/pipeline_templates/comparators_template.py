@@ -57,19 +57,6 @@ def eltwise_comparators(device, postproc=None, precision=None, a_eps=None, r_eps
                        }
 
 
-@wrap_ord_dict
-def eltwise_kaldi_comparators(device, postproc=None, precision=None, a_eps=None, r_eps=None, target_layers=None,
-                              ignore_results=False):
-    if postproc is None:
-        postproc = {}
-    return "eltwise_kaldi", {"device": device,
-                             "a_eps": a_eps,
-                             "r_eps": r_eps,
-                             "precision": precision,
-                             "postprocessors": postproc,
-                             "ignore_results": ignore_results,
-                             "target_layers": target_layers
-                             }
 
 
 @wrap_ord_dict

@@ -29,7 +29,7 @@ class TF_YOLO_V3_Base(TF_YoloBase):
     h = 416
     w = 416
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         super().__init__()
         mo_cfg = str(OpenVINOResources().mo_extensions / 'front' / 'tf' / self.mo_yolo_cfg)
 
@@ -40,8 +40,6 @@ class TF_YOLO_V3_Base(TF_YoloBase):
 
         preprocess_args = dict(h=self.h, w=self.w, batch=batch, rename_inputs=[('data', self.input_name)],
                                reverse_channels=True)
-        if not api_2:
-            preprocess_args.update(dict(permute_order=(2, 0, 1)))
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
@@ -66,7 +64,7 @@ class TF_YOLO_V3_Base(TF_YoloBase):
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, input_shape="(1,416,416,3)",
                                  transformations_config=mo_cfg),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs),
+            common_infer_step(device=device, batch=batch, **kwargs),
             ("postprocess", OrderedDict([
                 ("parse_yolo_V3_region", {"classes": yolo_attrs["classes"], "coords": yolo_attrs["coords"],
                                           'input_w': self.w, 'input_h': self.h,
@@ -86,7 +84,7 @@ class TF_YOLO_V3_No_Region_Base(TF_YoloBase):
     w = 416
     mo_additional_args = {"input_shape": "(1,416,416,3)"}
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         super().__init__()
 
         model_path = prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version, self.model)
@@ -94,9 +92,6 @@ class TF_YOLO_V3_No_Region_Base(TF_YoloBase):
         preprocess_args = dict(h=self.h, w=self.w, batch=batch, rename_inputs=[('data', self.input_name)],
                                reverse_channels=True)
         postprocess_args = {}
-        if not api_2:
-            preprocess_args.update(dict(permute_order=(2, 0, 1)))
-            postprocess_args = {'permute_shape': {'order': (0, 2, 3, 1)}}
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {
@@ -109,7 +104,7 @@ class TF_YOLO_V3_No_Region_Base(TF_YoloBase):
             assemble_preproc(**preprocess_args),
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.mo_additional_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs),
+            common_infer_step(device=device, batch=batch, **kwargs),
             ('postprocess', postprocess_args)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)
@@ -122,7 +117,7 @@ class TF_YOLO_V2_Base(TF_YoloBase):
     w = 416
     eps = None
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         super().__init__()
         mo_cfg = str(OpenVINOResources().mo_extensions / 'front' / 'tf' / self.mo_yolo_cfg)
 
@@ -133,8 +128,6 @@ class TF_YOLO_V2_Base(TF_YoloBase):
 
         preprocess_args = dict(h=self.h, w=self.w, batch=batch, rename_inputs=[('data', 'input')],
                                reverse_channels=True, normalization_factor=255)
-        if not api_2:
-            preprocess_args.update(dict(permute_order=(2, 0, 1)))
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
@@ -157,7 +150,7 @@ class TF_YOLO_V2_Base(TF_YoloBase):
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, input_shape="(1,416,416,3)",
                                  transformations_config=mo_cfg),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs),
+            common_infer_step(device=device, batch=batch, **kwargs),
             ("postprocess", OrderedDict([
                 ("parse_yolo_V2_region", {"classes": yolo_attrs["classes"], "coords": yolo_attrs["coords"],
                                           "num": yolo_attrs["num"], "anchors": yolo_attrs["anchors"],
@@ -178,16 +171,13 @@ class TF_YOLO_V2_Full_No_Region_Base(TF_YoloBase):
     score_tf_args = {}
     mo_additional_args = {"input_shape": "(1,416,416,3)"}
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         super().__init__()
 
         model_path = prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version, self.model)
         preprocess_args = dict(h=self.h, w=self.w, batch=batch, rename_inputs=[('data', 'input')],
                                reverse_channels=True, normalization_factor=255)
         postprocess_args = {}
-        if not api_2:
-            preprocess_args.update(dict(permute_order=(2, 0, 1)))
-            postprocess_args = OrderedDict([("permute_shape", {"order": (0, 2, 3, 1)})])
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(
@@ -199,7 +189,7 @@ class TF_YOLO_V2_Full_No_Region_Base(TF_YoloBase):
             assemble_preproc(**preprocess_args),
             common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.mo_additional_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs),
+            common_infer_step(device=device, batch=batch, **kwargs),
             ('postprocess', postprocess_args)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)

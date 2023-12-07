@@ -118,8 +118,7 @@ def read_irs_mapping_file(path: Path, timeout: int = 30, lock_access: bool = Fal
     return irs_mapping
 
 
-def get_ir_tag(name, ir_version, precision, batch, sequence_length=None, use_mo_legacy_frontend=False,
-               use_mo_new_frontend=False, skip_mo_args=None):
+def get_ir_tag(name, ir_version, precision, batch, sequence_length=None, skip_mo_args=None):
     """
     Prepares tag to map IR generated in E2E test
     :param name: test (or any specific) name
@@ -127,8 +126,6 @@ def get_ir_tag(name, ir_version, precision, batch, sequence_length=None, use_mo_
     :param precision: precision value of IR
     :param batch: batch value of IR
     :param sequence_length: sequence_length value of IR
-    :param use_mo_legacy_frontend: bool value defines is IR generated w/ or w/o `--use_legacy_frontend` option
-    :param use_mo_new_frontend: bool value defines is IR generated w/ or w/o `--use_new_frontend` option
     :param skip_mo_args: line with comma separated args that will be deleted from MO cmd line
 
     :return: IR tag
@@ -138,15 +135,10 @@ def get_ir_tag(name, ir_version, precision, batch, sequence_length=None, use_mo_
         model_tag = f"{model_tag}_seqlen_{sequence_length}"
     if skip_mo_args:
         model_tag += f"deleted_mo_args:_{skip_mo_args}"
-    if use_mo_legacy_frontend:
-        model_tag += "_mo_legacy_fe"
-    if use_mo_new_frontend:
-        model_tag += "_mo_new_fe"
     return model_tag
 
 
-def store_data_to_csv(csv_path, instance, ir_version, data, device, data_name, use_mo_legacy_frontend=False,
-                      use_mo_new_frontend=False, skip_mo_args=None):
+def store_data_to_csv(csv_path, instance, ir_version, data, device, data_name, skip_mo_args=None):
     """
     This function helps to store runtime data such as time of IR generation by MO or of network loading to plugin.
     To store it, please, execute test.py (both for MO and load net to plugin) with keys:
@@ -157,8 +149,6 @@ def store_data_to_csv(csv_path, instance, ir_version, data, device, data_name, u
     :param ir_version: string in format "vN" (e.g. v11)
     :param device: in general, it is device for execution, but for MO it is useless. But for MO it is set as 'CPU'
     :param data_name: name of runtime data (such as attribute where time was saved)
-    :param use_mo_legacy_frontend: bool value defines is IR generated w/ or w/o `--use_legacy_frontend` option
-    :param use_mo_new_frontend: bool value defines is IR generated w/ or w/o `--use_new_frontend` option
     :param skip_mo_args: line with comma separated args that will be deleted from MO cmd line
     :return:
     """
@@ -167,7 +157,7 @@ def store_data_to_csv(csv_path, instance, ir_version, data, device, data_name, u
         write_to_csv(csv_path=csv_path, data=csv_header)
     model_mapping_tag = get_ir_tag(instance.__class__.__name__, ir_version, instance.precision,
                                    instance.batch, instance.required_params.get("sequence_length", None),
-                                   use_mo_legacy_frontend, use_mo_new_frontend, skip_mo_args)
+                                   skip_mo_args)
     write_to_csv(csv_path=csv_path, data=[model_mapping_tag, device, data, data_name])
 
 
@@ -335,9 +325,9 @@ def copy_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_copy
 def check_mo_precision(instance):
     # SPR use BF16 precision by default, and it requires thresholds that are different from FP32 threshold
     # Run Model Optimizer with FP32 precision because it hasn't bf16 option
-    if 'mo' in instance['get_ir'] and instance['get_ir']['mo']['precision'] == "BF16":
+    if 'get_ovc_model' in instance['get_ir'] and instance['get_ir']['get_ovc_model']['precision'] == "BF16":
         log.info("Setting precision FP32 for Model Optimizer...")
-        instance['get_ir']['mo']['precision'] = "FP32"
+        instance['get_ir']['get_ovc_model']['precision'] = "FP32"
 
 
 def set_infer_precision_hint(instance, pipeline, inference_precision_hint):
@@ -550,23 +540,3 @@ def get_inputs_info(model_obj):
 
     return inputs_info
 
-
-def get_shapes_from_data(input_data, api_version='1') -> dict:
-    shapes = {}
-    for input_layer in input_data:
-        if api_version == '2':
-            shapes[input_layer] = PartialShape(input_data[input_layer].shape)
-        else:
-            shapes[input_layer] = input_data[input_layer].shape
-    return shapes
-
-
-def convert_shapes_to_partial_shape(shapes: dict) -> dict:
-    partial_shape = {}
-    for layer, shape in shapes.items():
-        dimension_tmp = []
-        for item in shape:
-            dimension_tmp.append(Dimension(item[0], item[1])) if type(item) == list else dimension_tmp.append(
-                Dimension(item))
-        partial_shape[layer] = PartialShape(dimension_tmp)
-    return partial_shape

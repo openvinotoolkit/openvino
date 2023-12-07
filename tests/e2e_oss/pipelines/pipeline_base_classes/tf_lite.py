@@ -22,10 +22,8 @@ class TFLiteClassification(CommonConfig):
     preproc = {}
     postproc = parse_classification()
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         preprocess_args = {'batch': batch, 'h': self.h, 'w': self.w}
-        if not api_2:
-            preprocess_args.update({'permute_order': (2, 0, 1)})
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
@@ -39,7 +37,7 @@ class TFLiteClassification(CommonConfig):
                                  model=prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version,
                                                              self.model),
                                  precision=precision, input_shape=(1, self.h, self.w, 3)),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
 
         self.comparators = classification_comparators(precision=precision, device=device, postproc=self.postproc)

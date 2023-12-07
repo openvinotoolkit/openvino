@@ -4,48 +4,15 @@ import os
 from collections import OrderedDict
 from pathlib import Path
 
-from e2e_oss.utils.kaldi_utils import read_ark_data
 from e2e_oss.common_utils.decorators import wrap_ord_dict
+from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ir_pregenerated
 from e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_mxnet, assemble_postproc_tf
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe, assemble_preproc_mxnet, \
     assemble_preproc, assemble_preproc_tf
+from e2e_oss.utils.kaldi_utils import read_ark_data
 from e2e_oss.utils.path_utils import proto_from_model, ref_from_model, symbol_from_model
-from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
-
-
-def get_refs_caffe(proto, model):
-    """
-    Construct Caffe reference collection action.
-
-    :param proto: .prototxt file with layer description
-    :param model: .caffemodel file with weights
-    :return: Caffe models "get_refs" action processed by testing framework
-    """
-    return 'get_refs', {'score_caffe': {'proto': proto, 'model': model}}
-
-
-def get_refs_mxnet(symbol, params, ref_collector='score_mxnet'):
-    """
-    Construct MXNet reference collection action.
-
-    :param symbol: *-symbol.json file with symbolic graph
-    :param params: .params file with weights
-    :param ref_collector: reference collector for MXNet models
-    :return: MXNet models "get_refs" action processed by testing framework
-    """
-    return 'get_refs', {ref_collector: {'symbol': symbol, 'params': params}}
-
-
-def get_refs_caffe2(model):
-    """
-    Construct Caffe2 reference collection action.
-
-    :param model: .onnx file
-    :return: Caffe2 models "get_refs" action processed by testing framework
-    """
-    return 'get_refs', {'score_caffe2': {'model': model}}
 
 
 def get_refs_onnx_runtime(model, onnx_rt_ep, cast_input_data=True, cast_type="float32"):
@@ -287,4 +254,3 @@ def get_refs_tf_hub():
     Construct TensorFlow Hub reference collection action.
     """
     return "get_refs_tf_hub", {'score_tf_hub': {}}
-

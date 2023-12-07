@@ -18,11 +18,11 @@
 # otherwise. Any license under such intellectual property rights must be express
 # and approved by Intel in writing.
 #
-import inspect
 import base64
+import inspect
+import logging
 import os
 import re
-import logging
 import weakref
 from datetime import datetime
 from typing import cast, List, Union, Tuple, Generator
@@ -55,6 +55,7 @@ class Chunks(Generator):
     """
     generator yielding tuple: no of part, number of parts, and part of the input list
     """
+
     def __init__(self, seq: List[str], max_number_of_elements: int = 1000) -> None:
         super().__init__()
         self.seq = tuple(seq)
@@ -243,13 +244,16 @@ def get_logger(name) -> Logger:
     logger.setLevel(__LOGGING_LEVEL)
     return cast(Logger, logger)
 
+
 def step(message):
     caller = inspect.stack()[1][3]
     _log_separator(logger_type=LoggerType.STEP_LOGGER, separator=SEPARATOR, caller=caller, message=message)
 
+
 def log_fixture(message, separator=FIXTURE_SEPARATOR):
     caller = inspect.stack()[1][3]
     _log_separator(logger_type=LoggerType.FIXTURE_LOGGER, separator=separator, caller=caller, message=message)
+
 
 def _log_separator(logger_type, separator, caller, message):
     get_logger(logger_type).info("{0} {1}: {2} {0}".format(separator, caller, message))
@@ -263,12 +267,14 @@ def line_trimmer(line: str, max_number_of_elements: int = 1 * ONE_K // 4):
                line[-max_number_of_elements // 2:]
     return line
 
+
 def list_trimmer(seq: list, max_number_of_elements: int = 4 * ONE_K):
     if len(seq) > max_number_of_elements:
         first_element = ["Too long output was trimmed! Original len {}, showing first and last {} lines:"
                          .format(len(seq), max_number_of_elements // 2)]
         seq = first_element + seq[:max_number_of_elements // 2] + ["", "[...]", ""] + seq[-max_number_of_elements // 2:]
     return seq
+
 
 def log_trimmer(logs: str):
     logs_list = logs.split(sep="\n")
@@ -277,11 +283,13 @@ def log_trimmer(logs: str):
     logs = "\n".join(logs_trimmed)
     return logs
 
+
 def sanitize_node(name_or_node_id):
     name_or_node_id = "__".join(name_or_node_id.split("/"))
     name_or_node_id = "..".join(name_or_node_id.split("::"))
     name_or_node_id = "-".join(name_or_node_id.split(" "))
     return name_or_node_id
+
 
 class FileHandler(logging.FileHandler):
     def __init__(self, item: Union["Item", str] = None,

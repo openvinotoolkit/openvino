@@ -447,49 +447,6 @@ class AlignWithBatchDifferently(ClassProvider):
         return data
 
 
-class AlignWithBatchKaldiNetwork(ClassProvider):
-    """Batch alignment preprocessor.
-
-    Aligns batch dimension in input data
-    with BATCH value specified in test.
-
-    Models 0-th dimension for batch and
-    duplicates input data while size of batch
-    dimension in input data won't be equal with BATCH.
-    Does it for every frame
-    """
-    __action_name__ = "align_with_batch_kaldi"
-
-    def __init__(self, config):
-        self.batch = config["batch"]
-        self.batch_dim = config.get('batch_dim', 0)
-        self.expand_dims = config.get('expand_dims', True)
-        self.target_layers = config.get('target_layers', None)
-
-    def apply(self, data):
-        """Apply batch alignment (duplication) to data."""
-        apply_to = self.target_layers if self.target_layers is not None else data.keys()
-        log.info("Align batch data for layers {} to batch {} ...".format(', '.join(
-            '"{}"'.format(l) for l in apply_to), self.batch))
-
-        aligned_data = {}
-        for layer in apply_to:
-            for utterance_id, utterance_data in data[layer].items():
-                aligned_frames = []
-                for frame in utterance_data:
-                    if self.expand_dims:
-                        expand_dims = self.batch_dim if isinstance(self.expand_dims, bool) else self.expand_dims
-                        frame = np.expand_dims(frame, axis=expand_dims)
-                    aligned_frames.append({layer: np.repeat(frame, self.batch, axis=self.batch_dim)})
-                if utterance_id not in aligned_data:
-                    aligned_data[utterance_id] = aligned_frames
-                else:
-                    for frames in aligned_data[utterance_id]:
-                        for second_input_frame in aligned_frames:
-                            frames.update(second_input_frame)
-        return aligned_data
-
-
 class ConvertToTorchTensor(ClassProvider):
     """Convert arrays to torch.Tensor format."""
     __action_name__ = "convert_to_torch"

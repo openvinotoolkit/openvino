@@ -22,9 +22,11 @@ import re
 from enum import Enum
 from itertools import chain
 from typing import Union
+
 from _pytest.nodes import Item
-from .logger import get_logger
+
 from .config import repository_name
+from .logger import get_logger
 
 RePattern = type(re.compile(""))
 logger = get_logger(__name__)
@@ -136,7 +138,7 @@ class ConditionalMark(MarkMeta):
         elif isinstance(entry, list):
             for _element in entry:
                 value = cls._process_single_entry(_element, item)
-                if value:   # Return first match
+                if value:  # Return first match
                     return value
             return None
         else:
@@ -264,7 +266,7 @@ class MarkRunType(ConditionalMark):
     def get_test_type_mark(cls, item: Item):
         mark = cls.get_mark_from_item(item, "test_group")
         if not mark and getattr(item, "parent", None):
-            mark = cls.get_mark_from_item(item.parent, "test_group")        # try to deduce test type from parent
+            mark = cls.get_mark_from_item(item.parent, "test_group")  # try to deduce test type from parent
         return mark
 
     @classmethod
@@ -273,6 +275,7 @@ class MarkRunType(ConditionalMark):
         if not mark:
             return -1
         return list(cls).index(mark)
+
 
 class MarksRegistry(tuple):
     MARKERS = "markers"

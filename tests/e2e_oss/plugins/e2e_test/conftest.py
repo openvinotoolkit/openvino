@@ -203,7 +203,6 @@ def pytest_generate_tests(metafunc):
     skip_ir_generation = metafunc.config.getoption("skip_ir_generation")
 
     for test in test_classes:
-        setattr(test, 'use_mo_cmd_tool', metafunc.config.getoption('use_mo_cmd_tool'))
         setattr(test, 'convert_pytorch_to_onnx', metafunc.config.getoption('convert_pytorch_to_onnx'))
         required_args = list(inspect.signature(test.__init__).parameters.keys())[1:]
         required_args.extend(getattr(metafunc, 'test_add_args_to_parametrize', []))

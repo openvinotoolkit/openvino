@@ -4,18 +4,6 @@ from .provider import StepProvider
 from .tf_hub_ref_provider import TFHubStepProvider
 
 try:
-    from .score_caffe import ScoreCaffe
-except ImportError as error:
-    ScoreCaffe = use_dummy('score_caffe', error_message=str(error))
-try:
-    from .score_mxnet import ScoreMxnet
-except ImportError as error:
-    ScoreMxnet = use_dummy('score_mxnet', error_message=str(error))
-try:
-    from .score_mxnet import ScoreMxnetV2
-except ImportError as error:
-    ScoreMxnetV2 = use_dummy('score_mxnet_v2', error_message=str(error))
-try:
     from .score_tf import ScoreTensorFlow
 except ImportError as error:
     ScoreTensorFlow = use_dummy('score_tf', error_message=str(error))
@@ -56,10 +44,6 @@ try:
 except ImportError as error:
     PytorchTorchvisionToONNXRunner = use_dummy('score_pytorch_torchvision_with_onnx', error_message=str(error))
 try:
-    from .score_caffe2 import Caffe2Runner
-except ImportError as error:
-    Caffe2Runner = use_dummy('score_caffe2', error_message=str(error))
-try:
     from .score_onnx_runtime import ONNXRuntimeRunner
 except ImportError as error:
     ONNXRuntimeRunner = use_dummy('score_onnx_runtime', error_message=str(error))
@@ -75,10 +59,6 @@ try:
     from .score_onnx_runtime import ONNXRuntimeRunner
 except ImportError as error:
     ScoreTensorFLowLite = use_dummy('score_onnx_runtime', error_message=str(error))
-try:
-    from .score_kaldi import ScoreKaldi
-except ImportError as error:
-    ScoreKaldi = use_dummy('score_kaldi', error_message=str(error))
 try:
     from .score_paddlepaddle import ScorePaddlePaddle
 except ImportError as error:

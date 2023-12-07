@@ -35,7 +35,7 @@ class _PyTorchHuggingFaceBase(CommonConfig):
     target_layers = []
     additional_args = {}
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         if self.input_shapes:
             self.additional_args.update({'input_shape': [int(x) for x in self.input_shapes.split(',')]})
 
@@ -74,7 +74,7 @@ class _PyTorchHuggingFaceBase(CommonConfig):
                                  model=self.output_file,
                                  precision=precision,
                                  **self.additional_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs),
+            common_infer_step(device=device, batch=batch, **kwargs),
             ("postprocess", {"names_to_indices": {}})
         ])
 

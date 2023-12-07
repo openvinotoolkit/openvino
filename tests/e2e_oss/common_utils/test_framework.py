@@ -19,8 +19,8 @@
 # and approved by Intel in writing.
 #
 import os
-import re
 import random
+import re
 from time import strftime
 
 import pytest
@@ -36,6 +36,7 @@ class FrameworkMessages:
     FEATURE_NOT_READY = "FEATURE NOT READY"
     NOT_SUPPORTED_IN_SAFARI = "Not possible to automate on Safari browser"
 
+
 class TestStatus:
     RESULT_PASS = "PASS"
     RESULT_FAIL = "FAIL"
@@ -46,6 +47,7 @@ class TestStatus:
     RESULT_NOT_TO_BE_REPORTED = FrameworkMessages.NOT_TO_BE_REPORTED_IF_SKIPPED.replace(" ", "_")
     RESULT_TEST_ISSUE = FrameworkMessages.TEST_ISSUE.replace(" ", "_")
     RESULT_FEATURE_NOT_READY = FrameworkMessages.FEATURE_NOT_READY.replace(" ", "_")
+
 
 def skip_if_runtime(condition):
     if condition:
@@ -58,6 +60,7 @@ def skip_if(condition):
 
 def skip_not_implemented():
     return pytest.mark.skip(reason=FrameworkMessages.NOT_IMPLEMENTED)
+
 
 def get_short_date_string():
     date_str = strftime("%Y%m%d%H%M%S")
@@ -85,6 +88,7 @@ def generate_test_object_name(separator="_", prefix="tmp", short=False):
     name = separator.join([prefix, os.environ["USER"], date_str, random_sha])
     return name
 
+
 def get_xdist_worker_nr() -> int:
     xdist_current_worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
     if xdist_current_worker == "master":
@@ -92,6 +96,7 @@ def get_xdist_worker_nr() -> int:
     else:
         xdist_current_worker = int(xdist_current_worker.lstrip("gw"))
     return xdist_current_worker
+
 
 def get_xdist_worker_count() -> int:
     return int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1"))

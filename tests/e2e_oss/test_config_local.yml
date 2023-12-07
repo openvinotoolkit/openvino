@@ -4,8 +4,6 @@ device:
   - CPU
 precision:
   - FP32
-api_2:
-  - True
 # LSTM specific
 sequence_length:
   - 1

@@ -6,7 +6,6 @@ import logging as log
 import sys
 from copy import deepcopy
 
-from e2e_oss.utils.kaldi_utils import read_ark_data
 from e2e_oss.utils.path_utils import resolve_file_path
 from e2e_oss.utils.test_utils import prepare_inputs, get_inputs_info
 from utils.e2e.readers.provider import ClassProvider
@@ -125,35 +124,6 @@ class ExternalData(ClassProvider):
 
     def read(self):
         return self.data
-
-
-class ARKReader(ClassProvider):
-    """
-    Read input data from ark file. Config should have 'inputs_map' field with mapping
-    (dictionary) of input layer name and corresponding ark file path.
-    Optional fields for config: 'utterances_to_read' - names of utterances to read from input .ark file,
-    'frames_per_utterance' - number of frames to read from each utterance
-    """
-    __action_name__ = "ark"
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
-
-    def __init__(self, config):
-        """Initialization method.
-        :param config: configuration dict. must have 'inputs_map' key
-        """
-        self.inputs_map = config['inputs_map']
-        # If self.utterances_to_read is None, read all utterances
-        self.utterances_to_read = config.get('utterances_to_read', None)
-        # If self.frames_per_utterance is None, read all frames
-        self.frames_per_utterance = config.get('frames_per_utterance', None)
-
-    def read(self):
-        input_data = {}
-        for input, path in self.inputs_map.items():
-            filtered_ark_data = read_ark_data(ark_path=path, utterances_to_read=self.utterances_to_read,
-                                              frames_per_utterance=self.frames_per_utterance)
-            input_data.update({input: filtered_ark_data})
-        return input_data
 
 
 class TorchReader(ClassProvider):

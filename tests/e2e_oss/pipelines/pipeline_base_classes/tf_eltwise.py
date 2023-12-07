@@ -26,10 +26,8 @@ class TF_eltwise(CommonConfig):
     target_layers = None
     additional_mo_args = {}
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         preprocess_args = {'batch': batch, 'h': self.h, 'w': self.w, **self.preproc}
-        if not api_2:
-            preprocess_args.update({'permute_order': (2, 0, 1)})
 
         self.ref_pipeline = read_refs_pipeline(ref_file=ref_from_model(model_name=self.model, framework="tf"),
                                                batch=batch)
@@ -41,6 +39,6 @@ class TF_eltwise(CommonConfig):
                                                              self.model),
                                  precision=precision, input_shape=(1, self.h, self.w, 3),
                                  **self.additional_mo_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, **kwargs)
+            common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = eltwise_comparators(target_layers=self.target_layers, precision=precision, device=device)

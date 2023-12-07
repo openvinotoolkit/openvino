@@ -1,7 +1,6 @@
 from . import classification
 from . import dummy
 from . import eltwise
-from . import eltwise_kaldi
 from . import object_detection
 from . import ocr
 from . import semantic_segmentation

@@ -62,7 +62,7 @@ class _PyTorchBase(CommonConfig):
 
         return ref_res, optim_model_res
 
-    def __init__(self, batch, device, precision, api_2, **kwargs):
+    def __init__(self, batch, device, precision, **kwargs):
         self.batch = batch
         self.output_file = os.path.join(self.environment['mo_out'], f'{self.model}_{self.import_module}.onnx')
         self.torch_model_zoo_path = prepend_with_env_path(self.model_env_key, self.model)
@@ -73,11 +73,8 @@ class _PyTorchBase(CommonConfig):
         if self.pytorch_weights:
             self.pytorch_weights = prepend_with_env_path(self.model_env_key, self.pytorch_weights)
         if self.input_shapes:
-            if api_2:
-                self.additional_args.update({'example_input': torch.ones([int(x) for x in self.input_shapes.split(',')],
-                                                                         dtype=torch.float32)})
-            else:
-                self.additional_args.update({'input_shape': [int(x) for x in self.input_shapes.split(',')]})
+            self.additional_args.update({'example_input': torch.ones([int(x) for x in self.input_shapes.split(',')],
+                                                                     dtype=torch.float32)})
 
         for attr in ["onnx_rt_ep", "pytorch_models_zoo_path"]:
             val = kwargs.get(attr, None)
@@ -142,7 +139,7 @@ class _PyTorchBase(CommonConfig):
                                  model=self.output_file,
                                  precision=precision,
                                  **self.additional_args),
-            common_infer_step(device=device, batch=batch, api_2=api_2, index_infer=True, **kwargs),
+            common_infer_step(device=device, batch=batch, index_infer=True, **kwargs),
         ])
 
         cmp_layers = getattr(self, "cmp_layers", None)
