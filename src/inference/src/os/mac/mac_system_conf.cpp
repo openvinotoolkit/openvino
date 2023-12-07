@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
 
@@ -28,17 +29,16 @@ CPU::CPU() {
         }
     }
 
-    if (!parse_processor_info_macos(system_info_table, _processors, _numa_nodes, _sockets, _cores, _proc_type_table)) {
-        _org_proc_type_table = _proc_type_table;
-    }
+    parse_processor_info_macos(system_info_table, _processors, _numa_nodes, _sockets, _cores, _proc_type_table);
+    _org_proc_type_table = _proc_type_table;
 }
 
-int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t>>& system_info_table,
-                               int& _processors,
-                               int& _numa_nodes,
-                               int& _sockets,
-                               int& _cores,
-                               std::vector<std::vector<int>>& _proc_type_table) {
+void parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t>>& system_info_table,
+                                int& _processors,
+                                int& _numa_nodes,
+                                int& _sockets,
+                                int& _cores,
+                                std::vector<std::vector<int>>& _proc_type_table) {
     _processors = 0;
     _numa_nodes = 0;
     _sockets = 0;
@@ -53,7 +53,7 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
                            });
 
     if (it == system_info_table.end()) {
-        return -1;
+        OPENVINO_THROW("Unable to get number of cpus from macOS!");
     } else {
         _processors = static_cast<int>(it->second);
     }
@@ -65,8 +65,7 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
                       });
 
     if (it == system_info_table.end()) {
-        _processors = 0;
-        return -1;
+        _cores = _processors;
     } else {
         _cores = static_cast<int>(it->second);
     }
