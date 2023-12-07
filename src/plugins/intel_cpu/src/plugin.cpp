@@ -66,7 +66,7 @@ static std::string getDeviceFullName() {
 #else
 # error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
 #endif
-    return brand_string;
+    return std::string(brand_string.c_str());
 }
 
 #if defined(__linux__)
