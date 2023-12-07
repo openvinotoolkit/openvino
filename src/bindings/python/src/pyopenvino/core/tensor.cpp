@@ -277,6 +277,44 @@ void regclass_Tensor(py::module m) {
             :rtype: numpy.array
         )");
 
+    cls.def_property_readonly(
+        "data_str",
+        [](ov::Tensor& self) {
+            // Special property which decodes strings to unicode used by numpy:
+            auto ov_type = self.get_element_type();
+            auto dtype = Common::ov_type_to_dtype().at(ov_type);
+            if(ov_type == ov::element::string) {
+                auto data = self.data<std::string>();
+                // List is helpful to store PyObjects, can I work around it?
+                // Maybe storing them in C++ vector and get max length via
+                // PyUnicode_GET_LENGTH or PyUnicode_GetLength
+                // but there is a problem of detecting endianness...
+                // In [2]: np.dtype("<U4")
+                // Out[2]: dtype('<U4')
+                // In [3]: np.dtype("|U4")
+                // Out[3]: dtype('<U4')
+                // auto dtype = py::dtype("|U" + ...); <-- promise a fallback to system native
+
+                // Approach that is compact and faster than np.char.decode(tensor.data):
+                py::list _list;
+                for(size_t i = 0; i < self.get_size(); ++i) {
+                    PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "strict");
+                    _list.append(_unicode_obj);
+                    Py_XDECREF(_unicode_obj);
+                }
+                return py::array(_list);
+            }
+            OPENVINO_THROW("Only applicable for string arrays!");
+        },
+        R"(
+            Access to Tensor's data with string Type.
+
+            Returns decoded numpy array with corresponding shape and dtype.
+            Warning: Data is always a copy of underlaying memory!            
+
+            :rtype: numpy.array
+        )");
+
     cls.def("get_shape",
             &ov::Tensor::get_shape,
             R"(
