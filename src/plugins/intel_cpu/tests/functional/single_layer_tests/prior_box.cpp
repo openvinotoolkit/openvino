@@ -31,8 +31,6 @@ typedef std::tuple<priorBoxSpecificParams,
                    ov::test::ElementType,  // net precision
                    ov::test::ElementType,  // Input precision
                    ov::test::ElementType,  // Output precision
-                   ov::Layout,             // Input layout
-                   ov::Layout,             // Output layout
                    ov::test::InputShape,   // input shape
                    ov::test::InputShape,   // image shape
                    std::string>
@@ -44,14 +42,13 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
         ov::test::ElementType netPrecision;
         ov::test::ElementType inPrc, outPrc;
-        ov::Layout inLayout, outLayout;
         ov::test::InputShape inputShapes;
         ov::test::InputShape imageShapes;
         std::string targetDevice;
         priorBoxSpecificParams specParams;
         std::tie(specParams,
                  netPrecision,
-                 inPrc, outPrc, inLayout, outLayout,
+                 inPrc, outPrc,
                  inputShapes,
                  imageShapes,
                  targetDevice) = obj.param;
@@ -78,8 +75,6 @@ public:
         result << "netPRC="  << netPrecision   << separator;
         result << "inPRC="   << inPrc << separator;
         result << "outPRC="  << outPrc << separator;
-        result << "inL="     << inLayout.to_string() << separator;
-        result << "outL="    << outLayout.to_string() << separator;
         result << "min_size=" << ov::test::utils::vec2str(attributes.min_size) << separator;
         result << "max_size=" << ov::test::utils::vec2str(attributes.max_size)<< separator;
         result << "aspect_ratio=" << ov::test::utils::vec2str(attributes.aspect_ratio)<< separator;
@@ -101,16 +96,12 @@ protected:
     void SetUp() override {
         priorBoxSpecificParams specParams;
 
-        ov::Layout inLayout;
-        ov::Layout outLayout;
         ov::test::ElementType netPrecision;
         ov::test::ElementType inPrc;
         ov::test::ElementType outPrc;
         ov::test::InputShape inputShapes;
         ov::test::InputShape imageShapes;
-        std::tie(specParams, netPrecision,
-                 inPrc, outPrc, inLayout, outLayout,
-                 inputShapes, imageShapes, targetDevice) = GetParam();
+        std::tie(specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, targetDevice) = GetParam();
 
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -214,8 +205,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::ElementType::undefined),
         ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::Values(ov::Layout("...")),
-        ::testing::Values(ov::Layout("...")),
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(imageShape),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
