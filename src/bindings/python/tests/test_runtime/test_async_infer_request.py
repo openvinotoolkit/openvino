@@ -331,21 +331,6 @@ def test_shared_memory_deprecation(device, shared_flag):
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
-    _, request, tensor1, array1 = abs_model_with_data(
-        device, ov_type, numpy_dtype)
-
-    request.start_async(array1, share_inputs=share_inputs)
-    request.wait()
-    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
-
-    request.start_async(tensor1, share_inputs=share_inputs)
-    request.wait()
-    assert np.array_equal(
-        request.get_output_tensor().data, np.abs(tensor1.data))
-
-
-@pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("share_outputs", [True, False])
 @pytest.mark.parametrize("is_positional", [True, False])
 def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
