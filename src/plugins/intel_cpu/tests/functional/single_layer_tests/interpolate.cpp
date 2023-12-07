@@ -205,7 +205,8 @@ protected:
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             inType = outType = ngPrc = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {
@@ -316,7 +317,7 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
 };
 
 std::vector<ov::AnyMap> filterAdditionalConfig() {
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         return {{{ov::hint::inference_precision(ov::element::f32)}},
                 {{ov::hint::inference_precision(ov::element::bf16)}}};
     } else {
@@ -329,7 +330,7 @@ std::vector<ov::AnyMap> filterAdditionalConfig() {
 // 3D
 std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx2()) {
+    if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"jit_avx2"}, "jit_avx2"});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"ref"}, "ref"});
@@ -411,7 +412,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet3D_fixed_C() {
     std::vector<fusingSpecificParams> fuseParams;
-    if (InferenceEngine::with_cpu_x86_avx2()) {
+    if (ov::with_cpu_x86_avx2()) {
         fuseParams.push_back(fusingFakeQuantizePerChannelRelu);
         fuseParams.push_back(fusingMultiplyPerChannel);
     }
@@ -536,14 +537,14 @@ INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout3D_Test, InterpolateLayerCPUTest
 // 4D
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
     } else {
@@ -808,14 +809,14 @@ INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
 ////////////////////////5D/////////////////////////////
 std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x, x, x}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx512"}, "jit_avx512"});
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x, x}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x, x}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_sse42"}, "jit_sse42"});
     } else {
@@ -1078,18 +1079,18 @@ const std::vector<ShapeParams> shapeParams4D_Pillow_Smoke = {
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice_pillow() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
     }
     resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref"});
     return resCPUParams;
 }
 std::vector<ov::AnyMap> filterPillowAdditionalConfig() {
-    return {{{}}};
+    return {{}};
 }
 
 const auto interpolateCasesBilinearPillow_Smoke = ::testing::Combine(
@@ -1172,11 +1173,11 @@ const std::vector<std::vector<size_t>> pads4D_nchw_as_nhwc = {
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice_pillow_nchw_as_nhwc() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx512"}, "jit_avx512"});
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;

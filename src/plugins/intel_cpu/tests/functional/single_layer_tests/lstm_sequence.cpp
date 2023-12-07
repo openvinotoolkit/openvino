@@ -63,9 +63,8 @@ public:
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second.as<std::string>();
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
         return result.str();
@@ -106,7 +105,8 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -189,9 +189,8 @@ TEST_P(LSTMSequenceCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<ov::AnyMap> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
+                                            {{ov::hint::inference_precision(ov::element::bf16)}}};
 
 CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
 // CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
@@ -454,6 +453,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::Values(cpuParamsBatchSizeOne),
                                ::testing::Values(additionalConfig[1])),
             LSTMSequenceCPUTest::getTestCaseName);
-} // namespace
+}  // namespace
 }  // namespace test
 }  // namespace ov

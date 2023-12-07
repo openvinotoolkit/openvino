@@ -58,8 +58,7 @@ public:
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second.as<std::string>();
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
         return result.str();
@@ -87,7 +86,8 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][1];
         const size_t inputSize = targetStaticShapes.front()[0][1];
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
