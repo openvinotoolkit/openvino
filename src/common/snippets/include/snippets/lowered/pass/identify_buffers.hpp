@@ -114,7 +114,7 @@ private:
      */
     static BufferMap get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr);
     /**
-     * @brief Find all buffers that are current Loop inside.
+     * @brief Find all buffers that are inside the current Loop.
      * @param loop_end_it expression iterator in LinearIR of the target LoopEnd
      * @return set of inner buffers
      */

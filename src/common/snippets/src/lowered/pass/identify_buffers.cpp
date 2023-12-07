@@ -94,13 +94,15 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         const auto buffer_loop_neighbours = get_buffer_loop_neighbours(expr);
         const auto buffers_loop_inside = get_buffer_loop_inside(expr_it);
         for (auto buffer_it = buffer_loop_neighbours.cbegin(); buffer_it != buffer_loop_neighbours.cend(); ++buffer_it) {
-            // Check for Buffers that are connected to the same Buffer
+            // If Buffers, that are connected to the same Loop, have not proportionally ptr shift params for this Loop - these Buffers are adjacent
             for (auto neighbour_it = std::next(buffer_it); neighbour_it != buffer_loop_neighbours.cend(); ++neighbour_it) {
                 update_adj_matrix(*buffer_it, *neighbour_it, pool, adj);
             }
-            // Check for Buffers that are the current Loop inside
-            for (auto neighbour_it = buffers_loop_inside.cbegin(); neighbour_it != buffers_loop_inside.cend(); ++neighbour_it) {
-                update_adj_matrix(*buffer_it, *neighbour_it, pool, adj);
+            // Buffers which are connected to the current Loop with zero ptr shifts and Buffers which are inside this Loop - must be adjacent:
+            // after each the Loop iteration GPR will be shifted using ptr increment of Buffer outside.
+            // But if inner Buffers have the same GPR - it means that these Buffers will work with shifted memory.
+            for (auto inner_it = buffers_loop_inside.cbegin(); inner_it != buffers_loop_inside.cend(); ++inner_it) {
+                update_adj_matrix(*buffer_it, *inner_it, pool, adj);
             }
         }
     }
@@ -153,9 +155,6 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
-    // Buffers which are connected to the current Loop but without ptr shifts and Buffers which are inside this Loop - must be adjacent because
-    // after each Loop iteration GPR will be shifted using ptr increment of Buffer outside. But Buffers inside have the same GPR - it means that
-    // Buffers inside will work with shifted memory.
     const auto& loop_end = ov::as_type_ptr<op::LoopEnd>((*loop_end_it)->get_node());
     const auto loop_begin = loop_end->get_loop_begin();
     BufferMap inner_buffers;
