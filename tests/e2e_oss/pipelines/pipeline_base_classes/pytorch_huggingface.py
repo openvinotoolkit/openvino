@@ -69,8 +69,7 @@ class _PyTorchHuggingFaceBase(CommonConfig):
                 torch_export_method=self.torch_export_method,
                 inputs_order=self.inputs_order
             ),
-            common_ir_generation(mo_runner=self.environment["mo_runner"],
-                                 mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=self.output_file,
                                  precision=precision,
                                  **self.additional_args),

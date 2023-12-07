@@ -9,13 +9,10 @@ import numpy as np
 from openvino.runtime import Dimension, PartialShape
 
 
-def get_shapes_from_data(input_data, api_version='1') -> dict:
+def get_shapes_from_data(input_data) -> dict:
     shapes = {}
     for input_layer in input_data:
-        if api_version == '2':
-            shapes[input_layer] = PartialShape(input_data[input_layer].shape)
-        else:
-            shapes[input_layer] = input_data[input_layer].shape
+        shapes[input_layer] = PartialShape(input_data[input_layer].shape)
     return shapes
 
 

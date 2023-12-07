@@ -34,7 +34,7 @@ class TF_eltwise(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=self.input_file),
             assemble_preproc_tf(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=prepend_with_env_path(self.model_env_key, TFVersionHelper().tf_models_version,
                                                              self.model),
                                  precision=precision, input_shape=(1, self.h, self.w, 3),

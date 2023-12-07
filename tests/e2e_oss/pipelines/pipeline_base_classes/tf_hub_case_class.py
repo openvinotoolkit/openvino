@@ -5,7 +5,7 @@ from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get
 from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
 from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
 from e2e_oss.pipelines.pipeline_templates.input_templates import generate_tf_hub_inputs
-from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ovc_ir_generation
+from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from e2e_oss.pipelines.pipeline_templates.tf_hub_loader_template import tf_hub_loader
 
 
@@ -33,9 +33,9 @@ class TFHUB_eltwise_Base(CommonConfig):
                 ('assign_indices_tf_hub', {}),
                 ('align_with_batch_tf_hub', {'batch': 1, 'expand_dims': False})
             ])),
-            ovc_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
-                              model=self.model,
-                              precision=precision),
+            common_ir_generation(mo_out=self.environment["mo_out"],
+                                 model=self.model,
+                                 precision=precision),
             common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)

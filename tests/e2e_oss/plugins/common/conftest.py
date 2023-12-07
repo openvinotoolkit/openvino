@@ -32,7 +32,7 @@ import shutil
 import pytest
 from jsonschema import validate, ValidationError
 
-from e2e_oss.utils.test_utils import copy_files_by_pattern, log_timestamp
+from e2e_oss.utils.test_utils import copy_files_by_pattern, log_timestamp, get_framework_from_model_ex
 from utils.e2e.env_tools import Environment
 
 
@@ -158,11 +158,6 @@ def pytest_addoption(parser):
         default=None
     )
     parser.addoption(
-        "--dir_to_dump",
-        help="Path to folder where get_info.py will dump model.yml with model info",
-        default=None
-    )
-    parser.addoption(
         "--skip_mo_args",
         help="List of args to remove from MO command line",
         required=False
@@ -240,10 +235,12 @@ def base_rules_conf(request):
     """Fixture function for command-line option."""
     return request.config.getoption('base_rules_conf')
 
+
 @pytest.fixture(scope="session")
 def dynamism_rules_conf(request):
     """Fixture function for command-line option."""
     return request.config.getoption('dynamism_rules_conf')
+
 
 @pytest.fixture(scope="session")
 def reshape_rules_conf(request):
@@ -322,12 +319,6 @@ def infer_binary_path(request):
 
 
 @pytest.fixture(scope="session")
-def dir_to_dump(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('dir_to_dump')
-
-
-@pytest.fixture(scope="session")
 def skip_mo_args(request):
     """Fixture function for command-line option."""
     return request.config.getoption('skip_mo_args')
@@ -361,29 +352,6 @@ def inference_precision_hint(request):
 def convert_pytorch_to_onnx(request):
     """Fixture function for command-line option."""
     return request.config.getoption('convert_pytorch_to_onnx')
-
-
-@pytest.fixture(scope='session', autouse=True)
-def rename_tf_fe_libs(request):
-    if os.getenv('OV_FRONTEND_PATH'):
-        # use this env variable to define path to your specific libs
-        openvino_lib_path = Path(os.getenv('OV_FRONTEND_PATH'))
-    else:
-        try:
-            import openvino.runtime as rt
-            # path below is built considering the use of built version of OV
-            openvino_lib_path = Path(rt.__file__).parent.parent.parent.parent.parent
-        except ImportError as err:
-            raise Exception("Please set PYTHONPATH to OpenVINO Python or use OV_FRONTEND_PATH env variable") from err
-
-    if platform.system() == 'Windows':
-        tf_fe_lib_names = ['openvino_tensorflow_fe', 'openvino_tensorflow_frontend']
-    else:
-        tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
-
-    if request.config.getoption('use_mo_new_frontend'):
-        log.info('Using new frontend...')
-        copy_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
 
 
 def pytest_collection_finish(session):

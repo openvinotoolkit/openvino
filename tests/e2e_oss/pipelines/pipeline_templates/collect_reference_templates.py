@@ -8,10 +8,8 @@ from e2e_oss.common_utils.decorators import wrap_ord_dict
 from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ir_pregenerated
-from e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_mxnet, assemble_postproc_tf
-from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe, assemble_preproc_mxnet, \
-    assemble_preproc, assemble_preproc_tf
-from e2e_oss.utils.kaldi_utils import read_ark_data
+from e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_tf
+from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc, assemble_preproc_tf
 from e2e_oss.utils.path_utils import proto_from_model, ref_from_model, symbol_from_model
 
 
@@ -89,23 +87,6 @@ def read_pytorch_refs_pipeline(ref_file, batch):
 
 
 @wrap_ord_dict
-def read_mxnet_refs_pipeline(ref_file, batch, align_with_batch_od=False, postprocessors=None):
-    """
-    Construct Read pre-collected references pipeline
-
-    :param ref_file: path to pre-collected references
-    :param batch: target batch size
-    :param align_with_batch_od: batch alignment preprocessor
-    :return: OrderedDict with pipeline containing get_refs and postprocess steps
-    """
-    if postprocessors is None:
-        postprocessors = {}
-    model_name = os.path.splitext(ref_file)[0][:-5] + ".params"
-    return [("get_refs", {"precollected": {"path": ref_from_model(model_name, framework="mxnet")}}),
-            assemble_postproc_mxnet(batch=batch, align_with_batch_od=align_with_batch_od, **postprocessors)]
-
-
-@wrap_ord_dict
 def read_tf_refs_pipeline(ref_file, batch=None, align_with_batch_od=False, postprocessors=None):
     """
     Construct Read pre-collected references pipeline
@@ -119,85 +100,6 @@ def read_tf_refs_pipeline(ref_file, batch=None, align_with_batch_od=False, postp
         postprocessors = {}
     return [("get_refs", {"precollected": {"path": ref_from_model(ref_file, framework="tf")}}),
             assemble_postproc_tf(batch=batch, align_with_batch_od=align_with_batch_od, **postprocessors)]
-
-
-@wrap_ord_dict
-def read_kaldi_refs_pipeline(ref_file, batch, expand_dims=False, preprocessors=None):
-    """
-    Construct custom read pre-collected references pipeline
-
-    :param ref_file: path to kaldi model .ark file
-    :param batch: target batch size
-    :return: OrderedDict with pipeline containing get_refs and preprocess steps
-    """
-    if preprocessors is None:
-        preprocessors = {}
-    return OrderedDict([
-        ("get_refs", {"custom_ref_collector": {"execution_function": lambda: read_ark_data(ark_path=ref_file)}}),
-        assemble_preproc(batch=batch, expand_dims=expand_dims, **preprocessors)
-    ])
-
-
-def collect_caffe_refs_pipeline(model, input, h, w, preprocessors=None, proto=None):
-    """Construct reference collection pipeline."""
-    if preprocessors is None:
-        preprocessors = {}
-    return {'pipeline': OrderedDict([
-        read_npz_input(input),
-        assemble_preproc_caffe(batch=1, h=h, w=w, **preprocessors),
-        get_refs_caffe(proto=proto if proto else proto_from_model(model), model=model)
-    ]),
-        'store_path': ref_from_model(model, framework="caffe"),
-        'store_path_for_ref_save': ref_from_model(model, framework="caffe", check_empty_ref_path=False)}
-
-
-def collect_mxnet_refs_pipeline(model, input, h=None, w=None, preprocessors=None, store_path=None):
-    """Construct reference collection pipeline."""
-    # Split epochs number from the model name (MxNet deploy models have -0000 suffix)
-    if preprocessors is None:
-        preprocessors = {}
-    model_name = os.path.splitext(model)[0][:-5] + ".params"
-    store_model = model_name if store_path is None else store_path
-    return {'pipeline': OrderedDict([
-        read_npz_input(input),
-        assemble_preproc_mxnet(batch=1, **preprocessors) if (h and w) is None
-        else assemble_preproc_mxnet(batch=1, h=h, w=w, **preprocessors),
-        get_refs_mxnet(symbol=symbol_from_model(model), params=model)
-    ]),
-        'store_path': ref_from_model(store_model, framework="mxnet"),
-        'store_path_for_ref_save': ref_from_model(store_model, framework="mxnet", check_empty_ref_path=False)}
-
-
-def collect_ie_refs(model, input, h, w, xml, bin=None, preprocessors=None, store_path=None):
-    """Construct reference collection pipeline."""
-    if preprocessors is None:
-        preprocessors = {}
-    if not bin:
-        bin = str(Path(xml).with_suffix(".bin"))
-    return {'pipeline': OrderedDict([
-        read_npz_input(input),
-        assemble_preproc_caffe(batch=1, h=h, w=w, **preprocessors),
-        ir_pregenerated(xml=xml, bin=bin),
-        common_infer_step(device="CPU", batch=1)
-    ]),
-        'store_path': ref_from_model(model, framework="ie") if store_path is None else store_path,
-        'store_path_for_ref_save': ref_from_model(model, framework="ie", check_empty_ref_path=False)
-        if store_path is None else store_path}
-
-
-def collect_caffe2_refs(model, input, ref_model, opset="", h=None, w=None, preprocessors=None):
-    """Construct reference collection pipeline."""
-    if preprocessors is None:
-        preprocessors = {}
-    return {'pipeline': OrderedDict([
-        read_npz_input(input),
-        assemble_preproc(batch=1, **preprocessors) if (h and w) is None
-        else assemble_preproc(batch=1, h=h, w=w, **preprocessors),
-        get_refs_caffe2(model=model)
-    ]),
-        'store_path': ref_from_model(ref_model, framework="caffe2", opset=opset),
-        'store_path_for_ref_save': ref_from_model(ref_model, framework="caffe2", check_empty_ref_path=False,
-                                                  opset=opset)}
 
 
 def collect_paddlepaddle_refs(model, input, h=None, w=None, params_filename=None, ref_name=None, preprocessors=None):

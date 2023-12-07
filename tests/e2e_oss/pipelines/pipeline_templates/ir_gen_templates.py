@@ -1,9 +1,8 @@
 from pathlib import Path
 
 
-def common_ir_generation(mo_runner, mo_out, model, precision, **kwargs):
-    return ("get_ir", {"get_ovc_model": {"mo_runner": mo_runner,
-                                         "mo_out": mo_out,
+def common_ir_generation(mo_out, model, precision, **kwargs):
+    return ("get_ir", {"get_ovc_model": {"mo_out": mo_out,
                                          "model": model,
                                          "precision": precision,
                                          "additional_args": kwargs}})

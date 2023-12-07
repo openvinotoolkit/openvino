@@ -2,6 +2,7 @@ import json
 from collections import OrderedDict
 
 from e2e_oss.common_utils.openvino_resources import OpenVINOResources
+from e2e_oss.common_utils.pytest_utils import mark
 from e2e_oss.common_utils.tf_helper import TFVersionHelper
 from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from e2e_oss.pipelines.pipeline_templates.comparators_template import object_detection_comparators, eltwise_comparators
@@ -10,7 +11,6 @@ from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc
 from e2e_oss.utils.path_utils import prepend_with_env_path, ref_from_model, resolve_file_path
-from e2e_oss.common_utils.pytest_utils import mark
 
 common_input_file = resolve_file_path("test_data/inputs/caffe/car_1_data.npz")
 
@@ -61,7 +61,7 @@ class TF_YOLO_V3_Base(TF_YoloBase):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
             assemble_preproc(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, input_shape="(1,416,416,3)",
                                  transformations_config=mo_cfg),
             common_infer_step(device=device, batch=batch, **kwargs),
@@ -102,7 +102,7 @@ class TF_YOLO_V3_No_Region_Base(TF_YoloBase):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
             assemble_preproc(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.mo_additional_args),
             common_infer_step(device=device, batch=batch, **kwargs),
             ('postprocess', postprocess_args)
@@ -147,7 +147,7 @@ class TF_YOLO_V2_Base(TF_YoloBase):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
             assemble_preproc(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, input_shape="(1,416,416,3)",
                                  transformations_config=mo_cfg),
             common_infer_step(device=device, batch=batch, **kwargs),
@@ -187,8 +187,8 @@ class TF_YOLO_V2_Full_No_Region_Base(TF_YoloBase):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
             assemble_preproc(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
-                                 model=model_path, precision=precision, **self.mo_additional_args),
+            common_ir_generation(mo_out=self.environment["mo_out"], model=model_path, precision=precision,
+                                 **self.mo_additional_args),
             common_infer_step(device=device, batch=batch, **kwargs),
             ('postprocess', postprocess_args)
         ])

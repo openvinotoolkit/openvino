@@ -65,8 +65,7 @@ class TF_V2_ClassificationNet(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_img_input(path=self.inputs_map),
             ("preprocess", preprocess),
-            common_ir_generation(mo_runner=self.environment["mo_runner"],
-                                 mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=self.saved_model_dir,
                                  precision=precision,
                                  input_shape=f"(1,{self.h},{self.w},3)"),

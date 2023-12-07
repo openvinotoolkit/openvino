@@ -47,7 +47,7 @@ class ONNXRuntimeEltwiseBaseClass(CommonConfig):
             read_npz_input(path=self.input_file),
             assemble_preproc(h=self.h, w=self.w, batch=batch, rename_inputs=[("data", self.input_name)],
                              permute_order=(2, 0, 1), **self.preproc),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision,
                                  **getattr(self, "additional_mo_args", {})),
             common_infer_step(device=device, batch=batch, **kwargs)

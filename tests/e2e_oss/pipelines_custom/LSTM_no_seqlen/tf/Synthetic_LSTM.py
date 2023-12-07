@@ -26,7 +26,7 @@ class TF_Synthetic_LSTM_Base(CommonConfig):
             # 1. Read Input data
             read_npz_input(os.path.join(os.path.dirname(model_path), "feed_dict.npz")),
             # 2. Generate ir
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path,
                                  precision=precision),
             # 4. Run inference with IE

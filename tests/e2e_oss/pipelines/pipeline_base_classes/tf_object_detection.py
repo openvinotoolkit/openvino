@@ -47,7 +47,7 @@ class TF_OD_Config(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=self.input_file),
             assemble_preproc_tf(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision,
                                  input_shape=(1, self.h, self.w, 3),
                                  tensorflow_object_detection_api_pipeline_config=pipeline_cfg,

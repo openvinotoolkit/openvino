@@ -35,7 +35,7 @@ class DynamicSequenceLengthBase(CommonConfig):
             # 1. Read Input data
             read_npz_input(path=input_file),
             # 3. Generate ir
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path,
                                  precision=precision,
                                  input='data,Placeholder',

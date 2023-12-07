@@ -58,7 +58,7 @@ class TF_Mask_RCNN_Config(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
             assemble_preproc(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"],
+            common_ir_generation(
                                  mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision,
                                  input_shape=(1, self.h, self.w, 3),

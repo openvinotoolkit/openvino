@@ -16,18 +16,6 @@ def set_env(metafunc):
         Environment.env = fix_env_conf(yaml.load(f, Loader=yaml.FullLoader),
                                        root_path=str(metafunc.config.rootdir))
 
-    # The mo_runner must be available through the OpenVINOResources.
-    # The Environment.env change was made in order not to change the existing logic
-    if "mo_runner" not in Environment.env:
-        try:
-            mo_runner = OpenVINOResources().mo_runner
-        except OpenVINOResourceNotFound:
-            log.warning("Alias 'mo_runner' not found, using mo.py instead")
-            mo_runner = OpenVINOResources().mo_py
-
-        Environment.env.update({"mo_runner": mo_runner,
-                                "mo_root": mo_runner.parent})
-
 
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.

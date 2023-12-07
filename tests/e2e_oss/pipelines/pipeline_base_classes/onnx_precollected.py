@@ -38,7 +38,7 @@ class ONNXPrecollectedProtobufBaseClass(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_pb_input(path=inputs_map),
             ("preprocess", {"align_with_batch": {"batch": batch, "expand_dims": False}}),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.additional_mo_args),
             common_infer_step(device=device, batch=batch, **kwargs)
         ])
@@ -75,8 +75,8 @@ class ONNXPrecollectedNPYBaseClass(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_npy_input(path=inputs_map),
             ("preprocess", {"align_with_batch": {"batch": batch, "expand_dims": False}}),
-            common_ir_generation(mo_runner=self.environment["mo_runner"], mo_out=self.environment["mo_out"],
-                                 model=model_path, precision=precision, **self.additional_mo_args),
+            common_ir_generation(mo_out=self.environment["mo_out"], model=model_path, precision=precision,
+                                 **self.additional_mo_args),
             common_infer_step(device=device, batch=batch, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device,

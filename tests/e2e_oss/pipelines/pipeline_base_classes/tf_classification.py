@@ -43,8 +43,7 @@ class TF_ClassificationNet(CommonConfig):
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
             assemble_preproc_tf(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"],
-                                 mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path,
                                  precision=precision, input_shape=(1, self.h, self.w, 3)),
             common_infer_step(device=device, batch=batch, **kwargs)
@@ -71,8 +70,7 @@ class TF_ClassificationNet_v1(TF_ClassificationNet):
         self.ie_pipeline = OrderedDict([
             read_img_input(path=self.input_file),
             assemble_preproc_tf(**preprocess_args),
-            common_ir_generation(mo_runner=self.environment["mo_runner"],
-                                 mo_out=self.environment["mo_out"],
+            common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path,
                                  precision=precision, input_shape=(1, self.h, self.w, 3)),
             common_infer_step(device=device, batch=batch, **kwargs)
