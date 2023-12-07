@@ -48,7 +48,6 @@ class TestKerasConvLSTM2D(CommonTF2LayerTest):
                          activation=tf.nn.relu, return_sequences=False, use_bias=True,
                          data_format="channels_last"),
              input_shapes=[[2, 5, 18, 17, 1]])
-
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
