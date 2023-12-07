@@ -6,12 +6,10 @@
 #include "shared_test_classes/single_layer/conversion.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Conversion {
 
 static std::string expectedPrimitiveType() {
@@ -51,4 +49,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Static, ConvertCPULayerTes
                         ConvertCPULayerTest::getTestCaseName);
 
 }  // namespace Conversion
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
