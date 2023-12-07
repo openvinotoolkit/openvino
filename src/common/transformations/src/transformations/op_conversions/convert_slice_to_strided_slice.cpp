@@ -18,6 +18,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -80,11 +81,9 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         std::shared_ptr<ov::op::v0::Constant> step_const;
 
         if (use_shapes) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            start_const = get_constant_from_source(slice_node->input_value(1));
-            stop_const = get_constant_from_source(slice_node->input_value(2));
-            step_const = get_constant_from_source(slice_node->input_value(3));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            start_const = ov::util::get_constant_from_source(slice_node->input_value(1));
+            stop_const = ov::util::get_constant_from_source(slice_node->input_value(2));
+            step_const = ov::util::get_constant_from_source(slice_node->input_value(3));
         } else {
             start_const =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
@@ -100,12 +99,10 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         std::shared_ptr<ov::op::v0::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
             axes_const =
                 use_shapes
-                    ? get_constant_from_source(slice_node->input_value(4))
+                    ? ov::util::get_constant_from_source(slice_node->input_value(4))
                     : std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }

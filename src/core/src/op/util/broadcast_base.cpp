@@ -8,7 +8,6 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/broadcast.hpp"
@@ -232,9 +231,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                                   input_rank);
 
             if (output_shape_defined && has_and_set_equal_bounds(input_value(2))) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                auto axes_mapping_val = get_constant_from_source(input_value(2))->get_axis_vector_val();
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                auto axes_mapping_val = ov::util::get_constant_from_source(input_value(2))->get_axis_vector_val();
                 validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }
         }
@@ -291,9 +288,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
     bool axes_known = false;
 
     if (m_mode.m_type == BroadcastType::NONE) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto axes_mapping_constant = get_constant_from_source(input_value(2));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axes_mapping_constant = ov::util::get_constant_from_source(input_value(2));
         if (get_input_partial_shape(1).is_static() && axes_mapping_constant) {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
             auto target_shape = get_input_shape(1);
