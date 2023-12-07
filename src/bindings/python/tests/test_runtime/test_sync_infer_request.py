@@ -393,6 +393,8 @@ def test_infer_mixed_keys(device, share_inputs):
     (Type.u64, np.uint64),
     (Type.boolean, bool),
 ])
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
@@ -417,6 +419,8 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     (Type.u64, np.uint64),
     (Type.boolean, bool),
 ])
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
@@ -437,6 +441,8 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
 ])
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
     _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
@@ -459,6 +465,8 @@ def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
 ])
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
     _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
@@ -470,6 +478,7 @@ def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
     request.start_async(tensor1, share_inputs=share_inputs)
     request.wait()
     assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
+
 
 def test_get_compiled_model(device):
     core = Core()
@@ -485,6 +494,7 @@ def test_get_compiled_model(device):
 
     assert isinstance(compiled_model_2, CompiledModel)
     assert np.allclose(ref[0], test[0])
+
 
 @pytest.mark.parametrize("data_type",
                          [np.float32,
@@ -536,6 +546,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_get_results(device, share_inputs):
     core = Core()
@@ -553,6 +564,8 @@ def test_get_results(device, share_inputs):
     os.environ.get("TEST_DEVICE") not in ["GPU"],
     reason="Device dependent test",
 )
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_float16(device, share_inputs):
     model = bytes(
@@ -931,6 +944,7 @@ def test_not_writable_inputs_infer(device, share_inputs, input_data, change_flag
 
     # Not writable inputs should always be copied.
     assert not np.shares_memory(input_data[0], input_tensor.data)
+
 
 @pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("share_outputs", [True, False])
