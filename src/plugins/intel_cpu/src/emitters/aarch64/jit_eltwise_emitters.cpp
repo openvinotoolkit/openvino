@@ -283,7 +283,6 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         Xbyak_aarch64::SReg s1(1);
 
         for (auto i = 0; i < 4; i++) {
-            // TODO: move outside
             store_context();
             h->mov(s0, src().s[i]);
             h->ldr(s1, table_val("power"));
