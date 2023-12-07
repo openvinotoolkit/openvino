@@ -70,7 +70,7 @@ jobs:
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
+          version: '3.11'
           should-setup-pip-paths: 'false'
 
       - name: Extract OpenVINO package
