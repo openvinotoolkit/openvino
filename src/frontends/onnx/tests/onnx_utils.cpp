@@ -62,6 +62,27 @@ shared_ptr<Model> convert_model(const string& model_path, const ov::frontend::Co
     return model;
 }
 
+shared_ptr<Model> convert_partially(const string& model_path) {
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr front_end = fem.load_by_framework(ONNX_FE);
+    if (!front_end) {
+        throw "ONNX FrontEnd is not initialized";
+    }
+
+    auto full_path = FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + model_path);
+    InputModel::Ptr input_model = front_end->load(full_path);
+    if (!input_model) {
+        throw "Input Model is not loaded";
+    }
+
+    shared_ptr<Model> model = front_end->convert_partially(input_model);
+    if (!model) {
+        throw "Model is not converted";
+    }
+
+    return model;
+}
+
 std::string onnx_backend_manifest(const std::string& manifest) {
     return ov::util::path_join({ov::test::utils::getExecutableDirectory(), manifest});
 }
