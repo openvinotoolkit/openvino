@@ -140,6 +140,9 @@ public:
     MemoryPtr hidden_state_mem() const;
     void assign_hidden_state(const MemoryPtr& mem);
 
+    void init_from(const MemoryPtr& init_val);
+    void gather_concat_pastkv(MemoryPtr cur_kv, MemoryPtr beam_idx);
+
 private:
     //ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;

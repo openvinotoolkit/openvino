@@ -211,18 +211,20 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void createPrimitive() override;
+    void initSupportedPrimitiveDescriptors() override;
 
-    bool isExecutable() const override;
     void execute(dnnl::stream strm) override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
     void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
+    bool needShapeInfer() const override { return false; }
 
 private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
-    int child_port_idx;
+    std::shared_ptr<VariableStateKVcache> m_sdpaState;
+    int child_port_idx = -1;
 };
 }   // namespace node
 }   // namespace intel_cpu

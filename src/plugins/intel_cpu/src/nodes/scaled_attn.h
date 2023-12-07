@@ -44,14 +44,22 @@ public:
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 
+    const std::vector<size_t>& getKVCacheOrder() const {
+        return m_config.config.permute_axes;
+    }
+
+    ov::element::Type getKVCachePrecision() const {
+        return m_kvcache_precision;
+    }
+
 private:
     struct Executor {
-        virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
+        virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const MemoryPtr output, const MemoryPtr presentk_input,
+                             const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;
     };
 
     struct Config {
         ScaledDotProductAttentionWithKVCache::Config config;
-        bool is_concat_inplaced = false;
     };
 
     Config m_config;
@@ -60,6 +68,8 @@ private:
 
     std::shared_ptr<VariableStateKVcache> k_state;
     std::shared_ptr<VariableStateKVcache> v_state;
+
+    ov::element::Type m_kvcache_precision;
 };
 
 }  // namespace node

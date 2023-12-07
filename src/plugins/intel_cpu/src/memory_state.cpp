@@ -313,5 +313,15 @@ void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
 
+void VariableStateKVcache::init_from(const MemoryPtr& init_val) {
+    // TODO
+    OPENVINO_ASSERT(false, "Implement VariableStateKVcache::init_from");
+}
+
+void VariableStateKVcache::gather_concat_pastkv(MemoryPtr cur_kv, MemoryPtr beam_idx) {
+    // TODO
+    OPENVINO_ASSERT(false, "Implement VariableStateKVcache::gather_concat_pastkv");
+}
+
 }  // namespace intel_cpu
 }  // namespace ov
