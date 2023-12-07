@@ -37,11 +37,15 @@ shared_ptr<Model> read_ir(const string& xml_path, const string& bin_path) {
     return model;
 }
 
-shared_ptr<Model> convert_model(const string& model_path) {
+shared_ptr<Model> convert_model(const string& model_path, const ov::frontend::ConversionExtensionBase::Ptr& conv_ext) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr front_end = fem.load_by_framework(ONNX_FE);
     if (!front_end) {
         throw "ONNX FrontEnd is not initialized";
+    }
+
+    if (conv_ext) {
+        front_end->add_extension(conv_ext);
     }
 
     auto full_path = FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + model_path);
