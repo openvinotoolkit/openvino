@@ -6,7 +6,6 @@
 #include <napi.h>
 
 struct AddonData {
-    AddonData() {};
     Napi::FunctionReference* core_prototype;
     Napi::FunctionReference* model_prototype;
 };
