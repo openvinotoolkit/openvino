@@ -28,7 +28,6 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerTestParamsSet>& obj) {
         groupConvSpecificParams groupConvParams;
         ov::element::Type model_type;
-        ov::element::Type inType, outType;
         InputShape inputShape;
         std::string targetDevice;
         std::tie(groupConvParams, model_type, inputShape, targetDevice) = obj.param;
@@ -80,7 +79,7 @@ protected:
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
         auto groupConvolutionNode = ov::test::utils::make_group_convolution(inputParams.front(), model_type, kernel, stride, padBegin,
                                                                             padEnd, dilation, padType, convOutChannels, numGroups);
