@@ -417,8 +417,6 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     (Type.u64, np.uint64),
     (Type.boolean, bool),
 ])
-
-
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
