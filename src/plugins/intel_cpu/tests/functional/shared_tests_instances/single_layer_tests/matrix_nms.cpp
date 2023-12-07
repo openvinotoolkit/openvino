@@ -18,14 +18,14 @@ const std::vector<std::vector<ov::Shape>> inStaticShapeParams = {
 
 const std::vector<std::vector<ov::test::InputShape>> inDynamicShapeParams = {
     // num_batches, num_boxes, 4
-    {{{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), 4},
+    {{{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4},
         {{1, 10, 4}, {2, 100, 4}}},
     // num_batches, num_classes, num_boxes
-     {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
         {{1, 3, 10}, {2, 5, 100}}}},
-    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), 4},
+    {{{ov::Dimension(1, 10), ov::Dimension(1, 100), 4},
         {{1, 10, 4}, {2, 100, 4}}},
-    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), ngraph::Dimension(1, 100)}},
+    {{{ov::Dimension(1, 10), ov::Dimension(1, 100), ov::Dimension(1, 100)}},
         {{1, 3, 10}, {2, 5, 100}}}}
 };
 
