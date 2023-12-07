@@ -9,7 +9,12 @@ Converting a TensorFlow Language Model on One Billion Word Benchmark
                  Model on One Billion Word Benchmark to the OpenVINO Intermediate 
                  Representation.
 
+.. danger::
 
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   
 Downloading a Pre-trained Language Model on One Billion Word Benchmark
 ######################################################################
 

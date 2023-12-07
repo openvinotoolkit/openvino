@@ -1267,6 +1267,8 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
             new_const = change_constant_precision<ov::element::Type_t::boolean, ov::element::Type_t::u8>(constant);
         } else if (from == ov::element::boolean && to == ov::element::i32) {
             new_const = change_constant_precision<ov::element::Type_t::boolean, ov::element::Type_t::i32>(constant);
+        } else if (from == ov::element::i8 && to == ov::element::i64) {
+            new_const = change_constant_precision<ov::element::Type_t::i8, ov::element::Type_t::i64>(constant);
         } else if (from == ov::element::i4 || from == ov::element::u4 || from == ov::element::u1) {
             new_const = convert_low_precisions_int(constant, to);
         } else {
