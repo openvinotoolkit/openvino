@@ -67,7 +67,7 @@ facebook/convnextv2-tiny-22k-384,convnextv2
 facebook/detr-resnet-50,detr
 facebook/dinov2-base,dinov2,skip,Load problem
 facebook/dpr-question_encoder-single-nq-base,dpr
-facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
+facebook/encodec_24khz,encodec
 facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
