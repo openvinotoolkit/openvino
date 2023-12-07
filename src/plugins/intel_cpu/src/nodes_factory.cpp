@@ -104,6 +104,7 @@ namespace intel_cpu {
 
 Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     using namespace node;
+    INTEL_CPU_NODE(Generic, Type::Generic);
     INTEL_CPU_NODE(CumSum, Type::CumSum);
     INTEL_CPU_NODE(Convolution, Type::Convolution);
     INTEL_CPU_NODE(BinaryConvolution, Type::BinaryConvolution);
