@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/common/op/sdp.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,7 +27,7 @@ public:
     }
     // pastkv may have zero dimension
     bool isExecutable() const override {
-        return true;
+        return !isInputTensorAtPortEmpty(0) && !isInputTensorAtPortEmpty(1) && !isInputTensorAtPortEmpty(2);
     }
     bool needPrepareParams() const override {
         return false;
@@ -50,7 +50,7 @@ private:
     };
 
     struct Config {
-        ScaledDotProductAttentionStub::Config config;
+        ScaledDotProductAttentionWithKVCache::Config config;
         bool is_concat_inplaced = false;
     };
 
