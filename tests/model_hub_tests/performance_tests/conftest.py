@@ -34,7 +34,7 @@ def pytest_html_results_table_header(cells):
 
 @pytest.mark.optionalhook
 def pytest_html_results_table_row(report, cells):
-    if not getattr(report, '_results', None):
+    if getattr(report, '_results', None) is None:
         return
     cells.insert(3, html.td(str(report._results.status)[7:]))
     cells.insert(4, html.td(round_num(report._results.converted_model_results.infer_mean_time)))
