@@ -34,6 +34,9 @@ public:
                    const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> get_inputs() const;
     std::vector<Place::Ptr> get_outputs() const;
+    int64_t get_version() const {
+        return m_fw_ptr->version().version();
+    }
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
     void override_all_outputs(const std::vector<Place::Ptr>& outputs);
     void override_all_inputs(const std::vector<Place::Ptr>& inputs);
@@ -587,6 +590,10 @@ std::vector<Place::Ptr> InputModel::get_inputs() const {
 
 std::vector<Place::Ptr> InputModel::get_outputs() const {
     return _impl->get_outputs();
+}
+
+int64_t InputModel::get_version() const {
+    return _impl->get_version();
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const {
