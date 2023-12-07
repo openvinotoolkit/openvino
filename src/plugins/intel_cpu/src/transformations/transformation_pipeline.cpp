@@ -113,6 +113,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/stateful_multi_query_sdpa_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -662,6 +663,8 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+    if (inferencePrecision == ov::element::f32)
+        CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulMultiQuerySDPAFusion);
     postLPTPassManager.run_passes(model);
 }
 
