@@ -112,8 +112,22 @@ public:
 protected:
     libxsmm_meltwfunction_binary libxsmm_kernel;
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
-    static void execute_libxsmm_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
     static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
+};
+
+class UnaryEltwiseTppEmitter : public EltwiseTppEmitter {
+public:
+    UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                            dnnl::impl::cpu::x64::cpu_isa_t isa,
+                            const ov::snippets::lowered::ExpressionPtr& expr);
+    size_t get_inputs_num() const override { return 1; }
+    static void execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0);
+    uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_unary_eltw_kernel); }
+    uintptr_t get_compiled_kernel_ptr() const override { return reinterpret_cast<uintptr_t>(libxsmm_kernel); }
+
+protected:
+    libxsmm_meltwfunction_unary libxsmm_kernel;
+    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
 };
 
 }   // namespace intel_cpu

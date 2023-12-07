@@ -426,8 +426,8 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
         flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_1;
     }
     const auto& binary_eltw_tpp = std::dynamic_pointer_cast<tpp::op::BinaryEltwiseTPP>(expr->get_node());
-    OPENVINO_ASSERT(binary_eltw_tpp, "Invalid TPP node type detected in EltwiseTppEmitter");
-    libxsmm_meltw_binary_type op_type = binary_eltw_tpp->get_op_type();
+    OPENVINO_ASSERT(binary_eltw_tpp, "Invalid TPP node type detected in BinaryEltwiseTppEmitter");
+    auto op_type = binary_eltw_tpp->get_op_type();
     // Note: libxsmm implies column-major layout, so we have to swap M and N here
     const auto& shape = libxsmm_create_meltw_binary_shape(N, M,
                                                           io_strides[0], io_strides[1], io_strides[2],
@@ -441,19 +441,17 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
 
 void BinaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     OPENVINO_ASSERT(in.size() == 2, "BinaryEltwiseTppEmitter expects 2 input registers, got " + std::to_string(in.size()));
-    OPENVINO_ASSERT(out.size() == 1, "BinaryEltwiseTppEmitter expects 1 output register, got " + std::to_string(in.size()));
+    OPENVINO_ASSERT(out.size() == 1, "BinaryEltwiseTppEmitter expects 1 output register, got " + std::to_string(out.size()));
 }
 
 void BinaryEltwiseTppEmitter::execute_binary_eltw_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0) {
-    // todo: how do we initialize the libxsmm_meltw_binary_param.op field?
-    //  In general, how to use the libxsmm_matrix_arg type? What is the purpose of these primary/secondary/ternary fields?
-    libxsmm_meltw_binary_param binary_param;
-    binary_param.op.primary = nullptr;
-    binary_param.in0.primary = in0;
-    binary_param.in1.primary = in1;
-    binary_param.out.primary = out0;
+    libxsmm_meltw_binary_param param;
+    param.op.primary = nullptr;
+    param.in0.primary = in0;
+    param.in1.primary = in1;
+    param.out.primary = out0;
     assert(eltwise_kernel);
-    eltwise_kernel(&binary_param);
+    eltwise_kernel(&param);
 }
 
 libxsmm_blasint BinaryEltwiseTppEmitter::get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags) {
@@ -470,6 +468,43 @@ libxsmm_blasint BinaryEltwiseTppEmitter::get_broadcasted_dim(libxsmm_blasint dim
     OPENVINO_THROW("Invalid dimensions passed to get_broadcast_flags");
     return -1;
 }
+
+UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                               dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                               const ov::snippets::lowered::ExpressionPtr& expr) :
+                                               EltwiseTppEmitter(h, isa, expr) {
+    const auto& subtensor_in0 = get_projected_subtensor(io_port_descriptors[0]);
+
+    const auto N = static_cast<libxsmm_blasint>(*subtensor_in0.rbegin());
+    const auto M = static_cast<libxsmm_blasint>(*++subtensor_in0.rbegin());
+
+    const auto& unary_eltw_tpp = std::dynamic_pointer_cast<tpp::op::UnaryEltwiseTPP>(expr->get_node());
+    OPENVINO_ASSERT(unary_eltw_tpp, "Invalid TPP node type detected in UnaryEltwiseTppEmitter");
+    auto op_type = unary_eltw_tpp->get_op_type();
+    // Note: libxsmm implies column-major layout, so we have to swap M and N here
+    const auto& shape = libxsmm_create_meltw_unary_shape(N, M,
+                                                         io_strides[0], io_strides[1],
+                                                         io_dtypes[0], io_dtypes[1],
+                                                         dtype_comp);
+    // Note: some operations (e.g. Relu) might require additional flags
+    libxsmm_kernel = libxsmm_dispatch_meltw_unary_v2(op_type, shape, LIBXSMM_MELTW_FLAG_BINARY_NONE);
+}
+
+
+void UnaryEltwiseTppEmitter::execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0) {
+    libxsmm_meltw_unary_param param;
+    param.op.primary = nullptr;
+    param.in.primary = in0;
+    param.out.primary = out0;
+    assert(eltwise_kernel);
+    eltwise_kernel(&param);
+}
+
+void UnaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+    OPENVINO_ASSERT(in.size() == 1, "UnaryEltwiseTppEmitter expects 1 input registers, got " + std::to_string(in.size()));
+    OPENVINO_ASSERT(out.size() == 1, "UnaryEltwiseTppEmitter expects 1 output register, got " + std::to_string(out.size()));
+}
+
 
 }  // namespace intel_cpu
 }  // namespace ov
