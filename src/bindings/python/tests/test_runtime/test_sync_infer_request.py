@@ -538,7 +538,6 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
-
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_get_results(device, share_inputs):
     core = Core()
