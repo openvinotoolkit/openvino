@@ -72,7 +72,7 @@ MacOSCpuMapTestCase test_case_arm_2 = {
     1,
     1,
     8,
-    {{8, 8, 0, 0, 0, 0}},
+    {{8, 4, 4, 0, 0, 0}},
     {
         {"hw.ncpu", 8},
         {"hw.physicalcpu", 8},
