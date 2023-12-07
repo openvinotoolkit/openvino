@@ -5,24 +5,21 @@
 #pragma once
 
 #include "shared_test_classes/single_layer/mvn.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "gtest/gtest.h"
 
-
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using basicCpuMvnParams = std::tuple<
        InputShape, // Input shapes
        ElementType, // Input precision
-       ngraph::AxisSet, // Reduction axes
+       ov::AxisSet, // Reduction axes
        bool, // Across channels
        bool, // Normalize variance
        double>; // Epsilon
@@ -31,9 +28,9 @@ using MvnLayerCPUTestParamSet = std::tuple<
        basicCpuMvnParams,
        CPUSpecificParams,
        fusingSpecificParams,
-       ElementType, // CNNNetwork input precision
-       ElementType, // CNNNetwork output precision
-       std::map<std::string, ov::element::Type>>;
+       ElementType, // model input precision
+       ElementType, // model output precision
+       ov::AnyMap>;
 
 class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamSet>,
                        virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -58,10 +55,11 @@ namespace MVN {
    const std::vector<ov::Shape>& inputShapesStatic_4D();
    const std::vector<ov::Shape>& inputShapesStatic_5D();
 
-   const std::vector<ngraph::AxisSet>& emptyReductionAxes();
+   const std::vector<ov::AxisSet>& emptyReductionAxes();
    const std::vector<bool>& acrossChannels();
    const std::vector<double>& epsilon();
 
-   const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig();
-} // namespace MVN
-} // namespace CPULayerTestsDefinitions
+   const std::vector<ov::AnyMap>& additionalConfig();
+}  // namespace MVN
+}  // namespace test
+}  // namespace ov

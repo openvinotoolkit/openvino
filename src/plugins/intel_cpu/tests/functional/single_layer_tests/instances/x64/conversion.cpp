@@ -6,12 +6,10 @@
 #include "shared_test_classes/single_layer/conversion.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Conversion {
 namespace {
 
@@ -36,9 +34,9 @@ std::vector<CPUSpecificParams> memForm4D_static_blocked = {
     CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
 };
 
-const std::vector<Precision> precisions_floating_point = {
-        Precision::FP32,
-        Precision::BF16
+const std::vector<ov::element::Type> precisions_floating_point = {
+        ov::element::f32,
+        ov::element::bf16
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,
@@ -53,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Static, ConvertCPULayerT
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions_floating_point),
-                                ::testing::Values(Precision::BOOL),
+                                ::testing::Values(ov::element::boolean),
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -61,10 +59,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertCPULayer
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions_floating_point),
-                                ::testing::Values(Precision::BOOL),
+                                ::testing::Values(ov::element::boolean),
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, "ref"))),
                         ConvertCPULayerTest::getTestCaseName);
 
 }  // namespace
 }  // namespace Conversion
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

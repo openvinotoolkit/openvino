@@ -6,16 +6,12 @@
 
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ov_models/builders.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 enum class MatMulNodeType {
     MatMul,
@@ -27,15 +23,15 @@ struct ShapeRelatedParams {
     std::pair<bool, bool> transpose;
 };
 
-typedef std::tuple<
-        ShapeRelatedParams,
-        ElementType,        // Network precision
-        ElementType,        // Input precision
-        ElementType,        // Output precision
-        ngraph::helpers::InputLayerType,   // Secondary input type
-        TargetDevice,     // Device name
-        std::map<std::string, std::string> // Additional network configuration
-> MatMulLayerTestParamsSet;
+typedef std::tuple<ShapeRelatedParams,
+                   ElementType,            // Network precision
+                   ElementType,            // Input precision
+                   ElementType,            // Output precision
+                   utils::InputLayerType,  // Secondary input type
+                   TargetDevice,           // Device name
+                   ov::AnyMap              // Additional network configuration
+                   >
+    MatMulLayerTestParamsSet;
 
 using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParamsSet,
                                               MatMulNodeType,
@@ -59,11 +55,12 @@ protected:
 namespace MatMul {
    const std::vector<ElementType>& netPRCs();
    const std::vector<fusingSpecificParams>& matmulFusingParams();
-   const std::vector<std::map<std::string, std::string>>& additionalConfig();
-   const std::map<std::string, std::string>& emptyAdditionalConfig();
+   const std::vector<ov::AnyMap>& additionalConfig();
+   const ov::AnyMap& emptyAdditionalConfig();
    const std::vector<CPUSpecificParams>& filterSpecificParams();
    const std::vector<ShapeRelatedParams>& IS2D_nightly();
    const std::vector<ShapeRelatedParams>& IS2D_smoke();
    const std::vector<ShapeRelatedParams>& IS3D_smoke();
-} // namespace MatMul
-} // namespace CPULayerTestsDefinitions
+}  // namespace MatMul
+}  // namespace test
+}  // namespace ov

@@ -8,12 +8,10 @@
 #include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace MatMul {
 /* ============= MatMul ============= */
 namespace matmul {
@@ -291,7 +289,7 @@ const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
                                              ::testing::ValuesIn(netPRCs()),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(utils::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig()));
 
@@ -306,7 +304,7 @@ const auto matMulParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynam
                                              ::testing::ValuesIn(netPRCs()),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(utils::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig()));
 
@@ -321,7 +319,7 @@ const auto matMulParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(
                                              ::testing::ValuesIn(netPRCs()),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(utils::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig()));
 
@@ -332,6 +330,7 @@ const auto testParamsDynamic_nightly = ::testing::Combine(matMulParamsDynamic_ni
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic, MatMulLayerCPUTest, testParamsDynamic_nightly, MatMulLayerCPUTest::getTestCaseName);
 
-} // namespace matmul
-} // namespace MatMul
-} // namespace CPULayerTestsDefinitions
+}  // namespace matmul
+}  // namespace MatMul
+}  // namespace test
+}  // namespace ov

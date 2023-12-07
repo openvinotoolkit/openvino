@@ -6,12 +6,10 @@
 #include "shared_test_classes/single_layer/activation.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Activation {
 
 /* ============= Activation (1D) ============= */
@@ -20,8 +18,8 @@ const auto basicCases3D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ov::element::f32),
+    ::testing::Values(ov::element::f32),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams3D()))
 );
 
@@ -33,8 +31,8 @@ const auto basicCases4D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ov::element::f32),
+    ::testing::Values(ov::element::f32),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams4D()))
 );
 
@@ -46,8 +44,8 @@ const auto basicCases5D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ov::element::f32),
+    ::testing::Values(ov::element::f32),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D()))
 );
 
@@ -58,12 +56,13 @@ const auto dynamicMathBasicCases = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesDynamicMath())),
     ::testing::ValuesIn(netPrecisions()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ov::element::f32),
+    ::testing::Values(ov::element::f32),
     ::testing::ValuesIn(cpuParamsDynamicMath())
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_dynamicMath_CPU, ActivationLayerCPUTest, dynamicMathBasicCases, ActivationLayerCPUTest::getTestCaseName);
 
 } // namespace Activation
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

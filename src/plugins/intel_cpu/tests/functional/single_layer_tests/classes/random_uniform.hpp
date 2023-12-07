@@ -7,7 +7,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 typedef std::tuple<
         ov::Shape,                        // Output shapes
@@ -48,4 +49,5 @@ private:
     static constexpr double m_variance_threshold = 0.15;
 };
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

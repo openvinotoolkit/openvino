@@ -7,19 +7,17 @@
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<TransposeLayerCPUTestParamSet> obj) {
-    Precision netPrecision;
+    ov::element::Type netPrecision;
     InputShape inputShapes;
     std::vector<size_t> inputOrder;
     std::string targetDevice;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = obj.param;
 
     std::ostringstream result;
@@ -30,12 +28,12 @@ std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<Transp
     }
     result << ")_";
     result << "inputOrder=" << ov::test::utils::vec2str(inputOrder) << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
+    result << "netPRC=" << netPrecision.to_string() << "_";
     result << "trgDev=" << targetDevice;
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto& item : additionalConfig) {
-            result << "_" << item.first << "=" << item.second;
+            result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
     result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -43,15 +41,15 @@ std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<Transp
 }
 
 void TransposeLayerCPUTest::SetUp() {
-    Precision netPrecision;
+    ov::element::Type netPrecision;
     InputShape inputShapes;
     std::vector<size_t> inputOrder;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    inType = netPrecision;
+    outType = netPrecision;
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
@@ -67,8 +65,8 @@ void TransposeLayerCPUTest::SetUp() {
     transpose->get_rt_info() = getCPUInfo();
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
-    function = std::make_shared<ngraph::Function>(results, ov::ParameterVector{params}, "TransposeLayerCPUTest");
-    functionRefs = ngraph::clone_function(*function);
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "TransposeLayerCPUTest");
+    functionRefs = ov::clone_model(*function);
 }
 
 TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
@@ -77,8 +75,8 @@ TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
 }
 
 namespace Transpose {
-const std::vector<InferenceEngine::Precision>& netPrecisionsPerChannels() {
-    static const std::vector<InferenceEngine::Precision> netPrecisionsPerChannels = {Precision::I8, Precision::FP32};
+const std::vector<ov::element::Type>& netPrecisionsPerChannels() {
+    static const std::vector<ov::element::Type> netPrecisionsPerChannels = {ov::element::i8, ov::element::f32};
     return netPrecisionsPerChannels;
 }
 
@@ -123,4 +121,5 @@ const std::vector<std::vector<size_t>>& inputOrder4D() {
     return inputOrder4D;
 }
 }  // namespace Transpose
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -5,12 +5,10 @@
 #include "single_layer_tests/classes/scaled_attn.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace ScaledAttn {
 const auto cpuSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
@@ -75,5 +73,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_CPU,
                          params,
                          ScaledAttnLayerCPUTest::getTestCaseName);
 
-} // namespace ScaledAttn
-} // namespace CPULayerTestsDefinitions
+}  // namespace ScaledAttn
+}  // namespace test
+}  // namespace ov

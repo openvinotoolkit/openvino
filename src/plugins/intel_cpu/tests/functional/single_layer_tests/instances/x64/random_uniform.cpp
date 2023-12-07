@@ -5,9 +5,9 @@
 #include "single_layer_tests/classes/random_uniform.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace RandomUniform {
 
 static const std::vector<ElementType> output_prc_nightly = {
@@ -42,5 +42,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_Param, RandomUniformLayerTestCPU,
                 ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 
-} // namespace RandomUniform
-} // namespace CPULayerTestsDefinitions
+}  // namespace RandomUniform
+}  // namespace test
+}  // namespace ov
