@@ -37,6 +37,25 @@ macro(ov_npm_cpack_set_dirs)
         set(OV_CPACK_RUNTIMEDIR ${ARCH_FOLDER})
         set(OV_CPACK_ARCHIVEDIR ${ARCH_FOLDER})
     endif()
+
+    set(OV_CPACK_LIBRARYDIR ${OV_CPACK_RUNTIMEDIR})
+    set(OV_CPACK_ARCHIVEDIR ${OV_CPACK_RUNTIMEDIR})
+    set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR}/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_IE_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/inferenceengine${OpenVINO_VERSION})
+    set(OV_CPACK_NGRAPH_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/ngraph${OpenVINO_VERSION})
+    set(OV_CPACK_OPENVINO_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/openvino${OpenVINO_VERSION})
+    set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
+    set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
+
+    # non-native stuff
+    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
+    set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
+    set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
+    unset(OV_CPACK_SHAREDIR)
+
+    # skipped during debian packaging
+    set(OV_CPACK_WHEELSDIR "tools")
 endmacro()
 
 ov_npm_cpack_set_dirs()
