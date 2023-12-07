@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <low_precision/layer_transformation.hpp>
 
 #include "ov_lpt_models/common/builders.hpp"
@@ -19,9 +18,9 @@ namespace subgraph {
 
 class ElementwiseFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginalSubgraphWithConvolutions(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginalSubgraphWithConvolutions(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const bool broadcast,
         const std::string& elementWiseType,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore1,

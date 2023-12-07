@@ -52,6 +52,10 @@ protected:
     void SetUp() override {
         Limitations::init(target::DeviceVersion::Default);
     }
+
+    void TearDown() override {
+        Limitations::deinit();
+    }
 };
 
 // TODO: add test for FC weights after quantization

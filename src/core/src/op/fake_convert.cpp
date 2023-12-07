@@ -47,19 +47,19 @@ struct Evaluate : element::NoAction<bool> {
 };
 }  // namespace fake_convert_details
 
-FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          std::string destination_type)
-    : Op({arg, scale}),
+    : Op({data, scale}),
       m_destination_type(std::move(destination_type)) {
     constructor_validate_and_infer_types();
 }
 
-FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
                          std::string destination_type)
-    : Op({arg, scale, shift}),
+    : Op({data, scale, shift}),
       m_destination_type(std::move(destination_type)) {
     constructor_validate_and_infer_types();
 }
@@ -85,9 +85,7 @@ void FakeConvert::validate_and_infer_types() {
     default:
         OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", out_type);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_type, output_shapes[0]);
 }
@@ -137,10 +135,13 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32>::apply<fake_convert_details::Evaluate>(inputs[0].get_element_type(),
-                                                                           outputs,
-                                                                           inputs,
-                                                                           get_destination_type());
+    return IF_TYPE_OF(v13_FakeConvert_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32),
+                      fake_convert_details::Evaluate,
+                      inputs[0].get_element_type(),
+                      outputs,
+                      inputs,
+                      get_destination_type());
 
     return true;
 }

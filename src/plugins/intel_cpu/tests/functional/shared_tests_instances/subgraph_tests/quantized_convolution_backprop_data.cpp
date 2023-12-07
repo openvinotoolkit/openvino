@@ -34,7 +34,7 @@ const auto quantConvBackpropData2DParams = ::testing::Combine(
         ::testing::ValuesIn(padEnds2D),
         ::testing::ValuesIn(dilations2D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::AUTO),
+        ::testing::Values(ov::op::PadType::AUTO),
         ::testing::ValuesIn(levels),
         ::testing::ValuesIn(granularity)
 );
