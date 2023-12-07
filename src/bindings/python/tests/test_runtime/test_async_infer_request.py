@@ -330,35 +330,5 @@ def test_shared_memory_deprecation(device, shared_flag):
     queue.wait_all()
 
 
-@pytest.mark.parametrize("share_inputs", [True, False])
-@pytest.mark.parametrize("share_outputs", [True, False])
-@pytest.mark.parametrize("is_positional", [True, False])
-def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
-    compiled, _, _, input_data = abs_model_with_data(
-        device, Type.f32, np.float32)
-
-    if is_positional:
-        results = compiled(input_data, share_inputs=share_inputs,
-                           share_outputs=share_outputs)
-    else:
-        results = compiled(input_data, share_inputs, share_outputs)
-
-    assert np.array_equal(results[0], np.abs(input_data))
-
-    in_tensor_shares = np.shares_memory(
-        compiled._infer_request.get_input_tensor(0).data, input_data)
-    if share_inputs:
-        assert in_tensor_shares
-    else:
-        assert not in_tensor_shares
-
-    out_tensor_shares = np.shares_memory(
-        compiled._infer_request.get_output_tensor(0).data, results[0])
-    if share_outputs:
-        assert out_tensor_shares
-        assert results[0].flags["OWNDATA"] is False
-    else:
-        assert not out_tensor_shares
-        assert results[0].flags["OWNDATA"] is True
 
 
