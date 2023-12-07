@@ -15,6 +15,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
+#include <ov_ops/rotary_positional_embeddings.hpp>
 
 // Common transformations
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -472,7 +473,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     // CVS-126827: should be disabled until CPU supports this internal op
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::RPE_Fusion);
+    // CPU_DISABLE_PASS_COMMON(manager, ov::pass::RPE_Fusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -510,6 +511,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
 
     manager.run_passes(model);
+
+    size_t num_rpe_ops = 0;
+    for (const auto& op : model->get_ops())
+        num_rpe_ops += static_cast<size_t>(ov::is_type<ov::op::internal::RPE>(op));
+    throw ov::Exception("# of RPE ops: " + std::to_string(num_rpe_ops));
 }
 
 void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions) {
