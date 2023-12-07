@@ -47,19 +47,19 @@ struct Evaluate : element::NoAction<bool> {
 };
 }  // namespace fake_convert_details
 
-FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          std::string destination_type)
-    : Op({arg, scale}),
+    : Op({data, scale}),
       m_destination_type(std::move(destination_type)) {
     constructor_validate_and_infer_types();
 }
 
-FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
                          std::string destination_type)
-    : Op({arg, scale, shift}),
+    : Op({data, scale, shift}),
       m_destination_type(std::move(destination_type)) {
     constructor_validate_and_infer_types();
 }
@@ -135,10 +135,13 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32>::apply<fake_convert_details::Evaluate>(inputs[0].get_element_type(),
-                                                                           outputs,
-                                                                           inputs,
-                                                                           get_destination_type());
+    return IF_TYPE_OF(v13_FakeConvert_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32),
+                      fake_convert_details::Evaluate,
+                      inputs[0].get_element_type(),
+                      outputs,
+                      inputs,
+                      get_destination_type());
 
     return true;
 }

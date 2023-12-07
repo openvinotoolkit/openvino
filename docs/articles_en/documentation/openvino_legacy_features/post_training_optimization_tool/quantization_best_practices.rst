@@ -1,7 +1,7 @@
 .. {#pot_docs_BestPractices}
 
-Post-Training Quantization Best Practices
-=========================================
+[Deprecated] Post-Training Quantization Best Practices
+========================================================
 
 
 .. toctree::
@@ -10,6 +10,7 @@ Post-Training Quantization Best Practices
 
    Saturation Issue <pot_saturation_issue>
 
+.. danger:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
 
 The :doc:`Default Quantization <pot_default_quantization_usage>` of the Post-training Optimization Tool (POT) is
 the fastest and easiest way to get a quantized model. It requires only some unannotated representative dataset to be provided in most cases. Therefore, it is recommended to use it as a starting point when it comes to model optimization. However, it can lead to significant accuracy deviation in some cases. The purpose of this article is to provide tips to address this issue.
