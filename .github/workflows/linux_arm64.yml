@@ -1,7 +1,7 @@
 name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
 on:
   workflow_dispatch:
-  # pull_request:
+  pull_request:
   push:
     branches:
       - master
@@ -150,8 +150,9 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
+            -DTHREADING=SEQ \
+            -DENABLE_AUTO=OFF \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -1102,8 +1103,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-    if: ${{ 'false' }} # Ticket: 126379
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1200,9 +1200,8 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
       - name: Check sudo
@@ -1211,13 +1210,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_x86_64
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_x86_64
+          name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -1282,9 +1281,8 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
       - name: Check sudo
@@ -1293,13 +1291,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_x86_64
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_x86_64
+          name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -1373,8 +1371,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
-    if: ${{ 'false' }} # TODO: Enable once the self-hosted runners are ready for them
+    if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
 
     steps:
       - name: Check sudo
@@ -1389,13 +1386,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package_x86_64
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests_x86_64
+          name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
