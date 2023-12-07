@@ -165,58 +165,55 @@ RepeatPatternExtractor::get_matched_nodes(const ov::NodeVector& ordered_ops) {
     return matched_nodes;
 }
 
-// std::vector<std::vector<ov::NodeVector>>
-std::vector<std::vector<std::vector<size_t>>>
+
+std::vector<std::vector<ov::NodeVector>>
 RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
                                               const ov::NodeVector& ordered_ops) {
     if (start_op_vec.size() < 2 || ordered_ops.size() < 3) {
         return {{}};
     }
     auto pattern_cnt = start_op_vec.size();
-    // std::vector<ov::NodeVector> patterns(pattern_cnt);
-    std::vector<std::vector<size_t>> patterns(pattern_cnt);
+    std::vector<ov::NodeVector> patterns(pattern_cnt);
     for (size_t pattern_idx = 0; pattern_idx < pattern_cnt; ++pattern_idx) {
         std::unordered_set<std::string> nodes_to_check;
         const auto& start_op_idx = start_op_vec[pattern_idx];
         get_nodes_to_check(nodes_to_check, ordered_ops[start_op_idx]);
-        // const ov::NodeVector buf_ordered_ops(ordered_ops.begin() + start_op_idx, ordered_ops.end());
-        std::vector<size_t> buf_ordered_ops(ordered_ops.size() - start_op_idx);
-        std::iota(buf_ordered_ops.begin(), buf_ordered_ops.end(), start_op_idx);
-        // for (const auto& op : buf_ordered_ops) {
-        for (const auto& op_idx : buf_ordered_ops) {
-            // if (nodes_to_check.count(op->get_friendly_name())) {
-            if (nodes_to_check.count(ordered_ops[op_idx]->get_friendly_name())) {
-                patterns[pattern_idx].push_back(op_idx);
+        const ov::NodeVector buf_ordered_ops(ordered_ops.begin() + start_op_idx, ordered_ops.end());
+        for (const auto& op : buf_ordered_ops) {
+            if (nodes_to_check.count(op->get_friendly_name())) {
+                patterns[pattern_idx].push_back(op);
             }
         }
     }
     {
-        // std::vector<ov::NodeVector> potential_patterns(pattern_cnt);
-        std::vector<std::vector<size_t>> potential_patterns(pattern_cnt);
+        std::reverse(patterns.begin(), patterns.end());
+        std::vector<ov::NodeVector> potential_patterns(pattern_cnt);
         for (size_t i_orig = 0; i_orig < pattern_cnt - 1; ++i_orig) {
+            if (!potential_patterns[i_orig].empty()) {
+                continue;
+            }
             for (size_t i_ref = i_orig + 1; i_ref < pattern_cnt; ++i_ref) {
+                if (!potential_patterns[i_ref].empty()) {
+                    continue;
+                }
                 auto intersection_len = std::min(patterns[i_orig].size(), patterns[i_ref].size());
-                // if (potential_patterns[i_orig].size() > intersection_len ||
-                //     potential_patterns[i_ref].size() > intersection_len) {
-                //     continue;
-                // }
-                std::vector<size_t> pattern_orig(intersection_len, 0);
-                std::vector<size_t> pattern_ref(intersection_len, 0);
-                std::unordered_set<std::shared_ptr<ov::Node>> orig_set;
-                std::unordered_set<std::shared_ptr<ov::Node>> ref_set;
+                if (potential_patterns[i_orig].size() > intersection_len ||
+                    potential_patterns[i_ref].size() > intersection_len) {
+                    continue;
+                }
+                ov::NodeVector pattern_orig(intersection_len, nullptr), pattern_ref(intersection_len, nullptr);
                 for (size_t j = 0; j < intersection_len; ++j) {
-                    if (model_comparator->match(ordered_ops[patterns[i_orig][j]], ordered_ops[patterns[i_ref][j]])) {
+                    if (model_comparator->match(patterns[i_orig][j], patterns[i_ref][j])) {
+                        if (patterns[i_orig][j] == patterns[i_ref][j]) {
+                            continue;
+                        }
                         if (j != 0) {
                             bool is_input_matched = false;
-                            for (size_t input_idx = 0; input_idx < ordered_ops[patterns[i_orig][j]]->inputs().size(); ++input_idx) {
-                                auto in_orig = ordered_ops[patterns[i_orig][j]]->get_input_node_shared_ptr(input_idx);
-                                auto in_ref = ordered_ops[patterns[i_ref][j]]->get_input_node_shared_ptr(input_idx);
-                                // if (std::find(pattern_orig.begin(), pattern_orig.end(), in_orig) != pattern_orig.end() &&
-                                //     std::find(pattern_ref.begin(), pattern_ref.end(), in_ref) != pattern_ref.end()) {
-                                //     is_input_matched = true;
-                                //     break;
-                                // }
-                                if (orig_set.count(in_orig) && ref_set.count(in_ref)) {
+                            for (size_t input_idx = 0; input_idx < patterns[i_orig][j]->inputs().size(); ++input_idx) {
+                                auto in_orig = patterns[i_orig][j]->get_input_node_shared_ptr(input_idx);
+                                auto in_ref = patterns[i_ref][j]->get_input_node_shared_ptr(input_idx);
+                                if (std::find(pattern_orig.begin(), pattern_orig.end(), in_orig) != pattern_orig.end() &&
+                                    std::find(pattern_ref.begin(), pattern_ref.end(), in_ref) != pattern_ref.end()) {
                                     is_input_matched = true;
                                     break;
                                 }
@@ -227,11 +224,9 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                         }
                         pattern_orig[j] = patterns[i_orig][j];
                         pattern_ref[j] = patterns[i_ref][j];
-                        orig_set.insert(ordered_ops[patterns[i_orig][j]]);
-                        ref_set.insert(ordered_ops[patterns[i_ref][j]]);
                     }
                 }
-                std::vector<size_t> orig, ref;
+                ov::NodeVector orig, ref;
                 for (size_t node_idx = 0; node_idx < pattern_orig.size(); ++node_idx) {
                     if (pattern_orig[node_idx] != 0) {
                         orig.emplace_back(pattern_orig[node_idx]);
@@ -240,21 +235,11 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                         ref.emplace_back(pattern_ref[node_idx]);
                     }
                 }
-                // if (potential_patterns[i_orig].size() < orig.size()) {
-                //     potential_patterns[i_orig] = orig;
-                // }
-                // if (potential_patterns[i_ref].size() < ref.size()) {
-                //     potential_patterns[i_ref] = ref;
-                // }
-                if ((potential_patterns[i_orig].size() > orig.size() || potential_patterns[i_orig].empty()) && orig.size() > 1) {
-                    potential_patterns[i_orig] = orig;
-                }
-                if ((potential_patterns[i_ref].size() > ref.size()|| potential_patterns[i_ref].empty()) && ref.size() > 1) {
-                    potential_patterns[i_ref] = ref;
-                }
+                potential_patterns[i_orig] = orig;
+                potential_patterns[i_ref] = ref;
             }
         }
-        std::sort(potential_patterns.begin(), potential_patterns.end(), [](const std::vector<size_t>& a, const std::vector<size_t>& b) {
+        std::sort(potential_patterns.begin(), potential_patterns.end(), [](const ov::NodeVector& a, const ov::NodeVector& b) {
             return a.size() > b.size();
         });
 
@@ -264,19 +249,24 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
         patterns = potential_patterns;
     }
 
-    // std::vector<std::vector<ov::NodeVector>> pattern_vec;
-    std::vector<std::vector<std::vector<size_t>>> pattern_vec;
+    std::vector<std::vector<ov::NodeVector>> pattern_vec;
     for (size_t pattern_idx = 0; pattern_idx < patterns.size(); ++pattern_idx) {
         const auto& pattern = patterns[pattern_idx];
         if (pattern_vec.empty()) {
             pattern_vec.push_back({{pattern}});
         } else if (pattern_vec.rbegin()->begin()->size() != pattern.size()) {
+            if (pattern_vec.rbegin()->size() == 1) {
+                pattern_vec.pop_back();
+            }
             pattern_vec.push_back({{pattern}});
         } else {
             auto ref = pattern_vec.rbegin()->front();
             bool is_matched = true;
             for (size_t i = 0; i < pattern.size(); ++i) {
-                if (!model_comparator->match(ordered_ops[pattern[i]], ordered_ops[ref.at(i)])) {
+                if (!model_comparator->match(pattern[i], ref[i])) {
+                    if (pattern_vec.rbegin()->size() == 1) {
+                        pattern_vec.pop_back();
+                    }
                     pattern_vec.push_back({{pattern}});
                     is_matched = false;
                     break;
@@ -287,19 +277,6 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
         }
     }
     return pattern_vec;
-}
-
-std::vector<ov::NodeVector>
-a(const std::vector<std::vector<size_t>>& b, const ov::NodeVector& ordered_ops) {
-    std::vector<ov::NodeVector> res(b.size());
-    for (size_t i = 0; i < b.size(); ++i) {
-        ov::NodeVector r(b[i].size());
-        for (size_t j = 0; j < r.size(); ++j) {
-            r[j] = ordered_ops[b[i][j]];
-        }
-        res[i] = r;
-    }
-    return res;
 }
 
 std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>
@@ -325,17 +302,16 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
         // start_time = std::chrono::system_clock::now();
         for (auto& nodes_vector : patterns) {
             try {
-                auto d = a(nodes_vector, ordered_ops);
-                auto extracted_pattern = ov::util::generate_model(d.front(), is_save_const, is_save_borders_only);
+                auto extracted_pattern = ov::util::generate_model(nodes_vector.front(), is_save_const, is_save_borders_only);
                 const auto& extracted_model = extracted_pattern.first;
                 const auto& extracted_input_info = extracted_pattern.second;
                 if (extracted_model == nullptr) {
                     continue;
                 }
                 update_extractor_cache(extracted_patterns,
-                                        extracted_model,
-                                        d,
-                                        extracted_input_info);
+                                       extracted_model,
+                                       nodes_vector,
+                                       extracted_input_info);
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model!") == std::string::npos) {
                     // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
@@ -347,27 +323,27 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
         // duration = end_time - start_time;
         // std::cout << "Recover model " << duration.count() << "s" << std::endl;
 
-        // if (is_extract_body) {
-        //     if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(matched_node.first)) {
-        //         auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node.first);
-        //         auto ti_body = ti->get_function();
-        //         auto secondary_patterns = find_repeat_patterns(ti_body, is_save_borders_only);
-        //         update_extractor_cache(extracted_patterns, secondary_patterns);
-        //     } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(matched_node.first)) {
-        //         auto loop = ov::as_type_ptr<ov::op::v5::Loop>(matched_node.first);
-        //         auto loop_body = loop->get_function();
-        //         auto secondary_patterns = find_repeat_patterns(loop_body, is_save_borders_only);
-        //         update_extractor_cache(extracted_patterns, secondary_patterns);
-        //     } else if (std::dynamic_pointer_cast<ov::op::v8::If>(matched_node.first)) {
-        //         auto if_op = ov::as_type_ptr<ov::op::v8::If>(matched_node.first);
-        //         std::vector<std::shared_ptr<ov::Model>> bodies;
-        //         for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
-        //             auto if_body = if_op->get_function(i);
-        //             auto secondary_patterns = find_repeat_patterns(if_body, is_save_borders_only);
-        //             update_extractor_cache(extracted_patterns, secondary_patterns);
-        //         }
-        //     }
-        // }
+        if (is_extract_body) {
+            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(matched_node.first)) {
+                auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node.first);
+                auto ti_body = ti->get_function();
+                auto secondary_patterns = find_repeat_patterns(ti_body, is_save_borders_only);
+                update_extractor_cache(extracted_patterns, secondary_patterns);
+            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(matched_node.first)) {
+                auto loop = ov::as_type_ptr<ov::op::v5::Loop>(matched_node.first);
+                auto loop_body = loop->get_function();
+                auto secondary_patterns = find_repeat_patterns(loop_body, is_save_borders_only);
+                update_extractor_cache(extracted_patterns, secondary_patterns);
+            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(matched_node.first)) {
+                auto if_op = ov::as_type_ptr<ov::op::v8::If>(matched_node.first);
+                std::vector<std::shared_ptr<ov::Model>> bodies;
+                for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
+                    auto if_body = if_op->get_function(i);
+                    auto secondary_patterns = find_repeat_patterns(if_body, is_save_borders_only);
+                    update_extractor_cache(extracted_patterns, secondary_patterns);
+                }
+            }
+        }
     }
 
     // clean up patterns
