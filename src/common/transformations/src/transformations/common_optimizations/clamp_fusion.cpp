@@ -48,6 +48,8 @@ ov::pass::ClampFusion::ClampFusion() {
 
         double min_value = min_const->cast_vector<double>()[0];
         double max_value = max_const->cast_vector<double>()[0];
+        if (min_value > max_value)
+            return false;
 
         auto clamp = register_new_node<ov::op::v0::Clamp>(data, min_value, max_value);
 
