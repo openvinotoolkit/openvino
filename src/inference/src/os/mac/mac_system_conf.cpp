@@ -44,6 +44,8 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
     _sockets = 0;
     _cores = 0;
 
+    _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+
     auto it = std::find_if(system_info_table.begin(),
                            system_info_table.end(),
                            [&](const std::pair<std::string, uint64_t>& item) {
@@ -72,50 +74,35 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
     _numa_nodes = 1;
     _sockets = 1;
 
+    _proc_type_table[0][ALL_PROC] = _processors;
+    _proc_type_table[0][MAIN_CORE_PROC] = _cores;
+    _proc_type_table[0][HYPER_THREADING_PROC] = _processors - _cores;
+
     it = std::find_if(system_info_table.begin(),
                       system_info_table.end(),
                       [&](const std::pair<std::string, uint64_t>& item) {
                           return item.first == "hw.optional.arm64";
                       });
 
-    if (it == system_info_table.end()) {
-        _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-        _proc_type_table[0][ALL_PROC] = _processors;
-        _proc_type_table[0][MAIN_CORE_PROC] = _cores;
-        _proc_type_table[0][HYPER_THREADING_PROC] = _processors - _cores;
-        _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
-        _proc_type_table[0][PROC_SOCKET_ID] = 0;
-    } else {
+    if (it != system_info_table.end()) {
         it = std::find_if(system_info_table.begin(),
                           system_info_table.end(),
                           [&](const std::pair<std::string, uint64_t>& item) {
                               return item.first == "hw.perflevel0.physicalcpu";
                           });
 
-        if (it == system_info_table.end()) {
-            _processors = 0;
-            _cores = 0;
-            _numa_nodes = 0;
-            _sockets = 0;
-            return -1;
-        } else {
-            _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-            _proc_type_table[0][ALL_PROC] = _processors;
+        if (it != system_info_table.end()) {
             _proc_type_table[0][MAIN_CORE_PROC] = it->second;
-            _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
-            _proc_type_table[0][PROC_SOCKET_ID] = 0;
-        }
 
-        it = std::find_if(system_info_table.begin(),
-                          system_info_table.end(),
-                          [&](const std::pair<std::string, uint64_t>& item) {
-                              return item.first == "hw.perflevel1.physicalcpu";
-                          });
+            it = std::find_if(system_info_table.begin(),
+                              system_info_table.end(),
+                              [&](const std::pair<std::string, uint64_t>& item) {
+                                  return item.first == "hw.perflevel1.physicalcpu";
+                              });
 
-        if (it == system_info_table.end()) {
-            return 0;
-        } else {
-            _proc_type_table[0][EFFICIENT_CORE_PROC] = it->second;
+            if (it != system_info_table.end()) {
+                _proc_type_table[0][EFFICIENT_CORE_PROC] = it->second;
+            }
         }
     }
 

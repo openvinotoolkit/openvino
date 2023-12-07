@@ -67,6 +67,19 @@ MacOSCpuMapTestCase test_case_arm = {
     },  // param[in]: The system information table of this simulated platform
 };
 
+MacOSCpuMapTestCase test_case_arm_2 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 8, 0, 0, 0, 0}},
+    {
+        {"hw.ncpu", 8},
+        {"hw.physicalcpu", 8},
+        {"hw.optional.arm64", 1},
+    },
+};
+
 MacOSCpuMapTestCase test_case_x86 = {
     12,
     1,
@@ -78,7 +91,9 @@ MacOSCpuMapTestCase test_case_x86 = {
 
 TEST_P(MacOSCpuMapParserTests, MacOS) {}
 
-INSTANTIATE_TEST_SUITE_P(CPUMap, MacOSCpuMapParserTests, testing::Values(test_case_arm, test_case_x86));
+INSTANTIATE_TEST_SUITE_P(CPUMap,
+                         MacOSCpuMapParserTests,
+                         testing::Values(test_case_arm, test_case_arm_2, test_case_x86));
 
 #endif
 }  // namespace
