@@ -14,7 +14,7 @@ namespace intel_cpu {
 namespace aarch64 {
 
 const std::vector<uint32_t> jit_emitter::save_gpr_regs = {
-    9, 10
+    9, 15
 };
 
 const std::vector<uint32_t> jit_emitter::save_v_regs = {
