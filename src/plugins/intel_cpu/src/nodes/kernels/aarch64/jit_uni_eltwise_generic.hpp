@@ -133,42 +133,42 @@ private:
     // X12    | [not used]   | R12 | src ptr
     // X13    | [not used]   | R13 | src ptr
     // X14    | [not used]   | R14 | src ptr
-    // X15    | [not used]   | R15 | temporary
-    // X16    | [not used]
-    // X17    | [not used]
+    // X15    | dst          | R15 | temporary
+    // X16    | [not used: IP1]
+    // X17    | [not used: IP0]
     // X18    | [not used: Apple: The platforms reserve register x18. Don't use this register.]
 
     // ABI: X19-28: Callee-saved registers
-    // X19    | dst ptr
+    // X19    | src ptr
     // X20    | src ptr
     // X21    | src ptr
     // X22    | src ptr
     // X23    | src ptr
     // X24    | src ptr
     // X25    | src ptr
-    // X26    | src ptr
+    // X26    | temporary
     // X27    | temporary
-    // X28    | temporary
+    // X28    | [not used]
 
     // X29    | [not used: The Frame Pointer (FP)]
     // X30    | [not used: The Link Register (LR)]
     // X31    | [not used: The Stack Pointer (SP)]
 
     const XReg reg_work_amount = x9;
-    const XReg reg_dst = x19;
+    const XReg reg_dst = x15;
 
     inline XReg get_src_reg(uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             IE_THROW(Unexpected) << "source vector ptr register " << idx << " is not supported";
         }
-        return XReg(20 + idx);
+        return XReg(19 + idx);
     }
 
     inline XReg get_aux_gpr(const uint32_t idx) {
         if (idx > 2) {
             IE_THROW(Unexpected) << "aux gpr register " << idx << " is not supported";
         }
-        return XReg(27 + idx);
+        return XReg(26 + idx);
     }
 
     // Vector registers mapping
