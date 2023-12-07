@@ -437,8 +437,6 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
 ])
-
-
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
     _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
