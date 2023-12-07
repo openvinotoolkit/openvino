@@ -111,7 +111,9 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
     this->postamble();
 }
 
+#ifdef ENABLE_SSE_FOR_CPU
 template struct jit_uni_dft_kernel_f32<cpu::x64::sse41>;
+#endif
 template struct jit_uni_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_uni_dft_kernel_f32<cpu::x64::avx512_core>;
 
@@ -237,8 +239,9 @@ void jit_uni_fft_kernel_f32<isa>::move_data(const Xbyak::Xmm& x, const Xbyak::Ad
         uni_vmovups(x, addr);
     }
 }
-
+#ifdef ENABLE_SSE_FOR_CPU
 template struct jit_uni_fft_kernel_f32<cpu::x64::sse41>;
+#endif
 template struct jit_uni_fft_kernel_f32<cpu::x64::avx2>;
 template struct jit_uni_fft_kernel_f32<cpu::x64::avx512_core>;
 

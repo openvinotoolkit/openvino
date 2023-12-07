@@ -154,8 +154,10 @@ PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jcp));
+#ifdef ENABLE_SSE_FOR_CPU
     } else if (mayiuse(cpu::x64::sse41)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
+#endif
     }
 #endif // OPENVINO_ARCH_X86_64
 

@@ -409,8 +409,9 @@ void jit_dft_kernel_f32<sse41>::interleave_and_store(const Vmm& real, const Vmm&
     uni_vmovups(ptr[reg_exp], low);
     uni_vmovups(ptr[reg_exp + vlen], high);
 }
-
+#ifdef ENABLE_SSE_FOR_CPU
 template struct jit_dft_kernel_f32<cpu::x64::sse41>;
+#endif
 template struct jit_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_dft_kernel_f32<cpu::x64::avx512_core>;
 

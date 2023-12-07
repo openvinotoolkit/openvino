@@ -2071,8 +2071,10 @@ void Reduce::prepareParams() {
             post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>(key.jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(key.jcp, *attr.get()));
+#ifdef ENABLE_SSE_FOR_CPU
         } else if (mayiuse(cpu::x64::sse41)) {
             post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(key.jcp, *attr.get()));
+#endif
         }
 #endif // OPENVINO_ARCH_X86_64
         if (post_kernel)
@@ -2187,8 +2189,10 @@ void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel> &kernel
         kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
+#ifdef ENABLE_SSE_FOR_CPU
     } else if (mayiuse(cpu::x64::sse41)) {
         kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
+#endif
     }
 #endif // OPENVINO_ARCH_X86_64
     if (kernel)

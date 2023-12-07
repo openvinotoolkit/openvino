@@ -1977,6 +1977,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
         }
+#ifdef ENABLE_SSE_FOR_CPU
     } else if (mayiuse(cpu::x64::sse41)) {
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
         jcp.normalize_variance = false;
@@ -1985,6 +1986,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         }
+#endif
     } else {
         OPENVINO_THROW("Can't create jit MVN kernel");
     }

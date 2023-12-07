@@ -560,8 +560,10 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_core>());
         } else if (mayiuse(cpu::x64::avx2)) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx2>());
+#ifdef ENABLE_SSE_FOR_CPU
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
+#endif
         } else {
             OPENVINO_THROW("Can't create jit DFT kernel");
         }
@@ -575,8 +577,10 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_core>());
         } else if (mayiuse(cpu::x64::avx2)) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx2>());
+#ifdef ENABLE_SSE_FOR_CPU
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
+#endif
         } else {
             OPENVINO_THROW("Can't create jit FFT kernel");
         }

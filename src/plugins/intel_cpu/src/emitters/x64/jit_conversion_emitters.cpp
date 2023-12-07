@@ -70,12 +70,14 @@ bool jit_convert_truncation_emitter::is_i8_and_u8_case() const {
 
 void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     validate_types();
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+#ifdef ENABLE_SSE_FOR_CPU
+    } else if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+#endif
     } else {
         assert(!"unsupported isa");
     }
@@ -199,12 +201,14 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *ho
 
 void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     validate_types();
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+#ifdef ENABLE_SSE_FOR_CPU
+    } else if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+#endif
     } else {
         assert(!"unsupported isa");
     }

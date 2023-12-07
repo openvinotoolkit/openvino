@@ -2122,8 +2122,10 @@ void TopK::createPrimitive() {
             topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx512_core>(jcp));
         } else if (mayiuse(cpu::x64::avx2)) {
             topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx2>(jcp));
+#ifdef ENABLE_SSE_FOR_CPU
         } else if (mayiuse(cpu::x64::sse41)) {
             topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::sse41>(jcp));
+#endif
         }
 
         if (topk_kernel)

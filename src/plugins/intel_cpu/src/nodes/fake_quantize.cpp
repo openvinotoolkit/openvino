@@ -2135,11 +2135,13 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
             pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx2>(_jqp));
         else
             pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx2>(_jqp));
+#ifdef ENABLE_SSE_FOR_CPU
     } else if (mayiuse(cpu::x64::sse41)) {
         if (isBinarization)
             pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::sse41>(_jqp));
         else
             pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::sse41>(_jqp));
+#endif
     } else {
         OPENVINO_THROW("Can't create jit fake quantize kernel");
     }

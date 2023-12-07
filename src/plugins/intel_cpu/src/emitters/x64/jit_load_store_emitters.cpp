@@ -98,12 +98,14 @@ size_t jit_load_emitter::aux_gprs_count() const {
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
+    if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
-    } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
+#ifdef ENABLE_SSE_FOR_CPU
+    } else if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
+#endif
     } else {
         OPENVINO_THROW("Load emitter in ", name_, " is performed on unsupported isa(at least x64::sse41).");
     }
@@ -674,12 +676,14 @@ void jit_store_emitter::emit_data() const {
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
+    if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
-    } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
+#ifdef ENABLE_SSE_FOR_CPU
+    } else if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
+#endif
     } else {
         OPENVINO_THROW("Store emitter in ", name_, " is performed on unsupported isa(at least x64::sse41).");
     }
