@@ -217,13 +217,14 @@ void SubgraphBaseTest::import_export() {
             std::stringstream strm;
             compiledModel.export_model(strm);
             ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
-            auto importedFunction = importedModel.get_runtime_model()->clone();
+            const auto importedFunction = importedModel.get_runtime_model()->clone();
+            const auto runtimeModel = compiledModel.get_runtime_model()->clone();
 
             auto comparator = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
                         .enable(FunctionsComparator::NAMES)
                         .enable(FunctionsComparator::CONST_VALUES);
-            auto res = comparator.compare(importedFunction, function);
+            auto res = comparator.compare(importedFunction, runtimeModel);
             if (!res.valid) {
                 throw std::runtime_error(res.message);
             }
