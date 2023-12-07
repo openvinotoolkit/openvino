@@ -290,7 +290,7 @@ PartialShape validate_and_infer_convolution_forward_output_shape(const Node* nod
 }
 
 //
-// Infers the output batch shape for batched pooling fprop.
+// Infers the output batch shape and element type for batched pooling fprop.
 //
 PartialShape infer_batched_pooling_forward(const Node* node,
                                            const PartialShape& data_batch_shape,
@@ -1078,7 +1078,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<
 }
 
 bool ov::has_no_labels(const ov::TensorLabel& labels) {
-    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+    return ov::util::has_no_labels(labels);
 }
 
 void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
@@ -1132,7 +1132,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
 }
 
 //
-// Infers the output batch shape and element type for convolution fprop.
+// Infers the output batch shape for convolution fprop.
 //
 ov::PartialShape ov::infer_convolution_forward(const Node* node,
                                                const PartialShape& data_batch_shape,
@@ -1491,6 +1491,10 @@ void generate_transpose_default_order(std::vector<int64_t>& axes_order, const si
 bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
     return are_unique(axes_order) &&
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+}
+
+bool has_no_labels(const ov::TensorLabel& labels) {
+    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
 }
 }  // namespace util
 }  // namespace ov

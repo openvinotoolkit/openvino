@@ -164,5 +164,11 @@ OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_or
 ///
 /// \return True if axes order is valid, false otherwise.
 OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, size_t size);
+
+/// \brief Checks whether label tensor has no labels.
+///
+/// \param labels  Label tensor to check.
+/// \return True if there are no labels, false otherwise.
+OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 }  // namespace util
 }  // namespace ov
