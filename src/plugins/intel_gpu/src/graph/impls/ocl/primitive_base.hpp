@@ -143,6 +143,8 @@ protected:
             // batch program hash and kernel entry point to find corresponding cl source code
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
                                           _kernel_data.kernels[0].code.kernelString->entry_point);
+            for (size_t i = 1; i < _kernel_data.kernels.size(); ++i)
+                kernel_dump_info.second += " " + _kernel_data.kernels[i].code.kernelString->entry_point;
         }
     }
 
