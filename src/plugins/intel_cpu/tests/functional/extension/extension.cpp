@@ -205,7 +205,7 @@ static std::string get_extension_path() {
 }
 
 
-TEST(Extension, XmlModelWithExtensionFromDSO) {
+TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
