@@ -44,7 +44,7 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     MATCHER_SCOPE(EltwiseToEltwiseTPP);
 
     auto is_supported_by_tpp = [](const Output<Node>& out) {
-        return op::EltwiseTPP::is_supported(out.get_node_shared_ptr());
+        return op::BinaryEltwiseTPP::is_supported(out.get_node_shared_ptr());
     };
     auto eltwise_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(is_supported_by_tpp);
 
