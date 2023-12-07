@@ -5,6 +5,7 @@
 
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -26,9 +27,7 @@ TRShape calc_output_shape(const Transpose* const op, const T& input_shape, std::
     const auto output_rank = input_shape.size();
 
     if (axes_order.empty()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        generate_transpose_default_order(axes_order, output_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::generate_transpose_default_order(axes_order, output_rank);
     } else {
         OPENVINO_SUPPRESS_DEPRECATED_START
         NODE_VALIDATION_CHECK(op,

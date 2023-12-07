@@ -147,5 +147,12 @@ OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialS
 /// \return True if label evaluation was successful.
 OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
 
+/// \brief Generates default order of axes transposition at the end of input vector.
+///
+/// The default axes order is a descending sequence of numbers starting at `length - 1`.
+///
+/// \param axes_order  Vector where default order will be generated.
+/// \param length      Sequence length of axes order.
+OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_order, size_t length);
 }  // namespace util
 }  // namespace ov

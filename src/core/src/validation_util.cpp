@@ -1484,5 +1484,10 @@ bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape)
 bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
     return default_label_evaluator(node, {0}, output_labels);
 }
+
+void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(axes_order.size() + length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
 }  // namespace util
 }  // namespace ov
