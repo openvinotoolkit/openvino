@@ -18,21 +18,19 @@
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 
-using namespace ngraph;
-OPENVINO_SUPPRESS_DEPRECATED_START
+using namespace ov;
+using namespace ov::frontend::onnx::tests;
 
-static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 // is there any benefit of running below tests on different backends?
 // why are these here anyway?
 
 OPENVINO_TEST(${BACKEND_NAME}, add_abc_from_ir) {
-    const auto ir_xml =
-        file_util::path_join(ov::test::utils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.xml");
-    const auto function = function_from_ir(ir_xml);
+    const auto model = read_ir("core/models/ir/add_abc.xml");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({1});
     test_case.add_input<float>({2});
     test_case.add_input<float>({3});
@@ -42,13 +40,9 @@ OPENVINO_TEST(${BACKEND_NAME}, add_abc_from_ir) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path) {
-    const auto ir_xml =
-        file_util::path_join(ov::test::utils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.xml");
-    const auto ir_bin =
-        file_util::path_join(ov::test::utils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.bin");
-    const auto function = function_from_ir(ir_xml, ir_bin);
+    const auto model = read_ir("core/models/ir/add_abc.xml", "core/models/ir/add_abc.bin");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({1});
     test_case.add_input<float>({2});
     test_case.add_input<float>({3});

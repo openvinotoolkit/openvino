@@ -1,0 +1,68 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "onnx_utils.hpp"
+
+#include <openvino/runtime/core.hpp>
+#include <vector>
+
+#include "utils.hpp"
+
+using namespace std;
+using namespace ov;
+using namespace ov::frontend;
+
+// For compatibility purposes, need to remove when will be unused
+const std::string ONNX_FE = "onnx";
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace tests {
+
+const std::string ONNX_FE = ::ONNX_FE;
+
+shared_ptr<Model> read_ir(const string& xml_path, const string& bin_path) {
+    ov::Core ov_core;
+    auto xml_full_path = FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + "../" + xml_path);
+    auto bin_full_path = bin_path.empty()
+                             ? bin_path
+                             : FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + "../" + bin_path);
+
+    auto model = ov_core.read_model(xml_full_path, bin_full_path);
+    if (!model) {
+        throw "Model is not read";
+    }
+    return model;
+}
+
+shared_ptr<Model> convert_model(const string& model_path) {
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr front_end = fem.load_by_framework(ONNX_FE);
+    if (!front_end) {
+        throw "ONNX FrontEnd is not initialized";
+    }
+
+    auto full_path = FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + model_path);
+    InputModel::Ptr input_model = front_end->load(full_path);
+    if (!input_model) {
+        throw "Input Model is not loaded";
+    }
+
+    shared_ptr<Model> model = front_end->convert(input_model);
+    if (!model) {
+        throw "Model is not converted";
+    }
+
+    return model;
+}
+
+std::string onnx_backend_manifest(const std::string& manifest) {
+    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), manifest});
+}
+
+}  // namespace tests
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
