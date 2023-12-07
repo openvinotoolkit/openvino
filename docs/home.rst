@@ -61,12 +61,12 @@ OpenVINO 2023.2
 
       See latest benchmark numbers for OpenVINO and OpenVINO Model Server
 
-   .. grid-item-card:: Flexible Workflow
+   .. grid-item-card:: Model Import
       :link: Supported_Model_Formats
       :link-alt: Supported Model Formats     
       :link-type: doc
 
-      Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to the OpenVINO format.
+      Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to the OpenVINO format
 
    .. grid-item-card:: Deploy at Scale With OpenVINO Model Server
       :link: ovms_what_is_openvino_model_server
@@ -80,7 +80,7 @@ OpenVINO 2023.2
       :link-alt: model optimization    
       :link-type: doc
 
-      Reach for performance with post-training and training-time compression with NNCF
+      Reach for performance with post-training and training-time compression and quantization with NNCF
 
    .. grid-item-card:: PyTorch 2.0 - torch.compile() backend
       :link: pytorch_2_0_torch_compile
@@ -94,7 +94,7 @@ OpenVINO 2023.2
       :link-alt: gen ai
       :link-type: doc
 
-      Generative AI optimization and deployment
+      Enhance the efficiency of Generative AI Models
 
 
 Feature Overview
