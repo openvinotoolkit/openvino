@@ -249,3 +249,5 @@ centernet/hourglass_512x512_kpts,https://www.kaggle.com/models/tensorflow/center
 bit/s-r152x4,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r152x4/versions/1
 small_bert/bert_uncased_L-8_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-128-a-2/versions/2
 centernet/resnet50v2_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v2-512x512-kpts/versions/1
+centernet/resnet50v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512/versions/1
+centernet/resnet50v1_fpn_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512-kpts/versions/1
