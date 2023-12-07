@@ -5366,7 +5366,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/random_normal.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
-    test_case.add_expected_output<float>(Shape{2, 2}, {13.459274f, 41.75028f, -19.311913f, 131.79282f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {83.052017f, 55.496368f, 119.31188f, -3.6946249f});
     test_case.run();
 }
 
@@ -5377,7 +5377,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 2}, {0, 0, 0, 0});
-    test_case.add_expected_output<float>(Shape{2, 2}, {13.459274f, 41.75028f, -19.311913f, 131.79282f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {83.052017f, 55.496368f, 119.31188f, -3.6946249f});
     test_case.run();
 }
 
