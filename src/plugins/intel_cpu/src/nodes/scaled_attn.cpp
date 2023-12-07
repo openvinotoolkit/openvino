@@ -532,7 +532,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         bool has_out_transpose = config.config.output_BLHxS;
         bool fuse_causal_attn = config.config.fuse_causal_attn;
         bool is_causal = config.config.is_causal;
-        const bool fuse_concat = config.config.fuse_concat;
         auto input_num = inputs.size();
         PlainTensor present_key, present_value;
 
@@ -731,9 +730,14 @@ void ScaledDotProductAttention::createPrimitive() {
     }
 }
 
+static void  gather_concat_pastkv(const MemoryPtr&, const MemoryPtr&, const MemoryPtr&, const MemoryPtr&) {
+    //TBD
+    OPENVINO_THROW("Not implemenated");
+}
+
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
-    std::vector<MemoryPtr> inputs(orginSDPInputNumber); 
+    std::vector<MemoryPtr> inputs(orginSDPInputNumber);
     auto output = getChildEdgeAt(0)->getMemoryPtr();
     MemoryPtr presentk_input, presentv_input, beam_input;
     for (size_t i = 0; i < orginSDPInputNumber; i++) {
@@ -741,8 +745,26 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
     }
 
     if (m_config.config.fuse_concat) {
-        k_state->gather_concat_pastkv(inputs[1], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr());
-        v_state->gather_concat_pastkv(inputs[2], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr());
+        if (k_state && k_state->is_reset_state()) {
+            //1. allocate k_state memory with extra size and strides using the input shape
+            // auto k_new_mem = std::make_shared<Memory>()
+            //2. fill the memory with init data
+            // k_state->assign_internal_state(k_new_mem);
+        }
+        auto k_mem = k_state->internal_state_mem();
+        //check whether the memory reallocation is required
+        // if so, reallocate more memory
+        // auto k_new_mem = std::make_shared<Memory>()
+        // and copy data k_mem -> k_new_mem
+        // assign new memory to the state
+        // k_state->assign_internal_state(k_new_mem);
+        // switch pointers
+        // k_mem = k_new_mem;
+        auto k_beam_table = k_state->hidden_state_mem();
+        gather_concat_pastkv(inputs[1], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr(), k_mem, k_beam_table);
+
+        //repeat for V tensor as well
+
         presentk_input = k_state->internal_state_mem();
         presentv_input = v_state->internal_state_mem();
         beam_input = k_state->hidden_state_mem();
@@ -793,9 +815,9 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
 
 void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx) {
     auto inputNumber = getOriginalInputsNumber();
-    if (inputNumber - 2 == idx) {
+    if (inputNumber - 2 == static_cast<size_t>(idx)) {
         k_state = state;
-    } else if (inputNumber - 1 == idx) {
+    } else if (inputNumber - 1 == static_cast<size_t>(idx)) {
         v_state = state;
     } else {
         OPENVINO_THROW(

@@ -13,7 +13,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "common/arbitrary_order_desc_creator.h"
 
 using namespace dnnl;
@@ -419,11 +418,7 @@ MemoryOutputBase& MemoryInputBase::getOutputNode() {
 void MemoryInputBase::assignState(MemStatePtr newState) {
     assignedMem = newState->input_mem();
 
-    if (!getParentEdges().empty() && newState->is_reset_state()) {
-        isExecutableFlag = true;
-    } else {
-        isExecutableFlag = false;
-    }
+    isExecutableFlag = !getParentEdges().empty() && newState->is_reset_state();
 
     OPENVINO_ASSERT(assignedMem,
         "MemoryInput ",
@@ -483,6 +478,37 @@ bool MemoryInputBase::needShapeInfer() const {
 
 bool MemoryInputBase::isExecutable() const {
     return isExecutableFlag && Node::isExecutable();
+}
+
+void MemoryInputBase::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    auto&& shape = getOutputShapeAtPort(0);
+    auto precision = getOriginalOutputPrecisionAtPort(0);
+    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
+
+    NodeConfig config;
+
+    if (!getParentEdges().empty()) {
+        PortConfig inPortConfig;
+
+        inPortConfig.inPlace(-1);
+        inPortConfig.constant(false);
+        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+        config.inConfs.push_back(std::move(inPortConfig));
+    }
+
+    PortConfig outPortConfig;
+
+    outPortConfig.inPlace(0);
+    outPortConfig.constant(false);
+    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+    config.outConfs.push_back(std::move(outPortConfig));
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
@@ -545,37 +571,6 @@ void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
             return it.second == node;
         });
     }
-}
-
-void MemoryInput::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    auto&& shape = getOutputShapeAtPort(0);
-    auto precision = getOriginalOutputPrecisionAtPort(0);
-    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-
-    NodeConfig config;
-
-    if (!getParentEdges().empty()) {
-        PortConfig inPortConfig;
-
-        inPortConfig.inPlace(-1);
-        inPortConfig.constant(false);
-        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-
-        config.inConfs.push_back(std::move(inPortConfig));
-    }
-
-    PortConfig outPortConfig;
-
-    outPortConfig.inPlace(0);
-    outPortConfig.constant(false);
-    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-
-    config.outConfs.push_back(std::move(outPortConfig));
-
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
@@ -669,17 +664,14 @@ MemoryInputSDPA::MemoryInputSDPA(const std::string id,
                                  const ov::optional<Shape>& input_shape,
                                  const ov::optional<ov::element::Type>& input_prc,
                                  const std::shared_ptr<ScaledDotProductAttention>& sdpaNode) :
-    MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc), m_sdpaNode(sdpaNode) {
-    if (isDynamic) {
-        // 2 scenarios:
-        // 1, after reset(first token)
-        //   a, if there is init-subgraph, the shape should be got from init subgraph
-        //   b, if there is no init-subgraph, the shape will be computed from state
-        // 2, second token: the shape will be computed from state
-        // since the source is determined by the condition, can use InternalDynShapeInferFactory to
-        //  dynamicly get the shape
-        shapeInference = InternalDynShapeInferFactory().makeShapeInfer();
-    }
+    MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc), m_sdpaNode(sdpaNode) {}
+
+
+bool MemoryInputSDPA::needShapeInfer() const {
+    return m_needShapeInfer;
+}
+bool MemoryInputSDPA::isExecutable() const {
+    return false;
 }
 
 void MemoryInputSDPA::createPrimitive() {
@@ -690,11 +682,11 @@ void MemoryInputSDPA::createPrimitive() {
     for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
         auto node = edge->getChild();
         if (node == sdpaNode) {
-            child_port_idx = edge->getOutputNum();
+            m_child_port_idx = edge->getOutputNum();
             break;
         }
     }
-    OPENVINO_ASSERT(child_port_idx != -1, getName(), " should connect to SDPA node.");
+    OPENVINO_ASSERT(m_child_port_idx != -1, getName(), " should be connected to SDPA node.");
 }
 
 void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
@@ -730,12 +722,29 @@ void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
+void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
+    Node::initOptimalPrimitiveDescriptor();
+}
+
 void MemoryInputSDPA::assignState(MemStatePtr newState) {
+    m_needShapeInfer = !getParentEdges().empty() && newState->is_reset_state();
+
+    if (!m_needShapeInfer) {
+        auto stateMem = newState->input_mem();
+        OPENVINO_ASSERT(stateMem,
+            "Internal state mem id: ",
+            newState->get_name(),
+            " is empty, node name: ",
+            getName());
+
+        redefineOutputMemory({stateMem->getStaticDims()});
+    }
+
     auto sdpaNode = m_sdpaNode.lock();
     OPENVINO_ASSERT(sdpaNode);
-    m_sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(newState);
-    OPENVINO_ASSERT(m_sdpaState);
-    sdpaNode->assignState(m_sdpaState, child_port_idx);
+    auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(newState);
+    OPENVINO_ASSERT(sdpaState);
+    sdpaNode->assignState(sdpaState, m_child_port_idx);
 }
 
 MemStatePtr MemoryInputSDPA::makeState() const {
@@ -766,20 +775,6 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 }
 
 void MemoryInputSDPA::execute(dnnl::stream strm) {
-    if (m_sdpaState->is_reset_state()) {
-        // has init subgraph
-        if (!getParentEdges().empty()) {
-            auto input = getParentEdgeAt(0)->getMemoryPtr();
-            m_sdpaState->init_from(input);
-        }
-    }
-    // 1, if in reset:
-    //   a, if has init subgraph, the state shape will be defined after init_from
-    //   b, if no init subgraph, the state shape will be defined in VariableStateKVcache::reset
-    // 2, if not in reset, the state will be updated in sdpa::infer call
-    // Update the shape to to fake memoryobj, shapeof can get the correct shape then
-    this->redefineOutputMemory(0, m_sdpaState->internal_desc()->getShape().getStaticDims());
-
     return;
 }
 

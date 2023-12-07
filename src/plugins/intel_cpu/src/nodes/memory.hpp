@@ -163,6 +163,7 @@ public:
 
     bool needShapeInfer() const override;
     bool isExecutable() const override;
+    void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -190,7 +191,6 @@ public:
     using MemoryInputBase::MemoryInputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
 
     MemStatePtr makeState() const override;
@@ -210,8 +210,12 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    bool needShapeInfer() const override;
+    bool isExecutable() const override;
+
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
 
     void execute(dnnl::stream strm) override;
 
@@ -219,12 +223,11 @@ public:
 
     void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
-    bool needShapeInfer() const override { return false; }
 
 private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
-    std::shared_ptr<VariableStateKVcache> m_sdpaState;
-    int child_port_idx = -1;
+    int m_child_port_idx = -1;
+    bool m_needShapeInfer = false; // TODO refactor MemoryInputBase in order to better separate responsibilities
 };
 }   // namespace node
 }   // namespace intel_cpu
