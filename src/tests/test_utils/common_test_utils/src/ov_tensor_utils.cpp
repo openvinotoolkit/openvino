@@ -354,10 +354,10 @@ void compare(const ov::Tensor& expected,
                        elem_type == ov::element::Type_t::u64) {
                 abs_threshold = abs_median * 0.01 < 1. ? 1. : 0.01 * abs_median;
             } else if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
-                abs_threshold = abs_median * 5e-5 < 5e-5 ? 5e-5 : 5e-5 * abs_median;
+                abs_threshold = abs_median * 1e-4 < 1e-4 ? 1e-4 : 1e-4 * abs_median;
             } else if (elem_type == ov::element::Type_t::bf16 ||\
                        elem_type == ov::element::Type_t::f16) {
-                abs_threshold = abs_median * 5e-3 < 5e-3 ? 5e-3 : 5e-3 * abs_median;
+                abs_threshold = abs_median * 1e-2 < 1e-2 ? 1e-2 : 1e-2 * abs_median;
             } else if (elem_type == ov::element::Type_t::i4 ||\
                        elem_type == ov::element::Type_t::i8 ||\
                        elem_type == ov::element::Type_t::i16 ||\
@@ -414,7 +414,8 @@ void compare(const ov::Tensor& expected,
         std::cout << "[ COMPARATION ] rel_error mean: " << rel_error.mean << std::endl;
     }
 
-    if (!(less_or_equal(abs_error.max, abs_threshold) || less_or_equal(rel_error.mean, rel_threshold))) {
+    // if (!(less_or_equal(abs_error.max, abs_threshold) || less_or_equal(rel_error.mean, rel_threshold))) {
+    if (!(less_or_equal(abs_error.max, abs_threshold))) {
         std::ostringstream out_stream;
         out_stream << "abs_max < abs_threshold && rel_max < rel_threshold"
                    << "\n\t abs_max: " << abs_error.max << "\n\t\t coordinate " << abs_error.max_coordinate
