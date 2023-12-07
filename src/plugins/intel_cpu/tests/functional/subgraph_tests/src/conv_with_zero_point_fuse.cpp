@@ -52,7 +52,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                                                       {-12.8f},
                                                       {12.7f});
 
-    std::vector<std::shared_ptr<ngraph::Node>> branches(2);
+    std::vector<std::shared_ptr<ov::Node>> branches(2);
     {
         ov::Strides strides{1, 1};
         ov::Shape pads_begin{0, 0}, pads_end{0, 0}, kernel{1, 1};

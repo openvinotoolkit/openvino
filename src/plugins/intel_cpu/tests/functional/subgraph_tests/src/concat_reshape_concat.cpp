@@ -6,7 +6,6 @@
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
 
-
 /*This test runs the following subgraph:
 
     param1      param2      param3      param4
@@ -39,10 +38,8 @@
   Softmax is used as a model of an arbitrary subgraph preceding the pattern.
 */
 
-using namespace InferenceEngine;
-using namespace ov::test;
-
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 using VectorShapes = std::vector<InputShape>;
 
@@ -86,32 +83,32 @@ public:
         ov::NodeVector first_level_reshapes;
 
         for (size_t i = 0; i < number_of_params; ++i) {
-            auto soft_max = std::make_shared<ngraph::opset1::Softmax>(input_params[i], softmax_axis);
+            auto soft_max = std::make_shared<ov::op::v1::Softmax>(input_params[i], softmax_axis);
             auto reshape_param = ngraph::builder::makeConstant<int>(ov::element::i32, {1}, {0});
-            auto reshape = std::make_shared<ngraph::opset1::Unsqueeze>(soft_max, reshape_param);
+            auto reshape = std::make_shared<ov::op::v0::Unsqueeze>(soft_max, reshape_param);
             first_level_reshapes.push_back(reshape);
         }
 
-        auto concat1 = std::make_shared<ngraph::opset1::Concat>(ov::NodeVector{first_level_reshapes[0], first_level_reshapes[1]}, concat_axis);
-        auto concat2 = std::make_shared<ngraph::opset1::Concat>(ov::NodeVector{first_level_reshapes[2], first_level_reshapes[3]}, concat_axis);
+        auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{first_level_reshapes[0], first_level_reshapes[1]}, concat_axis);
+        auto concat2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{first_level_reshapes[2], first_level_reshapes[3]}, concat_axis);
 
         ov::NodeVector second_level_reshapes;
         ov::NodeVector first_level_concats = {concat1, concat2};
 
         for (size_t i = 0; i < number_of_params / 2; ++i) {
             auto reshape_param = ngraph::builder::makeConstant<int>(ov::element::i32, {1}, {0});
-            auto reshape = std::make_shared<ngraph::opset1::Unsqueeze>(first_level_concats[i], reshape_param);
+            auto reshape = std::make_shared<ov::op::v0::Unsqueeze>(first_level_concats[i], reshape_param);
             second_level_reshapes.push_back(reshape);
         }
 
-        auto concat3 = std::make_shared<ngraph::opset1::Concat>(second_level_reshapes, concat_axis);
-        auto soft_max = std::make_shared<ngraph::opset1::Softmax>(concat3, softmax_axis);
+        auto concat3 = std::make_shared<ov::op::v0::Concat>(second_level_reshapes, concat_axis);
+        auto soft_max = std::make_shared<ov::op::v1::Softmax>(concat3, softmax_axis);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < soft_max->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(soft_max->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(soft_max->output(i)));
 
-        function = std::make_shared<ngraph::Function>(results, input_params, "ConcatReshapeConcatPattern");
+        function = std::make_shared<ov::Model>(results, input_params, "ConcatReshapeConcatPattern");
     }
 };
 
@@ -142,4 +139,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_Reshape_Concat, ConcatReshapeConcatSubgrap
                         ::testing::ValuesIn(inputShapes),
                         ConcatReshapeConcatSubgraphTest::getTestCaseName);
 } // namespace
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
