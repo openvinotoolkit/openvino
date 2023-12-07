@@ -104,8 +104,8 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
                 _proc_type_table[0][EFFICIENT_CORE_PROC] = it->second;
             }
         } else {
-            _proc_type_table[0][MAIN_CORE_PROC] = _cores / 2;
             _proc_type_table[0][EFFICIENT_CORE_PROC] = _cores / 2;
+            _proc_type_table[0][MAIN_CORE_PROC] = _cores - _proc_type_table[0][EFFICIENT_CORE_PROC];
         }
     }
 
