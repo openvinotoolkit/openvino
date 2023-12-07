@@ -32,13 +32,6 @@ Tensor and_tensor(const Tensor& lhs, const Tensor& rhs) {
     return outs.front();
 }
 
-Tensor or_tensor(const Tensor& lhs, const Tensor& rhs) {
-    const auto logical_or = v1::LogicalOr();
-    auto outs = TensorVector{{element::boolean, Shape{}}};
-    logical_or.evaluate(outs, {lhs, rhs});
-    return outs.front();
-}
-
 void all_equal(const TensorVector& tensors, TensorVector& outputs) {
     auto& output = outputs[0];
     auto eq_result = TensorVector{{output.get_element_type(), output.get_shape()}};
@@ -53,12 +46,6 @@ void all_equal(const TensorVector& tensors, TensorVector& outputs) {
         eq.evaluate(eq_result, eq_inputs);
         output = and_tensor(output, eq_result[0]);
     }
-}
-
-Tensor within_interval(const Tensor& lower, const Tensor& upper, const Tensor& subject_to_check) {
-    const auto lower_check = less_equal_tensor(lower, subject_to_check);
-    const auto upper_check = less_equal_tensor(subject_to_check, upper);
-    return and_tensor(lower_check, upper_check);
 }
 }  // namespace
 
@@ -129,11 +116,11 @@ bool Equal::evaluate_upper(TensorVector& output_values) const {
     const auto &lhs = get_input_tensor(0), &rhs = get_input_tensor(1);
     const auto &lhs_lower = lhs.get_lower_value(), &lhs_upper = lhs.get_upper_value();
     const auto &rhs_lower = rhs.get_lower_value(), &rhs_upper = rhs.get_upper_value();
-    // check for intersection:
-    // ll <= rl <= lu or ll <= ru <= lu
-    const auto rl_check = equal::within_interval(lhs_lower, lhs_upper, rhs_lower);
-    const auto ru_check = equal::within_interval(lhs_lower, lhs_upper, rhs_upper);
-    output_values[0] = equal::or_tensor(rl_check, ru_check);
+
+    // if (lhs_lower <= rhs_upper && rhs_lower <= lhs_upper) bounds have got intersection
+    const auto lb_check = equal::less_equal_tensor(lhs_lower, rhs_upper);
+    const auto ub_check = equal::less_equal_tensor(rhs_lower, lhs_upper);
+    output_values[0] = equal::and_tensor(lb_check, ub_check);
     return true;
 }
 
