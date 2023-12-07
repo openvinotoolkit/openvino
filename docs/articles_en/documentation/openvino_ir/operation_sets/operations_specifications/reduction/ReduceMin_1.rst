@@ -30,6 +30,8 @@ Particular cases:
 1. If ``axes`` is an empty list, *ReduceMin* corresponds to the identity operation.
 2. If ``axes`` contains all dimensions of input ``data``, a single reduction value is calculated for the entire input tensor.
 
+Reducing empty tensor results in an undefined behavior.
+
 **Attributes**
 
 * *keep_dims*
