@@ -215,9 +215,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
             const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
             if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
-                !hasSubgraphConsumers(child)) {
+                !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
-            }
         }
     }
 
@@ -1647,12 +1646,10 @@ void Graph::EnforceInferencePrecision() {
 
     if (inferPrec == ov::element::f32)
         return; // nothing to do, only precision reduction is currently allowed
-
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     if (inferPrec == ov::element::f16)
         return; // precision of configured by ov::pass::ConvertPrecision
 #endif
-
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
