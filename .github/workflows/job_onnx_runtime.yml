@@ -82,6 +82,11 @@ jobs:
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
 
+      - name: Check Install Dir
+        run: |
+          ls -laR ${INSTALL_DIR}
+          ls -laR ${ONNX_RUNTIME_UTILS}
+
       - name: Clone ONNX Runtime
         run: |
           branch=`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`
