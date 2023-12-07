@@ -555,8 +555,6 @@ def test_get_results(device, share_inputs):
     os.environ.get("TEST_DEVICE") not in ["GPU"],
     reason="Device dependent test",
 )
-
-
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_float16(device, share_inputs):
     model = bytes(
