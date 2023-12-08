@@ -1,9 +1,9 @@
 .. {#openvino_docs_model_processing_introduction_draft}
 
-Model Preparation draft
-=======================
+Convert TensorFlow and PyTorch Models
+==============================================
 
-The examples below show how TensorFlow and PyTorch models can be easily loaded in OpenVINO. The models are loaded, converted to OpenVINO format, and compiled for inferencing in just several lines of code.
+In OpenVINO you can load a model in different formats. The examples below show how TensorFlow and PyTorch models. The models are loaded, converted to OpenVINO format, and compiled for inferencing in just several lines of code.
 
 .. tab-set::
 
@@ -40,7 +40,7 @@ While the above examples provide a simple and straightforward option to import m
 TensorFLow Import Options
 ##############################################
 
-OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. See Other considerations for more details.
+OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. 
 
 
 TF flow image
@@ -70,7 +70,7 @@ As seen above, if your starting point is a Python object in memory, for example 
 Method 2. Convert from file using ov.compile_model function
 ---------------------------------------------------------------------
 
-In case you are starting with a file, you will need to see if the model is fine as is or if it needs to be customized, such as applying quantization or reshaping its inputs.
+In case you are starting with a file, you will need to see if the needs to be customized, such as applying quantization or reshaping its inputs.
 
 If the model does not need to be customized, ``ov.Core.compile_model`` should be used, which reads, converts (if needed) and compiles the model, leaving it ready for inference all in one go. The code should look like this:
 
@@ -101,7 +101,7 @@ If the model does need to be customized, ``ov.read_model`` can be used as it jus
 Method 4. Convert from file using OpenVINO Model Converter (ovc CLI)
 ---------------------------------------------------------------------
 
-However, if the input reshaping is known in advance and/or the model has multiple outputs but only some of them are required, OpenVINO provides two equivalent ways of doing these while converting the model. One of them is the CLI command ``ovc`` while the other is the previously mentioned ``ov.convert_model`` (discussed in Method 1).
+However, if the input reshaping is known in advance and/or the model has multiple outputs but only some of them are required, OpenVINO provides two equivalent ways of doing these while converting the model. One of them is the CLI command ``ovc`` while the other is the previously mentioned ``ov.convert_model`` (Method 1).
 
 The ``ovc`` tool is similar to ``ov.convert_model``, except it works using the command line rather than a Python environment. It will convert the model to OpenVINO IR format, apply any configurations you specify, and save the converted model to disk. It is useful if you are not working with your model in Python (e.g., if you are developing in a C++ environment) or if you prefer using the command line rather than a Python script.
 The code below shows how to convert a model with ovc and then load it for inference:
@@ -125,17 +125,17 @@ The code below shows how to convert a model with ovc and then load it for infere
 PyTorch Import Options
 ##############################################
 
-OpenVINO direct support of PyTorch allows developers to use their models in an OpenVINO inference pipeline without changes. OpenVINO provides multiple ways of using PyTorch, so it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. See Other considerations for more details.
+OpenVINO direct support of PyTorch allows developers to use their models in an OpenVINO inference pipeline without changes. OpenVINO provides multiple ways of using PyTorch. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case.
 
 PT image
 
-PyTorch models can be imported into OpenVINO directly from a Python object, although saved PyTorch files can be used as well. To use a saved PyTorch file, it needs to be loaded in PyTorch first to convert it to a Python object.
-Once the model is loaded as a PyTorch Python object, you can decide whether to start using the OpenVINO framework and its features directly or to remain within the PyTorch framework while leveraging OpenVINO's optimizations.
+PyTorch models can be imported into OpenVINO directly from a Python object. Saved PyTorch files can be used as well. To use a saved PyTorch file, it needs to be loaded in PyTorch first to convert it to a Python object.
+Once the model is loaded as a PyTorch Python object, you can decide whether to start using the OpenVINO framework and its features directly or to remain within the PyTorch framework while leveraging optimizations.
 
 Method 1. Convert using ov.convert_model function
 ---------------------------------------------------------------------
 
-If OpenVINO is preferred, ov.convert_model is the method to use. It produces an ov.Model (one of the 3 states) that can later be reshaped, saved to OpenVINO IR or compiled to do inference. In code it may look as follows:
+If OpenVINO is preferred, ov.convert_model is the method to use. It produces an ``ov.Model`` that can later be reshaped, saved to OpenVINO IR or compiled to do inference. In code it may look as follows:
 
 .. code-block:: py
 
@@ -181,10 +181,11 @@ In case PyTorch syntax is preferred, since PyTorch 2.0 and OpenVINO 2023.1, a Py
    model.eval()
    compiled_model = torch.compile(model, backend="openvino")
 
-Method 3. Export model to ONNX and use one of OpenVINO’s methods
+Method 3. Export model to ONNX and use one of OpenVINO methods
 ---------------------------------------------------------------------
 
-If none of these two methods convert the model successfully, there is a third method that once was the main way of using PyTorch in OpenVINO, but now is mainly considered a backup plan. This method consists of exporting a PyTorch model to ONNX and then loading it with the different methods available in OpenVINO. See ONNX, PaddlePaddle and TensorFlow Lite Import Options for more details.
+If none of these two methods convert the model successfully, there is a third method that once was the main way of using PyTorch in OpenVINO, but now is mainly considered a backup plan. 
+This method consists of exporting a PyTorch model to ONNX and then loading it with the different methods available in OpenVINO. See ONNX, PaddlePaddle and TensorFlow Lite Import Options for more details.
 
 .. code-block:: py
 
@@ -214,7 +215,6 @@ As PyTorch does not have a save format that contains everything needed to reprod
   * torch.nn.Module
   * torch.jit.ScriptModule
   * torch.jit.ScriptFunction
-
 
 
 Where to Learn More

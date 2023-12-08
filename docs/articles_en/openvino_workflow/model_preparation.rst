@@ -43,11 +43,18 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
   the model may be deployed with maximum performance. Because it is already optimized
   for OpenVINO inference, it can be read, compiled, and inferred with no additional delay. 
 
+.. note::
+   
+   Model conversion API prior to OpenVINO 2023.1 is considered deprecated. 
+   Existing and new projects are recommended to transition to the new
+   solutions, keeping in mind that they are not fully backwards compatible 
+   with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
+   For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
 Model States
 ##############################################
 
-See Supported Model Formats. 
+OpenVINO supports models in PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle formats. See :doc:`supported formats <Supported_Model_Formats>` for more details. 
 
 There are three states a model in OpenVINO can be: saved on disk, loaded but not compiled (``ov.Model``) or loaded and compiled (``ov.CompiledModel``).
 
@@ -57,7 +64,7 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
 
 * Saved on disk
 
-  As the name suggests, a model in this state consists of one or more files that fully represent the neural network. As OpenVINO not only supports their proprietary format but also other frameworks, how a model is stored can vary. For example:
+  A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
 
   * OpenVINO IR: pair of .xml and .bin files
   * ONNX: .onnx file
@@ -67,32 +74,32 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
 
 * Loaded but not compiled
 
-In this state, a model object (``ov.Model``) is created in memory either by parsing a file or converting an existing framework object. Inference cannot be done with this object yet as it is not attached to any specific device, but it allows customization such as reshaping its input, applying quantization or even adding preprocessing steps before obtaining a compiled model.
+A model object (``ov.Model``) is created in memory either by parsing a file or converting an existing framework object. Inference cannot be done with this object yet as it is not attached to any specific device, but it allows customization such as reshaping its input, applying quantization or even adding preprocessing steps before compiling the model.
 
 * Loaded and compiled
 
 This state is achieved when one or more devices are specified for a model object to run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling inference.
 
 Functions for Reading, Converting, and Saving Models
-##############################################
+################################################################
 
 * ``read_model``
 
   * Creates an ov.Model from a file.
-  * File formats supported: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+  * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
   * OpenVINO files are read directly while other formats are converted automatically.
 
 * ``compile_model``
 
   * Creates an ov.CompiledModel from a file or ov.Model object.
-  * File formats supported: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+  * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
   * OpenVINO files are read directly while other formats are converted automatically.
 
 * ``convert_model``
 
   * Creates an ov.Model from a file or Python memory object.
-  * File formats supported: ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite.
-  * Framework objects supported: PaddlePaddle, TensorFlow and PyTorch.
+  * Supported file formats: ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite.
+  * Supported framework objects: PaddlePaddle, TensorFlow and PyTorch.
   * This method is only available in the Python API.
 
 * ``save_model``
@@ -101,20 +108,13 @@ Functions for Reading, Converting, and Saving Models
   * Compresses weights to FP16 by default. 
   * This method is only available in the Python API.
 
-For more information on each function, see the Additional Resources section.
+For more information on each function, see the `OpenVINO API documentation <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.html>`__ .
 
-
-Although this guide focuses on the different ways to get TensorFlow and PyTorch models running in OpenVINO, using them repeatedly may not be the best option performance-wise. Rather than use the framework files or Python objects directly each time, a better option would be to import the model into OpenVINO once, customize the model as needed and then save it to OpenVINO IR with save_model. Then, the saved model can be read as needed with read_model avoiding the extra conversions. Check the Further Improvements section for other reasons to use OpenVINO IR.
+Although there are different ways to get models running in OpenVINO, using them repeatedly may not be the best option performance-wise.
+Rather than use the framework files or Python objects directly each time, a better option would be to import the model into OpenVINO once, customize the model as needed and then save it to OpenVINO IR with ``save_model``. 
+Then, the saved model can be read as needed with ``read_mode`` avoiding the extra conversions. Check the Further Improvements section for other reasons to use OpenVINO IR.
 
 Also note that even though files from frameworks such as TensorFlow can be used directly, that does not mean OpenVINO uses those frameworks behind the scenes, files and objects are always converted to a format OpenVINO understands, i.e OpenVINO IR.
-
-.. note::
-   
-   Model conversion API prior to OpenVINO 2023.1 is considered deprecated. 
-   Existing and new projects are recommended to transition to the new
-   solutions, keeping in mind that they are not fully backwards compatible 
-   with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
-   For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
 
 Convert a Model with Python: ``convert_model``
