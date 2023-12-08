@@ -2,23 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/rnn_cell.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-using RNNCellCPUParams = typename std::tuple<
-        std::vector<InputShape>,            // Shapes
-        std::vector<std::string>,           // Activations
-        float,                              // Clip
-        ElementType,                        // Network precision
-        CPUSpecificParams,                  // CPU specific params
-        std::map<std::string, std::string>  // Additional config
->;
+using RNNCellCPUParams = typename std::tuple<std::vector<InputShape>,   // Shapes
+                                             std::vector<std::string>,  // Activations
+                                             float,                     // Clip
+                                             ElementType,               // Network precision
+                                             CPUSpecificParams,         // CPU specific params
+                                             ov::AnyMap                 // Additional config
+                                             >;
 
 class RNNCellCPUTest : public testing::WithParamInterface<RNNCellCPUParams>,
                             virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
@@ -29,7 +28,7 @@ public:
         float clip = 0.f;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, activations, clip, netPrecision, cpuParams, additionalConfig) = obj.param;
 
@@ -53,9 +52,8 @@ public:
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second;
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -69,7 +67,7 @@ protected:
         float clip = 0.f;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, activations, clip, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -82,7 +80,8 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -96,7 +95,7 @@ protected:
             paramsOuts.push_back(param);
         }
         std::vector<ov::Shape> WRB = {{hiddenSize, inputSize}, {hiddenSize, hiddenSize}, {hiddenSize}};
-        auto rnnCellOp = ngraph::builder::makeRNN(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
+        auto rnnCellOp = utils::make_rnn(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
 
         function = makeNgraphFunction(netPrecision, params, rnnCellOp, "RNNCellCPU");
     }
@@ -109,10 +108,8 @@ TEST_P(RNNCellCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig = {
-    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}
-};
+std::vector<ov::AnyMap> additionalConfig = {{ov::hint::inference_precision(ov::element::f32)},
+                                            {ov::hint::inference_precision(ov::element::bf16)}};
 
 CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"};
 std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
@@ -167,5 +164,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNCellCPUTest,
                            ::testing::Values(cpuParams),
                            ::testing::ValuesIn(additionalConfig)),
         RNNCellCPUTest::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

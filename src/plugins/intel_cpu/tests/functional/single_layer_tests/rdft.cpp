@@ -3,32 +3,29 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
-using namespace ov;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-std::vector<element::Type> precisions{element::f32};
+std::vector<ov::element::Type> precisions{ov::element::f32};
 
 using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
                                      std::vector<std::vector<int64_t>>,  // axes
                                      std::vector<std::vector<int64_t>>,  // signal sizes
-                                     bool,  // inverse
-                                     bool,  // const axes if true
-                                     bool,  // const signal sizes if true
+                                     bool,                               // inverse
+                                     bool,                               // const axes if true
+                                     bool,                               // const signal sizes if true
                                      CPUSpecificParams>;
 
-class RDFTTestCPU : public testing::WithParamInterface<std::tuple<element::Type, RDFTTestCPUParams>>,
+class RDFTTestCPU : public testing::WithParamInterface<std::tuple<ov::element::Type, RDFTTestCPUParams>>,
                            virtual public test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<element::Type, RDFTTestCPUParams>> obj) {
-        element::Type precision;
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, RDFTTestCPUParams>> obj) {
+        ov::element::Type precision;
         RDFTTestCPUParams params;
         std::vector<InputShape> shapes;
         std::vector<std::vector<int64_t>> axes;
@@ -76,7 +73,7 @@ public:
 
 protected:
     void SetUp() override {
-        element::Type precision;
+        ov::element::Type precision;
         RDFTTestCPUParams params;
         std::vector<InputShape> shapes;
         bool inverse;
@@ -113,14 +110,14 @@ protected:
         auto inputShapeIt = inputDynamicShapes.begin();
 
         ParameterVector inputs;
-        auto param = std::make_shared<opset9::Parameter>(precision, *inputShapeIt++);
+        auto param = std::make_shared<ov::op::v0::Parameter>(precision, *inputShapeIt++);
         inputs.push_back(param);
         std::shared_ptr<Node> axesNode;
         if (constAxes) {
-            axesNode = opset9::Constant::create(element::i64, Shape{axes[0].size()}, axes[0]);
+            axesNode = ov::op::v0::Constant::create(element::i64, Shape{axes[0].size()}, axes[0]);
         } else {
             ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
-            auto param = std::make_shared<opset9::Parameter>(element::i64, *inputShapeIt++);
+            auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt++);
             axesNode = param;
             inputs.push_back(param);
         }
@@ -129,23 +126,23 @@ protected:
         if (signalSizes.size() > 0) {
             std::shared_ptr<Node> signalSizesNode;
             if (constSignalSizes) {
-                signalSizesNode = opset9::Constant::create(element::i64, Shape{signalSizes[0].size()}, signalSizes[0]);
+                signalSizesNode = ov::op::v0::Constant::create(element::i64, Shape{signalSizes[0].size()}, signalSizes[0]);
             } else {
                 ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
-                auto param = std::make_shared<opset9::Parameter>(element::i64, *inputShapeIt);
+                auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt);
                 signalSizesNode = param;
                 inputs.push_back(param);
             }
             if (inverse) {
-                rdft = std::make_shared<opset9::IRDFT>(param, axesNode, signalSizesNode);
+                rdft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode, signalSizesNode);
             } else {
-                rdft = std::make_shared<opset9::RDFT>(param, axesNode, signalSizesNode);
+                rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode, signalSizesNode);
             }
         } else {
             if (inverse) {
-                rdft = std::make_shared<opset9::IRDFT>(param, axesNode);
+                rdft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode);
             } else {
-                rdft = std::make_shared<opset9::RDFT>(param, axesNode);
+                rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode);
             }
         }
         function = std::make_shared<Model>(rdft, inputs);
@@ -191,11 +188,11 @@ TEST_P(RDFTTestCPU, CompareWithRefs) {
 namespace {
 
 CPUSpecificParams getCPUSpecificParams() {
-    if (InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (ov::with_cpu_x86_avx512_core()) {
         return CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         return CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_sse42()) {
         return CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
     } else {
         return CPUSpecificParams{{}, {}, {"ref"}, "ref"};
@@ -206,7 +203,7 @@ CPUSpecificParams getCPUSpecificParams() {
 auto cpuParams = getCPUSpecificParams();
 
 std::vector<RDFTTestCPUParams> getParams1D() {
-    if (InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (ov::with_cpu_x86_avx512_core()) {
         return {
             {static_shapes_to_test_representation({Shape{14}}), {{0}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({Shape{13}}), {{0}}, {}, false, true, true, cpuParams},
@@ -243,7 +240,7 @@ std::vector<RDFTTestCPUParams> getParams1D() {
             {static_shapes_to_test_representation({Shape{25, 2}}), {{0}}, {{32}}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({Shape{24, 2}}), {{0}}, {{16}}, true, true, true, cpuParams},
         };
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         return {
             {static_shapes_to_test_representation({Shape{6}}), {{0}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({Shape{5}}), {{0}}, {}, false, true, true, cpuParams},
@@ -312,13 +309,13 @@ std::vector<RDFTTestCPUParams> getParams1D() {
     return {};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_1D, RDFTTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(precisions),
-                                            ::testing::ValuesIn(getParams1D())),
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_1D,
+                         RDFTTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(precisions), ::testing::ValuesIn(getParams1D())),
                          RDFTTestCPU::getTestCaseName);
 
 std::vector<RDFTTestCPUParams> getParams2D() {
-    if (InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (ov::with_cpu_x86_avx512_core()) {
         return {
             {static_shapes_to_test_representation({{46, 10}}), {{0}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{45, 10}}), {{0}}, {}, false, true, true, cpuParams},
@@ -360,7 +357,7 @@ std::vector<RDFTTestCPUParams> getParams2D() {
             {static_shapes_to_test_representation({{32, 513, 2}}), {{0, 1}}, {{32, 600}}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{72, 1025, 2}}), {{0, 1}}, {{72, 100}}, true, true, true, cpuParams},
         };
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         return {
             {static_shapes_to_test_representation({{38, 16}}), {{0}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{37, 8}}), {{0}}, {}, false, true, true, cpuParams},
@@ -460,14 +457,14 @@ std::vector<RDFTTestCPUParams> getParams2D() {
     return {};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_2D, RDFTTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(precisions),
-                                            ::testing::ValuesIn(getParams2D())),
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_2D,
+                         RDFTTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(precisions), ::testing::ValuesIn(getParams2D())),
                          RDFTTestCPU::getTestCaseName);
 
 std::vector<RDFTTestCPUParams> getParams4D() {
     std::vector<RDFTTestCPUParams> params;
-    if (InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (ov::with_cpu_x86_avx512_core()) {
         params = {
             {static_shapes_to_test_representation({{10, 46, 128, 65}}), {{1}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{10, 46, 128, 65}}), {{0, 1}}, {}, false, true, true, cpuParams},
@@ -488,7 +485,7 @@ std::vector<RDFTTestCPUParams> getParams4D() {
             // TODO: FIXME
             //{static_shapes_to_test_representation({{46, 10, 128, 65, 2}}), {{0, 1, 2, 3}, {12, 15, 130, 40}, true, true, true, cpuParams},
         };
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         params = {
             {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{1}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{1, 0}}, {}, false, true, true, cpuParams},
@@ -593,10 +590,11 @@ std::vector<RDFTTestCPUParams> getParams4D() {
     return params;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_4D, RDFTTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(precisions),
-                                            ::testing::ValuesIn(getParams4D())),
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_4D,
+                         RDFTTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(precisions), ::testing::ValuesIn(getParams4D())),
                          RDFTTestCPU::getTestCaseName);
 
-} // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

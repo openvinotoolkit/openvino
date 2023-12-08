@@ -7,7 +7,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;

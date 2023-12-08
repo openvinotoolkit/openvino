@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace CPULayerTestsDefinitions {
-using namespace ov::test;
+namespace ov {
+namespace test {
 
 struct regionYoloAttributes {
     size_t classes;
@@ -21,15 +19,13 @@ struct regionYoloAttributes {
     int end_axis;
 };
 
-using regionYoloParamsTuple = std::tuple<
-        InputShape,                     // Input Shape
-        regionYoloAttributes,           // Params
-        std::vector<int64_t>,           // mask
-        ov::test::ElementType,          // Network input precision
-        ov::test::ElementType,          // Network output precision
-        std::map<std::string, std::string>, // Additional network configuration
-        std::string>;                   // Device name
-
+using regionYoloParamsTuple = std::tuple<InputShape,             // Input Shape
+                                         regionYoloAttributes,   // Params
+                                         std::vector<int64_t>,   // mask
+                                         ov::test::ElementType,  // Network input precision
+                                         ov::test::ElementType,  // Network output precision
+                                         ov::AnyMap,             // Additional network configuration
+                                         std::string>;           // Device name
 
 class RegionYoloCPULayerTest : public testing::WithParamInterface<regionYoloParamsTuple>,
                                virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
@@ -41,7 +37,7 @@ public:
         ov::test::ElementType inpPrecision;
         ov::test::ElementType outPrecision;
         std::string targetName;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShape, attributes, mask, inpPrecision, outPrecision, additionalConfig, targetName) = obj.param;
 
@@ -65,7 +61,7 @@ protected:
         std::vector<int64_t> mask;
         ov::test::ElementType inPrc;
         ov::test::ElementType outPrc;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShape, attributes, mask, inPrc, outPrc, additionalConfig, targetDevice) = this->GetParam();
 
@@ -78,14 +74,19 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(inPrc).name();
+        selectedType = getPrimitiveType() + "_" + ov::element::Type(inPrc).to_string();
         ov::ParameterVector paramRegionYolo;
         for (auto&& shape : inputDynamicShapes) {
             paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
         }
-        const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
-                                                                              attributes.coordinates, attributes.classes, attributes.num_regions,
-                                                                              attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
+        const auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(paramRegionYolo[0],
+                                                                          attributes.coordinates,
+                                                                          attributes.classes,
+                                                                          attributes.num_regions,
+                                                                          attributes.do_softmax,
+                                                                          mask,
+                                                                          attributes.start_axis,
+                                                                          attributes.end_axis);
 
         function = makeNgraphFunction(inPrc, paramRegionYolo, region_yolo, "RegionYolo");
     }
@@ -99,15 +100,15 @@ TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
 namespace {
 const std::vector<ov::test::ElementType> inpOutPrc = {ov::test::ElementType::bf16, ov::test::ElementType::f32};
 
-const std::map<std::string, std::string> additional_config;
+const ov::AnyMap additional_config;
 
 /* *======================* Static Shapes *======================* */
 
-const std::vector<ngraph::Shape> inShapes_caffe = {
+const std::vector<ov::Shape> inShapes_caffe = {
         {1, 125, 13, 13}
 };
 
-const std::vector<ngraph::Shape> inShapes_mxnet = {
+const std::vector<ov::Shape> inShapes_mxnet = {
         {1, 75, 52, 52},
         {1, 75, 32, 32},
         {1, 75, 26, 26},
@@ -119,7 +120,7 @@ const std::vector<ngraph::Shape> inShapes_mxnet = {
         {1, 303, 28, 28},
 };
 
-const std::vector<ngraph::Shape> inShapes_v3 = {
+const std::vector<ov::Shape> inShapes_v3 = {
         {1, 255, 52, 52},
         {1, 255, 26, 26},
         {1, 255, 13, 13}
@@ -225,5 +226,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnetCPUStatic, RegionYoloCPULayer
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnetCPUDynamic, RegionYoloCPULayerTest, testCase_yolov3_mxnet_dynamic, RegionYoloCPULayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffeCPUStatic, RegionYoloCPULayerTest, testCase_yolov2_caffe, RegionYoloCPULayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffeCPUDynamic, RegionYoloCPULayerTest, testCase_yolov2_caffe_dynamic, RegionYoloCPULayerTest::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov
