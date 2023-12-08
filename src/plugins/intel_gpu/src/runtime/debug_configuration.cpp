@@ -140,6 +140,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
     message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DisableMemoryReuse", "Disable memory reuse");
+    message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPool", "Dump memory pool contents of each iteration");
     message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes", "Disable build time weight reorder for dynmaic nodes.");
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
