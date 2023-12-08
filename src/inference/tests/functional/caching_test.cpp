@@ -2346,14 +2346,15 @@ INSTANTIATE_TEST_SUITE_P(CachingTest,
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
 
 class CacheTestWithProxyEnabled : public CachingTest {
-    protected:
-        void testLoadProxy(const std::function<void(ov::Core& core)>& func) {
+protected:
+    void testLoadProxy(const std::function<void(ov::Core& core)>& func) {
         ov::Core core;
         injectPlugin(mockPlugin.get());
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX),
                              deviceName,
-                             {{ov::proxy::configuration::alias.name(), "mock"}, {ov::proxy::configuration::internal_name.name(), "internal_mock"}});
+                             {{ov::proxy::configuration::alias.name(), "mock"},
+                              {ov::proxy::configuration::internal_name.name(), "internal_mock"}});
         ON_CALL(*mockPlugin, get_default_context(_)).WillByDefault(Invoke([&](const ov::AnyMap&) {
             return std::make_shared<MockRemoteContext>("internal_mock");
         }));
@@ -2365,11 +2366,11 @@ class CacheTestWithProxyEnabled : public CachingTest {
 #ifdef PROXY_PLUGIN_ENABLED
 TEST_P(CacheTestWithProxyEnabled, TestLoad) {
     ON_CALL(*mockPlugin, get_property(ov::available_devices.name(), _))
-            .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
-                std::vector<std::string> available_devices = { };
-                available_devices.push_back("mock");
-                return decltype(ov::available_devices)::value_type(available_devices);
-            }));
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            std::vector<std::string> available_devices = {};
+            available_devices.push_back("mock");
+            return decltype(ov::available_devices)::value_type(available_devices);
+        }));
     EXPECT_CALL(*mockPlugin, get_default_context(_)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
