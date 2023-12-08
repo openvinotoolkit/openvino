@@ -82,10 +82,10 @@ protected:
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
         auto convolutionNode = ov::test::utils::make_convolution(inputParams.front(), model_type, kernel, stride, padBegin,
-                                                                padEnd, dilation, padType, convOutChannels);
+                                                                 padEnd, dilation, padType, convOutChannels);
         if (activationFusing) {
                 auto activationNode = ov::test::utils::make_activation(convolutionNode, model_type, ov::test::utils::ActivationTypes::Relu);
 

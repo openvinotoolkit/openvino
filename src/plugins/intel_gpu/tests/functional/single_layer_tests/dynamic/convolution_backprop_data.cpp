@@ -109,51 +109,6 @@ public:
         inferRequestNum++;
     }
 
-    void validate() override {
-        auto actualOutputs = get_plugin_outputs();
-        if (function->get_parameters().size() == 2) {
-            auto pos = std::find_if(inputs.begin(), inputs.end(),
-                [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
-                    return params.first->get_friendly_name() == "param_1";
-                });
-            IE_ASSERT(pos != inputs.end());
-            inputs.erase(pos);
-        }
-        auto expectedOutputs = calculate_refs();
-        if (expectedOutputs.empty()) {
-                return;
-        }
-        ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
-
-        abs_threshold = 1e-2f;
-        compare(expectedOutputs, actualOutputs);
-    }
-
-    void configure_model() override {
-        ov::preprocess::PrePostProcessor p(function);
-        {
-            auto& params = function->get_parameters();
-            for (size_t i = 0; i < params.size(); i++) {
-                if (i > 0) {
-                    continue;
-                }
-                if (inType != ov::element::Type_t::undefined) {
-                    p.input(i).tensor().set_element_type(inType);
-                }
-            }
-        }
-        {
-            auto results = function->get_results();
-            for (size_t i = 0; i < results.size(); i++) {
-                if (outType != ov::element::Type_t::undefined) {
-                    p.output(i).tensor().set_element_type(outType);
-                }
-            }
-        }
-        function = p.build();
-    }
-
     std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ov::test::utils::InputLayerType outShapeType) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inShapes.front())};
         std::shared_ptr<ov::Node> outShapeNode;
