@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/split.hpp"
+#include "openvino/op/builder/split.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
@@ -91,7 +91,7 @@ OutputVector pad(const Node& node) {
         padding_begin = default_opset::Constant::create(element::i64, ngraph::Shape{half_size}, padding_begin_values);
         padding_end = default_opset::Constant::create(element::i64, ngraph::Shape{half_size}, padding_end_values);
     } else {
-        OutputVector padding = builder::opset1::split(pads, 2, 0);
+        OutputVector padding = ov::utils::split(pads, 2, 0);
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);

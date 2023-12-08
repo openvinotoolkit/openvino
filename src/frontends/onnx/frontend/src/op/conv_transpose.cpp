@@ -13,8 +13,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reshape.hpp"
+#include "openvino/op/builder/reshape.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/output_vector.hpp"
