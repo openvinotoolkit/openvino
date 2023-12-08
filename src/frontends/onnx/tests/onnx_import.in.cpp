@@ -46,8 +46,9 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
+using namespace ov::frontend::onnx::tests;
 
-static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), MANIFEST);
+static std::string s_manifest = onnx_backend_manifest(MANIFEST);
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;
@@ -4233,14 +4234,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D_reshape) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/logsoftmax13_2D.onnx"));
-    InferenceEngine::CNNNetwork net(function);
-    InferenceEngine::ICNNNetwork::InputShapes shapes = {};
-    InferenceEngine::SizeVector shape = {1, 1, 4000};
-    shapes[net.getInputsInfo().begin()->first] = shape;
-    EXPECT_NO_THROW(net.reshape(shapes));
-    ASSERT_EQ(shape, net.getOutputsInfo().begin()->second->getDims());
+    const auto model = convert_model("logsoftmax13_2D.onnx");
+    std::map<std::string, ov::PartialShape> shapes = {};
+    ov::Shape shape = {1, 1, 4000};
+    shapes[model->inputs().begin()->get_any_name()] = shape;
+    EXPECT_NO_THROW(model->reshape(shapes));
+    ASSERT_EQ(shape, model->outputs().begin()->get_shape());
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid) {
