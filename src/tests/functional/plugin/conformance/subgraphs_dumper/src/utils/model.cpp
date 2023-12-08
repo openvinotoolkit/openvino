@@ -55,5 +55,26 @@ align_input_info(const std::shared_ptr<ov::Model>& model,
     return updated_input_info;
 }
 
+void
+get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
+                      const std::shared_ptr<ov::Node>& node) {
+    if (nodes_to_check.empty()) {
+        nodes_to_check.insert(node);
+    }
+    for (size_t out_idx = 0; out_idx < node->outputs().size(); ++out_idx) {
+        for (const auto& out : node->get_output_target_inputs(out_idx)) {
+            const auto& output_node = out.get_node()->shared_from_this();
+            if (ov::op::util::is_output(output_node)) {
+                return;
+            }
+            if (!nodes_to_check.count(output_node)) {
+                nodes_to_check.insert(output_node);
+                get_subgraph_set_node(nodes_to_check, output_node);
+            }
+        }
+    }
+    return;
+}
+
 }  // namespace util
 }  // namespace ov

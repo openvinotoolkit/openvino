@@ -47,13 +47,15 @@ public:
                 const std::map<std::string, InputInfo> &in_info,
                 const std::map<std::string, InputInfo> &in_info_ref);
 
-    std::unordered_map<std::string, std::string>
-    get_matched_ops(const std::shared_ptr<ov::Model>& subgraph,
-                    const std::shared_ptr<ov::Model>& graph) const;
+    // { op_pattern, {matched_node_id}}
+    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>>
+    get_matched_op_patterns(const ov::NodeVector& ordered_nodes);
 
-    bool
-    is_intersected(const std::shared_ptr<ov::Model>& model,
-                   const std::shared_ptr<ov::Model>& model_ref) const;
+    // { op_name_subgraph, op_name_graph}
+    std::unordered_map<std::string, std::string>
+    get_matched_ops_in_graphs(const std::shared_ptr<ov::Model>& subgraph,
+                              const std::shared_ptr<ov::Model>& graph,
+                              bool is_check_inputs = false) const;
                                 
     void set_match_coefficient(float _match_coefficient);
     float get_match_coefficient() { return match_coefficient; }

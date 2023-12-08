@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<net name="Model22" version="11">
+<net name="Model3" version="11">
 	<layers>
 		<layer id="5" name="Op_0" type="Parameter" version="opset1">
 			<data shape="1,2" element_type="f32" />
@@ -207,7 +207,7 @@
 				</port>
 			</output>
 		</layer>
-		<layer id="16" name="Multiply_10224" type="Multiply" version="opset1">
+		<layer id="16" name="Multiply_32" type="Multiply" version="opset1">
 			<data auto_broadcast="numpy" />
 			<input>
 				<port id="0" precision="FP32">

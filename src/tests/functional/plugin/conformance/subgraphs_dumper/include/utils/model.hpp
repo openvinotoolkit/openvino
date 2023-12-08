@@ -20,6 +20,10 @@ align_input_info(const std::shared_ptr<ov::Model>& model,
                  const std::map<std::string, ov::conformance::InputInfo> &in_info,
                  const std::map<std::string, ov::conformance::InputInfo> &in_info_ref,
                  const std::unordered_map<std::string, std::string> &matched_op);
+                 
+void
+get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
+                      const std::shared_ptr<ov::Node>& node);
 
 inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>>
 generate_model(ov::NodeVector& nodes,

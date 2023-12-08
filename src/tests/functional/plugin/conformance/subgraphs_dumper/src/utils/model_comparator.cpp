@@ -55,11 +55,7 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
         subgraph = model;
         subgraph_to_check_ops_cnt = ordered_ops_cnt;
     }
-    auto matched_op_names = get_matched_ops(subgraph, graph);
-    if (model->get_friendly_name() == "2187230577033786516" && ref_model->get_friendly_name() == "3635367053289334155" ||
-        ref_model->get_friendly_name() == "2187230577033786516" && model->get_friendly_name() == "3635367053289334155") {
-        auto a = 0;
-    }
+    auto matched_op_names = get_matched_ops_in_graphs(subgraph, graph);
     return prepare_is_subgraph_result(matched_op_names.size() == subgraph_to_check_ops_cnt, subgraph, graph, matched_op_names);
 }
 
@@ -117,7 +113,7 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
         try {
             subgraph_in_info = ov::util::align_input_info(subgraph, graph,
                                                           subgraph_in_info, graph_in_info,
-                                                          get_matched_ops(subgraph, graph));
+                                                          get_matched_ops_in_graphs(subgraph, graph));
             res = { true, subgraph, graph, subgraph_in_info, graph_in_info };
         } catch(std::exception) {}
     }
@@ -126,10 +122,11 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
 }
 
 std::unordered_map<std::string, std::string>
-ModelComparator::get_matched_ops(const std::shared_ptr<ov::Model>& subgraph,
-                                 const std::shared_ptr<ov::Model>& graph) const {
+ModelComparator::get_matched_ops_in_graphs(const std::shared_ptr<ov::Model>& subgraph,
+                                           const std::shared_ptr<ov::Model>& graph,
+                                           bool is_check_inputs) const {
     std::unordered_map<std::string, std::string> matched_op_names;
-    std::set<std::string> checked_op;
+    std::unordered_set<std::string> checked_op;
     const auto subgraph_to_check_ops = subgraph->get_ordered_ops();
     const auto graph_to_check_ops = graph->get_ordered_ops();
     for (const auto& subgraph_op : subgraph_to_check_ops) {
@@ -138,9 +135,21 @@ ModelComparator::get_matched_ops(const std::shared_ptr<ov::Model>& subgraph,
                 ov::util::is_node_to_skip(graph_op)) {
                 continue;
             }
-            if (m_manager.match(subgraph_op, graph_op) && !checked_op.count(graph_op->get_friendly_name())) {
+            if (match(subgraph_op, graph_op) && !checked_op.count(graph_op->get_friendly_name())) {
                 matched_op_names.insert({subgraph_op->get_friendly_name(), graph_op->get_friendly_name()});
                 checked_op.insert(graph_op->get_friendly_name());
+                if (is_check_inputs) {
+                    for (size_t idx = 0; idx < graph_op->inputs().size(); ++idx) {
+                        auto graph_in = graph_op->get_input_node_shared_ptr(idx);
+                        auto subgraph_in = subgraph_op->get_input_node_shared_ptr(idx);
+                        if (ov::util::is_node_to_skip(graph_in) && ov::util::is_node_to_skip(subgraph_in)) {
+                            if (match(subgraph_in, graph_in)) {
+                                matched_op_names.insert({subgraph_in->get_friendly_name(), graph_in->get_friendly_name()});
+                                checked_op.insert(graph_in->get_friendly_name());
+                            }
+                        }
+                    }
+                }
                 break;
             }
         }
@@ -157,9 +166,37 @@ ModelComparator::match(const std::shared_ptr<ov::Model> &model,
         if (match(model, model_ref)) {
             auto new_input_info = ov::util::align_input_info(model, model_ref,
                                                              in_info, in_info_ref,
-                                                             get_matched_ops(model, model_ref));
+                                                             get_matched_ops_in_graphs(model, model_ref, true));
             return {true, new_input_info};
         }
     } catch (std::exception) {}
     return {false, {}};
+}
+
+std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>>
+ModelComparator::get_matched_op_patterns(const ov::NodeVector& ordered_ops) {
+    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>> matched_nodes;
+    for (size_t node_idx = 0; node_idx < ordered_ops.size(); ++node_idx) {
+        bool is_matched = false;
+        for (auto& matched_node : matched_nodes) {
+            if (match(matched_node.first, ordered_ops[node_idx])) {
+                matched_node.second.push_back(node_idx);
+                is_matched = true;
+                break;
+            }
+        }
+        if (!is_matched && !ov::util::is_node_to_skip(ordered_ops[node_idx])) {
+            matched_nodes.insert({ordered_ops[node_idx], {node_idx}});
+        }
+    }
+    std::vector<std::shared_ptr<ov::Node>> to_remove;
+    for (auto& matched_node : matched_nodes) {
+        if (matched_node.second.size() < 2) {
+            to_remove.push_back(matched_node.first);
+        }
+    }
+    for (const auto& node_to_remove : to_remove) {
+        matched_nodes.erase(node_to_remove);
+    }
+    return matched_nodes;
 }

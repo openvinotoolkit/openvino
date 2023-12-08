@@ -86,7 +86,7 @@ TEST_F(ModelUtilsTest, align_input_info_for_subgraphs) {
     auto in_info_0 = ov::util::get_input_info_by_model(test_model_0);
     auto in_info_1 = ov::util::get_input_info_by_model(test_model_1);
     ASSERT_NE(in_info_0, in_info_1);
-    auto matched_ops = ov::util::ModelComparator::get()->get_matched_ops(test_model_0, test_model_1);
+    auto matched_ops = ov::util::ModelComparator::get()->get_matched_ops_in_graphs(test_model_0, test_model_1);
     auto params_0 = test_model_0->get_parameters();
     auto params_1 = test_model_1->get_parameters();
     size_t params_cnt = params_0.size();

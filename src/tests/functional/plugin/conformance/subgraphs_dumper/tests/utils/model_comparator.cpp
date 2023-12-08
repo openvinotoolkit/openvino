@@ -116,10 +116,11 @@ TEST_F(ModelComparatorTest, match_with_low_coeff) {
 TEST_F(ModelComparatorTest, match_with_in_info) {
     ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     std::map<std::string, ov::conformance::InputInfo>
-        test_in_info({{"test_parameter_0", ov::conformance::InputInfo()}}),
-        test_in_info_1({{"test_parameter_1", ov::conformance::InputInfo({}, 1, 2, true)}});
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info));
-    ASSERT_TRUE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info)));
+        test_in_info({{"test_parameter_0", ov::conformance::InputInfo(ov::Shape{1, 2})}}),
+        test_in_info_({{"test_parameter_0", ov::conformance::InputInfo(ov::Shape{1, 2})}}),
+        test_in_info_1({{"test_parameter_1", ov::conformance::InputInfo(ov::Shape{2, 5}, 1, 2, true)}});
+    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_));
+    ASSERT_TRUE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_)));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1));
     ASSERT_FALSE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1)));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1, test_in_info, test_in_info));
@@ -135,27 +136,6 @@ TEST_F(ModelComparatorTest, is_subgraph) {
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_0, test_model_1)));
     ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_1, test_model_1)));
-}
-
-TEST_F(ModelComparatorTest, is_subgraph_0) {
-    // ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
-    // ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_0_1));
-    // auto is_subgraph = model_comparator->is_subgraph(test_model_0_0, test_model_0_1);
-    // ASSERT_TRUE(std::get<0>(is_subgraph));
-    // ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_1));
-    // ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_0, test_model_1)));
-    // ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
-    // ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_1, test_model_1)));
-    auto core = ov::Core();
-    auto subgraph = core.read_model("/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/3635367053289334155.xml",
-                                     "/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/3635367053289334155.bin");
-    auto graph = core.read_model("/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/2187230577033786516.xml",
-                                  "/Users/iefode/repo/temp/output/subgraph/static/repeat_pattern/2187230577033786516.bin");
-    auto in_info_sub = ov::util::get_input_info_by_model(subgraph);
-    auto in_info_g = ov::util::get_input_info_by_model(graph);
-    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
-    auto a = model_comparator->is_subgraph(subgraph, graph, in_info_sub, in_info_g);
-    ASSERT_TRUE(std::get<0>(a));
 }
 
 }  // namespace

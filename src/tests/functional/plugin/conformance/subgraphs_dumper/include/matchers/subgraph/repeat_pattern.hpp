@@ -26,16 +26,23 @@ public:
     std::vector<std::vector<ov::NodeVector>>
     get_repeat_node_vectors(const std::shared_ptr<ov::Model> &model);
 
-    void set_recursive_extraction(bool _is_recursive_extraction);
     std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) override;
 
-    std::vector<ov::NodeVector>
-    get_node_vector(const ov::NodeVector& start_node_vec);
+    void set_min_graph_size(size_t _min_graph_size) {
+        min_graph_size = _min_graph_size;
+    }
+    void set_split_by_matched_nodes(bool _is_split_by_matched_nodes) {
+        is_split_by_matched_nodes = _is_split_by_matched_nodes;
+    }
+    void set_recursive_extraction(bool _is_recursive_extraction) {
+        is_recursive_extraction = _is_recursive_extraction;
+    }
 
 protected:
     // {subgraph, node_vector, input_info}
     using ExtractedRepeatPattern = std::tuple<std::shared_ptr<ov::Model>, ov::NodeVector, std::map<std::string, ov::conformance::InputInfo>>;
-    bool is_recursive_extraction = true;
+    size_t min_graph_size = 2;
+    bool is_split_by_matched_nodes = false, is_recursive_extraction = false;
 
     std::list<std::vector<ExtractedRepeatPattern>>
     find_repeat_patterns(const std::shared_ptr<ov::Model> &model,
@@ -49,8 +56,7 @@ protected:
     std::vector<std::vector<ov::NodeVector>>
     get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
                           const ov::NodeVector& ordered_ops);
-    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>> get_matched_nodes(
-        const ov::NodeVector& ordered_ops);
+
 };
 
 }  // namespace subgraph_dumper
