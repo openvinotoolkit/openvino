@@ -39,7 +39,6 @@ OutputVector translate_shape_op(const NodeContext& node) {
         auto input = node.get_input(0);
 
         auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-
         if (complex_type_mark) {
             auto slice = compute_complex_shape(complex_type_mark->input_value(0), out_type);
             set_node_name(node_name, slice);
@@ -56,8 +55,6 @@ OutputVector translate_shape_op(const NodeContext& node) {
         auto input = node.get_input(input_ind);
 
         auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-        element::Type complex_part_type = element::dynamic;
-
         if (complex_type_mark) {
             auto slice = compute_complex_shape(complex_type_mark->input_value(input_ind), out_type);
             slice->set_friendly_name(node_name + "_" + to_string(input_ind));
