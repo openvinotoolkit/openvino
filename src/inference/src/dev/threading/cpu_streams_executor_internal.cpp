@@ -40,11 +40,10 @@ void get_cur_stream_info(const int stream_id,
     if (core_type == ALL_PROC) {
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
-                if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
-                    max_threads_per_core = 2;
-                    break;
-                } else if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
+                if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
                     pcore_only = false;
+                } else if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
+                    max_threads_per_core = 2;
                 }
             } else {
                 break;
