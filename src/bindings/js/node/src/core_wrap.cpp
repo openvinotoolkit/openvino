@@ -75,12 +75,13 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::Object& model,
                                          const Napi::String& device) {
-    if (model.InstanceOf(info.Env().GetInstanceData<AddonData>()->model_prototype->Value().As<Napi::Function>())) {
+    const auto model_prototype = info.Env().GetInstanceData<AddonData>()->model_prototype;
+    if (model_prototype && model.InstanceOf(model_prototype->Value().As<Napi::Function>())) {
         const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
         const auto& compiled_model = _core.compile_model(m->get_model(), device);
         return CompiledModelWrap::Wrap(info.Env(), compiled_model);
     } else {
-        reportError(info.Env(), "Passed Napi::Object is not a Model.");
+        reportError(info.Env(), "Cannot create Model from Napi::Object.");
         return info.Env().Undefined();
     }
 }
