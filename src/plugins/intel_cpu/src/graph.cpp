@@ -987,6 +987,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
             size_t size_to_copy = intr_blob.getSize();
             cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
