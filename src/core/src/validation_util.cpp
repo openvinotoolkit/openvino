@@ -1002,23 +1002,13 @@ int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
 };
 
 void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
-    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
-    NODE_VALIDATION_CHECK(node,
-                          invalid_axis == axes.cend(),
-                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
-    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
+    ov::util::normalize_axes(node, tensor_rank, axes);
 }
 
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
-    std::vector<size_t> new_axes;
-    new_axes.reserve(axes.size());
-    for (const auto& axis : axes) {
-        new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
-    }
-    return new_axes;
+    return ov::util::normalize_axes(node_description, axes, tensor_rank);
 }
 
 int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
@@ -1495,6 +1485,26 @@ bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t si
 
 bool has_no_labels(const ov::TensorLabel& labels) {
     return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+}
+
+std::vector<size_t> normalize_axes(const std::string& node_description,
+                                   const std::vector<int64_t>& axes,
+                                   const Rank& tensor_rank) {
+    std::vector<size_t> new_axes;
+    new_axes.reserve(axes.size());
+    for (const auto& axis : axes) {
+        new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
+    }
+    return new_axes;
+}
+
+void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
+    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
+    NODE_VALIDATION_CHECK(node,
+                          invalid_axis == axes.cend(),
+                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
+    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
 }
 }  // namespace util
 }  // namespace ov
