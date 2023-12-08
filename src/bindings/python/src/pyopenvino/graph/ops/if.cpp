@@ -115,10 +115,10 @@ void regclass_graph_op_If(py::module m) {
             Sets new output from the operation associated with results of each sub-graphs.
 
             :param then_result: result from then_body.
-            :type then_result: openvino.runtime.Node
+            :type then_result: op.Result
 
             :param else_result: result from else_body.
-            :type else_result: openvino.runtime.Node
+            :type else_result: op.Result
 
             :return: output from operation.
             :rtype: openvino.runtime.Output

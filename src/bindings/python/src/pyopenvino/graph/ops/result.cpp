@@ -20,6 +20,8 @@ void regclass_graph_op_Result(py::module m) {
 
     result.doc() = "openvino.runtime.op.Result wraps ov::op::v0::Result";
 
+    result.def(py::init<const ov::Output<ov::Node>&>());
+
     result.def("get_output_partial_shape", &ov::Node::get_output_partial_shape, py::arg("index"));
 
     result.def("get_output_element_type", &ov::Node::get_output_element_type, py::arg("index"));

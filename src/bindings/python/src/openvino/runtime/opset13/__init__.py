@@ -144,7 +144,7 @@ from openvino.runtime.opset1.ops import region_yolo
 from openvino.runtime.opset2.ops import reorg_yolo
 from openvino.runtime.opset1.ops import relu
 from openvino.runtime.opset1.ops import reshape
-from openvino.runtime.opset1.ops import result
+from openvino.runtime.opset13.ops import result
 from openvino.runtime.opset1.ops import reverse_sequence
 from openvino.runtime.opset3.ops import rnn_cell
 from openvino.runtime.opset5.ops import rnn_sequence

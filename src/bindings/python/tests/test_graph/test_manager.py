@@ -1,7 +1,6 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-# flake8: noqa
 
 import os
 
@@ -14,6 +13,7 @@ from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
 from tests.utils.helpers import create_filename_for_test, compare_models
+
 
 def create_model():
     shape = [100, 100, 2]
@@ -40,7 +40,8 @@ def test_constant_folding():
     assert count_ops_of_type(model, node_ceil) == 0
     assert count_ops_of_type(model, node_constant) == 1
 
-    new_const = model.get_results()[0].input(0).get_source_output().get_node()
+    result = model.get_results()[0]
+    new_const = result.input(0).get_source_output().get_node()
     values_out = new_const.get_vector()
     values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
 
@@ -48,14 +49,14 @@ def test_constant_folding():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.fixture
+@pytest.fixture()
 def prepare_ir_paths(request, tmp_path):
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
 
     yield xml_path, bin_path
-    
+
     # IR Files deletion should be done after `Model` is destructed.
-    # It may be achieved by splitting scopes (`Model` will be destructed 
+    # It may be achieved by splitting scopes (`Model` will be destructed
     # just after test scope finished), or by calling `del Model`
     os.remove(xml_path)
     os.remove(bin_path)
@@ -104,7 +105,7 @@ def test_serialize_separate_paths_args(prepare_ir_paths):
 
 def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
     core = Core()
-    
+
     shape = [3, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
@@ -123,7 +124,7 @@ def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
 
 def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
     core = Core()
-    
+
     xml_path, bin_path = prepare_ir_paths
     model = create_model()
     pass_manager = Manager()
@@ -175,7 +176,7 @@ def test_default_version(prepare_ir_paths):
     assert compare_models(model, res_model)
 
 
-def test_default_version_IR_V11_separate_paths(prepare_ir_paths):
+def test_default_version_ir_v11_separate_paths(prepare_ir_paths):
     core = Core()
 
     xml_path, bin_path = prepare_ir_paths

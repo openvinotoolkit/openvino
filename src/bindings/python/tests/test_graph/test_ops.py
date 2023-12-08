@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -11,6 +12,7 @@ import openvino.runtime.opset8 as ov
 from openvino import Shape, Type
 from openvino.runtime import AxisSet
 from openvino.runtime.op import Constant, Parameter
+
 
 @pytest.mark.parametrize(("ov_op", "expected_ov_str", "expected_type"), [
     (lambda a, b: a + b, "Add", Type.f32),
@@ -34,9 +36,9 @@ from openvino.runtime.op import Constant, Parameter
 def test_binary_op(ov_op, expected_ov_str, expected_type):
     element_type = Type.f32
     shape = Shape([2, 2])
-    A = Parameter(element_type, shape)
-    B = Parameter(element_type, shape)
-    node = ov_op(A, B)
+    param1 = Parameter(element_type, shape)
+    param2 = Parameter(element_type, shape)
+    node = ov_op(param1, param2)
 
     assert node.get_type_name() == expected_ov_str
     assert node.get_output_size() == 1
@@ -48,10 +50,10 @@ def test_add_with_mul():
 
     element_type = Type.f32
     shape = Shape([4])
-    A = Parameter(element_type, shape)
-    B = Parameter(element_type, shape)
-    C = Parameter(element_type, shape)
-    node = ov.multiply(ov.add(A, B), C)
+    param1 = Parameter(element_type, shape)
+    param2 = Parameter(element_type, shape)
+    param3 = Parameter(element_type, shape)
+    node = ov.multiply(ov.add(param1, param2), param3)
 
     assert node.get_type_name() == "Multiply"
     assert node.get_output_size() == 1
@@ -85,8 +87,8 @@ def test_unary_op(ov_op, expected_ov_str):
 
     element_type = Type.f32
     shape = Shape([4])
-    A = Parameter(element_type, shape)
-    node = ov_op(A)
+    param1 = Parameter(element_type, shape)
+    node = ov_op(param1)
 
     assert node.get_type_name() == expected_ov_str
     assert node.get_output_size() == 1
@@ -97,8 +99,8 @@ def test_unary_op(ov_op, expected_ov_str):
 def test_reshape():
     element_type = Type.f32
     shape = Shape([2, 3])
-    A = Parameter(element_type, shape)
-    node = ov.reshape(A, Shape([3, 2]), special_zero=False)
+    param1 = Parameter(element_type, shape)
+    node = ov.reshape(param1, Shape([3, 2]), special_zero=False)
 
     assert node.get_type_name() == "Reshape"
     assert node.get_output_size() == 1
@@ -108,8 +110,8 @@ def test_reshape():
 
 def test_broadcast():
     element_type = Type.f32
-    A = Parameter(element_type, Shape([3]))
-    node = ov.broadcast(A, [3, 3])
+    param1 = Parameter(element_type, Shape([3]))
+    node = ov.broadcast(param1, [3, 3])
     assert node.get_type_name() == "Broadcast"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 3]
@@ -134,10 +136,10 @@ def test_constant(const, args, expectation):
 
 def test_concat():
     element_type = Type.f32
-    A = Parameter(element_type, Shape([1, 2]))
-    B = Parameter(element_type, Shape([1, 2]))
-    C = Parameter(element_type, Shape([1, 2]))
-    node = ov.concat([A, B, C], axis=0)
+    param1 = Parameter(element_type, Shape([1, 2]))
+    param2 = Parameter(element_type, Shape([1, 2]))
+    param3 = Parameter(element_type, Shape([1, 2]))
+    node = ov.concat([param1, param2, param3], axis=0)
     assert node.get_type_name() == "Concat"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 2]
@@ -162,10 +164,10 @@ def test_axisset():
 
 def test_select():
     element_type = Type.f32
-    A = Parameter(Type.boolean, Shape([1, 2]))
-    B = Parameter(element_type, Shape([1, 2]))
-    C = Parameter(element_type, Shape([1, 2]))
-    node = ov.select(A, B, C)
+    param1 = Parameter(Type.boolean, Shape([1, 2]))
+    param2 = Parameter(element_type, Shape([1, 2]))
+    param3 = Parameter(element_type, Shape([1, 2]))
+    node = ov.select(param1, param2, param3)
     assert node.get_type_name() == "Select"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 2]
@@ -175,7 +177,7 @@ def test_select():
 def test_max_pool_1d():
     element_type = Type.f32
     shape = Shape([1, 1, 10])
-    A = Parameter(element_type, shape)
+    param1 = Parameter(element_type, shape)
     window_shape = [3]
 
     strides = [1] * len(window_shape)
@@ -187,7 +189,7 @@ def test_max_pool_1d():
     idx_elem_type = "i32"
 
     model = ov.max_pool(
-        A,
+        param1,
         strides,
         dilations,
         pads_begin,
@@ -204,10 +206,11 @@ def test_max_pool_1d():
     assert model.get_output_element_type(0) == element_type
     assert model.get_output_element_type(1) == Type.i32
 
+
 def test_max_pool_1d_with_strides():
     element_type = Type.f32
     shape = Shape([1, 1, 10])
-    A = Parameter(element_type, shape)
+    param1 = Parameter(element_type, shape)
     window_shape = [3]
     strides = [2]
     pads_begin = [0] * len(window_shape)
@@ -218,7 +221,7 @@ def test_max_pool_1d_with_strides():
     idx_elem_type = "i32"
 
     model = ov.max_pool(
-        A,
+        param1,
         strides,
         dilations,
         pads_begin,
@@ -236,10 +239,11 @@ def test_max_pool_1d_with_strides():
     assert model.get_output_element_type(0) == element_type
     assert model.get_output_element_type(1) == Type.i32
 
+
 def test_max_pool_2d():
     element_type = Type.f32
     shape = Shape([1, 1, 10, 10])
-    A = Parameter(element_type, shape)
+    param1 = Parameter(element_type, shape)
     window_shape = [3, 3]
     rounding_type = "floor"
     auto_pad = "explicit"
@@ -251,7 +255,7 @@ def test_max_pool_2d():
     pads_end = [0, 0]
 
     model = ov.max_pool(
-        A,
+        param1,
         strides,
         dilations,
         pads_begin,
@@ -272,7 +276,7 @@ def test_max_pool_2d():
 def test_max_pool_2d_with_strides():
     element_type = Type.f32
     shape = Shape([1, 1, 10, 10])
-    A = Parameter(element_type, shape)
+    param1 = Parameter(element_type, shape)
     strides = [2, 2]
     dilations = [1, 1]
     pads_begin = [0, 0]
@@ -283,7 +287,7 @@ def test_max_pool_2d_with_strides():
     idx_elem_type = "i32"
 
     model = ov.max_pool(
-        A,
+        param1,
         strides,
         dilations,
         pads_begin,

@@ -1,24 +1,18 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 
 import numpy as np
 import pytest
 
 import openvino.runtime.opset13 as ov
-from openvino import  Type
+from openvino import Type
 
 
-@pytest.mark.parametrize(
-        "pad_mode",
-        [
-            "constant",
-            "edge",
-            "reflect",
-            "symmetric",
-        ]
-)
+@pytest.mark.parametrize("pad_mode", [
+    "constant", "edge", "reflect", "symmetric",
+])
 def test_pad_mode(pad_mode):
     pads_begin = np.array([0, 1], dtype=np.int32)
     pads_end = np.array([2, 3], dtype=np.int32)
@@ -32,13 +26,10 @@ def test_pad_mode(pad_mode):
     assert model.get_output_element_type(0) == Type.i32
 
 
-@pytest.mark.parametrize(
-        ("pads_begin", "pads_end", "output_shape"),
-        [
-            ([-1, -1], [-1, -1], [1, 2]),
-            ([2, -1], [-1, 3], [4, 6]),
-        ]
-)
+@pytest.mark.parametrize(("pads_begin", "pads_end", "output_shape"), [
+    ([-1, -1], [-1, -1], [1, 2]),
+    ([2, -1], [-1, 3], [4, 6]),
+])
 def test_pad_being_and_end(pads_begin, pads_end, output_shape):
     input_param = ov.parameter((3, 4), name="input", dtype=np.int32)
     model = ov.pad(input_param, pads_begin, pads_end, "constant")
