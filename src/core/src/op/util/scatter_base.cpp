@@ -5,7 +5,6 @@
 #include "openvino/op/util/scatter_base.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "validation_util.hpp"
 
 ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
@@ -75,9 +74,7 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
         bool compatible = true;
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
         const int64_t data_rank = data_shape.rank().get_length();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        axis = ov::normalize_axis(this, axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        axis = ov::util::normalize_axis(this, axis, data_rank);
 
         if (indices_shape.rank().is_static() && updates_shape.rank().is_static()) {
             int64_t indices_rank = indices_shape.rank().get_length();

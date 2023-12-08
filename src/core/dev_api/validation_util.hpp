@@ -119,7 +119,6 @@ OPENVINO_API PartialShape infer_convolution_forward(const Node* node,
                                                     const Strides& filter_dilation);
 
 /// \brief Infers image paddings.
-///
 OPENVINO_API void infer_auto_padding(const Shape& image_shape,
                                      const Shape& filter_shape,
                                      const Strides& filter_strides,
@@ -171,6 +170,62 @@ OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, si
 /// \return True if there are no labels, false otherwise.
 OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 
+/// \brief      Handles out of range axis.
+///
+/// \param[in]  node         The node with requested axis.
+/// \param[in]  axis         The requested axis value.
+/// \param[in]  tensor_rank  The corresponding tensor rank.
+///
+/// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
+///            returns error. If negative axis, it counts from the last to the first axis,
+///            by adding tensor_rank to axis.
+OPENVINO_API int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank);
+
+/// \brief      Handles out of range axis.
+///
+/// \param[in]  node_description   The node with requested axis.
+/// \param[in]  axis               The requested axis value.
+/// \param[in]  tensor_rank        The corresponding tensor rank.
+///
+/// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
+///            returns error. If negative axis, it counts from the last to the first axis,
+///            by adding tensor_rank to axis.
+OPENVINO_API int64_t normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank);
+
+/// \brief      Handles out of range axis.
+///
+/// \param[in]  node            The node with requested axis.
+/// \param[in]  axis            The requested axis value.
+/// \param[in]  tensor_rank     The corresponding tensor rank.
+/// \param[in]  axis_range_min  The min value of accepted range for axis.
+/// \param[in]  axis_range_max  The max value of accepted range for axis.
+///
+/// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
+///             returns error. If negative axis, it counts from the last to the first axis,
+///             by adding tensor_rank to axis.
+OPENVINO_API int64_t normalize_axis(const Node* node,
+                                    std::int64_t axis,
+                                    std::uint64_t tensor_rank,
+                                    std::int64_t axis_range_min,
+                                    std::int64_t axis_range_max);
+
+/// \brief      Handles out of range axis.
+///
+/// \param[in]  node_description   The name of node with requested axis.
+/// \param[in]  axis               The requested axis value.
+/// \param[in]  tensor_rank        The corresponding tensor rank.
+/// \param[in]  axis_range_min     The min value of accepted range for axis.
+/// \param[in]  axis_range_max     The max value of accepted range for axis.
+///
+/// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
+///             returns error. If negative axis, it counts from the last to the first axis,
+///             by adding tensor_rank to axis.
+OPENVINO_API int64_t normalize_axis(const std::string& node_description,
+                                    std::int64_t axis,
+                                    std::uint64_t tensor_rank,
+                                    std::int64_t axis_range_min,
+                                    std::int64_t axis_range_max);
+
 /// \brief      Handles out of range axes in vector.
 ///
 /// \param[in]  node_description  The name of node with requested axes.
@@ -179,7 +234,6 @@ OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 ///
 /// \return     If any negative axis in vector, it counts from the last to the first
 ///             axis, by adding tensor_rank to axis.
-///
 OPENVINO_API std::vector<size_t> normalize_axes(const std::string& node_description,
                                                 const std::vector<int64_t>& axes,
                                                 const Rank& tensor_rank);
@@ -191,7 +245,6 @@ OPENVINO_API std::vector<size_t> normalize_axes(const std::string& node_descript
 /// \param[in]      node         The node with requested axes.
 /// \param[in]      tensor_rank  The corresponding tensor rank.
 /// \param[in,out]  axes         The requested vector of axes.
-///
 OPENVINO_API void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
 }  // namespace util
 }  // namespace ov
