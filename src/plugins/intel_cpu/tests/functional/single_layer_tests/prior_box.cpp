@@ -2,21 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <sstream>
-#include <vector>
-
-#include <openvino/core/partial_shape.hpp>
+#include "openvino/core/partial_shape.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using priorBoxSpecificParams =  std::tuple<
         std::vector<float>, // min_size
@@ -32,16 +27,14 @@ using priorBoxSpecificParams =  std::tuple<
         std::vector<float>, // variance
         bool>;              // scale_all_sizes
 
-typedef std::tuple<
-        priorBoxSpecificParams,
-        ov::test::ElementType,        // net precision
-        ov::test::ElementType,        // Input precision
-        ov::test::ElementType,        // Output precision
-        InferenceEngine::Layout,      // Input layout
-        InferenceEngine::Layout,      // Output layout
-        ov::test::InputShape,         // input shape
-        ov::test::InputShape,         // image shape
-        std::string> priorBoxLayerParams;
+typedef std::tuple<priorBoxSpecificParams,
+                   ov::test::ElementType,  // net precision
+                   ov::test::ElementType,  // Input precision
+                   ov::test::ElementType,  // Output precision
+                   ov::test::InputShape,   // input shape
+                   ov::test::InputShape,   // image shape
+                   std::string>
+    priorBoxLayerParams;
 
 class PriorBoxLayerCPUTest : public testing::WithParamInterface<priorBoxLayerParams>,
         virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -49,19 +42,18 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
         ov::test::ElementType netPrecision;
         ov::test::ElementType inPrc, outPrc;
-        InferenceEngine::Layout inLayout, outLayout;
         ov::test::InputShape inputShapes;
         ov::test::InputShape imageShapes;
         std::string targetDevice;
         priorBoxSpecificParams specParams;
         std::tie(specParams,
                  netPrecision,
-                 inPrc, outPrc, inLayout, outLayout,
+                 inPrc, outPrc,
                  inputShapes,
                  imageShapes,
                  targetDevice) = obj.param;
 
-        ngraph::op::PriorBoxAttrs attributes;
+        ov::op::v0::PriorBox::Attributes attributes;
         std::tie(
             attributes.min_size,
             attributes.max_size,
@@ -83,8 +75,6 @@ public:
         result << "netPRC="  << netPrecision   << separator;
         result << "inPRC="   << inPrc << separator;
         result << "outPRC="  << outPrc << separator;
-        result << "inL="     << inLayout << separator;
-        result << "outL="    << outLayout << separator;
         result << "min_size=" << ov::test::utils::vec2str(attributes.min_size) << separator;
         result << "max_size=" << ov::test::utils::vec2str(attributes.max_size)<< separator;
         result << "aspect_ratio=" << ov::test::utils::vec2str(attributes.aspect_ratio)<< separator;
@@ -106,23 +96,19 @@ protected:
     void SetUp() override {
         priorBoxSpecificParams specParams;
 
-        InferenceEngine::Layout inLayout;
-        InferenceEngine::Layout outLayout;
         ov::test::ElementType netPrecision;
         ov::test::ElementType inPrc;
         ov::test::ElementType outPrc;
         ov::test::InputShape inputShapes;
         ov::test::InputShape imageShapes;
-        std::tie(specParams, netPrecision,
-                 inPrc, outPrc, inLayout, outLayout,
-                 inputShapes, imageShapes, targetDevice) = GetParam();
+        std::tie(specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, targetDevice) = GetParam();
 
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
 
-        ngraph::op::PriorBoxAttrs attributes;
+        ov::op::v0::PriorBox::Attributes attributes;
         std::tie(
             attributes.min_size,
             attributes.max_size,
@@ -141,15 +127,15 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
         }
-        auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-        auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-        auto priorBox = std::make_shared<ngraph::op::PriorBox>(
+        auto shape_of_1 = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
+        auto shape_of_2 = std::make_shared<ov::op::v3::ShapeOf>(params[1]);
+        auto priorBox = std::make_shared<ov::op::v0::PriorBox>(
                 shape_of_1,
                 shape_of_2,
                 attributes);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
-        function = std::make_shared <ngraph::Function>(results, params, "priorBox");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBox)};
+        function = std::make_shared <ov::Model>(results, params, "priorBox");
     }
 };
 
@@ -219,12 +205,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::ElementType::undefined),
         ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(imageShape),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PriorBoxLayerCPUTest::getTestCaseName);
 
 } // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
