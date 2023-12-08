@@ -11,7 +11,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino.runtime import Node, Shape, Type
+from openvino.runtime import Node, Shape, Type, Output
 from openvino.runtime.op import Constant, Result
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
@@ -335,7 +335,7 @@ def constant(
 
 
 @unary_op
-def result(data: NodeInput, name: Optional[str] = None) -> Node:
+def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -> Node:
     """Return a node which represents an output of a graph (Model).
 
     :param data: The tensor containing the input data
