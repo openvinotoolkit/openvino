@@ -219,7 +219,7 @@ class TaskManager:
                     self._process_list.append(
                         Popen(
                             args,
-                            shell=constants.IS_WIN,
+                            shell=False,
                             stdout=log_file,
                             stderr=log_file,
                         )
@@ -527,9 +527,6 @@ class TestParallelRunner:
 
     def __prepare_smart_filters(self, proved_test_dict: dict):
         def_length = len(self._command) + len(" --gtest_filter=")
-        if constants.IS_WIN:
-            # subprocess add cmd.exe to the command line on Windows if shell=True
-            def_length += len(f'{os.environ.get("COMSPEC", "cmd.exe")} /C ')
 
         longest_device = ""
         for device in self._available_devices:
@@ -873,7 +870,7 @@ class TestParallelRunner:
             )
             if os.path.isfile(interapted_log_path):
                 test_cnt_real_saved_now += 1
-        if self._is_save_cache and os.path.isfile(self._cache_path):
+        if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w", encoding=constants.ENCODING) as cache_file:
                 cache_file.writelines(

@@ -27,7 +27,7 @@ DeviceFeaturesKey FullyConnected_fb_oi_b8_ref::get_required_device_features_key(
 }
 
 FullyConnected_fb_oi_b8_ref::DispatchData FullyConnected_fb_oi_b8_ref::SetDefault(const fully_connected_params& arg,
-                                                                                  int) const {
+                                                                                  int, int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
     const auto& output = arg.outputs[0];
