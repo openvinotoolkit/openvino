@@ -8,13 +8,11 @@
 #include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 
-#include <openvino/core/except.hpp>
-
+#include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {
-namespace onnx {
 namespace onnx_common {
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
@@ -60,6 +58,5 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
     return model_proto;
 }
 }  // namespace onnx_common
-}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
