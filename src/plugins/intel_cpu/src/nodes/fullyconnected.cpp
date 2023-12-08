@@ -160,16 +160,9 @@ VectorDims FullyConnected::makeDummyInputDims() const {
 
     auto inMinDims = inShape.getMinDims();
     auto inMaxDims = inShape.getMaxDims();
+    inMinDims.back() = weightDims.back();
+    inMaxDims.back() = weightDims.back();
 
-    if (inMinDims.size() == 3 || (inMinDims.size() == 4 && weightDims.size() == 2)) {
-        inMinDims.back() = weightDims.back();
-        inMaxDims.back() = weightDims.back();
-    } else {
-        for (size_t i = 1; i < inMinDims.size(); i++) {
-            inMinDims[i] = weightDims[i];
-            inMaxDims[i] = weightDims[i];
-        }
-    }
     return MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
 }
 
@@ -717,21 +710,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     //    2D:   [X,Y] [Y,Z] =>   [X,Z]   with    N=X,IC=Y,OC=Z
     //    3D: [B,X,Y] [Y,Z] => [B,X,Z]   with  N=B*X,IC=Y,OC=Z
 
-    VectorDims dims;
-    if (dims_ext.size() == 2) {
-        // 2D
-        dims = dims_ext;
-    } else if (dims_ext.size() == 3) {
-        // 3D
-        dims.push_back(dims_ext[0] * dims_ext[1]);
-        dims.push_back(dims_ext[2]);
-    } else if (dims_ext.size() == 4) {
-        // 4D
-        dims.push_back(dims_ext[0] * dims_ext[1] * dims_ext[2]);
-        dims.push_back(dims_ext[3]);
-    } else {
-        OPENVINO_THROW("Unexpected rank(", dims_ext.size(), ") for output tensor of node: ", getName());
-    }
+    VectorDims dims = {std::accumulate(dims_ext.begin(), dims_ext.end() - 1, (Dim)1, std::multiplies<size_t>()),
+                                                dims_ext[dims_ext.size()-1]};
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
@@ -817,15 +797,15 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     auto create2Dcandidate = [](const dnnl::memory::desc &desc) {
         auto inDims = desc.get_dims();
         dnnl::memory::dims normalizedInDims = {std::accumulate(inDims.begin(), inDims.end() - 1, 1, std::multiplies<size_t>()),
-                                                inDims[inDims.size()-1]};
+                                                inDims[inDims.size() - 1]};
 
         return dnnl::memory::desc(normalizedInDims, desc.get_data_type(),
                                   DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
     };
 
     // 3D or 4D need to be normalized to 2D
-    const auto needNormalize = inputDesc.get_dims().size() > 2 && outputDesc.get_dims().size() > 2;
-    const auto in_candidate  = needNormalize ? create2Dcandidate(inputDesc) : inputDesc;
+    const auto needNormalize = outputDesc.get_dims().size() > 2;
+    const auto in_candidate  = (needNormalize && inputDesc.get_dims().size() > 2) ? create2Dcandidate(inputDesc) : inputDesc;
     const auto out_candidate = needNormalize ? create2Dcandidate(outputDesc) : outputDesc;
 
     const dnnl::memory::data_type indt = inputDesc.get_data_type();

@@ -54,7 +54,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Transformation to FC is not supported for 1D inputs
         if (rank_a == 1 || rank_b == 1 ||
-            rank_a > 4 || rank_b > 4) {
+            rank_a > 4) {
             return false;
         }
 
