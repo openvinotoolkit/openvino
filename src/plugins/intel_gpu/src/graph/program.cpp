@@ -1223,16 +1223,16 @@ void program::dump_program(const char* stage, bool with_full_info) const {
         return;
     }
 
-    std::ofstream graph(path + "cldnn_program_p" + std::to_string(prog_id) + "_" + stage + ".graph");
+    std::ofstream graph(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".graph");
     dump_graph_init(graph, *this);
 
-    graph.open(path + "cldnn_program_p" + std::to_string(prog_id) + "_" + stage + ".info");
+    graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".info");
     dump_graph_info(graph, *this);
 
-    graph.open(path + "cldnn_program_p" + std::to_string(prog_id) + "_" + stage + ".order");
+    graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".order");
     dump_graph_processing_order(graph, *this);
 
-    graph.open(path + "cldnn_program_p" + std::to_string(prog_id) + "_" + stage + ".optimized");
+    graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".optimized");
     dump_graph_optimized(graph, *this);
 }
 
