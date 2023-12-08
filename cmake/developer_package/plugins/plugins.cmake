@@ -135,9 +135,6 @@ function(ov_add_plugin)
                 install(TARGETS ${OV_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
-                install(TARGETS ${OV_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
-                        COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()
