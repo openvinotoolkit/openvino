@@ -237,21 +237,18 @@ OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
                              leading_dims.size() == 0,
                              "TensorListConcatV2 is not supported for non-empty leading_dims.");
 
-    // create auxiliary constants
-    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    const auto int_max = make_shared<v0::Constant>(element::i32, Shape{1}, INT_MAX);
+    TENSORFLOW_OP_VALIDATION(node,
+                             as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
+                             "TensorListConcatV2 is not supported with non-constant shape input");
 
-    auto tensor_list_shape = make_shared<v3::ShapeOf>(input_handle, element::i32);
-    auto list_length = make_shared<v8::Slice>(tensor_list_shape, zero_const, one_const, one_const);
+    std::vector<int64_t> list_elememt_shape;
+    get_const_input(node, 1, &list_elememt_shape);
 
-    auto dim_to_concat = make_shared<v8::Slice>(size, zero_const, one_const, one_const);
-    auto remaining_dims = make_shared<v8::Slice>(size, one_const, int_max, one_const);
-
-    auto concatinated_dim_length = make_shared<v1::Multiply>(dim_to_concat, list_length);
-    auto new_shape = make_shared<v0::Concat>(OutputVector{concatinated_dim_length, remaining_dims}, 0);
-
-    auto out = make_shared<v1::Reshape>(input_handle, new_shape, false);
+    list_elememt_shape[0] = list_elememt_shape[0] * input_handle.get_partial_shape()[0].get_max_length();
+    auto out = make_shared<v1::Reshape>(
+        input_handle,
+        make_shared<v0::Constant>(element::i64, Shape{list_elememt_shape.size()}, list_elememt_shape),
+        false);
 
     set_node_name(node.get_name(), out);
 

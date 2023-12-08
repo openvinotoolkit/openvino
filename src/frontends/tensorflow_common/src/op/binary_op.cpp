@@ -52,8 +52,16 @@ OutputVector translate_binary_op(const NodeContext& node,
 }
 
 OutputVector translate_floor_div_op(const NodeContext& node) {
-    auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) {
-        return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
+    auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) -> shared_ptr<Node> {
+        auto out_type = x.get_element_type();
+        if (out_type.is_integral()) {
+            auto float_x = make_shared<v0::Convert>(x, element::f32);
+            auto float_y = make_shared<v0::Convert>(y, element::f32);
+            return make_shared<v0::Convert>(make_shared<v0::Floor>(make_shared<v1::Divide>(float_x, float_y)),
+                                            out_type);
+        } else {
+            return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
+        }
     };
     return translate_binary_op(node, floordiv_fn);
 }
