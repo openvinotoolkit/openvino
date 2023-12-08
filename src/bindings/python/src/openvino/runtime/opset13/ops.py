@@ -162,7 +162,7 @@ def multinomial(
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
-    :param probs: Tensor with probabilities of floating-point type, and shape [class_size] or [batch_size, class_size].
+    :param probs: Tensor with probabilities of floating-point type, and shape [batch_size, class_size].
     :param num_samples: Tensor (scalar or 1D) a single element of type i32 or i64,
                         specifying the number of samples to draw from the multinomial distribution.
     :param convert_type: Specifies the output tensor type, possible values: 'i64', 'i32'.
@@ -296,7 +296,9 @@ def constant(
         _value, _shared_memory = value, shared_memory
     else:
         _value, _shared_memory = np.array(value), False
-        log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default.")
+        if shared_memory:
+            log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default. "
+                        "Set shared_memory=False to hide this warning.")
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
