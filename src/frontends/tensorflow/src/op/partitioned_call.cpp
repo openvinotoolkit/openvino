@@ -3,7 +3,6 @@
 //
 
 #include "common_op_table.hpp"
-#include "helper_ops/complex_type_mark.hpp"
 #include "input_model.hpp"
 #include "tf_utils.hpp"
 
