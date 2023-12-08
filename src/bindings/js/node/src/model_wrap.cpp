@@ -36,10 +36,14 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
 
 Napi::Object ModelWrap::Wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
-    auto obj = env.GetInstanceData<AddonData>()->model_prototype->New({});
-    ModelWrap* m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
-    m->set_model(model);
-    return obj;
+    const auto prototype = env.GetInstanceData<AddonData>()->model_prototype;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to model prototype.");
+    }
+    const auto& model_js = prototype->New({});
+    ModelWrap* mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
+    mw->set_model(model);
+    return model_js;
 }
 
 Napi::Value ModelWrap::get_name(const Napi::CallbackInfo& info) {
