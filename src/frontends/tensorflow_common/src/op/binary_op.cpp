@@ -53,7 +53,7 @@ OutputVector translate_binary_op(const NodeContext& node,
 
 OutputVector translate_floor_div_op(const NodeContext& node) {
     auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) {
-        return make_shared<v0::Floor>(make_shared<v1::Divide>(x,y));
+        return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
     };
     return translate_binary_op(node, floordiv_fn);
 }

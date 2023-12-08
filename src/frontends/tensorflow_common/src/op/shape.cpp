@@ -16,6 +16,20 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
+std::shared_ptr<v8::Slice> compute_complex_shape(const ov::Output<ov::Node>& input, element::Type out_type) {
+    auto shapeof = make_shared<v3::ShapeOf>(input, out_type);
+    auto rank = make_shared<v3::ShapeOf>(shapeof, out_type);
+    auto one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+
+    auto start = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    auto stop = make_shared<v1::Subtract>(rank, one);
+    auto step = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto axes = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+
+    return make_shared<v8::Slice>(shapeof, start, stop, step, axes);
+}
+
+
 OutputVector translate_shape_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Shape", "ShapeN", "SHAPE"}, true);
     auto input_size = static_cast<int>(node.get_input_size());
@@ -28,17 +42,7 @@ OutputVector translate_shape_op(const NodeContext& node) {
         auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
 
         if (complex_type_mark) {
-            input = complex_type_mark->input_value(0);
-            auto shapeof = make_shared<v3::ShapeOf>(input, out_type);
-            auto rank = make_shared<v3::ShapeOf>(shapeof, out_type);
-            auto one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-
-            auto start = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-            auto stop = make_shared<v1::Subtract>(rank, one);
-            auto step = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-            auto axes = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-
-            auto slice = make_shared<v8::Slice>(shapeof, start, stop, step, axes);
+            auto slice = compute_complex_shape(complex_type_mark->input_value(0), out_type);
             set_node_name(node_name, slice);
             return {slice};
         } else {
@@ -56,19 +60,7 @@ OutputVector translate_shape_op(const NodeContext& node) {
         element::Type complex_part_type = element::dynamic;
 
         if (complex_type_mark) {
-            input = complex_type_mark->input_value(input_ind);
-            complex_part_type = complex_type_mark->get_complex_part_type();
-            auto shapeof = make_shared<v3::ShapeOf>(input, out_type);
-
-            auto rank = make_shared<v3::ShapeOf>(shapeof, out_type);
-            auto one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-
-            auto start = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-            auto stop = make_shared<v1::Subtract>(rank, one);
-            auto step = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-            auto axes = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-
-            auto slice = make_shared<v8::Slice>(shapeof, start, stop, step, axes);
+            auto slice = compute_complex_shape(complex_type_mark->input_value(input_ind), out_type);
             slice->set_friendly_name(node_name + "_" + to_string(input_ind));
             auto shapeof_output = slice->output(0);
             set_out_name({node_name + ":" + to_string(input_ind)}, shapeof_output);

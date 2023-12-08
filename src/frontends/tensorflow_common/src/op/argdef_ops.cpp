@@ -3,8 +3,6 @@
 //
 
 #include "common_op_table.hpp"
-#include "helper_ops/complex_type_mark.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
@@ -19,7 +17,8 @@ namespace op {
 OutputVector translate_input_arg_op(const NodeContext& node) {
     default_op_checks(node, 0, {"input_arg"});
     auto param_type = node.get_attribute<element::Type>("type");
-    auto param = std::make_shared<v0::Parameter>(param_type, ov::PartialShape::dynamic());
+
+    auto param = std::make_shared<v0::Parameter>(param_type, PartialShape::dynamic());
     set_node_name(node.get_name(), param);
     return param->outputs();
 }
