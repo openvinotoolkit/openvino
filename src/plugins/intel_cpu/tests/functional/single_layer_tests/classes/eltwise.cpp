@@ -5,7 +5,6 @@
 #include "eltwise.hpp"
 
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
