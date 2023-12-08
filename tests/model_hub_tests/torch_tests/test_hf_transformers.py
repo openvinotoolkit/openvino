@@ -199,7 +199,6 @@ class TestTransformersModel(TestTorchConvertModel):
                     )
             model = Decorator(model)
         elif 'blip' in mi.tags and 'text2text-generation' in mi.tags:
-            import requests
             from transformers import BlipProcessor, BlipForConditionalGeneration
 
             processor = BlipProcessor.from_pretrained(name)
