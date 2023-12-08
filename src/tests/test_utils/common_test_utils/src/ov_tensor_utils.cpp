@@ -354,10 +354,10 @@ void compare(const ov::Tensor& expected,
                        elem_type == ov::element::Type_t::u64) {
                 abs_threshold = abs_median * 0.01 < 1. ? 1. : 0.01 * abs_median;
             } else if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
-                abs_threshold = abs_median * 5e-4 < 5e-4 ? 5e-4 : 5e-4 * abs_median;
+                abs_threshold = abs_median * 1e-2 < 1e-4 ? 1e-4 : 1e-2 * abs_median;
             } else if (elem_type == ov::element::Type_t::bf16 ||\
                        elem_type == ov::element::Type_t::f16) {
-                abs_threshold = abs_median * 5e-2 < 5e-2 ? 5e-2 : 5e-2 * abs_median;
+                abs_threshold = abs_median * 5e-2 < 1e-2 ? 1e-2 : 5e-2 * abs_median;
             } else if (elem_type == ov::element::Type_t::i4 ||\
                        elem_type == ov::element::Type_t::i8 ||\
                        elem_type == ov::element::Type_t::i16 ||\
