@@ -7,17 +7,17 @@ applying 8-bit post-training quantization and weights compression from
 Compression Framework) and infer optimized model via OpenVINO™ Toolkit.
 
    **NOTE**: you should run
-   `238-deep-floyd-if-convert <238-deep-floyd-if-convert.ipynb>`__
+   `238-deep-floyd-if-convert <238-deep-floyd-if-convert-with-output.html>`__
    notebook first to generate OpenVINO IR model that is used for
    optimization.
 
 The optimization process contains the following steps: 1. Compress
 weights of the converted OpenVINO text encoder from
-`notebook <238-deep-floyd-if-convert.ipynb>`__ with NNCF. 2. Quantize
+`notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF. 2. Quantize
 the converted stage_1 and stage_2 U-Nets from
-`notebook <238-deep-floyd-if-convert.ipynb>`__ with NNCF. 2. Check the
+`notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF. 2. Check the
 model result using the same input data from the
-`notebook <238-deep-floyd-if-convert.ipynb>`__. 3. Compare model size of
+`notebook <238-deep-floyd-if-convert-with-output.html>`__. 3. Compare model size of
 converted and optimized models. 4. Compare performance of converted and
 optimized models.
 
@@ -470,7 +470,7 @@ Run optimized OpenVINO model
 
 Let us check predictions with the optimized OpenVINO DeepFloyd IF model
 result using the same input data from the `1st
-notebook <238-deep-floyd-if.ipynb>`__.
+notebook <238-deep-floyd-if-with-output.html>`__.
 
 .. code:: ipython3
 

@@ -13,12 +13,9 @@ running multiple times.
 
 -  `Showing Info Available
    Devices <#showing-info-available-devices>`__
--  `Using full precision model in CPU with
-   ``StableDiffusionPipeline`` <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__
--  `Using full precision model in CPU with
-   ``OVStableDiffusionPipeline`` <#using-full-precision-model-in-cpu-with-ovstablediffusionpipeline>`__
--  `Using full precision model in dGPU with
-   ``OVStableDiffusionPipeline`` <#using-full-precision-model-in-dgpu-with-ovstablediffusionpipeline>`__
+-  `Using full precision model in CPU with StableDiffusionPipeline <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__
+-  `Using full precision model in CPU with OVStableDiffusionPipeline <#using-full-precision-model-in-cpu-with-ovstablediffusionpipeline>`__
+-  `Using full precision model in dGPU with OVStableDiffusionPipeline <#using-full-precision-model-in-dgpu-with-ovstablediffusionpipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 

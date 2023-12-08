@@ -42,11 +42,9 @@ void LrnLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    auto paramIn =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto axes_node = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{axes.size()}, axes.data());
-    auto lrn = std::make_shared<ngraph::opset3::LRN>(paramIn[0], axes_node, alpha, beta, bias, size);
+    auto lrn = std::make_shared<ngraph::opset3::LRN>(params[0], axes_node, alpha, beta, bias, size);
     ngraph::ResultVector results {std::make_shared<ngraph::opset3::Result>(lrn)};
     function = std::make_shared<ngraph::Function>(results, params, "lrn");
 }

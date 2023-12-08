@@ -240,7 +240,6 @@ public:
                         uint32_t cell : 1;
                     } lstm_elt;
                     struct quantize_t {
-                        uint32_t packed_binary_output : 1;
                         uint32_t scale_shift_opt : 1;
                     } quantize;
                 } dedicated;
@@ -263,7 +262,6 @@ public:
                 uint32_t int64 : 1;
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
-                uint32_t binary : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
@@ -329,7 +327,6 @@ public:
     void EnableBilinearInterpolationPad() { key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1; }
     void EnableDeformableMask() { key.restrict.val.dedicated.conv.deformable_mask_enabled = 1; }
 
-    void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
 
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
@@ -606,8 +603,6 @@ struct dep_info {
 //     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all tensors used in
 //       a fused op (requires FusedOpsConfiguration instance).
 //     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
-//  If you need an example of custom code generation for fused ops, check BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants
-//  method in binary_convolution_kernel_generic.cpp.
 struct fused_operation_desc {
     std::shared_ptr<fuse_params> op_params;
     int32_t dep_idx_start;

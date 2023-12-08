@@ -3,12 +3,22 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -16,18 +26,18 @@ namespace tensorflow {
 namespace op {
 namespace {
 void generate_axes_range_except_c(const Output<Node>& x_rank, bool is_nhwc, Output<Node>& axes_no_c) {
-    auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
+    auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
     if (is_nhwc) {
-        auto const_zero = make_shared<Constant>(element::i32, Shape{}, 0);
-        auto rank_minus_one = make_shared<Subtract>(x_rank, const_one);
-        axes_no_c = make_shared<Range>(const_zero, rank_minus_one, const_one, element::i32)->output(0);
+        auto const_zero = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto rank_minus_one = make_shared<v1::Subtract>(x_rank, const_one);
+        axes_no_c = make_shared<v4::Range>(const_zero, rank_minus_one, const_one, element::i32)->output(0);
     } else {
-        auto const_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
-        auto const_two = make_shared<Constant>(element::i32, Shape{}, 2);
+        auto const_zero = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+        auto const_two = make_shared<v0::Constant>(element::i32, Shape{}, 2);
         // in NCHW layout case
-        axes_no_c = make_shared<Range>(const_two, x_rank, const_one, element::i32)->output(0);
+        axes_no_c = make_shared<v4::Range>(const_two, x_rank, const_one, element::i32)->output(0);
         // add batch dimension as well
-        axes_no_c = make_shared<Concat>(OutputVector{const_zero, axes_no_c}, 0);
+        axes_no_c = make_shared<v0::Concat>(OutputVector{const_zero, axes_no_c}, 0);
     }
 }
 
@@ -38,7 +48,7 @@ void adjust_coeff(const Output<Node>& x_rank,
                   bool is_nhwc) {
     // adjust types of the normalizing coefficients
     // they can vary for FusedBatchNormV2 and FusedBatchNormV3 operations
-    adjusted_coeff = make_shared<ConvertLike>(coeff, x)->output(0);
+    adjusted_coeff = make_shared<v1::ConvertLike>(coeff, x)->output(0);
 
     if (is_nhwc) {
         return;
@@ -47,12 +57,12 @@ void adjust_coeff(const Output<Node>& x_rank,
     // in case NCHW format, we need to unsqueeze the normalizing coefficient by lower dimensions
     // to have the coefficient of shape [C, 1, 1]
     // generate axes range for unsqueezing the coefficient
-    auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto x_rank_minus_one = make_shared<Subtract>(x_rank, const_one);
-    auto axes = make_shared<Range>(const_one, x_rank_minus_one, const_one, element::i32);
+    auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+    auto x_rank_minus_one = make_shared<v1::Subtract>(x_rank, const_one);
+    auto axes = make_shared<v4::Range>(const_one, x_rank_minus_one, const_one, element::i32);
 
     // adjust shapes of the normalizing coefficients
-    adjusted_coeff = make_shared<Unsqueeze>(adjusted_coeff, axes)->output(0);
+    adjusted_coeff = make_shared<v0::Unsqueeze>(adjusted_coeff, axes)->output(0);
 }
 
 void compute_batch_mean_and_variance(const Output<Node>& x,
@@ -65,29 +75,29 @@ void compute_batch_mean_and_variance(const Output<Node>& x,
     generate_axes_range_except_c(x_rank, is_nhwc, reduce_axes);
 
     // compute batch_mean
-    batch_mean = make_shared<ReduceMean>(x, reduce_axes, false)->output(0);
+    batch_mean = make_shared<v1::ReduceMean>(x, reduce_axes, false)->output(0);
 
     // compute batch_variance
-    auto unsqueezed_batch_mean = make_shared<Unsqueeze>(batch_mean, reduce_axes);
-    batch_variance = make_shared<Subtract>(x, unsqueezed_batch_mean)->output(0);
+    auto unsqueezed_batch_mean = make_shared<v0::Unsqueeze>(batch_mean, reduce_axes);
+    batch_variance = make_shared<v1::Subtract>(x, unsqueezed_batch_mean)->output(0);
     auto const_two = create_same_type_const_scalar<float>(x, 2);
-    batch_variance = make_shared<Power>(batch_variance, const_two);
-    batch_variance = make_shared<ReduceMean>(batch_variance, reduce_axes)->output(0);
+    batch_variance = make_shared<v1::Power>(batch_variance, const_two);
+    batch_variance = make_shared<v1::ReduceMean>(batch_variance, reduce_axes)->output(0);
 
     // for training mode, variance of FusedBatchNorm is computed with Bessel's correction
     // batch_variance must be multiplied by n / (n - 1), where n is a number of samples
     // to compute variance
-    auto x_shape = make_shared<ShapeOf>(x, element::i32);
-    auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
-    auto needed_dim_values = make_shared<Gather>(x_shape, reduce_axes, gather_axis);
-    auto n = make_shared<ReduceProd>(needed_dim_values, gather_axis, false)->output(0);
-    n = make_shared<ConvertLike>(n, batch_variance)->output(0);
+    auto x_shape = make_shared<v3::ShapeOf>(x, element::i32);
+    auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto needed_dim_values = make_shared<v8::Gather>(x_shape, reduce_axes, gather_axis);
+    auto n = make_shared<v1::ReduceProd>(needed_dim_values, gather_axis, false)->output(0);
+    n = make_shared<v1::ConvertLike>(n, batch_variance)->output(0);
     auto const_one = create_same_type_const_scalar<float>(batch_variance, 1);
-    auto bessel_correction = make_shared<Subtract>(n, const_one)->output(0);
-    bessel_correction = make_shared<Divide>(n, bessel_correction);
+    auto bessel_correction = make_shared<v1::Subtract>(n, const_one)->output(0);
+    bessel_correction = make_shared<v1::Divide>(n, bessel_correction);
 
     // adjust batch_variance by bessel correction
-    batch_variance = make_shared<Multiply>(batch_variance, bessel_correction);
+    batch_variance = make_shared<v1::Multiply>(batch_variance, bessel_correction);
 }
 
 void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
@@ -106,14 +116,14 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
     // (1 - exponential_avg_factor) * variance + exponential_avg_factor * batch_variance,
     // where batch_variance is the variance of the current batch in x.
     auto const_one = create_same_type_const_scalar<float>(exp_avg_factor_const, 1);
-    auto one_minus_exp_avg_factor = make_shared<Subtract>(const_one, exp_avg_factor_const);
+    auto one_minus_exp_avg_factor = make_shared<v1::Subtract>(const_one, exp_avg_factor_const);
 
     // compute weighted_batch_mean
     // no need to weight in case of empty tensor mean
     if (mean.get_partial_shape().is_static() && shape_size(mean.get_shape()) > 0) {
-        auto bt_mean_by_exp_avg = make_shared<Multiply>(batch_mean, exp_avg_factor_const);
-        weighted_batch_mean = make_shared<Multiply>(mean, one_minus_exp_avg_factor)->output(0);
-        weighted_batch_mean = make_shared<Add>(bt_mean_by_exp_avg, weighted_batch_mean);
+        auto bt_mean_by_exp_avg = make_shared<v1::Multiply>(batch_mean, exp_avg_factor_const);
+        weighted_batch_mean = make_shared<v1::Multiply>(mean, one_minus_exp_avg_factor)->output(0);
+        weighted_batch_mean = make_shared<v1::Add>(bt_mean_by_exp_avg, weighted_batch_mean);
     } else {
         weighted_batch_mean = batch_mean;
     }
@@ -121,9 +131,9 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
     // compute weighted_batch_variance
     // no need to weight in case of empty tensor variance
     if (variance.get_partial_shape().is_static() && shape_size(variance.get_shape()) > 0) {
-        auto bt_variance_by_exp_avg = make_shared<Multiply>(batch_variance, exp_avg_factor_const);
-        weighted_batch_variance = make_shared<Multiply>(variance, one_minus_exp_avg_factor)->output(0);
-        weighted_batch_variance = make_shared<Add>(bt_variance_by_exp_avg, weighted_batch_variance)->output(0);
+        auto bt_variance_by_exp_avg = make_shared<v1::Multiply>(batch_variance, exp_avg_factor_const);
+        weighted_batch_variance = make_shared<v1::Multiply>(variance, one_minus_exp_avg_factor)->output(0);
+        weighted_batch_variance = make_shared<v1::Add>(bt_variance_by_exp_avg, weighted_batch_variance)->output(0);
     } else {
         weighted_batch_variance = batch_variance;
     }
@@ -162,16 +172,16 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
 
     // perform the main part of the transformation
     // 1. subtract mean from the input
-    auto x_minus_mean = make_shared<Subtract>(x, adjusted_mean);
+    auto x_minus_mean = make_shared<v1::Subtract>(x, adjusted_mean);
 
     // 2. normalize the input after the shifting
-    auto var_plus_eps = make_shared<Add>(adjusted_variance, eps_const);
-    auto root_sq_var = make_shared<Power>(var_plus_eps, half);
-    auto normalized_x = make_shared<Divide>(x_minus_mean, root_sq_var);
+    auto var_plus_eps = make_shared<v1::Add>(adjusted_variance, eps_const);
+    auto root_sq_var = make_shared<v1::Power>(var_plus_eps, half);
+    auto normalized_x = make_shared<v1::Divide>(x_minus_mean, root_sq_var);
 
     // 3. scale the input after the normalization
-    auto scaled_x = make_shared<Multiply>(normalized_x, adjusted_scale);
-    fused_batch_norm = make_shared<Add>(scaled_x, adjusted_offset)->output(0);
+    auto scaled_x = make_shared<v1::Multiply>(normalized_x, adjusted_scale);
+    fused_batch_norm = make_shared<v1::Add>(scaled_x, adjusted_offset)->output(0);
 
     // mean and variance go as outputs for batch_mean and batch_variance
     // exponential_avg_factor has no affect on it
@@ -205,11 +215,11 @@ void compute_fused_batch_norm_training(const NodeContext& node,
     generate_axes_range_except_c(x_rank, is_nhwc, mvn_axes);
 
     // perform mean-variance normalization
-    auto mvn = make_shared<MVN>(x, mvn_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn = make_shared<v6::MVN>(x, mvn_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     // perform scaling and shifting
-    fused_batch_norm = make_shared<Multiply>(mvn, adjusted_scale)->output(0);
-    fused_batch_norm = make_shared<Add>(fused_batch_norm, adjusted_offset)->output(0);
+    fused_batch_norm = make_shared<v1::Multiply>(mvn, adjusted_scale)->output(0);
+    fused_batch_norm = make_shared<v1::Add>(fused_batch_norm, adjusted_offset)->output(0);
 
     // compute two other outputs: batch_mean and batch_variance
     compute_batch_mean_and_variance(x, x_rank, is_nhwc, batch_mean, batch_variance);

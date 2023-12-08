@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/activation.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -65,7 +65,7 @@ void ActivationLayerTest::SetUp() {
         std::iota(constants_value.begin(), constants_value.end(), -10);
     }
 
-    auto activation = ngraph::builder::makeActivation(param, model_type, activationType, const_shape, constants_value);
+    auto activation = ov::test::utils::make_activation(param, model_type, activationType, const_shape, constants_value);
 
     auto result = std::make_shared<ov::op::v0::Result>(activation);
 
@@ -131,7 +131,7 @@ void ActivationParamLayerTest::SetUp() {
 
     params[0]->set_friendly_name("Input");
 
-    auto activation = ngraph::builder::makeActivation(params, model_type, activationType);
+    auto activation = ov::test::utils::make_activation(params, model_type, activationType);
     auto result = std::make_shared<ov::op::v0::Result>(activation);
     function = std::make_shared<ov::Model>(result, params);
 }

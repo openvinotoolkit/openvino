@@ -59,10 +59,20 @@ void SliceConvTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto ss = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, 0, 0, 64}, std::vector<int64_t>{1, 1, 1, 128},
-                                                std::vector<int64_t>{1, 1, 1, 1}, ngPrc, std::vector<int64_t>{1, 1, 1, 0},
-                                                std::vector<int64_t>{1, 1, 1, 0}, std::vector<int64_t>{0, 0, 0, 0},
-                                                std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
+
+    ov::Shape constShape = {4};
+    auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{0, 0, 0, 64});
+    auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1, 1, 1, 128});
+    auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1, 1, 1, 1});
+    auto ss = std::make_shared<ov::op::v1::StridedSlice>(params[0],
+                                                        beginNode,
+                                                        endNode,
+                                                        strideNode,
+                                                        std::vector<int64_t>{1, 1, 1, 0},
+                                                        std::vector<int64_t>{1, 1, 1, 0},
+                                                        std::vector<int64_t>{0, 0, 0, 0},
+                                                        std::vector<int64_t>{0, 0, 0, 0},
+                                                        std::vector<int64_t>{0, 0, 0, 0});
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);

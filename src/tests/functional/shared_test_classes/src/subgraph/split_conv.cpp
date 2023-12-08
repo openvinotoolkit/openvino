@@ -64,7 +64,9 @@ void SplitConvTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const auto splitsNum = 2;
     const auto splitAxis = 1;
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, splitAxis);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{splitAxis});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, splitsNum);
+
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(split->output(0));
 
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(split->output(1));

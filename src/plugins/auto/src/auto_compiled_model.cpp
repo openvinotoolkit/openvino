@@ -264,8 +264,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             return m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_compiled_model->get_property(name).as<bool>();
         } else {
-            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
-             std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
+                            m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
             return m_scheduler->m_compile_context[CPU].
                 m_compiled_model->get_property(name).as<bool>();
         }

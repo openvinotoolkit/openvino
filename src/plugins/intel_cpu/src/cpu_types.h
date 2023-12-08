@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "caseless.hpp"
-
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "caseless.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -105,6 +105,7 @@ enum class Type {
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
+    Multinomial,
     Subgraph,
     PriorBox,
     PriorBoxClustered,
@@ -112,7 +113,9 @@ enum class Type {
     MHA,
     RandomUniform,
     Unique,
-    Ngram
+    Ngram,
+    ScaledDotProductAttention,
+    RoPE,
 };
 
 enum class Algorithm {
@@ -260,5 +263,5 @@ std::string NameFromType(const Type type);
 
 std::string algToString(const Algorithm alg);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

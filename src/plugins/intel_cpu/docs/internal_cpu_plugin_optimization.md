@@ -3,7 +3,7 @@
 The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
 Refer to the sections below for details.
 
-> **NOTE**: For layer descriptions, see the [IR Notation Reference](https://docs.openvino.ai/2023.0/openvino_docs_ops_opset.html).
+> **NOTE**: For layer descriptions, see the [IR Notation Reference](https://docs.openvino.ai/2023.2/openvino_docs_ops_opset.html).
 
 
 ## Fusing Convolution and Simple Layers

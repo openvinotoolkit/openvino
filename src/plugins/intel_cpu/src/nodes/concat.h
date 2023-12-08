@@ -7,7 +7,6 @@
 #include <ie_common.h>
 #include <node.h>
 #include <string>
-#include <ie_precision.hpp>
 #include <graph_context.h>
 
 namespace ov {
@@ -16,9 +15,9 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
@@ -28,7 +27,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     bool isExecutable() const override;
     bool needPrepareParams() const override;
@@ -40,15 +39,15 @@ private:
     bool canBeInPlace = false;
     bool canOptimizeNspc = false;
     void execRef();
-    size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
+    size_t inverseOrder(const VectorDims& order, size_t axis);
     void execNspcSpecCase();
     std::vector<VectorDims> inputStrides;
     std::vector<size_t> nelemToCopy; // byte moved in each iter
     std::vector<size_t> dstOffset; // dst offset for each input
     std::vector<const uint8_t*> srcPtrs;
     bool hasOuterLoop = false;
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+    ov::element::Type inputPrecision = ov::element::f32;
+    ov::element::Type outputPrecision = ov::element::f32;
     bool canExecRef = false;
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;

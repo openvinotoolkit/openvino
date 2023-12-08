@@ -3,16 +3,18 @@
 //
 
 #include "grid_sample.hpp"
-#include "ie_parallel.hpp"
 #include "openvino/op/grid_sample.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
+
 #if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 #endif // OPENVINO_ARCH_X86_64
 
+#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -92,8 +94,8 @@ void GridSample::initSupportedPrimitiveDescriptors() {
         return;
 
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != Precision::I32) {
-        dataPrecision = Precision::FP32;
+    if (dataPrecision != ov::element::i32) {
+        dataPrecision = ov::element::f32;
     }
     dataTypeSize = dataPrecision.size();
     gridTypeSize = gridPrecision.size();
