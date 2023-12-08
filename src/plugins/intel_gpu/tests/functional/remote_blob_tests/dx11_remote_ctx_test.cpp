@@ -8,14 +8,14 @@
 #include <tuple>
 #include <memory>
 
-#include <ie_compound_blob.h>
+#include "ie_compound_blob.h"
 
-#include <gpu/gpu_config.hpp>
-#include <common_test_utils/test_common.hpp>
-#include <common_test_utils/test_constants.hpp>
+#include "gpu/gpu_config.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
-#include <openvino/core/preprocess/pre_post_process.hpp>
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #ifdef _WIN32
 #ifdef  ENABLE_DX11
@@ -30,11 +30,12 @@
 #define NOMINMAX_DEFINED_CTX_UT
 #endif
 
-#include <gpu/gpu_context_api_dx.hpp>
-#include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #include <atlbase.h>
 #include <d3d11.h>
 #include <d3d11_4.h>
+
+#include "gpu/gpu_context_api_dx.hpp"
+#include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 
 #ifdef NOMINMAX_DEFINED_CTX_UT
 #undef NOMINMAX

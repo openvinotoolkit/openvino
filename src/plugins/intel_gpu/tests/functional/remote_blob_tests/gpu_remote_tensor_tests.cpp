@@ -2,36 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <utility>
-#include <vector>
-#include <memory>
-
-#include "openvino/core/dimension.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
-#include "remote_blob_tests/remote_blob_helpers.hpp"
-#include "common_test_utils/test_assertions.hpp"
+#include "remote_blob_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/test_common.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "subgraphs_builders.hpp"
-#include "transformations/utils/utils.hpp"
-
-using namespace ::testing;
 
 class OVRemoteTensor_Test : public ov::test::TestsCommon {
 protected:
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 
     void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
@@ -39,6 +22,8 @@ protected:
 };
 
 namespace {
+using ::testing::HasSubstr;
+
 std::vector<bool> ov_dynamic {true, false};
 std::vector<bool> ov_with_auto_batching {true, false};
 enum class RemoteTensorSharingType {
@@ -71,7 +56,7 @@ using RemoteTensorSharingTestOptionsParams = std::tuple<RemoteTensorSharingType,
 class OVRemoteTensorInputBlob_Test : public OVRemoteTensor_Test,
         public testing::WithParamInterface<RemoteTensorSharingTestOptionsParams> {
 protected:
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
     std::string deviceName;
     ov::AnyMap config;
 
@@ -340,10 +325,9 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
     {
         ASSERT_EQ(output->get_element_type(), ov::element::f32);
         ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
         ASSERT_NO_THROW(output_tensor_regular.data());
         ASSERT_NO_THROW(output_tensor_shared.data());
-        ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
+        ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
     }
 }
 
@@ -611,10 +595,9 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
     {
         ASSERT_EQ(output->get_element_type(), ov::element::f32);
         ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
         ASSERT_NO_THROW(output_tensor_regular.data());
         ASSERT_NO_THROW(output_tensor_shared.data());
-        ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
+        ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
     }
 }
 
@@ -750,7 +733,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
 
 class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testing::WithParamInterface<bool> {
 protected:
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
     std::string deviceName;
     ov::AnyMap config;
 
@@ -819,10 +802,9 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
             ASSERT_NO_THROW(output_tensor_shared.data());
-            ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
+            ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
         }
 
         if (is_caching_test) {
@@ -883,10 +865,9 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
             ASSERT_NO_THROW(output_tensor_shared.data());
-            ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
+            ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
         }
 
         if (is_caching_test) {
@@ -979,9 +960,8 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
-            ov::test::utils::compare(output_tensor_regular, out_tensor, thr);
+            ov::test::utils::compare(output_tensor_regular, out_tensor);
         }
 
         if (is_caching_test) {
@@ -1070,9 +1050,8 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
-            ov::test::utils::compare(output_tensor_regular, out_tensor, thr);
+            ov::test::utils::compare(output_tensor_regular, out_tensor);
         }
 
         if (is_caching_test) {
@@ -1162,9 +1141,8 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
-            ov::test::utils::compare(output_tensor_regular, out_tensor, thr);
+            ov::test::utils::compare(output_tensor_regular, out_tensor);
         }
 
         if (is_caching_test) {
@@ -1781,7 +1759,7 @@ public:
 
 protected:
     size_t num_batch;
-    std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
+    std::vector<std::shared_ptr<ov::Model>> fn_ptrs;
 };
 
 TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
