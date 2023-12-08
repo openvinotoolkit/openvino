@@ -2,8 +2,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# Properties
-from openvino._pyopenvino.properties.streams import num
-
 # Classes
 from openvino._pyopenvino.properties.streams import Num
+
+# Properties
+import openvino._pyopenvino.properties.streams as __streams
+from openvino.properties._properties import __make_properties
+__make_properties(__streams, __name__)

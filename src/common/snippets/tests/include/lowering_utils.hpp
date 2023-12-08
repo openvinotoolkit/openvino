@@ -6,6 +6,8 @@
 #include <common_test_utils/ov_test_utils.hpp>
 #include "snippets/op/subgraph.hpp"
 #include "snippets_helpers.hpp"
+#include "snippets/pass/manager.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace test {
@@ -23,11 +25,17 @@ public:
     void emit_data() const override {}
 };
 
+struct DummyCompiledSnippet : public ov::snippets::CompiledSnippet {
+    const uint8_t* get_code() const override { return nullptr; }
+    size_t get_code_size() const override { return 0; }
+    bool empty() const override { return true; }
+};
+
 class DummyTargetMachine : public ov::snippets::TargetMachine {
 public:
     DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset = {});
     bool is_supported() const override { return true; }
-    ov::snippets::code get_snippet() const override { return nullptr; }
+    ov::snippets::CompiledSnippetPtr get_snippet() override { return std::make_shared<DummyCompiledSnippet>(); }
     size_t get_lanes() const override { return 10; }
 };
 
@@ -35,6 +43,7 @@ class DummyGenerator : public ov::snippets::Generator {
 public:
     DummyGenerator() : ov::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
     DummyGenerator(const std::shared_ptr<ov::snippets::TargetMachine>& t) : ov::snippets::Generator(t) {}
+    std::shared_ptr<Generator> clone() const override { return std::make_shared<DummyGenerator>(target); }
 
 protected:
     opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
@@ -47,16 +56,19 @@ public:
     void SetUp() override;
     void TearDown() override;
 
-protected:
     static std::shared_ptr<ov::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
+    using IShapeInferSnippetsFactory = ov::snippets::IShapeInferSnippetsFactory;
     static std::shared_ptr<ov::snippets::op::Subgraph>
             getLoweredSubgraph(const std::shared_ptr<Model>& f,
                                const ov::PartialShape& master_shape,
                                const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes = {},
                                const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common = {},
                                const ov::snippets::lowered::pass::PassPipeline& lowered_post_common = {},
-                               const std::shared_ptr<ov::snippets::Generator>& generator = nullptr);
+                               const std::shared_ptr<ov::snippets::Generator>& generator = nullptr,
+                               const std::shared_ptr<IShapeInferSnippetsFactory>& factory = std::make_shared<IShapeInferSnippetsFactory>());
     static std::shared_ptr<ov::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
+
+protected:
     ov::PartialShape master_shape{};
 };
 

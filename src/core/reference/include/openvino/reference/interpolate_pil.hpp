@@ -40,9 +40,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
-#include "ngraph/op/interpolate.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

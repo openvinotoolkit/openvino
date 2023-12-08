@@ -35,6 +35,26 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, size_t rank) {
     }
     return kernel_selector::scatter_update_axis::X;
 }
+
+kernel_selector::ScatterUpdateReduction convert_reduction_mode(const ScatterElementsUpdateOp::Reduction mode) {
+    switch (mode) {
+        case ScatterElementsUpdateOp::Reduction::NONE:
+            return kernel_selector::ScatterUpdateReduction::NONE;
+        case ScatterElementsUpdateOp::Reduction::SUM:
+            return kernel_selector::ScatterUpdateReduction::SUM;
+        case ScatterElementsUpdateOp::Reduction::PROD:
+            return kernel_selector::ScatterUpdateReduction::PROD;
+        case ScatterElementsUpdateOp::Reduction::MIN:
+            return kernel_selector::ScatterUpdateReduction::MIN;
+        case ScatterElementsUpdateOp::Reduction::MAX:
+            return kernel_selector::ScatterUpdateReduction::MAX;
+        case ScatterElementsUpdateOp::Reduction::MEAN:
+            return kernel_selector::ScatterUpdateReduction::MEAN;
+        default:
+            OPENVINO_ASSERT(false, "[GPU] Invalid ScatterElementsUpdate::Reduction enum value");
+    }
+    return kernel_selector::ScatterUpdateReduction::NONE;
+}
 }  // namespace
 
 struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_update> {
@@ -55,6 +75,8 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
         auto optional_params = get_default_optional_params<kernel_selector::scatter_elements_update_optional_params>(impl_param.get_program());
 
         params.axis = convert_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
+        params.mode = convert_reduction_mode(primitive->mode);
+        params.use_init_val = primitive->use_init_val;
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));

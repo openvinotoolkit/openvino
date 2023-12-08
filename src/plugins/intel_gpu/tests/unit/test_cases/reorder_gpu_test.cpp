@@ -629,17 +629,17 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, 2, 2 } });
 
     set_values(input, {
-        half_t(1.f), half_t(0.f),
-        half_t(5.f), half_t(1.5f),
+        ov::float16(1.f), ov::float16(0.f),
+        ov::float16(5.f), ov::float16(1.5f),
 
-        half_t(2.f), half_t(0.f),
-        half_t(6.f), half_t(5.2f),
+        ov::float16(2.f), ov::float16(0.f),
+        ov::float16(6.f), ov::float16(5.2f),
 
-        half_t(3.f), half_t(0.5f),
-        half_t(7.f), half_t(12.f),
+        ov::float16(3.f), ov::float16(0.5f),
+        ov::float16(7.f), ov::float16(12.f),
 
-        half_t(4.f), half_t(-0.5f),
-        half_t(8.f), half_t(8.f)
+        ov::float16(4.f), ov::float16(-0.5f),
+        ov::float16(8.f), ov::float16(8.f)
     });
 
     set_values(subtract, {
@@ -723,17 +723,17 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     std::vector<float> subtract_val = { 0.5, 2.5 };
 
     set_values(input, {
-        half_t(1.f), half_t(0.f),
-        half_t(5.f), half_t(1.5f),
+        ov::float16(1.f), ov::float16(0.f),
+        ov::float16(5.f), ov::float16(1.5f),
 
-        half_t(2.f), half_t(0.f),
-        half_t(6.f), half_t(5.2f),
+        ov::float16(2.f), ov::float16(0.f),
+        ov::float16(6.f), ov::float16(5.2f),
 
-        half_t(3.f), half_t(0.5f),
-        half_t(7.f), half_t(12.f),
+        ov::float16(3.f), ov::float16(0.5f),
+        ov::float16(7.f), ov::float16(12.f),
 
-        half_t(4.f), half_t(-0.5f),
-        half_t(8.f), half_t(8.f)
+        ov::float16(4.f), ov::float16(-0.5f),
+        ov::float16(8.f), ov::float16(8.f)
     });
 
     topology topology;
@@ -749,20 +749,20 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
 
     auto output = outputs.begin()->second.get_memory();
 
-    half_t answers[16] = { half_t(0.5f), half_t(1.5f),
-                           half_t(2.5f), half_t(3.5f),
+    ov::float16 answers[16] = { ov::float16(0.5f), ov::float16(1.5f),
+                           ov::float16(2.5f), ov::float16(3.5f),
 
-                           half_t(2.5f), half_t(3.5f),
-                           half_t(4.5f), half_t(5.5f),
+                           ov::float16(2.5f), ov::float16(3.5f),
+                           ov::float16(4.5f), ov::float16(5.5f),
 
-                           half_t(-0.5f), half_t(-0.5f),
-                           half_t(0.f), half_t(-1.f),
+                           ov::float16(-0.5f), ov::float16(-0.5f),
+                           ov::float16(0.f), ov::float16(-1.f),
 
-                           half_t(-1.f), half_t(2.7f),
-                           half_t(9.5f), half_t(5.5f)
+                           ov::float16(-1.f), ov::float16(2.7f),
+                           ov::float16(9.5f), ov::float16(5.5f)
     };
 
-    cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
         ASSERT_TRUE(are_equal(static_cast<uint16_t>(answers[i]), static_cast<uint16_t>(output_ptr[i])));
@@ -788,19 +788,19 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
         return;
     }
 
-    std::vector<half_t> expected_values;
+    std::vector<ov::float16> expected_values;
     expected_values.resize(0xF804);
     for (int i = 0; i < 0x7C00; ++i)
-        expected_values[i] = half_t(i, 0);          // norms/denorms/zero (positive).
+        expected_values[i] = ov::float16::from_bits(i);          // norms/denorms/zero (positive).
     for (int i = 0x7C00; i < 0xF800; ++i)
-        expected_values[i] = half_t(i + 0x0400, 0); // norms/denorms (negative).
-    expected_values[0x7C00] = half_t(0x0000, 0);    // NOTE: do not do final test for negative 0 (-0).
+        expected_values[i] = ov::float16::from_bits(i + 0x0400); // norms/denorms (negative).
+    expected_values[0x7C00] = ov::float16::from_bits(0x0000);    // NOTE: do not do final test for negative 0 (-0).
     // Special values.
-    expected_values[0xF800] = half_t(0x7C00, 0);    // +infinity
-    expected_values[0xF801] = half_t(0xFC00, 0);    // -infinity
+    expected_values[0xF800] = ov::float16::from_bits(0x7C00);    // +infinity
+    expected_values[0xF801] = ov::float16::from_bits(0xFC00);    // -infinity
     // Special values (ambiguous ones).
-    expected_values[0xF802] = half_t(0x8000, 0);    // -0
-    expected_values[0xF803] = half_t(0xFC12, 0);    // A NaN (sample: -NaN.0x12).
+    expected_values[0xF802] = ov::float16::from_bits(0x8000);    // -0
+    expected_values[0xF803] = ov::float16::from_bits(0xFC12);    // A NaN (sample: -NaN.0x12).
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 } });
     layout interm_layout( data_types::f32, format::byxf, { 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 });
@@ -846,7 +846,7 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     ASSERT_TRUE(std::isnan(interm_ptr[0xF803]));
 
     auto output = outputs.at("reorder_f32_f16").get_memory();
-    cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
     for (int i = 0; i < 0xF802; ++i) // NOTE: do not test for possibly ambiguous values of floating point (-0, NaNs).
     {
         ASSERT_TRUE(are_equal(static_cast<uint16_t>(expected_values[i]), static_cast<uint16_t>(output_ptr[i])));
@@ -856,8 +856,8 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
 TEST(reorder_gpu, basic_convert_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1, 1, 3, 3 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1, 1, 3, 3 } };
+    layout in_layout = { ov::element::from<float>(),format::byxf,{ 1, 1, 3, 3 } };
+    layout byte_layout = { ov::element::from<int8_t>(), format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
 
@@ -900,8 +900,8 @@ TEST(reorder_gpu, basic_convert_int8) {
 
 TEST(reorder_gpu, basic_convert_uint8) {
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1, 1, 3, 3 } };
-    layout byte_layout = { type_to_data_type<uint8_t>::value, format::bfyx,{ 1, 1, 3, 3 } };
+    layout in_layout = { ov::element::from<float>(),format::byxf,{ 1, 1, 3, 3 } };
+    layout byte_layout = { ov::element::from<uint8_t>(), format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, 254.0f, 3.0f, 252.0f, 5.0f, 250.0f, 7.0f, 248.0f, 9.0f };
 
@@ -968,8 +968,8 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
         255, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, 240, 239, 238, 237, 236
     };
 
-    layout in_layout = { type_to_data_type<uint8_t>::value,format::byxf,{ 1, 4, kernel_size,kernel_size } };
-    layout output_layout = { type_to_data_type<float>::value, format::bfyx, { 1, 4, kernel_size,kernel_size } };
+    layout in_layout = { ov::element::from<uint8_t>(),format::byxf,{ 1, 4, kernel_size,kernel_size } };
+    layout output_layout = { ov::element::from<float>(), format::bfyx, { 1, 4, kernel_size,kernel_size } };
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -1306,22 +1306,22 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
                                              data_types::f16,
                                              format::bfyx,
                                              padding({0, 0, 2, 0}, {0, 0, 1, 0}, 0.0f, dyn_pad_dims)});
-    set_values<FLOAT16>(input_mem, {
-        FLOAT16(0.f), FLOAT16(0.f), // padding
-        FLOAT16(1.f), FLOAT16(2.f), // data
-        FLOAT16(0.f),               // padding
+    set_values<ov::float16>(input_mem, {
+        ov::float16(0.f), ov::float16(0.f), // padding
+        ov::float16(1.f), ov::float16(2.f), // data
+        ov::float16(0.f),               // padding
 
-        FLOAT16(0.f), FLOAT16(0.f), // padding
-        FLOAT16(3.f), FLOAT16(4.f), // data
-        FLOAT16(0.f),               // padding
+        ov::float16(0.f), ov::float16(0.f), // padding
+        ov::float16(3.f), ov::float16(4.f), // data
+        ov::float16(0.f),               // padding
 
-        FLOAT16(0.f), FLOAT16(0.f), // padding
-        FLOAT16(5.f), FLOAT16(6.f), // data
-        FLOAT16(0.f),               // padding
+        ov::float16(0.f), ov::float16(0.f), // padding
+        ov::float16(5.f), ov::float16(6.f), // data
+        ov::float16(0.f),               // padding
 
-        FLOAT16(0.f), FLOAT16(0.f), // padding
-        FLOAT16(7.f), FLOAT16(8.f), // data
-        FLOAT16(0.f),               // padding
+        ov::float16(0.f), ov::float16(0.f), // padding
+        ov::float16(7.f), ov::float16(8.f), // data
+        ov::float16(0.f),               // padding
     });
 
     network.set_input_data("input", input_mem);
@@ -1368,20 +1368,20 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
                                              data_types::f16,
                                              format::bfyx,
                                              padding({0, 2, 0, 0}, {0, 1, 0, 0}, 0.0f, dyn_pad_dims)});
-    set_values<FLOAT16>(input_mem, {
-        FLOAT16(0.f), FLOAT16(0.f), // f before
-        FLOAT16(0.f), FLOAT16(0.f), // f before
-        FLOAT16(1.f), FLOAT16(2.f), // b0 f0
-        FLOAT16(3.f), FLOAT16(4.f), // b0 f1
-        FLOAT16(5.f), FLOAT16(6.f), // b0 f2
-        FLOAT16(0.f), FLOAT16(0.f), // f after
+    set_values<ov::float16>(input_mem, {
+        ov::float16(0.f), ov::float16(0.f), // f before
+        ov::float16(0.f), ov::float16(0.f), // f before
+        ov::float16(1.f), ov::float16(2.f), // b0 f0
+        ov::float16(3.f), ov::float16(4.f), // b0 f1
+        ov::float16(5.f), ov::float16(6.f), // b0 f2
+        ov::float16(0.f), ov::float16(0.f), // f after
 
-        FLOAT16(0.f), FLOAT16(0.f),   // f before
-        FLOAT16(0.f), FLOAT16(0.f),   // f before
-        FLOAT16(11.f), FLOAT16(22.f), // b1 f0
-        FLOAT16(33.f), FLOAT16(44.f), // b1 f1
-        FLOAT16(55.f), FLOAT16(66.f), // b1 f2
-        FLOAT16(0.f), FLOAT16(0.f),   // f after
+        ov::float16(0.f), ov::float16(0.f),   // f before
+        ov::float16(0.f), ov::float16(0.f),   // f before
+        ov::float16(11.f), ov::float16(22.f), // b1 f0
+        ov::float16(33.f), ov::float16(44.f), // b1 f1
+        ov::float16(55.f), ov::float16(66.f), // b1 f2
+        ov::float16(0.f), ov::float16(0.f),   // f after
     });
 
     network.set_input_data("input", input_mem);
@@ -1407,18 +1407,18 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
     layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f16, format::bfyx});
 
-    set_values<FLOAT16>(input, {
-        FLOAT16(1.f), FLOAT16(0.f),
-        FLOAT16(5.f), FLOAT16(1.5f),
+    set_values<ov::float16>(input, {
+        ov::float16(1.f), ov::float16(0.f),
+        ov::float16(5.f), ov::float16(1.5f),
 
-        FLOAT16(2.f), FLOAT16(0.f),
-        FLOAT16(6.f), FLOAT16(5.2f),
+        ov::float16(2.f), ov::float16(0.f),
+        ov::float16(6.f), ov::float16(5.2f),
 
-        FLOAT16(3.f), FLOAT16(0.5f),
-        FLOAT16(7.f), FLOAT16(12.f),
+        ov::float16(3.f), ov::float16(0.5f),
+        ov::float16(7.f), ov::float16(12.f),
 
-        FLOAT16(4.f), FLOAT16(-0.5f),
-        FLOAT16(8.f), FLOAT16(8.f)
+        ov::float16(4.f), ov::float16(-0.5f),
+        ov::float16(8.f), ov::float16(8.f)
     });
 
     topology topology(
@@ -2067,101 +2067,6 @@ TEST(reorder_gpu_i64, basic)
         ASSERT_EQ(*(a_ptr++), val);
 }
 
-TEST(reorder_gpu_binary, binary_output)
-{
-    auto& engine = get_test_engine();
-
-    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::bin, format::b_fs_yx_32fp, { 2, 2, 2, 2 });
-
-    // Data is supposed to be quantized to {0,1} values
-    set_values(input, {
-        1.f, 0.f, 1.f, 1.f,
-        0.f, 1.f, 1.f, 0.f,
-
-        1.f, 1.f, 0.f, 1.f,
-        0.f, 0.f, 0.f, 1.f
-    });
-
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), output_layout));
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<uint32_t> output_ptr(output, get_test_stream());
-
-    std::vector<uint32_t > answers = { 1, 2, 3, 1,
-                                       1, 1, 0, 3 };
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), input->get_layout().count());
-    ASSERT_EQ(output->get_layout().count(), input->get_layout().count());
-
-    // Check that memory physical size consider binary pack
-    ASSERT_EQ(output->size(), answers.size() * sizeof(uint32_t));
-
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_EQ(answers[i], output_ptr[i]) << "index: " << i;
-    }
-}
-
-TEST(reorder_gpu_binary, binary_input)
-{
-    auto& engine = get_test_engine();
-
-    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
-
-    // Data is supposed to be quantized to {0,1} values
-    std::vector<float> answers = {
-            1.f, -1.f, 1.f, 1.f,
-            -1.f, 1.f, 1.f, -1.f,
-
-            1.f, 1.f, -1.f, 1.f,
-            -1.f, -1.f, -1.f, 1.f
-    };
-
-    set_values<int32_t>(input, { 1, 2, 3, 1,
-                                 1, 1, 0, 3 });
-
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), output_layout));
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), input->get_layout().count());
-    ASSERT_EQ(output->get_layout().count(), input->get_layout().count());
-
-    ASSERT_EQ(output->size(), answers.size() * sizeof(float));
-
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_EQ(answers[i], output_ptr[i]) << "index: " << i;
-    }
-}
-
 TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
 {
     // Topology:
@@ -2606,10 +2511,10 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
         50.0f, 253.0f,
     };
 
-    cldnn::mem_lock<FLOAT16> output_ptr (output, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr (output, get_test_stream());
     for (int i = 0; i < 12; i++)
     {
-        ASSERT_NEAR(FLOAT16(answers[i] / 255.f), output_ptr[i], 1e-3f);
+        ASSERT_NEAR(ov::float16(answers[i] / 255.f), output_ptr[i], 1e-3f);
     }
 
 }
@@ -2621,15 +2526,15 @@ TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 2, 2 } });
     layout output_layout(data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 });
 
-    set_values<FLOAT16>(input, {
-        FLOAT16(1.0f / 255.f),  FLOAT16(2.0f / 255.f),
-        FLOAT16(124.0f / 255.f),  FLOAT16(251.0f / 255.f),
+    set_values<ov::float16>(input, {
+        ov::float16(1.0f / 255.f),  ov::float16(2.0f / 255.f),
+        ov::float16(124.0f / 255.f),  ov::float16(251.0f / 255.f),
 
-        FLOAT16(0.0f / 255.f),  FLOAT16(111.0f / 255.f),
-        FLOAT16(125.0f / 255.f),  FLOAT16(252.0f / 255.f),
+        ov::float16(0.0f / 255.f),  ov::float16(111.0f / 255.f),
+        ov::float16(125.0f / 255.f),  ov::float16(252.0f / 255.f),
 
-        FLOAT16(5.0f / 255.f),  FLOAT16(123.0f / 255.f),
-        FLOAT16(50.0f / 255.f), FLOAT16(253.0f / 255.f),
+        ov::float16(5.0f / 255.f),  ov::float16(123.0f / 255.f),
+        ov::float16(50.0f / 255.f), ov::float16(253.0f / 255.f),
         });
 
     topology topology(
@@ -2751,18 +2656,18 @@ public:
             }
             else
             {
-                return generate_reference_typed<float, FLOAT16>(inputs);
+                return generate_reference_typed<float, ov::float16>(inputs);
             }
         }
         else
         {
             if (*layer_params->output_data_types[0] == data_types::f32)
             {
-                return generate_reference_typed<FLOAT16, float>(inputs);
+                return generate_reference_typed<ov::float16, float>(inputs);
             }
             else
             {
-                return generate_reference_typed<FLOAT16, FLOAT16>(inputs);
+                return generate_reference_typed<ov::float16, ov::float16>(inputs);
             }
         }
     }
@@ -2859,10 +2764,7 @@ public:
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
-        if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
+        if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
@@ -3148,8 +3050,8 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 3, 3 } };
+    layout byte_layout = { ov::element::from<int8_t>(), format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.6f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -3.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
 

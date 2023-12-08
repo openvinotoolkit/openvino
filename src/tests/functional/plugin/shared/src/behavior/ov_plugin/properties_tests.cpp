@@ -367,6 +367,10 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
 
     auto device_ids = core->get_available_devices();
     for (auto&& device_name_with_id : device_ids) {
+        if (device_name_with_id.find(target_device) == std::string::npos) {
+            continue;
+        }
+
         std::string device_name = device_name_with_id;
         std::string device_id = "";
         auto pos = device_name_with_id.find('.');
@@ -413,8 +417,12 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
             core->compile_model(model, target_device, compileModelProperties);
         } catch (const Exception& ex) {
             std::string err_msg(ex.what());
-            ASSERT_TRUE(err_msg.find("Unsupported precision") != std::string::npos) <<
-                        "Fail to set and compile_model with precision: " << type << std::endl;
+            ASSERT_TRUE(err_msg.find("Wrong value") != std::string::npos ||
+                        err_msg.find("Unsupported precision") != std::string::npos) <<
+                        "Error message is unclear. The err msg:" << err_msg << std::endl;
+            ASSERT_TRUE(err_msg.find("Supported values") != std::string::npos) <<
+                        "The error message doesn't provide info about supported precicions." <<
+                        "The err msg: " << err_msg << std::endl;
             continue;
         }
 

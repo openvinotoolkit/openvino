@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/depth_to_space.hpp"
 
 namespace LayerTestsDefinitions {
@@ -46,8 +46,7 @@ void DepthToSpaceLayerTest::SetUp() {
     std::tie(inShape, inputPrecision, mode, blockSize, targetDevice) = this->GetParam();
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto d2s = ngraph::builder::makeDepthToSpace(paramOuts[0], mode, blockSize);
+    auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
     function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
 }

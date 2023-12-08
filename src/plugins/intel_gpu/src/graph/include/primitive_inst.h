@@ -63,15 +63,36 @@ struct primitive_impl {
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
+    virtual bool is_onednn() const { return false; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
-    virtual void init_by_cached_kernels(const kernels_cache&) {}
-    virtual void set_cached_kernel_ids(const kernels_cache&) {}
+    virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
+    virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
-    virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
-    virtual void load(cldnn::BinaryInputBuffer& ib) {}
+    virtual void save(cldnn::BinaryOutputBuffer& ob) const {
+        ob << can_reuse_memory;
+        ob << _kernel_name;
+        ob << _is_dynamic;
+        if (_weights_reorder_params == nullptr) {
+            ob << false;
+        } else {
+            ob << true;
+            _weights_reorder_params->save(ob);
+        }
+    }
+    virtual void load(cldnn::BinaryInputBuffer& ib) {
+        ib >> can_reuse_memory;
+        ib >> _kernel_name;
+        ib >> _is_dynamic;
+        bool has_weights_reorder_params;
+        ib >> has_weights_reorder_params;
+        if (has_weights_reorder_params) {
+            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            _weights_reorder_params->load(ib);
+        }
+    }
     // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
     virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
         return std::make_pair("", "");
@@ -168,6 +189,7 @@ public:
         }
         return _network.get_primitives(users);
     }
+    std::set<primitive_id> get_runtime_memory_dependencies() { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -192,10 +214,6 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
-    }
-
-    void init_by_cached_kernels(const kernels_cache& kernels_cache) {
-        _impl->init_by_cached_kernels(kernels_cache);
     }
 
     void set_arguments();
@@ -235,13 +253,22 @@ public:
     bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
-            bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
+
+    static memory::ptr allocate_output(engine& engine,
+                                       memory_pool& pool,
+                                       const program_node& _node,
+                                       const kernel_impl_params& impl_params,
+                                       const std::set<primitive_id>& memory_dependencies,
+                                       uint32_t net_id,
+                                       bool is_internal,
+                                       size_t idx = 0,
+                                       bool reset_mem = true,
+                                       bool is_output_buffer = false,
+                                       memory* curr_memory = nullptr,
+                                       bool runtime_alloc = false);
 
     std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
-    virtual void save(cldnn::BinaryOutputBuffer& ob) const;
-    virtual void load(cldnn::BinaryInputBuffer& ib);
     void rebuild_deps(
         std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     void rebuild_exec_deps(
@@ -298,6 +325,9 @@ protected:
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
     std::vector<cldnn::primitive_id> _exec_dep_ids;
+
+    // List of primitive ids that this primitive can't share memory buffers with
+    std::set<primitive_id> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,

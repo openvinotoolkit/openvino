@@ -37,7 +37,7 @@ std::string DiscreteTypeInfo::get_version() const {
     if (version_id) {
         return std::string(version_id);
     }
-    return nullptr;
+    return {};
 }
 
 DiscreteTypeInfo::operator std::string() const {

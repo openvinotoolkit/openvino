@@ -22,7 +22,7 @@
 #include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
-#include "low_precision/multiply.hpp"
+#include "low_precision/multiply_partial.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/normalize_l2.hpp"
@@ -41,7 +41,7 @@
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -361,7 +361,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationMultiplyTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input1, input2});
     pass::Manager m;
-    m.register_pass<ov::pass::low_precision::MultiplyTransformation>();
+    m.register_pass<ov::pass::low_precision::MultiplyPartialTransformation>();
     m.run_passes(f);
 
     auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));

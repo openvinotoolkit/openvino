@@ -5,7 +5,6 @@
 #include "shared_test_classes/single_layer/bucketize.hpp"
 
 namespace LayerTestsDefinitions {
-
     std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;

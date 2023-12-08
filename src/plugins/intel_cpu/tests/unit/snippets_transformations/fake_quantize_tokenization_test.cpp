@@ -8,10 +8,11 @@
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
-#include "fake_quantize_function.hpp"
+#include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "function_helper.hpp"
+
 namespace ov {
 namespace test {
 namespace snippets {

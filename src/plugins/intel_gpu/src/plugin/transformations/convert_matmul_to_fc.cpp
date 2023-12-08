@@ -160,7 +160,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_m);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_m, "ConvertMatMulToFullyConnected");
     this->register_matcher(m, callback);
 }
 

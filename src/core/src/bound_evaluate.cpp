@@ -10,7 +10,6 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "tensor_conversion_util.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 
@@ -70,6 +69,10 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     return are_eq;
 }
 
+bool is_type_allocable(const element::Type& type) {
+    return type != element::undefined && type.is_static();
+}
+
 ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     if (is_upper && output.get_tensor().get_upper_value()) {
         return output.get_tensor().get_upper_value();
@@ -84,9 +87,11 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                outputs.push_back(util::wrap_tensor(out));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                if (is_type_allocable(out.get_element_type())) {
+                    outputs.emplace_back(out);
+                } else {
+                    outputs.emplace_back();
+                }
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -312,10 +317,13 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
         for (const auto& node : order) {
             ov::TensorVector outputs_lower, outputs_upper;
             for (const auto& out : node->outputs()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                outputs_lower.push_back(util::wrap_tensor(out));
-                outputs_upper.push_back(util::wrap_tensor(out));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                if (is_type_allocable(out.get_element_type())) {
+                    outputs_lower.emplace_back(out);
+                    outputs_upper.emplace_back(out);
+                } else {
+                    outputs_lower.emplace_back();
+                    outputs_upper.emplace_back();
+                }
             }
             if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
                 break;
@@ -391,7 +399,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{1});
+    const auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
@@ -479,13 +487,13 @@ bool ov::interval_bound_evaluator(const Node* node,
     return fully_defined;
 }
 
-bool ov::tensor_is_positive(const Tensor& bound) {
+bool ov::tensor_is_non_negative(const Tensor& bound) {
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
     const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
     OutputVector greater(1);
 
-    bool folded = std::make_shared<op::v1::Greater>(bound_constant, zero_constant)
+    bool folded = std::make_shared<op::v1::GreaterEqual>(bound_constant, zero_constant)
                       ->constant_fold(greater, {bound_constant, zero_constant});
     OPENVINO_ASSERT(folded);
 
@@ -500,6 +508,50 @@ bool ov::tensor_is_positive(const Tensor& bound) {
     return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
+bool ov::tensor_has_max_value(const Tensor& bound) {
+    const auto bound_constant =
+        std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto max_constant = ngraph::get_constant_max_of_type(bound.get_element_type());
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    OutputVector equal(1);
+
+    bool folded = std::make_shared<op::v1::Equal>(bound_constant, max_constant)
+                      ->constant_fold(equal, {bound_constant, max_constant});
+    OPENVINO_ASSERT(folded);
+
+    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    std::iota(axes_vector.begin(), axes_vector.end(), 0);
+    const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
+
+    OutputVector all(1);
+    folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
+    OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
+    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+}
+
+bool ov::tensor_has_zero_value(const Tensor& bound) {
+    const auto bound_constant =
+        std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
+    const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
+    OutputVector equal(1);
+
+    bool folded = std::make_shared<op::v1::Equal>(bound_constant, zero_constant)
+                      ->constant_fold(equal, {bound_constant, zero_constant});
+    OPENVINO_ASSERT(folded);
+
+    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    std::iota(axes_vector.begin(), axes_vector.end(), 0);
+    const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
+
+    OutputVector all(1);
+    folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
+    OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
+    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+}
+
 bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
     if (op::util::is_constant(source.get_node_shared_ptr()))
         return true;
@@ -509,7 +561,7 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
 }
 
 bool ov::have_node_inputs_bounds_set(const Node* const node, const size_t first_idx, const size_t last_idx) {
-    bool have_bound_set = last_idx <= node->get_input_size();
+    bool have_bound_set = last_idx < node->get_input_size();
     for (size_t i = first_idx; have_bound_set && (i <= last_idx); ++i) {
         have_bound_set = node->get_input_tensor(i).has_and_set_bound();
     }
@@ -558,9 +610,7 @@ bool ov::default_label_evaluator(const Node* node,
         for (size_t i = 0; i < outputs_count; ++i) {
             const auto& partial_shape = node->get_output_partial_shape(i);
             // Set shape for static or special dynamic if partial shape is dynamic.
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : util::make_dynamic_shape();
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto& shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
             outputs.emplace_back(element::from<label_t>(), shape);
         }
 

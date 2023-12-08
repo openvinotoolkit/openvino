@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -117,8 +117,6 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
-
         std::shared_ptr<ov::op::v3::Broadcast> broadcastOp;
         if (mode == ov::op::BroadcastType::EXPLICIT) {
             std::shared_ptr<ov::Node> targetShapeOp;
@@ -133,19 +131,19 @@ protected:
             } else {
                 axesMappingOp = functionParams.size() > 2 ? functionParams[2] : functionParams[1];
             }
-            broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
+            broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
                                                                targetShapeOp,
                                                                axesMappingOp,
                                                                mode);
         } else if (mode == ov::op::BroadcastType::NUMPY) {
             if (isTargetShapeConst) {
                 auto targetShapeConst = ov::op::v0::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
-                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
+                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
                                                                       targetShapeConst,
                                                                       mode);
             } else {
-                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
-                                                                      paramOuts[1],
+                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
+                                                                      functionParams[1],
                                                                       mode);
             }
         }

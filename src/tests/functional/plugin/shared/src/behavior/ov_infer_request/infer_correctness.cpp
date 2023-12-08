@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <thread>

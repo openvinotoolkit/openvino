@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include "low_precision/layer_transformation.hpp"
+#include "low_precision/cleanup_transformation.hpp"
 #include "common/precisions_restriction.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ namespace low_precision {
  * [MultiplyToGroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation) page
  * in the Inference Engine Developer Guide.
  */
-class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public CleanupTransformation {
 public:
     OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
     MultiplyToGroupConvolutionTransformation(

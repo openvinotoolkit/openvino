@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.middle.L2NormFusing import L2NormToNorm
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -67,9 +66,9 @@ edges_after_replacement = [
 ]
 
 
-@generator
-class L2NormToNormTest(unittest.TestCase):
-    @generate(*[(int64_array([2, 3]), int64_array([1]), 'NCHW'),  # NC layout, normalize C dimension
+class TestL2NormToNormTest():
+    @pytest.mark.parametrize("input_shape, axes, layout",
+                             [(int64_array([2, 3]), int64_array([1]), 'NCHW'),  # NC layout, normalize C dimension
                 (int64_array([2, 3]), int64_array([1]), 'NHWC'),  # NC layout, normalize C dimension
                 (int64_array([2, 3, 5]), int64_array([1]), 'NCHW'),  # NCH layout, normalize C dimension
                 (int64_array([2, 3, 5]), int64_array([1]), 'NHWC'),  # NCH layout, normalize C dimension
@@ -102,10 +101,11 @@ class L2NormToNormTest(unittest.TestCase):
         ], edges_after_replacement, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
+        assert (graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
+        assert flag, resp
 
-    @generate(*[(int64_array([2]), int64_array([0]), 'NCHW'),
+    @pytest.mark.parametrize("input_shape, axes, layout",
+                             [(int64_array([2]), int64_array([0]), 'NCHW'),
                 (int64_array([2, 3]), int64_array([0]), 'NCHW'),
                 (int64_array([2, 3]), int64_array([0]), 'NHWC'),
                 (int64_array([2, 3]), int64_array([0, 1]), 'NCHW'),
@@ -161,4 +161,4 @@ class L2NormToNormTest(unittest.TestCase):
         ], edges, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

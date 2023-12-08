@@ -33,12 +33,13 @@ void ConcatLayerTest::SetUp() {
     std::tie(axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params;
+    ov::OutputVector paramsOuts;
     for (auto&& shape : inputShape) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+        auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape));
+        params.push_back(param);
+        paramsOuts.push_back(param);
     }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
+    auto concat = std::make_shared<ngraph::opset1::Concat>(paramsOuts, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "concat");
 }

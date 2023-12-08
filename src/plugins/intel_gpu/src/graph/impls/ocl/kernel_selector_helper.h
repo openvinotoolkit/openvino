@@ -82,18 +82,21 @@ using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
 
 }  // namespace kernel_selector
-
+namespace ov {
+namespace element {
+enum class Type_t;
+}  // namespaec element
+}  // namespaec ov
 namespace cldnn {
-enum class data_types : size_t;
 struct format;
 struct layout;
 struct program;
 struct fused_primitive_desc;
 
-kernel_selector::data_type to_data_type(data_types dt);
-data_types from_data_type(kernel_selector::data_type dt);
-kernel_selector::weights_type to_weights_type(data_types dt);
-data_types from_weights_type(kernel_selector::weights_type dt);
+kernel_selector::data_type to_data_type(ov::element::Type_t dt);
+ov::element::Type_t from_data_type(kernel_selector::data_type dt);
+kernel_selector::weights_type to_weights_type(ov::element::Type_t dt);
+ov::element::Type_t from_weights_type(kernel_selector::weights_type dt);
 kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
@@ -233,17 +236,24 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape,
     return extended_pshape;
 }
 
-inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer) {
+inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
+                          bool first_to_second_only = false) {
     if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
         return false;
     }
-    if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
-        return false;
+    if (first_to_second_only) {
+        if (first_pshape.size() > second_pshape.size()) {
+            return false;
+        }
+    } else {
+        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+            return false;
+        }
     }
     size_t min_size = std::min(first_pshape.size(), second_pshape.size());
 
     for (size_t i = 0; i < min_size; ++i) {
-        if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) || first_pshape[i] == second_pshape[i])) {
             return false;
         }
     }

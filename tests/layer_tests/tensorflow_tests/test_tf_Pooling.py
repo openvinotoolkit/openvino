@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -145,6 +147,8 @@ class TestPooling(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                      use_old_api):
         self._test(*self.create_pooling_net(**params, ir_version=ir_version,
@@ -227,6 +231,8 @@ class TestPooling(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                      use_old_api):
         if ie_device == 'GPU':

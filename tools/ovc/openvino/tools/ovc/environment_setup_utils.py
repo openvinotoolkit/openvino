@@ -18,7 +18,7 @@ def get_imported_module_version(imported_module):
     for attr in version_attrs:
         installed_version = getattr(imported_module, attr, None)
         if isinstance(installed_version, str):
-           return installed_version
+            return installed_version
         else:
             installed_version = None
 

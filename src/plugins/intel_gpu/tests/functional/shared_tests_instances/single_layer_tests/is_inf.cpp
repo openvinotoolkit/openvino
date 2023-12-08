@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/is_inf.hpp"
-
-#include <array>
-#include <vector>
-
-using namespace ov::test;
-using namespace ov::test::subgraph;
+#include "single_op_tests/is_inf.hpp"
 
 namespace {
+using ov::test::IsInfLayerTest;
 
-const std::vector<std::vector<InputShape>> inShapesStatic = {
+const std::vector<std::vector<ov::test::InputShape>> inShapesStatic = {
     {{{}, {{2}}}},
     {{{}, {{10, 200}}}},
     {{{}, {{4, 4, 16}}}},
@@ -21,7 +16,7 @@ const std::vector<std::vector<InputShape>> inShapesStatic = {
     {{{}, {{16, 16, 16, 16, 16, 16}}}},
 };
 
-constexpr std::array<ElementType, 2> netPrecisions = {ov::element::f32, ov::element::f16};
+constexpr std::array<ov::element::Type, 2> netPrecisions = {ov::element::f32, ov::element::f16};
 
 constexpr std::array<bool, 2> detectNegative = {true, false};
 

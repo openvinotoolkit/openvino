@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -138,12 +138,6 @@ protected:
 
         ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(random_uniform)};
         function = std::make_shared<ov::Model>(results, params, "random_uniform_test");
-    }
-
-    precisions_map get_ref_precisions_convert_map() override {
-        // Do not convert reference function from FP16 to FP32 precision, since in case of RandomUniform operation
-        // data type is matter
-        return {};
     }
 
 private:

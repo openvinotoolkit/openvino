@@ -41,6 +41,9 @@ struct Configuration {
     // unused
     ov::element::Type inference_precision = ov::element::undefined;
     ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::ACCURACY;
+    ov::log::Level log_level = ov::log::Level::NO;
+
+    ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 };
 // ! [configuration:header]
 

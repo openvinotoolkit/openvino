@@ -8,8 +8,7 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {
@@ -23,7 +22,7 @@ inline size_t window_end(size_t idx, size_t arg_shape, size_t out_shape) {
 }
 template <typename T>
 T avg_div(const T sum, size_t n) {
-    NGRAPH_CHECK(n != 0, "AdaptiveAvgPool elements == 0, must be non-zero");
+    OPENVINO_ASSERT(n != 0, "AdaptiveAvgPool elements == 0, must be non-zero");
 
     if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
         return static_cast<T>(std::nearbyint(static_cast<float>(sum) / n));
@@ -90,8 +89,8 @@ void adaptive_avg_pool_3d(const T* arg,
 }  // namespace adaptive_pool
 template <typename T>
 void adaptive_avg_pool(const T* arg, T* out, const Shape& arg_shape, const Shape& out_shape) {
-    NGRAPH_CHECK(arg_shape.size() == out_shape.size() && 2 < arg_shape.size() && arg_shape.size() < 6,
-                 "AdaptiveAvgPool supports only 3D, 4D and 5D input shape");
+    OPENVINO_ASSERT(arg_shape.size() == out_shape.size() && 2 < arg_shape.size() && arg_shape.size() < 6,
+                    "AdaptiveAvgPool supports only 3D, 4D and 5D input shape");
     size_t channel_size = 1;
     for (size_t i = 2; i < arg_shape.size(); i++) {
         channel_size *= arg_shape[i];

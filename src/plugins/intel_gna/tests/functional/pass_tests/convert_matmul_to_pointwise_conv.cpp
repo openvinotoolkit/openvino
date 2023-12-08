@@ -13,9 +13,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -80,7 +80,7 @@ protected:
         size_t elemNum = inputShape[inputShape.size() - 1];
         std::vector<float> weights = ov::test::utils::generate_float_numbers(elemNum * elemNum, -0.1f, 0.1f);
         auto weightsNode = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
-        auto matmul = ngraph::builder::makeMatMul(params[0], weightsNode, false, true);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weightsNode, false, true);
 
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, batch, 1}, std::vector<float>{1.0f});
         auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
@@ -168,7 +168,7 @@ protected:
                                                                             weightsLowNode,
                                                                             weightsHighNode,
                                                                             UINT16_MAX);
-        auto matmul = ngraph::builder::makeMatMul(inputFQ, weightsFQNode, false, true);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(inputFQ, weightsFQNode, false, true);
 
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 1, 1}, std::vector<float>{1.0f});
         auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);

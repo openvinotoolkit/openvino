@@ -32,7 +32,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         auto type_info = op->get_type_info();
         std::set<ov::element::TypeVector> supported_precisions;
         // TODO: At the moment Softmax is decomposed on Linear IR level.
-        //       When Softmax will be decomposed on NGraph level, remove it
+        //       When Softmax will be decomposed on openvino level, remove it
         if (type_info.is_castable(ov::op::v1::Softmax::get_type_info_static())) {
             supported_precisions = {{ov::element::f32}};
         } else {

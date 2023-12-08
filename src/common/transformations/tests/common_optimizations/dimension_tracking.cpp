@@ -11,11 +11,11 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"

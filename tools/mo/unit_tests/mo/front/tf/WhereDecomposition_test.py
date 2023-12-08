@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-
-from generator import generator, generate
 
 from openvino.tools.mo.front.tf.WhereDecomposition import WhereDecomposition
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -64,9 +62,8 @@ ref_graph_edges = [
 ]
 
 
-@generator
-class TFWhereDecompositionTest(unittest.TestCase):
-    @generate(*[[1, 100, 120, 150], [16, 125, 14]])
+class TestTFWhereDecompositionTest():
+    @pytest.mark.parametrize("input_shape",[[1, 100, 120, 150], [16, 125, 14]])
     def test_1(self, input_shape):
         in_shape = int64_array(input_shape)
         graph = build_graph(graph_node_attrs,
@@ -81,4 +78,4 @@ class TFWhereDecompositionTest(unittest.TestCase):
                                     'placeholder_data': {'shape': in_shape}
                                 })
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        self.assertTrue(flag, resp)
+        assert flag,resp

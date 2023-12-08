@@ -6,6 +6,7 @@
 
 #include <gmock/gmock.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -68,15 +69,10 @@ TEST(type_prop, concat_deduce_axis_oob) {
     auto param0 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 4});
     auto param1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 7, 4});
     auto param2 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 5});
-    try {
-        auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 3);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Deduced type should disagree with specified type";
-    } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (3) is out of bounds"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(ignore = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 3),
+                    ov::AssertFailure,
+                    HasSubstr("Concat Parameter axis 3 out of the tensor rank range"));
 }
 
 TEST(type_prop, concat_deduce_axis_barely_in_bounds) {
@@ -259,15 +255,9 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
     auto param1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 7, 4});
     auto param2 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 4});
 
-    try {
-        auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -4);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect negative axis value not detected (out of bounds)";
-    } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (-1) is out of bounds"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(ignore = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -4),
+                    ov::AssertFailure,
+                    HasSubstr("Concat Parameter axis -4 out of the tensor rank range"));
 }
 
 /** \brief Test uses evaluate lower/upper and label of concat op. */

@@ -176,7 +176,7 @@ macro(_ov_find_tbb)
 
             set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
             if(NOT enable_system_tbb)
-                set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+                set_and_check(_tbb_dir "@PACKAGE_OV_TBB_DIR@")
 
                 # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
                 if(DEFINED ENV{TBBROOT})
@@ -218,7 +218,7 @@ macro(_ov_find_tbb)
 
         set(install_tbbbind "@install_tbbbind@")
         if(install_tbbbind)
-            set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
+            set_and_check(_tbb_bind_dir "@PACKAGE_OV_TBBBIND_DIR@")
             _ov_find_dependency(TBBBIND_2_5
                                 PATHS ${_tbb_bind_dir}
                                 NO_CMAKE_FIND_ROOT_PATH

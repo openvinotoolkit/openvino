@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {

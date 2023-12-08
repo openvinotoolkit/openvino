@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/deformable_psroi_pooling.hpp"
+
 #include <gtest/gtest.h>
 
 #include <random>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/psroi_pooling.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -186,7 +187,7 @@ private:
         const auto rois = std::make_shared<op::v0::Parameter>(params.roisType, params.roisShape);
         if (params.offsetsShape.size() != 0) {
             const auto offsets = std::make_shared<op::v0::Parameter>(params.offsetsType, params.offsetsShape);
-            const auto DeformablePSROIPooling = std::make_shared<opset1::DeformablePSROIPooling>(input,
+            const auto DeformablePSROIPooling = std::make_shared<op::v1::DeformablePSROIPooling>(input,
                                                                                                  rois,
                                                                                                  offsets,
                                                                                                  params.outputDim,
@@ -200,7 +201,7 @@ private:
             return std::make_shared<ov::Model>(NodeVector{DeformablePSROIPooling},
                                                ParameterVector{input, rois, offsets});
         } else {
-            const auto DeformablePSROIPooling = std::make_shared<opset1::DeformablePSROIPooling>(input,
+            const auto DeformablePSROIPooling = std::make_shared<op::v1::DeformablePSROIPooling>(input,
                                                                                                  rois,
                                                                                                  params.outputDim,
                                                                                                  params.spatialScale,

@@ -8,8 +8,10 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_tensor', (np.random.randn(2, 1, 3), np.random.randn(3, 7),
-                                          np.random.randn(1, 1, 4, 4)))
+@pytest.mark.parametrize('input_tensor',
+[
+    [2, 1, 3], [3, 7], [1, 1, 4, 4]
+])
 class TestLen(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -40,15 +42,15 @@ class TestLen(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_len(self, ie_device, precision, ir_version, input_tensor):
-        self.input_tensor = input_tensor
+        self.input_tensor = np.random.randn(*input_tensor).astype(np.float32)
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_len_int_list(self, ie_device, precision, ir_version, input_tensor):
-        self.input_tensor = input_tensor
+        self.input_tensor = np.random.randn(*input_tensor).astype(np.float32)
         self._test(*self.create_model_int_list(),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestLenEmpty(PytorchLayerTest):

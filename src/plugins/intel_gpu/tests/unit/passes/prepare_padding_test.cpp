@@ -21,7 +21,7 @@ TEST(prepare_padding, groupconv_with_output) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto in_layout = layout{{1, 18, 76, 135}, data_types::f16, format::bfyx};
-    auto weights_data = rg.generate_random_5d<FLOAT16>(1, 18, 1, 3, 3, -1, 1);
+    auto weights_data = rg.generate_random_5d<ov::float16>(1, 18, 1, 3, 3, -1, 1);
     auto weights_mem = engine.allocate_memory({ {18, 1, 1, 3, 3}, data_types::f16, format::bfzyx});
     set_values(weights_mem, weights_data);
 

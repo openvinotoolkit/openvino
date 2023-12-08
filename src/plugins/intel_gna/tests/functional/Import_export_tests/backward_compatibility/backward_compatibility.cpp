@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "helpers/test_model_repo.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset10;

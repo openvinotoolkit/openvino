@@ -6,9 +6,11 @@
 
 #include <algorithm>
 
-#include "ngraph/op/roi_align.hpp"  // for ROIAlign:PoolingMode
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/roi_align.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
+
 namespace ov {
 namespace reference {
 using ROIPoolingMode = op::v3::ROIAlign::PoolingMode;
@@ -32,11 +34,6 @@ void roi_align(const T* feature_maps,
     auto feature_map_height = feature_maps_shape[2];
     auto feature_map_width = feature_maps_shape[3];
     auto num_rois = rois_shape[0];
-
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform feature_maps_transform(feature_maps_shape);
-    CoordinateTransform rois_transform(rois_shape);
-    CoordinateTransform out_transform(out_shape);
 
     bool aligned = false;
     T offset_src = static_cast<T>(0);
@@ -64,10 +61,10 @@ void roi_align(const T* feature_maps,
 
     for (unsigned int roi_index = 0; roi_index < num_rois; roi_index++) {
         // Get ROI`s corners
-        T x1 = (rois[rois_transform.index({roi_index, 0})] + offset_src) * spatial_scale + offset_dst;
-        T y1 = (rois[rois_transform.index({roi_index, 1})] + offset_src) * spatial_scale + offset_dst;
-        T x2 = (rois[rois_transform.index({roi_index, 2})] + offset_src) * spatial_scale + offset_dst;
-        T y2 = (rois[rois_transform.index({roi_index, 3})] + offset_src) * spatial_scale + offset_dst;
+        T x1 = (rois[coordinate_index({roi_index, 0}, rois_shape)] + offset_src) * spatial_scale + offset_dst;
+        T y1 = (rois[coordinate_index({roi_index, 1}, rois_shape)] + offset_src) * spatial_scale + offset_dst;
+        T x2 = (rois[coordinate_index({roi_index, 2}, rois_shape)] + offset_src) * spatial_scale + offset_dst;
+        T y2 = (rois[coordinate_index({roi_index, 3}, rois_shape)] + offset_src) * spatial_scale + offset_dst;
 
         T roi_width = x2 - x1;
         T roi_height = y2 - y1;
@@ -83,7 +80,7 @@ void roi_align(const T* feature_maps,
         auto sampling_ratio_x = sampling_ratio == 0 ? static_cast<int>(ceil(bin_width)) : sampling_ratio;
         auto sampling_ratio_y = sampling_ratio == 0 ? static_cast<int>(ceil(bin_height)) : sampling_ratio;
 
-        NGRAPH_CHECK(sampling_ratio_x >= 0 && sampling_ratio_y >= 0);
+        OPENVINO_ASSERT(sampling_ratio_x >= 0 && sampling_ratio_y >= 0);
 
         uint64_t num_samples_in_bin = static_cast<uint64_t>(sampling_ratio_x) * static_cast<uint64_t>(sampling_ratio_y);
 
@@ -169,26 +166,27 @@ void roi_align(const T* feature_maps,
                         // the four parts are values of the four closest surrounding
                         // neighbours of considered sample, then basing on all sampled
                         // values in bin we calculate pooled value
-                        auto sample_part_1 = feature_maps[feature_maps_transform.index(
-                            {static_cast<unsigned int>(batch_indices[roi_index]),
-                             channel_index,
-                             pooling_points[sample_index].first,
-                             pooling_points[sample_index].second})];
-                        auto sample_part_2 = feature_maps[feature_maps_transform.index(
-                            {static_cast<unsigned int>(batch_indices[roi_index]),
-                             channel_index,
-                             pooling_points[sample_index + 1].first,
-                             pooling_points[sample_index + 1].second})];
-                        auto sample_part_3 = feature_maps[feature_maps_transform.index(
-                            {static_cast<unsigned int>(batch_indices[roi_index]),
-                             channel_index,
-                             pooling_points[sample_index + 2].first,
-                             pooling_points[sample_index + 2].second})];
-                        auto sample_part_4 = feature_maps[feature_maps_transform.index(
-                            {static_cast<unsigned int>(batch_indices[roi_index]),
-                             channel_index,
-                             pooling_points[sample_index + 3].first,
-                             pooling_points[sample_index + 3].second})];
+                        const auto batch_index = static_cast<size_t>(batch_indices[roi_index]);
+                        auto sample_part_1 = feature_maps[coordinate_index({batch_index,
+                                                                            channel_index,
+                                                                            pooling_points[sample_index].first,
+                                                                            pooling_points[sample_index].second},
+                                                                           feature_maps_shape)];
+                        auto sample_part_2 = feature_maps[coordinate_index({batch_index,
+                                                                            channel_index,
+                                                                            pooling_points[sample_index + 1].first,
+                                                                            pooling_points[sample_index + 1].second},
+                                                                           feature_maps_shape)];
+                        auto sample_part_3 = feature_maps[coordinate_index({batch_index,
+                                                                            channel_index,
+                                                                            pooling_points[sample_index + 2].first,
+                                                                            pooling_points[sample_index + 2].second},
+                                                                           feature_maps_shape)];
+                        auto sample_part_4 = feature_maps[coordinate_index({batch_index,
+                                                                            channel_index,
+                                                                            pooling_points[sample_index + 3].first,
+                                                                            pooling_points[sample_index + 3].second},
+                                                                           feature_maps_shape)];
 
                         T sample_value = pooling_weights[sample_index] * sample_part_1 +
                                          pooling_weights[sample_index + 1] * sample_part_2 +
@@ -210,17 +208,12 @@ void roi_align(const T* feature_maps,
                 }
             }
             // save the calculations for all bins across this channel
-            auto output_channel_offset = out_transform.index({static_cast<unsigned int>(roi_index),
-                                                              static_cast<unsigned int>(channel_index),
-                                                              static_cast<unsigned int>(0),
-                                                              static_cast<unsigned int>(0)});
+            auto output_channel_offset = coordinate_index({roi_index, channel_index, 0ul, 0ul}, out_shape);
             std::copy(tmp_out.begin(), tmp_out.end(), out + output_channel_offset);
 
             tmp_out.clear();
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
-    return;
 }
 }  // namespace reference
 }  // namespace ov

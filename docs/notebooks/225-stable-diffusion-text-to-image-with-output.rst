@@ -40,31 +40,34 @@ Notebook contains the following steps:
 
 **Table of contents:**
 
-- `Prerequisites <#prerequisites>`__
-- `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+-  `Prerequisites <#prerequisites>`__
+-  `login to huggingfacehub to get access to pretrained
+   model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
+-  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-  - `Text Encoder <#text-encoder>`__
-  - `U-net <#u-net>`__
-  - `VAE <#vae>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-net <#u-net>`__
+   -  `VAE <#vae>`__
 
-- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
-- `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
-  - `Text-to-Image generation <#text-to-image-generation>`__
-  - `Image-to-Image generation <#image-to-image-generation>`__
+   -  `Text-to-Image generation <#text-to-image-generation>`__
+   -  `Image-to-Image generation <#image-to-image-generation>`__
 
-.. - `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
-###############################################################################################################################
+-------------
+
+
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
 
-.. note::
-
-   The original model (for example, ``stable-diffusion-v1-4``)
+   **Note**: The original model (for example, ``stable-diffusion-v1-4``)
    requires you to accept the model license before downloading or using
    its weights. Visit the `stable-diffusion-v1-4
    card <https://huggingface.co/CompVis/stable-diffusion-v1-4>`__ to
@@ -77,9 +80,10 @@ not, you do not have to do anything. Just run the notebook.**
    following code:
 
 .. code:: python
-
+   :force:
 
    ## login to huggingfacehub to get access to pretrained model
+
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -97,13 +101,16 @@ solutions based on Stable Diffusion.
 
 .. code:: ipython3
 
-    !pip install -q "openvino==2023.1.0dev20230811"
-    !pip install -q "diffusers[torch]>=0.9.0"
-    !pip install -q "huggingface-hub>=0.9.1"
-    !pip install -q gradio
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "diffusers[torch]>=0.9.0"
+    %pip install -q "huggingface-hub>=0.9.1"
+    %pip install -q gradio
+    %pip install -q transformers
 
 Create PyTorch Models pipeline
-###############################################################################################################################
+------------------------------
+
+
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -259,7 +266,9 @@ First, load the pre-trained weights of all components of the model.
 
 
 Convert models to OpenVINO Intermediate representation (IR) format
-###############################################################################################################################
+------------------------------------------------------------------
+
+
 
 Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
 models to OpenVINO IR format. You need to provide a model object and
@@ -281,7 +290,9 @@ The model consists of three important parts:
 Let us convert each part.
 
 Text Encoder
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -377,7 +388,9 @@ hidden states.
 
 
 U-net
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~
+
+
 
 Unet model has three inputs:
 
@@ -468,7 +481,9 @@ Model predicts the ``sample`` state for the next step.
 
 
 VAE
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~
+
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -597,7 +612,9 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 Prepare Inference Pipeline
-###############################################################################################################################
+--------------------------
+
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -999,7 +1016,9 @@ of the variational auto encoder.
             return timesteps, num_inference_steps - t_start 
 
 Configure Inference Pipeline
-###############################################################################################################################
+----------------------------
+
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -1042,8 +1061,10 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value)
-    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value)
+    ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
+    
+    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value, ov_config)
+    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value, ov_config)
 
 Model tokenizer and scheduler are also important parts of the pipeline.
 Let us define them and put all components together
@@ -1070,15 +1091,15 @@ Let us define them and put all components together
     )
 
 Text-to-Image generation
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
 latent state initialization and number of steps.
 
-.. note::
-
-   Consider increasing ``steps`` to get more precise results.
+   **Note**: Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3
@@ -1174,7 +1195,9 @@ Now is show time!
 Nice. As you can see, the picture has quite a high definition 🔥.
 
 Image-to-Image generation
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -1207,11 +1230,26 @@ semantically consistent with the input.
 
 .. code:: ipython3
 
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
+    from notebook_utils import download_file
+
+.. code:: ipython3
+
     import io
     
-    default_image_path = "../data/image/coco.jpg"
+    default_image_path = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        filename="coco.jpg"
+    )
+    
     # read uploaded image
-    image = PIL.Image.open(io.BytesIO(image_widget.value[-1]['content']) if image_widget.value else default_image_path)
+    image = PIL.Image.open(io.BytesIO(image_widget.value[-1]['content']) if image_widget.value else str(default_image_path))
     print('Pipeline settings')
     print(f'Input text: {text_prompt_i2i.value}')
     print(f'Seed: {seed_i2i.value}')
@@ -1233,7 +1271,7 @@ semantically consistent with the input.
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_37_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_38_1.png
 
 
 
@@ -1266,79 +1304,74 @@ semantically consistent with the input.
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_39_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_40_1.png
 
 
-.. Interactive demo
-.. ###############################################################################################################################
-
-.. .. code:: ipython3
-
-..     import gradio as gr
-..     import urllib.request
-    
-..     urllib.request.urlretrieve(
-..         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
-..         "coco.jpg"
-..     )
-    
-    
-..     def generate_from_text(text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
-..         result = ov_pipe(text, num_inference_steps=num_steps, seed=seed)
-..         return result["sample"][0]
-    
-    
-..     def generate_from_image(img, text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
-..         result = ov_pipe(text, img, num_inference_steps=num_steps, seed=seed, strength=strength)
-..         return result["sample"][0]
-    
-    
-..     with gr.Blocks() as demo:
-..         with gr.Tab("Text-to-Image generation"):
-..             with gr.Row():
-..                 with gr.Column():
-..                     text_input = gr.Textbox(lines=3, label="Text")
-..                     seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
-..                     steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
-..                 out = gr.Image(label="Result", type="pil")
-..             btn = gr.Button()
-..             btn.click(generate_from_text, [text_input, seed_input, steps_input], out)
-..             gr.Examples([[sample_text, 42, 20]], [text_input, seed_input, steps_input])
-..         with gr.Tab("Image-to-Image generation"):
-..             with gr.Row():
-..                 with gr.Column():
-..                     i2i_input = gr.Image(label="Image", type="pil")
-..                     i2i_text_input = gr.Textbox(lines=3, label="Text")
-..                     i2i_seed_input = gr.Slider(0, 1024, value=42, label="Seed")
-..                     i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
-..                     strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
-..                 i2i_out = gr.Image(label="Result")
-..             i2i_btn = gr.Button()
-..             sample_i2i_text = "amazing watercolor painting"
-..             i2i_btn.click(
-..                 generate_from_image,
-..                 [i2i_input, i2i_text_input, i2i_seed_input, i2i_steps_input, strength_input],
-..                 i2i_out,
-..             )
-..             gr.Examples(
-..                 [["coco.jpg", sample_i2i_text, 42, 10, 0.5]],
-..                 [i2i_input, i2i_text_input, i2i_seed_input, i2i_steps_input, strength_input],
-..             )
-    
-..     try:
-..         demo.queue().launch(debug=False)
-..     except Exception:
-..         demo.queue().launch(share=True, debug=False)
-..     # if you are launching remotely, specify server_name and server_port
-..     # demo.launch(server_name='your server name', server_port='server port in int')
-..     # Read more in the docs: https://gradio.app/docs/
+Interactive demo
+----------------
 
 
-.. .. parsed-literal::
 
-..     Running on local URL:  http://127.0.0.1:7860
+.. code:: ipython3
+
+    import gradio as gr
     
-..     To create a public link, set `share=True` in `launch()`.
+    def generate_from_text(text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(text, num_inference_steps=num_steps, seed=seed)
+        return result["sample"][0]
+    
+    
+    def generate_from_image(img, text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(text, img, num_inference_steps=num_steps, seed=seed, strength=strength)
+        return result["sample"][0]
+    
+    
+    with gr.Blocks() as demo:
+        with gr.Tab("Text-to-Image generation"):
+            with gr.Row():
+                with gr.Column():
+                    text_input = gr.Textbox(lines=3, label="Text")
+                    seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
+                    steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
+                out = gr.Image(label="Result", type="pil")
+            btn = gr.Button()
+            btn.click(generate_from_text, [text_input, seed_input, steps_input], out)
+            gr.Examples([[sample_text, 42, 20]], [text_input, seed_input, steps_input])
+        with gr.Tab("Image-to-Image generation"):
+            with gr.Row():
+                with gr.Column():
+                    i2i_input = gr.Image(label="Image", type="pil")
+                    i2i_text_input = gr.Textbox(lines=3, label="Text")
+                    i2i_seed_input = gr.Slider(0, 1024, value=42, label="Seed")
+                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
+                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
+                i2i_out = gr.Image(label="Result")
+            i2i_btn = gr.Button()
+            sample_i2i_text = "amazing watercolor painting"
+            i2i_btn.click(
+                generate_from_image,
+                [i2i_input, i2i_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+                i2i_out,
+            )
+            gr.Examples(
+                [[str(default_image_path), sample_i2i_text, 42, 10, 0.5]],
+                [i2i_input, i2i_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+            )
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
 
 
 

@@ -200,7 +200,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         const auto inputs = op->get_output_target_inputs(0);
         if (inputs.size() == 1ul) {
             const auto consumer = inputs.begin()->get_node();
-            ignorePerTensorQuantizationCheck = ngraph::as_type<ov::opset1::MatMul>(consumer) != nullptr;
+            ignorePerTensorQuantizationCheck = ov::as_type<ov::opset1::MatMul>(consumer) != nullptr;
         }
     }
 

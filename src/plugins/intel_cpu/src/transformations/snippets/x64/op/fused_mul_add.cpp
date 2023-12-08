@@ -5,7 +5,7 @@
 #include "fused_mul_add.hpp"
 
 #include "snippets/itt.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
+#include "openvino/op/util/elementwise_args.hpp"
 
 #include <ngraph/runtime/host_tensor.hpp>
 
@@ -42,4 +42,9 @@ void FusedMulAdd::validate_and_infer_types() {
                               "Argument shapes are inconsistent.");
     }
     set_output_type(0, element_type, pshape);
+}
+
+const ov::op::AutoBroadcastSpec& FusedMulAdd::get_autob() const {
+    static ov::op::AutoBroadcastSpec autob_spec(ov::op::AutoBroadcastType::NUMPY);
+    return autob_spec;
 }

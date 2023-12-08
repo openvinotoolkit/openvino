@@ -16,7 +16,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "lpt_ngraph_functions/transpose_after_mat_mul_function.hpp"
+#include "ov_lpt_models/transpose_after_mat_mul.hpp"
 
 
 namespace LayerTestsDefinitions {

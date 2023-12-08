@@ -3,17 +3,15 @@
 //
 
 #include <vector>
-#include "single_layer_tests/prior_box_clustered.hpp"
+#include "single_op_tests/prior_box_clustered.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-using namespace ngraph::helpers;
-
 namespace {
+using ov::test::PriorBoxClusteredLayerTest;
 // Common params
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::f16
 };
 
 const std::vector<std::vector<float>> widths = {
@@ -63,18 +61,14 @@ const auto layerSpeficParams = ::testing::Combine(
     ::testing::ValuesIn(variances)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
-                        ::testing::Combine(
-                            layerSpeficParams,
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(std::vector<size_t>({ 4, 4 })),
-                            ::testing::Values(std::vector<size_t>({ 50, 50 })),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        PriorBoxClusteredLayerTest::getTestCaseName
-);
+std::vector<ov::Shape> input_shapes_static = {{4, 4}, {50, 50}};
 
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
+        ::testing::Combine(
+            layerSpeficParams,
+            ::testing::ValuesIn(model_types),
+            ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+        PriorBoxClusteredLayerTest::getTestCaseName
+);
 }  // namespace

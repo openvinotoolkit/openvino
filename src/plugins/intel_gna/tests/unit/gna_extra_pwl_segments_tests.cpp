@@ -9,8 +9,8 @@
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using ov::intel_gna::GNAPlugin;
 using namespace ov::op;
@@ -144,6 +144,7 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
     std::shared_ptr<Result> result = nullptr;
 
     if (use_pooling) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto maxpool = ngraph::builder::makePooling(activation,
                                                     stride,
                                                     pad_begin_pool,
@@ -153,6 +154,7 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
                                                     PadType::VALID,
                                                     false,
                                                     ngraph::helpers::PoolingTypes::MAX);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         result = std::make_shared<Result>(maxpool);
     } else {
         result = std::make_shared<Result>(activation);

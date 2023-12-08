@@ -69,13 +69,10 @@ scatter_nd_update_inst::typed_primitive_inst(network& network, scatter_nd_update
 void scatter_nd_update_inst::on_execute() {
     auto input1_shape = _impl_params->input_layouts[1].get_partial_shape();
     auto input2_shape = _impl_params->input_layouts[2].get_partial_shape();
+    auto same_layouts = _impl_params->input_layouts[0] == _impl_params->output_layouts[0];
 
-    if ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0))
-        reuse_input();
-}
-
-void scatter_nd_update_inst::reuse_input() {
-    update_output_memory();
+    if (same_layouts && ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0)))
+        update_output_memory();
 }
 
 void scatter_nd_update_inst::update_output_memory() {

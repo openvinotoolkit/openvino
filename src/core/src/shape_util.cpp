@@ -9,10 +9,9 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape_util.hpp"
 
-using namespace ngraph;
-
+namespace ngraph {
 template <>
-PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes) {
+PartialShape project(const PartialShape& shape, const AxisSet& axes) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
@@ -29,7 +28,7 @@ PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes) {
 }
 
 template <>
-PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims) {
+PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
@@ -49,8 +48,8 @@ PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_ax
 }
 
 template <>
-PartialShape ngraph::inject_pairs(const PartialShape& shape,
-                                  std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs) {
+PartialShape inject_pairs(const PartialShape& shape,
+                          std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
@@ -76,6 +75,7 @@ PartialShape ngraph::inject_pairs(const PartialShape& shape,
         return PartialShape{result_dims};
     }
 }
+}  // namespace ngraph
 
 namespace ov {
 template <class TContainer, class TAxes>
@@ -103,16 +103,6 @@ TContainer replace_container(const TContainer& input, const TAxes& axes) {
 }
 
 namespace util {
-Shape make_dynamic_shape() {
-    return Shape{0, std::numeric_limits<size_t>::max()};
-}
-
-bool is_dynamic_shape(const Shape& s) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static const auto dyn_shape = make_dynamic_shape();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return s == dyn_shape;
-}
 
 Shape reduce(const Shape& input, const AxisSet& axes) {
     return ov::reduce_container(input, axes);

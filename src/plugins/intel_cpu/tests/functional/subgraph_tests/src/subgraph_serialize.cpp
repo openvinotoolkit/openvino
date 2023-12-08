@@ -5,14 +5,15 @@
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "snippets/op/subgraph.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::opset9;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 class SubgraphSnippetSerializationTest : public ::testing::Test, public CPUTestsBase {};
 
@@ -146,4 +147,5 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithResultAs1stO
 
     ASSERT_TRUE(results.valid) << results.message;
 }
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

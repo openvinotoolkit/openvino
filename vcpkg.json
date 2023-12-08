@@ -14,7 +14,7 @@
     "homepage": "https://github.com/openvinotoolkit/openvino",
     "documentation": "https://docs.openvino.ai/latest/index.html",
     "license": "Apache-2.0",
-    "builtin-baseline": "962e5e39f8a25f42522f51fffc574e05a3efd26b",
+    "builtin-baseline": "db0473513e5dc73ec6b6f431ff05d2f398eea042",
     "dependencies": [
         "ade",
         {

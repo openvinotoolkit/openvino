@@ -21,7 +21,6 @@ add_compile_definitions(
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU)
-    message(STATUS "ONNX frontend test: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -31,7 +30,6 @@ if (ENABLE_INTEL_CPU)
 endif()
 
 if (ENABLE_INTEL_GPU)
-    message(STATUS "ONNX frontend test: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -41,7 +39,6 @@ if (ENABLE_INTEL_GPU)
 endif()
 
 if (ENABLE_TEMPLATE)
-    message(STATUS "ONNX frontend test: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
         list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_plugin)
@@ -126,8 +123,8 @@ foreach(BACKEND_NAME IN LISTS ACTIVE_BACKEND_LIST)
 endforeach()
 
 add_executable(ov_onnx_frontend_tests ${SRC})
-add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests)
-set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV ONNX_FE)
+add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*)
+set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 
 add_dependencies(ov_onnx_frontend_tests template_extension)
 
@@ -136,7 +133,7 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURC
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
@@ -167,6 +164,14 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE
 
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DESTINATION tests/onnx
+        COMPONENT tests EXCLUDE_FROM_ALL
+        FILES_MATCHING
+        PATTERN "*.py"
+        PATTERN "*.onnx"
+        PATTERN "*.data")
 
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"

@@ -23,5 +23,9 @@ TEST_P(Gather8LayerTest, Inference) {
 TEST_P(Gather8IndiceScalarLayerTest, Inference) {
     run();
 };
+
+TEST_P(Gather8withIndicesDataLayerTest, Inference) {
+    run();
+};
 }  // namespace test
 }  // namespace ov

@@ -55,7 +55,7 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -107,7 +107,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         preserved_vec_idxs.push_back(idx);
     }
     if (aux_vec_idxs.size() < aux_vecs_count())
-        IE_THROW() << "Failed to allocate required number of vector registers";
+        OPENVINO_THROW("Failed to allocate required number of vector registers");
 
     // Same logic but to allocate gprs
     for (auto idx : pool_gpr_idxs)
@@ -131,7 +131,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         preserved_gpr_idxs.push_back(_idx);
     }
     if (aux_gpr_idxs.size() < aux_gprs_count())
-        IE_THROW() << "Failed to allocate required number of general-purpose registers";
+        OPENVINO_THROW("Failed to allocate required number of general-purpose registers");
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
@@ -211,6 +211,74 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
     emit_impl(in_idxs, out_idxs);
 
     emitter_postamble();
+}
+
+void jit_emitter::internal_call_preamble() const {
+    // gprs
+    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
+                                        h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
+    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+
+    h->sub(h->rsp, n_gprs_to_save * gpr_size);
+    for (size_t i = 0; i < n_gprs_to_save; ++i)
+        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
+
+    // mask regs
+    // need preserve based on cpu capability, instead of host isa.
+    // in case there are possibilty that different isa emitters exist in one subgraph KernelEmitter from perf standpoint in the future.
+    // e.g. other emitters isa is avx512, while this emitter isa is avx2, and internal call is used. Internal call may use avx512 and spoil k-reg.
+    // do not care about platform w/ avx512_common but w/o avx512_core(knight landing), which is obsoleted.
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        h->sub(h->rsp, k_mask_num * k_mask_size);
+        for (size_t i = 0; i < k_mask_num; ++i) {
+            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Xbyak::Opmask(static_cast<int>(i)));
+        }
+    }
+
+    // vector regs
+    // 1. Caller obligation to save vector registers as callee may use them.
+    // 2. There is an implicit assumption that the host code uses the same
+    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
+    // `vlen` should be replaced with `host_isa::vlen` and
+    // `host_isa::vecs_count`.
+    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
+    for (size_t i = 0; i < get_max_vecs_count(); ++i) {
+        push_vec(h->ptr[h->rsp + i * get_vec_length()], i);
+    }
+}
+
+void jit_emitter::internal_call_postamble() const {
+    // restore vector registers
+    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
+        pop_vec(static_cast<size_t>(i), h->ptr[h->rsp + i * get_vec_length()]);
+    }
+    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
+
+    // restore k reg
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        for (int i = k_mask_num - 1; i >= 0; --i) {
+            h->kmovq(Xbyak::Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+        }
+        h->add(h->rsp, k_mask_num * k_mask_size);
+    }
+
+    // restore gpr registers
+    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
+                                        h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
+    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+    for (int i = n_gprs_to_save - 1; i >= 0; --i)
+        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+    h->add(h->rsp, n_gprs_to_save * gpr_size);
+}
+
+void jit_emitter::internal_call_rsp_align() const {
+    h->mov(h->rbx, h->rsp);
+    h->and_(h->rbx, 0xf);
+    h->sub(h->rsp, h->rbx);
+}
+
+void jit_emitter::internal_call_rsp_restore() const {
+    h->add(h->rsp, h->rbx);
 }
 
 }   // namespace intel_cpu

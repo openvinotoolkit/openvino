@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -32,8 +32,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
-                                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
+                                                                              ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
     return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
 }
 
@@ -161,7 +161,7 @@ inline ov::Core createCoreWithTemplate() {
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
-    pluginName += IE_BUILD_POSTFIX;
+    pluginName += OV_BUILD_POSTFIX;
     core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
         ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
@@ -170,7 +170,7 @@ inline ov::Core createCoreWithTemplate() {
 
 class OVClassNetworkTest {
 public:
-    std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
+    std::shared_ptr<ov::Model> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
 
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -233,7 +233,7 @@ class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> actualNetwork;
+    std::shared_ptr<ov::Model> actualNetwork;
 
 public:
     void SetUp() override {

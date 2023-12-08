@@ -116,9 +116,9 @@ inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
     static const size_t W_DIM = 2;
-    NGRAPH_CHECK(op->get_input_size() == 1 || op->get_input_size() == 2,
-                 "NV12 conversion shall have one or 2 inputs, but it is ",
-                 op->get_input_size());
+    OPENVINO_ASSERT(op->get_input_size() == 1 || op->get_input_size() == 2,
+                    "NV12 conversion shall have one or 2 inputs, but it is ",
+                    op->get_input_size());
     auto single_plane = op->get_input_size() == 1;
 
     const auto& y_tensor = inputs[0];
@@ -163,9 +163,9 @@ inline bool color_convert_i420(const std::shared_ptr<Node>& op,
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
     static const size_t W_DIM = 2;
-    NGRAPH_CHECK(op->get_input_size() == 1 || op->get_input_size() == 3,
-                 "I420 conversion shall have one or 3 inputs, but it is ",
-                 op->get_input_size());
+    OPENVINO_ASSERT(op->get_input_size() == 1 || op->get_input_size() == 3,
+                    "I420 conversion shall have one or 3 inputs, but it is ",
+                    op->get_input_size());
     auto single_plane = op->get_input_size() == 1;
 
     const auto& y_tensor = inputs[0];

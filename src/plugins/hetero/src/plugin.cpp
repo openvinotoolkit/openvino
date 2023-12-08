@@ -68,32 +68,51 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     return device_properties;
 }
 
+std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plugin::query_model_update(
+    std::shared_ptr<ov::Model>& model,
+    const ov::AnyMap& properties,
+    bool allow_exception) const {
+    Configuration full_config{properties, m_cfg};
+    DeviceProperties properties_per_device =
+        get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
+
+    //  WARNING: Here is devices with user set priority
+    auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
+
+    auto update_supported_ops = [](ov::SupportedOpsMap& final_results, const ov::SupportedOpsMap& device_results) {
+        for (const auto& layer_query_result : device_results)
+            final_results.emplace(layer_query_result);
+    };
+
+    ov::SupportedOpsMap supported_ops_temp;
+    ov::SupportedOpsMap supported_ops_final;
+    std::map<std::string, ov::SupportedOpsMap> query_results;
+    ov::hetero::SubgraphsMappingInfo mapping_info;
+    for (const auto& device_name : device_names) {
+        // If there are some unsupported operations and it is a last device
+        // exception should be raised when allowed
+        const auto& default_device = (!allow_exception || device_name != device_names.back()) ? get_device_name() : "";
+        const auto& device_config = properties_per_device.at(device_name);
+        query_results[device_name] = get_core()->query_model(model, device_name, device_config);
+        // Update supported operations map which includes new operations
+        update_supported_ops(supported_ops_temp, query_results[device_name]);
+        // Update supported operations map which includes original operations only
+        update_supported_ops(supported_ops_final, query_results[device_name]);
+        mapping_info =
+            ov::hetero::mask_model_subgraphs_by_ops(model, supported_ops_temp, m_cfg.dump_dot_files(), default_device);
+    }
+    return {supported_ops_final, mapping_info};
+}
+
 ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::query_model");
 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
-    Configuration full_config{properties, m_cfg};
-    DeviceProperties properties_per_device =
-        get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
+    std::shared_ptr<ov::Model> query_model = model->clone();
 
-    std::map<std::string, ov::SupportedOpsMap> query_results;
-    for (const auto& it : properties_per_device) {
-        const auto& device_name = it.first;
-        const auto& device_config = it.second;
-        query_results[device_name] = get_core()->query_model(model, device_name, device_config);
-    }
-
-    //  WARNING: Here is devices with user set priority
-    auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
-
-    ov::SupportedOpsMap res;
-    for (const auto& device_name : device_names)
-        for (const auto& layer_query_result : query_results[device_name])
-            res.emplace(layer_query_result);
-
-    return res;
+    return query_model_update(query_model, properties).first;
 }
 
 void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {

@@ -28,7 +28,7 @@
 //                                   --------
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -194,10 +194,10 @@ protected:
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<opset5::Reshape>(lastNode1, reshapeConstNode, false);
         }
-        auto concat = builder::makeConcat({lastNode0, lastNode1}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
 
         if (selectedType.empty()) {
-           selectedType = getPrimitiveType() + "_FP32";
+           selectedType = getPrimitiveType() + "_f32";
         }
 
         function = std::make_shared<Function>(concat, ngraphParam, "fq_cache");

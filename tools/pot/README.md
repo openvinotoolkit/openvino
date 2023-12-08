@@ -12,14 +12,14 @@ and run on CPU with the OpenVINO&trade;.
 Figure below shows the optimization workflow:
 ![](docs/images/workflow_simple.svg)
 
-To get started with POT tool refer to the corresponding OpenVINO&trade; [documentation](https://docs.openvino.ai/2023.1/openvino_docs_model_optimization_guide.html).
+To get started with POT tool refer to the corresponding OpenVINO&trade; [documentation](https://docs.openvino.ai/2023.2/openvino_docs_model_optimization_guide.html).
 
 ## Installation
 ### From PyPI
-POT is distributed as a part of OpenVINO&trade; Development Tools package. For installation instruction please refer to this [document](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_install_dev_tools.html).
+POT is distributed as a part of OpenVINO&trade; Development Tools package. For installation instruction please refer to this [document](https://docs.openvino.ai/2023.2/openvino_docs_install_guides_install_dev_tools.html).
 
 ### From GitHub
-As prerequisites, you should install [OpenVINO&trade; Runtime](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html) and other dependencies such as [Model Optimizer](https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) and [Accuracy Checker](https://docs.openvino.ai/2023.1/omz_tools_accuracy_checker.html).
+As prerequisites, you should install [OpenVINO&trade; Runtime](https://docs.openvino.ai/2023.2/openvino_docs_install_guides_overview.html) and other dependencies such as [Model Optimizer](https://docs.openvino.ai/2023.2/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) and [Accuracy Checker](https://docs.openvino.ai/2023.2/omz_tools_accuracy_checker.html).
 
 To install POT from source:
 - Clone OpenVINO repository
@@ -40,7 +40,7 @@ After installation POT is available as a Python library under `openvino.tools.po
 OpenVINO provides several examples to demonstrate the POT optimization workflow:
 
 * Command-line example:
-  * [Quantization of Image Classification model](https://docs.openvino.ai/2023.1/pot_configs_examples_README.html)
+  * [Quantization of Image Classification model](https://docs.openvino.ai/2023.2/pot_configs_examples_README.html)
 * API tutorials:
   * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
   * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration)
@@ -55,4 +55,4 @@ OpenVINO provides several examples to demonstrate the POT optimization workflow:
 
 ## See Also
 
-* [Performance Benchmarks](https://docs.openvino.ai/2023.1/openvino_docs_performance_benchmarks.html)
+* [Performance Benchmarks](https://docs.openvino.ai/2023.2/openvino_docs_performance_benchmarks.html)

@@ -6,7 +6,7 @@
 
 #include <cstring>
 #include "ie_api.h"
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <onednn/dnnl.h>
 
 namespace ov {

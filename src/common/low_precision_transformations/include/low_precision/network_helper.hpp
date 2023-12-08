@@ -29,7 +29,7 @@ namespace pass {
 namespace low_precision {
 
 /**
-* @brief NetworkHelper class encapsulates manipulations with nGraph function.
+* @brief NetworkHelper class encapsulates manipulations with ov::Model.
 */
 class LP_TRANSFORMATIONS_API NetworkHelper {
 public:

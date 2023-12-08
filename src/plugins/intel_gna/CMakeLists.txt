@@ -6,6 +6,9 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+# GNA plugin will be removed before 2024.0 together with API 1.0
+ov_disable_deprecated_warnings()
+
 add_subdirectory(legacy)
 
 set(TARGET_NAME "openvino_intel_gna_plugin")
@@ -23,7 +26,7 @@ file(GLOB_RECURSE HEADERS
 
 # build avx2.cpp with AVX2 support, only for Windows
 if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_avx2_optimization_flags(avx2_flags)
+    ov_avx2_optimization_flags(avx2_flags)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/pre_post_process/hw_accelerated_converter_avx2.cpp PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
     add_compile_definitions(HAVE_AVX2=1)
 endif()

@@ -13,7 +13,7 @@ NgraphShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& iranks = m_shape_infer->get_input_ranks();
-    IE_ASSERT(iranks.size() <= input_shapes.size()) << "Too few input shapes passed to Shape infer.";
+    OPENVINO_ASSERT(iranks.size() <= input_shapes.size(), "Too few input shapes passed to Shape infer.");
     std::vector<StaticShapeRef> input_static_shapes;
 
     input_static_shapes.reserve(input_shapes.size());

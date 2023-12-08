@@ -4,7 +4,7 @@
 
 set(TARGET_NAME "openvino_intel_gpu_kernels")
 
-find_host_package(PythonInterp 3 REQUIRED)
+find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 file(GLOB_RECURSE LIBRARY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
@@ -37,10 +37,10 @@ set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
 add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${PRIM_DB}"
   COMMAND "${CMAKE_COMMAND}" -E make_directory "${CODEGEN_CACHE_DIR}"
-  COMMAND "${PYTHON_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
-                                                     -out_file_name_prim_db "${PRIM_DB}"
-                                                     -out_file_name_batch_headers "${PRIM_DB_BATCH_HEADERS}"
-                                                     -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/"
+  COMMAND "${Python3_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
+                                                      -out_file_name_prim_db "${PRIM_DB}"
+                                                      -out_file_name_batch_headers "${PRIM_DB_BATCH_HEADERS}"
+                                                      -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/"
   DEPENDS ${KERNELS} "${CODEGEN_SCRIPT}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${PRIM_DB} ..."
 )
@@ -81,8 +81,8 @@ elseif((NOT ANDROID) AND UNIX)
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
-if(WIN32)
-  set(TUNING_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
+if(OV_GENERATOR_MULTI_CONFIG)
+  set(TUNING_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
 else()
   set(TUNING_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()

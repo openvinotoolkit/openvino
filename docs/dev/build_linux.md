@@ -72,11 +72,9 @@ You can use the following additional build options:
      ```sh
      pip install -r requirements-dev.txt
      ```
-  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options:
+  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```
-     -DPYTHON_EXECUTABLE=`which python3.8` \
-     -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.8.so \
-     -DPYTHON_INCLUDE_DIR=/usr/include/python3.8
+     -DPython3_EXECUTABLE=/usr/bin/python3.8
      ```
   3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh
@@ -84,8 +82,8 @@ You can use the following additional build options:
      ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables: 
      ```
-     export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python
-     export LD_LIBRARY_PATH=LD_LIBRARY_PATH:<openvino_repo>/bin/intel64/Release
+     export PYTHONPATH=<openvino_repo>/bin/intel64/Release/python:$PYTHONPATH
+     export LD_LIBRARY_PATH=<openvino_repo>/bin/intel64/Release:$LD_LIBRARY_PATH
      ```
      or install the wheel with pip:
      ```

@@ -66,11 +66,10 @@ if '--install-dev-extras' in sys.argv:
 
 INSTALL_REQUIRES = [
     "numpy>=1.16.6",
-    "scipy~=1.7; python_version == '3.7'",
-    "scipy>=1.8; python_version >= '3.8'",
+    "scipy>=1.8",
     "jstyleson>=0.0.2",
     "addict>=2.4.0",
-    "networkx<=3.1",
+    "networkx<=3.2.1",
     "tqdm>=4.54.1",
     "texttable>=1.6.3",
     "openvino-telemetry>=2022.1.0"
@@ -89,10 +88,10 @@ DEPENDENCY_LINKS = []
 
 python_version = sys.version_info[:2]
 if python_version[0] < 3:
-    print('Only Python >= 3.7 is supported by POT/OV')
+    print('Only Python >= 3.8 is supported by POT/OV')
     sys.exit(0)
-elif python_version[1] < 7:
-    print('Only Python >= 3.7 is supported by POT/OV')
+elif python_version[1] < 8:
+    print('Only Python >= 3.8 is supported by POT/OV')
     sys.exit(0)
 
 

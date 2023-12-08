@@ -60,9 +60,9 @@ jobs:
         run: cmake -B build
 
       - name: Shellcheck cmake target
-        run: cmake --build build --target ie_shellcheck -j8
+        run: cmake --build build --target ov_shellcheck -j8
 
-      # always provide suggestions even for skipped scripts in ie_shellcheck tagret
+      # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
         uses: reviewdog/action-shellcheck@v1
@@ -85,8 +85,8 @@ jobs:
       - name: Install Clang dependency
         run: |
           sudo apt update
-          sudo apt --assume-yes remove clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 clang-13
-          sudo apt --assume-yes install libclang-14-dev
+          sudo apt --assume-yes remove clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 clang-13 clang-15
+          sudo apt --assume-yes install clang-14 libclang-14-dev
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt

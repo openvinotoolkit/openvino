@@ -9,7 +9,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "snippets/codegen_gelu.hpp"
 #include "subgraph_simple.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 

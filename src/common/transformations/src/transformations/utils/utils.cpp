@@ -21,6 +21,34 @@ namespace ov {
 namespace op {
 namespace util {
 
+namespace {
+void visit_path_impl(ov::Node* node,
+                     std::unordered_set<ov::Node*>& visited,
+                     std::function<void(ov::Node*)> func,
+                     std::function<bool(ov::Node*)> skip_node_predicate) {
+    if (!node)
+        return;
+    visited.insert(node);
+    std::deque<ov::Node*> nodes{node};
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        if (skip_node_predicate(curr_node))
+            continue;
+
+        func(curr_node);
+        for (auto& input_value : curr_node->input_values()) {
+            // continue searching
+            const auto& input_node = input_value.get_node();
+            if (visited.count(input_node))
+                continue;
+            nodes.push_front(input_node);
+            visited.insert(input_node);
+        }
+    }
+}
+}  // namespace
+
 bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
@@ -31,6 +59,8 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
         return util::normalize_single_value(const_node->get_vector<bfloat16>(), value, check_value_range);
     case element::Type_t::f64:
         return util::normalize_single_value(const_node->get_vector<double>(), value, check_value_range);
+    case element::Type_t::i4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i8:
         return util::normalize_single_value(const_node->get_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i16:
@@ -39,6 +69,8 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
         return util::normalize_single_value(const_node->get_vector<int32_t>(), value, check_value_range);
     case element::Type_t::i64:
         return util::normalize_single_value(const_node->get_vector<int64_t>(), value, check_value_range);
+    case element::Type_t::u4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::u8:
         return util::normalize_single_value(const_node->get_vector<uint8_t>(), value, check_value_range);
     case element::Type_t::u16:
@@ -128,11 +160,56 @@ std::shared_ptr<ov::Node> activation(const std::string& activation_name, const o
     }
 }
 
-bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len) {
+bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<Node>& seq_len_input) {
+    auto max_seq_dim = X->get_output_partial_shape(0)[1];
+    if (max_seq_dim.is_dynamic()) {
+        // if values in seq_len input are equal to max_seq_len dim in X input
+        // then we don't need to insert Select operations
+        // supported seq_len_input:
+        // X -> ShapeOf -> Gather (max_seq_dim)  -> Optional (Broadcast)
+        std::shared_ptr<Node> input = seq_len_input;
+        auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(input);
+        if (broadcast) {
+            input = seq_len_input->input_value(0).get_node_shared_ptr();
+        }
+
+        auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(input);
+        bool valid_gather = false;
+        if (gather) {
+            auto indices = gather->input_value(1).get_node_shared_ptr();
+            auto axis = gather->input_value(2).get_node_shared_ptr();
+            auto indices_const = ov::as_type_ptr<ov::op::v0::Constant>(indices);
+            auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(axis);
+            if (indices_const && axis_const) {
+                auto ind_values = indices_const->cast_vector<int64_t>();
+                auto axis_values = axis_const->cast_vector<int64_t>();
+                if (ind_values.size() == 1 && ind_values[0] == 1 && axis_values.size() == 1 && axis_values[0] == 0) {
+                    valid_gather = true;
+                }
+            }
+        }
+
+        if (!valid_gather) {
+            return true;
+        }
+
+        auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
+        if (!shape_of) {
+            return true;
+        }
+
+        if (shape_of->input_value(0).get_node_shared_ptr() != X) {
+            return true;
+        }
+
+        return false;
+    }
+
+    auto max_seq_len_val = max_seq_dim.get_length();
     if (const auto& seq_len_const = std::dynamic_pointer_cast<op::v0::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
-        return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
-            return val != max_seq_len;
+        return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len_val](const int64_t val) {
+            return val != max_seq_len_val;
         });
     }
     return true;
@@ -193,28 +270,18 @@ bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected
 }
 
 void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
-    if (!node)
-        return;
-    visited.insert(node);
-    std::deque<ov::Node*> nodes{node};
-    while (!nodes.empty()) {
-        auto curr_node = nodes.front();
-        nodes.pop_front();
-        // Do not check if already visited
-        if (ov::is_type<opset1::ShapeOf>(curr_node) || ov::is_type<opset3::ShapeOf>(curr_node)) {
-            continue;
-        }
+    auto is_shapeof = [](ov::Node* node) {
+        return ov::is_type<opset1::ShapeOf>(node) || ov::is_type<opset3::ShapeOf>(node);
+    };
+    visit_path_impl(node, visited, func, is_shapeof);
+}
 
-        func(curr_node);
-        for (auto& input_value : curr_node->input_values()) {
-            // continue searching
-            const auto& input_node = input_value.get_node();
-            if (visited.count(input_node))
-                continue;
-            nodes.push_front(input_node);
-            visited.insert(input_node);
-        }
-    }
+void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
+    auto check_parameter = [](ov::Node* node) {
+        OPENVINO_ASSERT(!ov::is_type<opset1::Parameter>(node), "visit_constant_path is called for non-constant path.");
+        return false;
+    };
+    visit_path_impl(node, visited, func, check_parameter);
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {

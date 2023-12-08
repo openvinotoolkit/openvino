@@ -3,16 +3,15 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <openvino/core/graph_util.hpp>
 
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
-using namespace ov::test;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 /*
   This test runs the following subgraph:
@@ -149,4 +148,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertRangeSubgraphCPUTest,
                          ConvertRangeSubgraphCPUTest::getTestCaseName);
 
 } // namespace
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -51,44 +51,6 @@ namespace {
                                     ::testing::Values(std::make_pair(ov::AnyMap{}, "blob"))),
                             CompiledKernelsCacheTest::getTestCaseName);
 
-    auto autoConfigs = []() {
-        return std::vector<std::pair<ov::AnyMap, std::string>>{
-            std::make_pair(ov::AnyMap{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}}, "blob"),
-            std::make_pair(
-                ov::AnyMap{{ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU)}},
-                "blob"),
-            std::make_pair(
-                ov::AnyMap{{ov::device::priorities(ov::test::utils::DEVICE_CPU, ov::test::utils::DEVICE_GPU)}},
-                "blob")};
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
-                            ::testing::Combine(
-                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs())),
-                            CompiledKernelsCacheTest::getTestCaseName);
-
-    const std::vector<ov::AnyMap> LoadFromFileConfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
-    };
-    const std::vector<std::string> TestTargets =
-    {ov::test::utils::DEVICE_AUTO,
-    ov::test::utils::DEVICE_MULTI,
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_GPU, CompileModelLoadFromFileTestBase,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(TestTargets),
-                                ::testing::ValuesIn(LoadFromFileConfigs)),
-                        CompileModelLoadFromFileTestBase::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_GPU,
-                             CompileModelLoadFromMemoryTestBase,
-                             ::testing::Combine(::testing::ValuesIn(TestTargets),
-                                                ::testing::ValuesIn(LoadFromFileConfigs)),
-                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
-
     const std::vector<ov::AnyMap> GPULoadFromFileConfigs = {
         {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},

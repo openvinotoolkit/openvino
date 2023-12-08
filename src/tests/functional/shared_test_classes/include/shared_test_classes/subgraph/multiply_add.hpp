@@ -4,30 +4,28 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "common_test_utils/test_constants.hpp"
+#include <string>
+#include <tuple>
+#include <vector>
 
-namespace SubgraphTestsDefinitions {
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using MultiplyAddParamsTuple = typename std::tuple<
-        std::vector<size_t>,              //input shapes
-        InferenceEngine::Precision,       //Network precision
-        std::string>;                     //Device name
+namespace ov {
+namespace test {
 
-class MultiplyAddLayerTest:
-        public testing::WithParamInterface<MultiplyAddParamsTuple>,
-        virtual public LayerTestsUtils::LayerTestsCommon{
+using MultiplyAddParamsTuple = typename std::tuple<ov::Shape,          // input shapes
+                                                   ov::element::Type,  // Input precision
+                                                   std::string>;       // Device name
+
+class MultiplyAddLayerTest : public testing::WithParamInterface<MultiplyAddParamsTuple>,
+                             virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    std::shared_ptr<ngraph::Function> fn;
-    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple>& obj);
+
 protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

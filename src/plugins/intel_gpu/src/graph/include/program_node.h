@@ -386,6 +386,9 @@ public:
     const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
     std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const {
         if (onednn_attrs == nullptr)
@@ -445,6 +448,18 @@ public:
     void init_preferred_fmt(size_t dep_size, size_t user_size);
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
+
+    int32_t get_port_from_deps(primitive_id target_id) const {
+        auto deps = get_primitive()->dependencies();
+        auto iter = std::find_if(deps.begin(), deps.end(), [&](input_info& info) {
+            return target_id == info.pid;
+        });
+        if (iter != deps.end()) {
+            return iter->idx;
+        } else {
+            return 0;
+        }
+    }
 
 protected:
     size_t unique_id = 0;

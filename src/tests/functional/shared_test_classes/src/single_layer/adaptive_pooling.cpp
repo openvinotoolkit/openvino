@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;

@@ -81,8 +81,8 @@ void error_on_mismatching_data_types(const std::string& file,
          (data_format_1 == data_types::u8 && data_format_2 == data_types::i8))) {
         std::stringstream error_msg;
         error_msg << "Data formats are incompatible." << std::endl;
-        error_msg << data_format_1_id << " format is: " << data_type_traits::name(data_format_1) << ", "
-                  << data_format_2_id << " is: " << data_type_traits::name(data_format_2) << std::endl;
+        error_msg << data_format_1_id << " format is: " << ov::element::Type(data_format_1) << ", "
+                  << data_format_2_id << " is: " << ov::element::Type(data_format_2) << std::endl;
         error_msg << "Data formats should be the same!" << std::endl;
         err_details::cldnn_print_error_message(file, line, instance_id, error_msg, additional_message);
     }
@@ -217,8 +217,8 @@ void error_on_mismatch_layout(const std::string& file,
         }
         if (layout_1.data_type != layout_2.data_type) {
             error_msg << layout_1_id << " data type mismatch: " << layout_2_id << " data type." << std::endl;
-            error_msg << layout_1_id << " data type: " << data_type_traits::name(layout_1.data_type) << ", "
-                      << layout_2_id << " data type: " << data_type_traits::name(layout_2.data_type) << std::endl;
+            error_msg << layout_1_id << " data type: " << ov::element::Type(layout_1.data_type) << ", "
+                      << layout_2_id << " data type: " << ov::element::Type(layout_2.data_type) << std::endl;
         }
         if (layout_1.format != layout_2.format) {
             error_msg << layout_1_id << " format mismatch: " << layout_2_id << " format." << std::endl;

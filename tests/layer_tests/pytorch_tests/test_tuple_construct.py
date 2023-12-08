@@ -60,7 +60,7 @@ class TestTupleConstruct(PytorchLayerTest):
     @pytest.mark.parametrize("case", ["single", "multiple", "none", "list", "tensor_tail", "list_and_tuple"])
     @pytest.mark.nightly
     def test_tuple_construct(self, case, ie_device, precision, ir_version):
-        self._test(*self.create_model(case), ie_device, precision, ir_version)
+        self._test(*self.create_model(case), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestTupleConstructTupleUnpack(PytorchLayerTest):
@@ -86,7 +86,7 @@ class TestTupleConstructTupleUnpack(PytorchLayerTest):
     @pytest.mark.nightly
     def test_tuple_construct_unpack(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device,
-                   precision, ir_version, freeze_model=False)
+                   precision, ir_version, freeze_model=False, use_convert_model=True)
 
 
 class TestTupleUnpackParameterSingle(PytorchLayerTest):
@@ -198,7 +198,7 @@ class TestTupleIndex(PytorchLayerTest):
 
         class model(torch.nn.Module):
             def forward(self, x):
-                return self.some_func((x,x))
+                return self.some_func((x, x))
 
             def some_func(self, x: Tuple[torch.Tensor, torch.Tensor]):
                 return x[1] * 2, x[0] * 3
@@ -208,4 +208,32 @@ class TestTupleIndex(PytorchLayerTest):
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision,
-                   ir_version, trace_model=False, freeze_model=False)
+                   ir_version, trace_model=False, freeze_model=False, use_convert_model=True)
+
+
+class TestTcOutsideTuInsideIfBody(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(1, 2, 10).astype(np.float32), np.random.randn(1, 2, 10).astype(np.float32))
+
+    def create_model(self):
+        import torch
+        from typing import Tuple
+
+        class model(torch.nn.Module):
+            def forward(self, x, y):
+                return self.some_func((x, y))
+
+            def some_func(self, x: Tuple[torch.Tensor, torch.Tensor]):
+                if x[0].numel() > 10:
+                    n, m = x
+                    return n * m
+                else:
+                    n, m = x
+                    return n - m
+
+        return model(), None, ["prim::TupleConstruct", "prim::TupleUnpack", "prim::If"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=False, freeze_model=False, use_convert_model=True)

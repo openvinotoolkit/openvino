@@ -32,33 +32,53 @@ first inference.
 
 **Table of contents:**
 
-- `Import modules and create Core <#import-modules-and-create-core>`__
-- `Convert the model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__
-- `(1) Simplify selection logic <#simplify-selection-logic>`__
 
-  - `Default behavior of Core::compile_model API without device_name <#default-behavior-of-core::compile_model-api-without-device_name>`__
-  - `Explicitly pass AUTO as device_name to Core::compile_model API <#explicitly-pass-auto-as-device_name-to-core::compile_model-api>`__
+-  `Import modules and create
+   Core <#import-modules-and-create-core>`__
+-  `Convert the model to OpenVINO IR
+   format <#convert-the-model-to-openvino-ir-format>`__
+-  `(1) Simplify selection
+   logic <#-simplify-selection-logic>`__
 
-- `(2) Improve the first inference latency <#improve-the-first-inference-latency>`__
+   -  `Default behavior of Core::compile_model API without
+      device_name <#default-behavior-of-corecompile_model-api-without-device_name>`__
+   -  `Explicitly pass AUTO as device_name to Core::compile_model
+      API <#explicitly-pass-auto-as-device_name-to-corecompile_model-api>`__
 
-  - `Load an Image <#load-an-image>`__
-  - `Load the model to GPU device and perform inference <#load-the-model-to-gpu-device-and-perform-inference>`__
-  - `Load the model using AUTO device and do inference <#load-the-model-using-auto-device-and-do-inference>`__
+-  `(2) Improve the first inference
+   latency <#-improve-the-first-inference-latency>`__
 
-- `(3) Achieve different performance for different targets <#achieve-different-performance-for-different-targets>`__
+   -  `Load an Image <#load-an-image>`__
+   -  `Load the model to GPU device and perform
+      inference <#load-the-model-to-gpu-device-and-perform-inference>`__
+   -  `Load the model using AUTO device and do
+      inference <#load-the-model-using-auto-device-and-do-inference>`__
 
-  - `Class and callback definition <#class-and-callback-definition>`__
-  - `Inference with THROUGHPUT hint <#inference-with-throughput-hint>`__
-  - `Inference with LATENCY hint <#inference-with-latency-hint>`__
-  - `Difference in FPS and latency <#difference-in-fps-and-latency>`__
+-  `(3) Achieve different performance for different
+   targets <#-achieve-different-performance-for-different-targets>`__
 
-Import modules and create Core
-###############################################################################################################################
+   -  `Class and callback
+      definition <#class-and-callback-definition>`__
+   -  `Inference with THROUGHPUT
+      hint <#inference-with-throughput-hint>`__
+   -  `Inference with LATENCY
+      hint <#inference-with-latency-hint>`__
+   -  `Difference in FPS and
+      latency <#difference-in-fps-and-latency>`__
+
+Import modules and create Core 
+------------------------------------------------------------------------
 
 .. code:: ipython3
 
     # Install openvino package
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    %pip install -q "openvino>=2023.1.0"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -82,8 +102,8 @@ Import modules and create Core
    device to have meaningful results.
 
 
-Convert the model to OpenVINO IR format
-###############################################################################################################################
+Convert the model to OpenVINO IR format 
+---------------------------------------------------------------------------------
 
 This tutorial uses
 `resnet50 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#resnet50>`__
@@ -125,32 +145,14 @@ For more information about model conversion API, see this
 
 .. parsed-literal::
 
-    2023-09-08 22:36:23.476933: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-08 22:36:23.509668: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-08 22:36:24.096790: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-
-
-.. parsed-literal::
-
     IR model saved to model/resnet50.xml
 
 
-(1) Simplify selection logic
-###############################################################################################################################
+(1) Simplify selection logic 
+----------------------------------------------------------------------
 
-Default behavior of Core::compile_model API without device_name
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Default behavior of Core::compile_model API without device_name 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, ``compile_model`` API will select **AUTO** as
 ``device_name`` if no device is specified.
@@ -169,14 +171,14 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:36:26.6713]I[plugin.cpp:537][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [22:36:26.6714]I[plugin.cpp:537][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [22:36:26.6714]I[plugin.cpp:537][AUTO] device:CPU, config:PERF_COUNT=NO
-    [22:36:26.6714]I[plugin.cpp:542][AUTO] device:CPU, priority:0
-    [22:36:26.6716]I[schedule.cpp:17][AUTO] scheduler starting
-    [22:36:26.6717]I[auto_schedule.cpp:131][AUTO] select device:CPU
-    [22:36:26.8157]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
-    [22:36:26.8158]I[plugin.cpp:572][AUTO] underlying hardware does not support hardware context
+    [22:37:18.2538]I[plugin.cpp:537][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [22:37:18.2539]I[plugin.cpp:537][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [22:37:18.2539]I[plugin.cpp:537][AUTO] device:CPU, config:PERF_COUNT=NO
+    [22:37:18.2539]I[plugin.cpp:542][AUTO] device:CPU, priority:0
+    [22:37:18.2540]I[schedule.cpp:17][AUTO] scheduler starting
+    [22:37:18.2540]I[auto_schedule.cpp:131][AUTO] select device:CPU
+    [22:37:18.3716]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
+    [22:37:18.3717]I[plugin.cpp:572][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -189,12 +191,12 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
+    [22:37:18.3836]I[schedule.cpp:303][AUTO] scheduler ending
     Deleted compiled_model
-    [22:36:26.8279]I[schedule.cpp:303][AUTO] scheduler ending
 
 
-Explicitly pass AUTO as device_name to Core::compile_model API
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Explicitly pass AUTO as device_name to Core::compile_model API 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is optional, but passing AUTO explicitly as ``device_name`` may
 improve readability of your code.
@@ -227,8 +229,8 @@ improve readability of your code.
     Deleted compiled_model
 
 
-(2) Improve the first inference latency
-###############################################################################################################################
+(2) Improve the first inference latency 
+---------------------------------------------------------------------------------
 
 One of the benefits of using AUTO device selection is reducing FIL
 (first inference latency). FIL is the model compilation time combined
@@ -241,17 +243,33 @@ This initialization time may be intolerable for some applications. To
 avoid this delay, the AUTO uses CPU transparently as the first inference
 device until GPU is ready.
 
-Load an Image
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load an Image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 torchvision library provides model specific input transformation
 function, we will reuse it for preparing input data.
 
 .. code:: ipython3
 
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    from notebook_utils import download_file
+
+.. code:: ipython3
+
     from PIL import Image
     
-    image = Image.open("../data/image/coco.jpg")
+    # Download the image from the openvino_notebooks storage
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        directory="data"
+    )
+    
+    image = Image.open(str(image_filename))
     input_transform = torchvision.models.ResNet50_Weights.DEFAULT.transforms()
     
     input_tensor = input_transform(image)
@@ -260,13 +278,19 @@ function, we will reuse it for preparing input data.
 
 
 
+.. parsed-literal::
 
-.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_13_0.png
+    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 
-Load the model to GPU device and perform inference
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_14_1.png
+
+
+
+Load the model to GPU device and perform inference 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -292,8 +316,8 @@ Load the model to GPU device and perform inference
     A GPU device is not available. Available devices are: ['CPU']
 
 
-Load the model using AUTO device and do inference
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load the model using AUTO device and do inference 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When GPU is the best available device, the first few inferences will be
 executed on CPU until GPU is ready.
@@ -324,8 +348,8 @@ executed on CPU until GPU is ready.
     # Deleted model will wait for compiling on the selected device to complete.
     del compiled_model
 
-(3) Achieve different performance for different targets
-###############################################################################################################################
+(3) Achieve different performance for different targets 
+-------------------------------------------------------------------------------------------------
 
 It is an advantage to define **performance hints** when using Automatic
 Device Selection. By specifying a **THROUGHPUT** or **LATENCY** hint,
@@ -342,8 +366,8 @@ section of `Automatic Device
 Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 article.
 
-Class and callback definition
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Class and callback definition 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -441,8 +465,8 @@ Class and callback definition
     metrics_update_interval = 10
     metrics_update_num = 6
 
-Inference with THROUGHPUT hint
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Inference with THROUGHPUT hint 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Loop for inference and update the FPS/Latency every
 @metrics_update_interval seconds.
@@ -480,17 +504,17 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  181.92fps, latency:  31.32ms, time interval: 10.02s
-    throughput:  181.58fps, latency:  32.24ms, time interval: 10.00s
-    throughput:  182.07fps, latency:  32.16ms, time interval: 10.00s
-    throughput:  181.02fps, latency:  32.35ms, time interval: 10.00s
-    throughput:  180.73fps, latency:  32.40ms, time interval: 10.01s
-    throughput:  180.81fps, latency:  32.37ms, time interval: 10.00s
+    throughput:  182.05fps, latency:  31.31ms, time interval: 10.01s
+    throughput:  182.68fps, latency:  32.06ms, time interval: 10.01s
+    throughput:  183.56fps, latency:  31.93ms, time interval: 10.02s
+    throughput:  182.77fps, latency:  32.06ms, time interval: 10.01s
+    throughput:  182.17fps, latency:  32.13ms, time interval: 10.00s
+    throughput:  182.39fps, latency:  32.15ms, time interval: 10.00s
     Done
 
 
-Inference with LATENCY hint
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Inference with LATENCY hint 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Loop for inference and update the FPS/Latency for each
 @metrics_update_interval seconds
@@ -529,17 +553,17 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  139.38fps, latency:  6.69ms, time interval: 10.00s
-    throughput:  141.83fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  141.97fps, latency:  6.67ms, time interval: 10.00s
-    throughput:  141.95fps, latency:  6.67ms, time interval: 10.00s
-    throughput:  141.90fps, latency:  6.67ms, time interval: 10.01s
-    throughput:  141.96fps, latency:  6.67ms, time interval: 10.00s
+    throughput:  140.29fps, latency:  6.65ms, time interval: 10.00s
+    throughput:  142.87fps, latency:  6.63ms, time interval: 10.00s
+    throughput:  142.41fps, latency:  6.64ms, time interval: 10.01s
+    throughput:  142.91fps, latency:  6.63ms, time interval: 10.01s
+    throughput:  142.78fps, latency:  6.64ms, time interval: 10.00s
+    throughput:  142.80fps, latency:  6.64ms, time interval: 10.01s
     Done
 
 
-Difference in FPS and latency
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Difference in FPS and latency 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -572,7 +596,7 @@ Difference in FPS and latency
 
 
 
-.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_26_0.png
+.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_27_0.png
 
 
 .. code:: ipython3
@@ -606,5 +630,5 @@ Difference in FPS and latency
 
 
 
-.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_27_0.png
+.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_28_0.png
 

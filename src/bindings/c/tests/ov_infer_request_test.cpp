@@ -203,8 +203,8 @@ public:
     ov_preprocess_input_model_info_t* input_model;
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_test, ::testing::Values("CPU"));
-INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, ov_infer_request_test, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, ov_infer_request_ppp, ::testing::Values("CPU"));
 
 TEST_P(ov_infer_request_test, set_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
@@ -339,6 +339,10 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
+}
+
+TEST_P(ov_infer_request_test, infer_async_wait_for_return_fail) {
+    OV_EXPECT_NOT_OK(ov_infer_request_wait_for(infer_request, 10));
 }
 
 TEST_P(ov_infer_request_ppp, infer_async_ppp) {

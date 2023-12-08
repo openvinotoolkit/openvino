@@ -13,9 +13,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fold_fake_quantize_function.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fold_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -115,11 +115,20 @@ public:
     }
 };
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122660
+TEST_P(FoldFakeQuantizeInTransformations, DISABLED_CompareFunctions) {
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(actualFunction, referenceFunction, true, false);
+    ASSERT_TRUE(res.first) << res.second;
+}
+#else
 TEST_P(FoldFakeQuantizeInTransformations, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
+#endif
 
 const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
     {

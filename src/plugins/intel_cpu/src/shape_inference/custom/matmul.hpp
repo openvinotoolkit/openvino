@@ -4,6 +4,7 @@
 
 #include <node.h>
 #include "shape_inference/shape_inference_cpu.hpp"
+#include <shape_inference/shape_inference_ngraph.hpp>
 
 #pragma once
 namespace ov {
@@ -33,10 +34,10 @@ private:
 
 class MMShapeInferFactory : public ShapeInferFactory {
 public:
-    MMShapeInferFactory(const std::shared_ptr<ngraph::Node>& op) : m_op(op) {}
+    MMShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override;
 private:
-    std::shared_ptr<ngraph::Node> m_op;
+    std::shared_ptr<ov::Node> m_op;
 };
 } // namespace node
 } // namespace intel_cpu

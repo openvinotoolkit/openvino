@@ -20,14 +20,6 @@ auto autoBatchConfigs = []() {
          {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "0 "}}};
 };
 
-const std::vector<ov::AnyMap> autoConfigs = {
-    {ov::device::priorities(ov::test::utils::DEVICE_GPU)},
-#ifdef ENABLE_INTEL_CPU
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU, ov::test::utils::DEVICE_GPU)},
-    {ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU)},
-#endif
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
@@ -38,11 +30,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVCompiledModelBaseTest,
                          ::testing::Combine(
                                  ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                  ::testing::ValuesIn(autoBatchConfigs())),
-                         OVCompiledModelBaseTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         OVAutoExecutableNetworkTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoConfigs)),
                          OVCompiledModelBaseTest::getTestCaseName);
 }  // namespace

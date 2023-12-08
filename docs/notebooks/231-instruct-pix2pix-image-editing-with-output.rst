@@ -1,8 +1,6 @@
 Image Editing with InstructPix2Pix and OpenVINO
 ===============================================
 
-
-
 The InstructPix2Pix is a conditional diffusion model that edits images
 based on written instructions provided by the user. Generative image
 editing models traditionally target a single editing task like style
@@ -25,92 +23,50 @@ model using OpenVINO.
 
 Notebook contains the following steps:
 
-1. Convert PyTorch models to ONNX format.
-2. Convert ONNX models to OpenVINO IR format, using model conversion
+1. Convert PyTorch models to OpenVINO IR format, using Model Conversion
    API.
-3. Run InstructPix2Pix pipeline with OpenVINO.
+2. Run InstructPix2Pix pipeline with OpenVINO.
+3. Optimize InstructPix2Pix pipeline with
+   `NNCF <https://github.com/openvinotoolkit/nncf/>`__ quantization.
+4. Compare results of original and optimized pipelines.
+
+**Table of contents:**
 
 
-.. _top:
+-  `Prerequisites <#prerequisites>`__
+-  `Create Pytorch Models
+   pipeline <#create-pytorch-models-pipeline>`__
+-  `Convert Models to OpenVINO
+   IR <#convert-models-to-openvino-ir>`__
 
-**Table of contents**:
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE <#vae>`__
+   -  `Unet <#unet>`__
 
-- `Prerequisites <#prerequisites>`__
-- `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
-- `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Quantization <#quantization>`__
 
-  - `Text Encoder <#text-encoder>`__
-  - `VAE <#vae>`__
-  - `Unet <#unet>`__
+   -  `Prepare calibration
+      dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp-and-int-models>`__
 
-- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Interactive demo with
+   Gradio <#interactive-demo-with-gradio>`__
 
-Prerequisites `⇑ <#top>`__
-###############################################################################################################################
-
+Prerequisites 
+-------------------------------------------------------
 
 Install necessary packages
 
 .. code:: ipython3
 
-    !pip install "transformers>=4.25.1" accelerate
-    !pip install "git+https://github.com/huggingface/diffusers.git"
+    %pip install -q "transformers>=4.25.1" accelerate gradio datasets diffusers
+    %pip install -q "openvino>=2023.1.0"
 
-
-.. parsed-literal::
-
-    Requirement already satisfied: transformers>=4.25.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (4.25.1)
-    Requirement already satisfied: accelerate in /home/ea/work/notebooks_env/lib/python3.8/site-packages (0.13.2)
-    Requirement already satisfied: huggingface-hub<1.0,>=0.10.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (0.11.1)
-    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (0.13.2)
-    Requirement already satisfied: filelock in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (3.9.0)
-    Requirement already satisfied: regex!=2019.12.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (2022.10.31)
-    Requirement already satisfied: packaging>=20.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (23.0)
-    Requirement already satisfied: numpy>=1.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (1.23.4)
-    Requirement already satisfied: pyyaml>=5.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (6.0)
-    Requirement already satisfied: requests in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (2.28.2)
-    Requirement already satisfied: tqdm>=4.27 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from transformers>=4.25.1) (4.64.1)
-    Requirement already satisfied: torch>=1.4.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from accelerate) (1.13.1+cpu)
-    Requirement already satisfied: psutil in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from accelerate) (5.9.4)
-    Requirement already satisfied: typing-extensions>=3.7.4.3 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.10.0->transformers>=4.25.1) (4.4.0)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->transformers>=4.25.1) (1.26.14)
-    Requirement already satisfied: idna<4,>=2.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->transformers>=4.25.1) (3.4)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->transformers>=4.25.1) (2.1.1)
-    Requirement already satisfied: certifi>=2017.4.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->transformers>=4.25.1) (2022.12.7)
-    
-    [notice] A new release of pip available: 22.3.1 -> 23.0
-    [notice] To update, run: pip install --upgrade pip
-    Collecting git+https://github.com/huggingface/diffusers.git
-      Cloning https://github.com/huggingface/diffusers.git to /tmp/pip-req-build-tj6ekfd9
-      Running command git clone --filter=blob:none --quiet https://github.com/huggingface/diffusers.git /tmp/pip-req-build-tj6ekfd9
-      Resolved https://github.com/huggingface/diffusers.git to commit 1e5eaca754bce676ce9142cab7ccaaee78df4696
-      Installing build dependencies ... done
-      Getting requirements to build wheel ... done
-      Preparing metadata (pyproject.toml) ... done
-    Requirement already satisfied: huggingface-hub>=0.10.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (0.11.1)
-    Requirement already satisfied: regex!=2019.12.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (2022.10.31)
-    Requirement already satisfied: numpy in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (1.23.4)
-    Requirement already satisfied: filelock in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (3.9.0)
-    Requirement already satisfied: importlib-metadata in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (4.13.0)
-    Requirement already satisfied: Pillow in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (9.4.0)
-    Requirement already satisfied: requests in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers==0.14.0.dev0) (2.28.2)
-    Requirement already satisfied: pyyaml>=5.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.10.0->diffusers==0.14.0.dev0) (6.0)
-    Requirement already satisfied: tqdm in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.10.0->diffusers==0.14.0.dev0) (4.64.1)
-    Requirement already satisfied: packaging>=20.9 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.10.0->diffusers==0.14.0.dev0) (23.0)
-    Requirement already satisfied: typing-extensions>=3.7.4.3 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.10.0->diffusers==0.14.0.dev0) (4.4.0)
-    Requirement already satisfied: zipp>=0.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from importlib-metadata->diffusers==0.14.0.dev0) (3.11.0)
-    Requirement already satisfied: idna<4,>=2.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers==0.14.0.dev0) (3.4)
-    Requirement already satisfied: certifi>=2017.4.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers==0.14.0.dev0) (2022.12.7)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers==0.14.0.dev0) (2.1.1)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers==0.14.0.dev0) (1.26.14)
-    
-    [notice] A new release of pip available: 22.3.1 -> 23.0
-    [notice] To update, run: pip install --upgrade pip
-
-
-Create Pytorch Models pipeline `⇑ <#top>`__
-###############################################################################################################################
-
+Create Pytorch Models pipeline 
+------------------------------------------------------------------------
 
 ``StableDiffusionInstructPix2PixPipeline`` is an end-to-end inference
 pipeline that you can use to edit images from text instructions with
@@ -119,9 +75,7 @@ just a few lines of code provided as part
 
 First, we load the pre-trained weights of all components of the model.
 
-.. note::
-
-   Initially, model loading can take some time due to
+   **NOTE**: Initially, model loading can take some time due to
    downloading the weights. Also, the download speed depends on your
    internet connection.
 
@@ -141,31 +95,15 @@ First, we load the pre-trained weights of all components of the model.
     
     del pipe
 
+Convert Models to OpenVINO IR 
+-----------------------------------------------------------------------
 
-
-.. parsed-literal::
-
-    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
-
-
-Convert Models to OpenVINO IR `⇑ <#top>`__
-###############################################################################################################################
-
-
-OpenVINO supports PyTorch through export to the ONNX format. We will use
-``torch.onnx.export`` function for obtaining an ONNX model. For more
-information, refer to the `PyTorch
-documentation <https://pytorch.org/docs/stable/onnx.html>`__. We need to
-provide a model object, input data for model tracing and a path for
-saving the model. Optionally, we can provide target onnx opset for
-conversion and other parameters specified in the documentation (for
-example, input and output names or dynamic shapes).
-
-While ONNX models are directly supported by OpenVINO™ runtime, it can be
-useful to convert them to OpenVINO Intermediate Representation (IR)
-format to take the advantage of advanced OpenVINO optimization tools and
-features. We will use OpenVINO Model Optimizer to convert the model to
-IR format and compress weights to the ``FP16`` format.
+OpenVINO supports PyTorch models using `Model Conversion
+API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html>`__
+to convert the model to IR format. ``ov.convert_model`` function accepts
+PyTorch model object and example input and then converts it to
+``ov.Model`` class instance that ready to use for loading on device or
+can be saved on disk using ``ov.save_model``.
 
 The InstructPix2Pix model is based on Stable Diffusion, a large-scale
 text-to-image latent diffusion model. You can find more details about
@@ -183,9 +121,8 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-Text Encoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Text Encoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -198,64 +135,58 @@ indexes of tokens from text processed by tokenizer and padded to maximum
 length accepted by the model. Model outputs are two tensors:
 ``last_hidden_state`` - hidden state from the last MultiHeadAttention
 layer in the model and ``pooler_out`` - pooled output for whole model
-hidden states. You will use ``opset_version=14``, since model contains
-``triu`` operation, supported in ONNX only starting from this opset.
+hidden states.
 
 .. code:: ipython3
 
     from pathlib import Path
-    from openvino.tools import mo
-    from openvino.runtime import serialize, Core
+    import openvino as ov
+    import gc
     
-    core = Core()
+    core = ov.Core()
     
-    TEXT_ENCODER_ONNX_PATH = Path('text_encoder.onnx')
-    TEXT_ENCODER_OV_PATH = TEXT_ENCODER_ONNX_PATH.with_suffix('.xml')
+    TEXT_ENCODER_OV_PATH = Path("text_encoder.xml")
     
-    
-    def convert_encoder_onnx(text_encoder, onnx_path: Path):
+    def cleanup_torchscript_cache():
         """
-        Convert Text Encoder model to ONNX. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+        Helper for removing cached model representation
+        """
+        torch._C._jit_clear_class_registry()
+        torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
+        torch.jit._state._clear_class_state()
+    
+    
+    def convert_encoder(text_encoder: torch.nn.Module, ir_path:Path):
+        """
+        Convert Text Encoder mode. 
+        Function accepts text encoder model, and prepares example inputs for conversion, 
         Parameters: 
-            text_encoder: InstrcutPix2Pix text_encoder model
-            onnx_path (Path): File for storing onnx model
+            text_encoder (torch.nn.Module): text_encoder model from Stable Diffusion pipeline
+            ir_path (Path): File for storing model
         Returns:
             None
         """
-        if not onnx_path.exists():
-            # switch model to inference mode
-            text_encoder.eval()
-            input_ids = torch.ones((1, 77), dtype=torch.long)
+        input_ids = torch.ones((1, 77), dtype=torch.long)
+        # switch model to inference mode
+        text_encoder.eval()
     
-            # disable gradients calculation for reducing memory consumption
-            with torch.no_grad():
-                # infer model, just to make sure that it works
-                text_encoder(input_ids)
-                # export model to ONNX format
-                torch.onnx.export(
-                    text_encoder,  # model instance
-                    input_ids,  # inputs for model tracing
-                    onnx_path,  # output file for saving result
-                    # model input name for onnx representation
-                    input_names=['input_ids'],
-                    # model output names for onnx representation
-                    output_names=['last_hidden_state', 'pooler_out'],
-                    opset_version=14  # onnx opset version for export
-                )
-            print('Text Encoder successfully converted to ONNX')
-    
+        # disable gradients calculation for reducing memory consumption
+        with torch.no_grad():
+            # Export model to IR format
+            ov_model = ov.convert_model(text_encoder, example_input=input_ids, input=[(1,77),])
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'Text Encoder successfully converted to IR and saved to {ir_path}')
+        
     
     if not TEXT_ENCODER_OV_PATH.exists():
-        convert_encoder_onnx(text_encoder, TEXT_ENCODER_ONNX_PATH)
-        text_encoder = mo.convert_model(
-            TEXT_ENCODER_ONNX_PATH, compress_to_fp16=True)
-        serialize(text_encoder, str(TEXT_ENCODER_OV_PATH))
-        print('Text Encoder successfully converted to IR')
+        convert_encoder(text_encoder, TEXT_ENCODER_OV_PATH)
     else:
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
     
     del text_encoder
+    gc.collect()
 
 
 .. parsed-literal::
@@ -263,9 +194,16 @@ hidden states. You will use ``opset_version=14``, since model contains
     Text encoder will be loaded from text_encoder.xml
 
 
-VAE `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
+.. parsed-literal::
+
+    32
+
+
+
+VAE 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VAE model consists of two parts: an encoder and a decoder.
 
@@ -283,18 +221,16 @@ into two independent models.
 
 .. code:: ipython3
 
-    VAE_ENCODER_ONNX_PATH = Path('vae_encoder.onnx')
-    VAE_ENCODER_OV_PATH = VAE_ENCODER_ONNX_PATH.with_suffix('.xml')
+    VAE_ENCODER_OV_PATH = Path("vae_encoder.xml")
     
-    
-    def convert_vae_encoder_onnx(vae, onnx_path: Path):
+    def convert_vae_encoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to ONNX, then IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
+        Convert VAE model for encoding to IR format. 
+        Function accepts vae model, creates wrapper class for export only necessary for inference part, 
+        prepares example inputs for conversion, 
         Parameters: 
-            vae: InstrcutPix2Pix VAE model
-            onnx_path (Path): File for storing onnx model
+            vae (torch.nn.Module): VAE model from StableDiffusio pipeline 
+            ir_path (Path): File for storing model
         Returns:
             None
         """
@@ -304,47 +240,33 @@ into two independent models.
                 self.vae = vae
     
             def forward(self, image):
-                return self.vae.encode(image).latent_dist.mode()
-    
-        if not onnx_path.exists():
-            vae_encoder = VAEEncoderWrapper(vae)
-            vae_encoder.eval()
-            image = torch.zeros((1, 3, 512, 512))
-            with torch.no_grad():
-                torch.onnx.export(vae_encoder, image, onnx_path, input_names=[
-                                  'image'], output_names=['image_latent'])
-            print('VAE encoder successfully converted to ONNX')
+                return self.vae.encode(x=image)["latent_dist"].sample()
+        vae_encoder = VAEEncoderWrapper(vae)
+        vae_encoder.eval()
+        image = torch.zeros((1, 3, 512, 512))
+        with torch.no_grad():
+            ov_model = ov.convert_model(vae_encoder, example_input=image, input=[((1,3,512,512),)])
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'VAE encoder successfully converted to IR and saved to {ir_path}')
     
     
     if not VAE_ENCODER_OV_PATH.exists():
-        convert_vae_encoder_onnx(vae, VAE_ENCODER_ONNX_PATH)
-        vae_encoder = mo.convert_model(VAE_ENCODER_ONNX_PATH, compress_to_fp16=True)
-        serialize(vae_encoder, str(VAE_ENCODER_OV_PATH))
-        print('VAE encoder successfully converted to IR')
-        del vae_encoder
+        convert_vae_encoder(vae, VAE_ENCODER_OV_PATH)
     else:
         print(f"VAE encoder will be loaded from {VAE_ENCODER_OV_PATH}")
-
-
-.. parsed-literal::
-
-    VAE encoder will be loaded from vae_encoder.xml
-
-
-.. code:: ipython3
-
-    VAE_DECODER_ONNX_PATH = Path('vae_decoder.onnx')
-    VAE_DECODER_OV_PATH = VAE_DECODER_ONNX_PATH.with_suffix('.xml')
     
+    VAE_DECODER_OV_PATH = Path('vae_decoder.xml')
     
-    def convert_vae_decoder_onnx(vae, onnx_path: Path):
+    def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to ONNX, then IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
+        Convert VAE model for decoding to IR format. 
+        Function accepts vae model, creates wrapper class for export only necessary for inference part, 
+        prepares example inputs for conversion, 
         Parameters: 
-            vae: InstrcutPix2Pix VAE model
-            onnx_path (Path): File for storing onnx model
+            vae (torch.nn.Module): VAE model frm StableDiffusion pipeline
+            ir_path (Path): File for storing model
         Returns:
             None
         """
@@ -355,37 +277,44 @@ into two independent models.
     
             def forward(self, latents):
                 return self.vae.decode(latents)
+        
+        vae_decoder = VAEDecoderWrapper(vae)
+        latents = torch.zeros((1, 4, 64, 64))
     
-        if not onnx_path.exists():
-            vae_decoder = VAEDecoderWrapper(vae)
-            latents = torch.zeros((1, 4, 64, 64))
-    
-            vae_decoder.eval()
-            with torch.no_grad():
-                torch.onnx.export(vae_decoder, latents, onnx_path, input_names=[
-                                  'latents'], output_names=['sample'])
-            print('VAE decoder successfully converted to ONNX')
+        vae_decoder.eval()
+        with torch.no_grad():
+            ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[((1,4,64,64),)])
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'VAE decoder successfully converted to IR and saved to {ir_path}')
     
     
     if not VAE_DECODER_OV_PATH.exists():
-        convert_vae_decoder_onnx(vae, VAE_DECODER_ONNX_PATH)
-        vae_decoder = mo.convert_model(VAE_DECODER_ONNX_PATH, compress_to_fp16=True)
-        print('VAE decoder successfully converted to IR')
-        serialize(vae_decoder, str(VAE_DECODER_OV_PATH))
-        del vae_decoder
+        convert_vae_decoder(vae, VAE_DECODER_OV_PATH)
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
+    
     del vae
+    gc.collect()
 
 
 .. parsed-literal::
 
-    VAE decoder successfully converted to IR
+    VAE encoder will be loaded from vae_encoder.xml
+    VAE decoder will be loaded from vae_decoder.xml
 
 
-Unet `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
+.. parsed-literal::
+
+    0
+
+
+
+Unet 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Unet model has three inputs:
 
@@ -401,58 +330,69 @@ Model predicts the ``sample`` state for the next step.
 
     import numpy as np
     
-    UNET_ONNX_PATH = Path('unet/unet.onnx')
-    UNET_OV_PATH = UNET_ONNX_PATH.parents[1] / 'unet.xml'
+    UNET_OV_PATH = Path("unet.xml")
+    
+    dtype_mapping = {
+        torch.float32: ov.Type.f32,
+        torch.float64: ov.Type.f64
+    }
     
     
-    def convert_unet_onnx(unet, onnx_path: Path):
+    def convert_unet(unet:torch.nn.Module, ir_path:Path):
         """
-        Convert Unet model to ONNX, then IR format. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+        Convert U-net model to IR format. 
+        Function accepts unet model, prepares example inputs for conversion, 
         Parameters: 
-            unet: InstrcutPix2Pix unet model
-            onnx_path (Path): File for storing onnx model
+            unet (StableDiffusionPipeline): unet from Stable Diffusion pipeline
+            ir_path (Path): File for storing model
         Returns:
             None
         """
-        if not onnx_path.exists():
-            # prepare inputs
-            latents_shape = (3, 8, 512 // 8, 512 // 8)
-            latents = torch.randn(latents_shape)
-            t = torch.from_numpy(np.array(1, dtype=float))
-            encoder_hidden_state = torch.randn((3,77,768))
+        # prepare inputs
+        encoder_hidden_state = torch.ones((3, 77, 768))
+        latents_shape = (3, 8, 512 // 8, 512 // 8)
+        latents = torch.randn(latents_shape)
+        t = torch.from_numpy(np.array(1, dtype=float))
+        dummy_inputs = (latents, t, encoder_hidden_state)
+        input_info = []
+        for input_tensor in dummy_inputs:
+            shape = ov.PartialShape(tuple(input_tensor.shape))
+            element_type = dtype_mapping[input_tensor.dtype]
+            input_info.append((shape, element_type))
     
-            # if the model size > 2Gb, it will be represented as ONNX with external data files and we will store it in a separate directory to avoid having a lot of files in current directory
-            onnx_path.parent.mkdir(exist_ok=True, parents=True)
-            with torch.no_grad():
-                torch.onnx.export(
-                    unet,
-                    (latents, t, encoder_hidden_state), str(onnx_path),
-                    input_names=['scaled_latent_model_input',
-                                 'timestep', 'text_embeddings'],
-                    output_names=['sample']
-                )
-            print('Unet successfully converted to ONNX')
+        unet.eval()
+        with torch.no_grad():
+            ov_model = ov.convert_model(unet, example_input=dummy_inputs, input=input_info)
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'Unet successfully converted to IR and saved to {ir_path}')
     
     
     if not UNET_OV_PATH.exists():
-        convert_unet_onnx(unet, UNET_ONNX_PATH)
-        unet = mo.convert_model(UNET_ONNX_PATH, compress_to_fp16=True)
-        serialize(unet, str(UNET_OV_PATH)) 
-        print('Unet successfully converted to IR')
+        convert_unet(unet, UNET_OV_PATH)
+        gc.collect()
     else:
-        print(f"Unet successfully loaded from {UNET_OV_PATH}")
+        print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
+    gc.collect()
 
 
 .. parsed-literal::
 
-    Unet successfully loaded from unet.xml
+    Unet will be loaded from unet.xml
 
 
-Prepare Inference Pipeline `⇑ <#top>`__
-###############################################################################################################################
 
+
+.. parsed-literal::
+
+    0
+
+
+
+Prepare Inference Pipeline 
+--------------------------------------------------------------------
 
 Putting it all together, let us now take a closer look at how the model
 inference works by illustrating the logical flow.
@@ -480,8 +420,7 @@ decoder part of the variational auto encoder.
 
 .. code:: ipython3
 
-    from diffusers.pipeline_utils import DiffusionPipeline
-    from openvino.runtime import Model, Core
+    from diffusers import DiffusionPipeline
     from transformers import CLIPTokenizer
     from typing import Union, List, Optional, Tuple
     import PIL
@@ -560,12 +499,12 @@ decoder part of the variational auto encoder.
             self,
             tokenizer: CLIPTokenizer,
             scheduler: EulerAncestralDiscreteScheduler,
-            core: Core,
-            text_encoder: Model,
-            vae_encoder: Model,
-            unet: Model,
-            vae_decoder: Model,
-            device:str = "AUTO"
+            core: ov.Core,
+            text_encoder: ov.Model,
+            vae_encoder: ov.Model,
+            unet: ov.Model,
+            vae_decoder: ov.Model,
+            device: str = "AUTO"
         ):
             super().__init__()
             self.tokenizer = tokenizer
@@ -574,7 +513,7 @@ decoder part of the variational auto encoder.
             self.load_models(core, device, text_encoder,
                              vae_encoder, unet, vae_decoder)
     
-        def load_models(self, core: Core, device: str, text_encoder: Model, vae_encoder: Model, unet: Model, vae_decoder: Model):
+        def load_models(self, core: ov.Core, device: str, text_encoder: ov.Model, vae_encoder: ov.Model, unet: ov.Model, vae_decoder: ov.Model):
             """
             Function for loading models on device using OpenVINO
             
@@ -590,11 +529,13 @@ decoder part of the variational auto encoder.
             """
             self.text_encoder = core.compile_model(text_encoder, device)
             self.text_encoder_out = self.text_encoder.output(0)
-            self.vae_encoder = core.compile_model(vae_encoder, device)
+            ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device != "CPU" else {}
+            self.vae_encoder = core.compile_model(vae_encoder, device, ov_config)
             self.vae_encoder_out = self.vae_encoder.output(0)
-            self.unet = core.compile_model(unet, device)
+            # We have to register UNet in config to be able to change it externally to collect calibration data
+            self.register_to_config(unet=core.compile_model(unet, device))
             self.unet_out = self.unet.output(0)
-            self.vae_decoder = core.compile_model(vae_decoder)
+            self.vae_decoder = core.compile_model(vae_decoder, device, ov_config)
             self.vae_decoder_out = self.vae_decoder.output(0)
     
         def __call__(
@@ -899,18 +840,18 @@ decoder part of the variational auto encoder.
     import matplotlib.pyplot as plt
     
     
-    def visualize_results(orig_img:PIL.Image.Image, processed_img:PIL.Image.Image, prompt:str):
+    def visualize_results(orig_img:PIL.Image.Image, processed_img:PIL.Image.Image, img1_title:str, img2_title:str):
         """
         Helper function for results visualization
         
         Parameters:
            orig_img (PIL.Image.Image): original image
            processed_img (PIL.Image.Image): processed image after editing
-           prompt (str): text instruction used for editing
+           img1_title (str): title for the image on the left
+           img2_title (str): title for the image on the right
         Returns:
            fig (matplotlib.pyplot.Figure): matplotlib generated figure contains drawing result
         """
-        orig_title = "Original image"
         im_w, im_h = orig_img.size
         is_horizontal = im_h <= im_w
         figsize = (20, 30) if is_horizontal else (30, 20)
@@ -925,8 +866,8 @@ decoder part of the variational auto encoder.
             a.grid(False)
         list_axes[0].imshow(np.array(orig_img))
         list_axes[1].imshow(np.array(processed_img))
-        list_axes[0].set_title(orig_title, fontsize=20) 
-        list_axes[1].set_title(f"Prompt: {prompt}", fontsize=20)
+        list_axes[0].set_title(img1_title, fontsize=20) 
+        list_axes[1].set_title(img2_title, fontsize=20)
         fig.subplots_adjust(wspace=0.0 if is_horizontal else 0.01 , hspace=0.01 if is_horizontal else 0.0)
         fig.tight_layout()
         fig.savefig("result.png", bbox_inches='tight')
@@ -949,6 +890,15 @@ can provide device selecting one from available in dropdown list.
     
     device
 
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 .. code:: ipython3
 
     from transformers import CLIPTokenizer
@@ -958,6 +908,13 @@ can provide device selecting one from available in dropdown list.
     
     ov_pipe = OVInstructPix2PixPipeline(tokenizer, scheduler, core, TEXT_ENCODER_OV_PATH, VAE_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
 
+
+.. parsed-literal::
+
+    /home/ltalamanova/env_ci/lib/python3.8/site-packages/diffusers/configuration_utils.py:134: FutureWarning: Accessing config attribute `unet` directly via 'OVInstructPix2PixPipeline' object attribute is deprecated. Please access 'unet' over 'OVInstructPix2PixPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
 Now, you are ready to define editing instructions and an image for
 running the inference pipeline. You can find example results generated
 by the model on this
@@ -965,11 +922,8 @@ by the model on this
 need inspiration. Optionally, you can also change the random generator
 seed for latent state initialization and number of steps.
 
-.. note::
-
-   Consider increasing ``steps`` to get more precise results.
+   **Note**: Consider increasing ``steps`` to get more precise results.
    A suggested value is ``100``, but it will take more time to process.
-
 
 .. code:: ipython3
 
@@ -993,10 +947,9 @@ seed for latent state initialization and number of steps.
     VBox(children=(Text(value=' Make it in galaxy', description='your text'), IntSlider(value=42, description='see…
 
 
-.. note::
 
-   Diffusion process can take some time, depending on what hardware you select.
-
+   **Note**: Diffusion process can take some time, depending on what
+   hardware you select.
 
 .. code:: ipython3
 
@@ -1036,11 +989,351 @@ generation.
 
 .. code:: ipython3
 
-    fig = visualize_results(image, processed_image[0], text_prompt.value)
+    fig = visualize_results(image, processed_image[0], img1_title="Original image", img2_title=f"Prompt: {text_prompt.value}")
 
 
 
-.. image:: 231-instruct-pix2pix-image-editing-with-output_files/231-instruct-pix2pix-image-editing-with-output_25_0.png
+.. image:: 231-instruct-pix2pix-image-editing-with-output_files/231-instruct-pix2pix-image-editing-with-output_24_0.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
+
+Quantization 
+-------------------------------------------------------
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``InstructPix2Pix`` pipeline structure, UNet used for
+iterative denoising of input. It means that model runs in the cycle
+repeating inference on each diffusion step, while other parts of
+pipeline take part only once. That is why computation cost and speed of
+UNet denoising becomes the critical path in the pipeline.
+
+The optimization process contains the following steps:
+
+1. Create a calibration dataset for quantization.
+2. Run ``nncf.quantize()`` to obtain quantized model.
+3. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description='Quantization',
+        disabled=False,
+    )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    import sys
+    sys.path.append("../utils")
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We use a portion of
+`fusing/instructpix2pix-1000-samples <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
+dataset from Hugging Face as calibration data. To collect intermediate
+model inputs for calibration we should customize ``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import datasets
+    from tqdm.notebook import tqdm
+    from transformers import Pipeline
+    from typing import Any, Dict, List
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model, prob: float, data_cache: List[Any] = None):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache else []
+            self.prob = np.clip(prob, 0, 1)
+    
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() >= self.prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    def collect_calibration_data(pix2pix_pipeline: Pipeline, subset_size: int) -> List[Dict]:
+        original_unet = pix2pix_pipeline.unet
+        pix2pix_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
+        dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True).shuffle(seed=42)
+        pix2pix_pipeline.set_progress_bar_config(disable=True)
+    
+        # Run inference for data collection
+        pbar = tqdm(total=subset_size)
+        diff = 0
+        for batch in dataset:
+            prompt = batch["edit_prompt"]
+            image = batch["input_image"].convert("RGB")
+            _ = pix2pix_pipeline(prompt, image)
+            collected_subset_size = len(pix2pix_pipeline.unet.data_cache)
+            if collected_subset_size >= subset_size:
+                pbar.update(subset_size - pbar.n)
+                break
+            pbar.update(collected_subset_size - diff)
+            diff = collected_subset_size
+    
+        calibration_dataset = pix2pix_pipeline.unet.data_cache
+        pix2pix_pipeline.set_progress_bar_config(disable=False)
+        pix2pix_pipeline.unet = original_unet
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    UNET_INT8_OV_PATH = Path("unet_int8.xml")
+    if not UNET_INT8_OV_PATH.exists():
+        subset_size = 300
+        unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
+
+
+.. parsed-literal::
+
+    /home/ltalamanova/env_ci/lib/python3.8/site-packages/diffusers/configuration_utils.py:134: FutureWarning: Accessing config attribute `unet` directly via 'OVInstructPix2PixPipeline' object attribute is deprecated. Please access 'unet' over 'OVInstructPix2PixPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/300 [00:00<?, ?it/s]
+
+
+Run quantization 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create a quantized model from the pre-trained converted OpenVINO model.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    
+    if UNET_INT8_OV_PATH.exists():
+        print("Loading quantized model")
+        quantized_unet = core.read_model(UNET_INT8_OV_PATH)
+    else:
+        unet = core.read_model(UNET_OV_PATH)
+        quantized_unet = nncf.quantize(
+            model=unet,
+            subset_size=subset_size,
+            calibration_dataset=nncf.Dataset(unet_calibration_data),
+            model_type=nncf.ModelType.TRANSFORMER
+        )
+        ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|██████████| 300/300 [06:48<00:00,  1.36s/it]
+    Applying Smooth Quant: 100%|██████████| 100/100 [00:07<00:00, 13.51it/s]
+
+
+.. parsed-literal::
+
+    INFO:nncf:96 ignored nodes was found by name in the NNCFGraph
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|██████████| 300/300 [14:34<00:00,  2.91s/it]
+    Applying Fast Bias correction: 100%|██████████| 186/186 [05:31<00:00,  1.78s/it]
+
+
+Let us check predictions with the quantized UNet using the same input
+data.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    print('Pipeline settings')
+    print(f'Input text: {text_prompt.value}')
+    print(f'Seed: {seed.value}')
+    print(f'Number of steps: {num_steps.value}')
+    np.random.seed(seed.value)
+    
+    int8_pipe = OVInstructPix2PixPipeline(tokenizer, scheduler, core, TEXT_ENCODER_OV_PATH, VAE_ENCODER_OV_PATH, UNET_INT8_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
+    int8_processed_image = int8_pipe(text_prompt.value, image, num_steps.value)
+    
+    fig = visualize_results(processed_image[0], int8_processed_image[0], img1_title="FP16 result", img2_title="INT8 result")
+
+
+.. parsed-literal::
+
+    Pipeline settings
+    Input text:  Make it in galaxy
+    Seed: 42
+    Number of steps: 10
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+
+
+.. image:: 231-instruct-pix2pix-image-editing-with-output_files/231-instruct-pix2pix-image-editing-with-output_36_2.png
+
+
+Compare inference time of the FP16 and INT8 models 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To measure the inference performance of the ``FP16`` and ``INT8``
+models, we use median inference time on calibration subset.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    calibration_dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True)
+    validation_data = []
+    validation_size = 10
+    while len(validation_data) < validation_size:
+        batch = next(iter(calibration_dataset))
+        prompt = batch["edit_prompt"]
+        input_image = batch["input_image"].convert("RGB")
+        validation_data.append((prompt, input_image))
+    
+    def calculate_inference_time(pix2pix_pipeline, calibration_dataset, size=10):
+        inference_time = []
+        pix2pix_pipeline.set_progress_bar_config(disable=True)
+        for (prompt, image) in calibration_dataset:
+            start = time.perf_counter()
+            _ = pix2pix_pipeline(prompt, image)
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.median(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp_latency = calculate_inference_time(ov_pipe, validation_data)
+    int8_latency = calculate_inference_time(int8_pipe, validation_data)
+    print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    Performance speed up: 1.437
+
+
+Interactive demo with Gradio 
+----------------------------------------------------------------------
+
+   **Note**: Diffusion process can take some time, depending on what
+   hardware you select.
+
+.. code:: ipython3
+
+    pipe_precision = widgets.Dropdown(
+        options=["FP16"] if not to_quantize.value else ["FP16", "INT8"],
+        value="FP16",
+        description='Precision:',
+        disabled=False,
+    )
+    
+    pipe_precision
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Precision:', options=('FP16', 'INT8'), value='FP16')
+
+
+
+.. code:: ipython3
+
+    import gradio as gr
+    from urllib.request import urlretrieve
+    from pathlib import Path
+    import numpy as np
+    
+    default_url = "https://user-images.githubusercontent.com/29454499/223343459-4ac944f0-502e-4acf-9813-8e9f0abc8a16.jpg"
+    path = Path("data/example.jpg")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    urlretrieve(default_url, path)
+    
+    pipeline = int8_pipe if pipe_precision.value == "INT8" else ov_pipe
+    
+    def generate(img, text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
+        if img is None:
+            raise gr.Error("Please upload an image or choose one from the examples list")
+        np.random.seed(seed)
+        result = pipeline(text, img, num_steps)[0]
+        return result
+    
+    
+    demo = gr.Interface(
+        generate,
+        [
+            gr.Image(label="Image", type="pil"),
+            gr.Textbox(label="Text"),
+            gr.Slider(0, 1024, label="Seed", value=42),
+            gr.Slider(
+                1,
+                100,
+                label="Steps",
+                value=10,
+                info="Consider increasing the value to get more precise results. A suggested value is 100, but it will take more time to process.",
+            ),
+        ],
+        gr.Image(label="Result"),
+        examples=[[path, "Make it in galaxy"]],
+    )
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

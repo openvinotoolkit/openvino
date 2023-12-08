@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -145,6 +145,7 @@ protected:
             node_before_pooling = reshapeNode2;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto maxpool = ngraph::builder::makePooling(node_before_pooling,
                                                     {1, 2},
                                                     {0, 0},
@@ -154,6 +155,7 @@ protected:
                                                     ngraph::op::PadType::VALID,
                                                     false,
                                                     ngraph::helpers::PoolingTypes::MAX);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQMaxPoolReorder");

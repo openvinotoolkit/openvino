@@ -8,12 +8,12 @@
 #include "utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "ngraph/file_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 static const std::string s_manifest{
 #ifdef MANIFEST
-    ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), MANIFEST)
+    ov::util::path_join({ov::test::utils::getExecutableDirectory(), MANIFEST})
 #endif
 };
 OPENVINO_SUPPRESS_DEPRECATED_END

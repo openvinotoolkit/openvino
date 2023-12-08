@@ -17,13 +17,13 @@ ov_add_test_target(
         gmock
         func_test_utils
         sharedTestClasses
-        lptNgraphFunctions
+        ov_lpt_models
         inference_engine_legacy
     ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
     LABELS
-        TRANSFORMATIONS
+        OV UNIT TRANSFORMATIONS
 )
 
 if(WIN32)

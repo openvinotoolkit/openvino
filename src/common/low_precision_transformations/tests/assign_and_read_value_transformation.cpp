@@ -12,8 +12,8 @@
 #include "low_precision/assign_and_read_value.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/assign_and_read_value_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/assign_and_read_value.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "low_precision/layer_transformation.hpp"
 

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/is_inf.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "ie_plugin_config.hpp"
 
@@ -62,10 +62,9 @@ void IsInfLayerTest::SetUp() {
         parameters.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrc, shape));
     }
     parameters[0]->set_friendly_name("Data");
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(parameters));
 
     ov::op::v10::IsInf::Attributes attributes {detectNegative, detectPositive};
-    auto isInf = std::make_shared<ov::op::v10::IsInf>(paramOuts[0], attributes);
+    auto isInf = std::make_shared<ov::op::v10::IsInf>(parameters[0], attributes);
     ov::ResultVector results;
     for (int i = 0; i < isInf->get_output_size(); i++) {
         results.push_back(std::make_shared<ov::op::v0::Result>(isInf->output(i)));

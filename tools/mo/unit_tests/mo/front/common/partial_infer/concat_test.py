@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generate, generator
 
 from openvino.tools.mo.front.common.partial_infer.concat import concat_infer
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
@@ -20,9 +19,9 @@ nodes_attributes = {'node_1': {'kind': 'data', 'value': None},
                     }
 
 
-@generator
-class TestConcatPartialInfer(unittest.TestCase):
-    @generate(*[([1, 3, 227, 227], [1, 3, 220, 227], [1, 3, 447, 227], 2),
+class TestConcatPartialInfer():
+    @pytest.mark.parametrize("shape1, shape2, output_shape, axis",[([1, 3, 227, 227], [1, 3, 220, 227],
+                                                                    [1, 3, 447, 227], 2),
                 ([1, 3, 227, 227], [1, 3, 227, 220], [1, 3, 227, 447], -1),
                 ([1, 3, dynamic_dimension_value, 227], [1, dynamic_dimension_value, 227, 220], [1, 3, 227, 447], -1),
                 ([1, 3, 10, 227], [1, 3, 10, dynamic_dimension_value], [1, 3, 10, dynamic_dimension_value], -1),
@@ -43,9 +42,10 @@ class TestConcatPartialInfer(unittest.TestCase):
         concat_node = Node(graph, 'concat')
         concat_infer(concat_node)
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(strict_compare_tensors(output_shape, res_shape))
+        assert strict_compare_tensors(output_shape, res_shape)
 
-    @generate(*[(shape_array([1]), shape_array([4]), shape_array([1, 4]), 0),
+    @pytest.mark.parametrize("value1, value2, output_value, axis",[(shape_array([1]),
+                    shape_array([4]), shape_array([1, 4]), 0),
                 (shape_array([dynamic_dimension_value]), shape_array([4]),
                  shape_array([dynamic_dimension_value, 4]), -1),
                 ])
@@ -65,7 +65,7 @@ class TestConcatPartialInfer(unittest.TestCase):
         concat_node = Node(graph, 'concat')
         concat_infer(concat_node)
         res_value = graph.node['node_3']['value']
-        self.assertTrue(strict_compare_tensors(output_value, res_value))
+        assert strict_compare_tensors(output_value, res_value)
 
     def test_concat_infer_not_match(self):
         graph = build_graph(nodes_attributes,
@@ -81,7 +81,7 @@ class TestConcatPartialInfer(unittest.TestCase):
                              })
 
         concat_node = Node(graph, 'concat')
-        with self.assertRaisesRegex(Error, "Concat input shapes do not match for node*"):
+        with pytest.raises(Error, match="Concat input shapes do not match for node*"):
             concat_infer(concat_node)
 
     def test_concat_infer_no_shape(self):
@@ -98,5 +98,5 @@ class TestConcatPartialInfer(unittest.TestCase):
                              })
 
         concat_node = Node(graph, 'concat')
-        with self.assertRaisesRegex(Error, "One of the input shapes is not defined for node *"):
+        with pytest.raises(Error, match="One of the input shapes is not defined for node *"):
             concat_infer(concat_node)

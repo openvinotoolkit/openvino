@@ -4,14 +4,16 @@
 
 #include <vector>
 
-#include "single_layer_tests/prior_box.hpp"
+#include "single_op_tests/prior_box.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+namespace {
+using ov::test::PriorBoxLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::I32,
-    InferenceEngine::Precision::U16};
+const std::vector<ov::element::Type> model_types = {
+    ov::element::i32,
+    ov::element::u16};
+
 const std::vector<std::vector<float>> min_sizes = {
     {256.0f}};
 
@@ -53,8 +55,7 @@ const std::vector<bool> scale_all_sizes = {
 const std::vector<bool> min_max_aspect_ratios_order = {
     false, true};
 
-const std::vector<size_t> inputShape = {300, 300};
-const std::vector<size_t> imageShape = {32, 32};
+const std::vector<ov::Shape> input_shapes_static = {{300, 300}, {32, 32}};
 
 const auto layerSpecificParams = ::testing::Combine(
     ::testing::ValuesIn(min_sizes),
@@ -74,12 +75,8 @@ const auto layerSpecificParams = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic, PriorBoxLayerTest,
                             ::testing::Combine(
                                 layerSpecificParams,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(inputShape),
-                                ::testing::Values(imageShape),
+                                ::testing::ValuesIn(model_types),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             PriorBoxLayerTest::getTestCaseName);
+} // namespace

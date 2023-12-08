@@ -23,4 +23,4 @@ class TestDict(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_dict(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)

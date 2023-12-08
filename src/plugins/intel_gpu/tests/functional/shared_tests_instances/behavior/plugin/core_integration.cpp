@@ -35,12 +35,12 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH")
+        ::testing::Values("GPU", "HETERO", "BATCH")
 );
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH")
+        ::testing::Values("GPU", "HETERO", "BATCH")
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH")
+        ::testing::Values("GPU", "HETERO", "BATCH")
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -80,12 +80,12 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH")
+        ::testing::Values("GPU", "HETERO", "BATCH")
 );
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH")
+        ::testing::Values("GPU", "HETERO", "BATCH")
 );
 
 INSTANTIATE_TEST_SUITE_P(

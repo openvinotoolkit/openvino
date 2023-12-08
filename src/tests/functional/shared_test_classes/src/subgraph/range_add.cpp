@@ -4,84 +4,79 @@
 
 #include "shared_test_classes/subgraph/range_add.hpp"
 
-namespace SubgraphTestsDefinitions {
+#include "ov_models/builders.hpp"
+
+namespace ov {
+namespace test {
 
 // ------------------------------ V0 ------------------------------
 
-std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
+std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
+    ov::element::Type input_type;
     float start, stop, step;
     std::string targetDevice;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
+    std::tie(start, stop, step, input_type, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
     result << "Start=" << start << separator;
     result << "Stop=" << stop << separator;
     result << "Step=" << step << separator;
-    result << "netPRC=" << netPrecision.name() << separator;
+    result << "ET=" << input_type << separator;
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void RangeAddSubgraphTest::SetUp() {
-    InferenceEngine::Precision netPrecision;
+    ov::element::Type element_type;
     float start, stop, step;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(start, stop, step, element_type, targetDevice) = GetParam();
 
-    auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
-    auto stopConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, stop);
-    auto stepConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, step);
-    auto range = std::make_shared<ngraph::opset3::Range>(startConstant, stopConstant, stepConstant);
+    auto startConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, start);
+    auto stopConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, stop);
+    auto stepConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, step);
+    auto range = std::make_shared<ov::op::v0::Range>(startConstant, stopConstant, stepConstant);
 
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, range->get_shape())};
-    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
-    function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, range->get_shape())};
+    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ov::test::utils::EltwiseTypes::ADD);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
+    function = std::make_shared<ov::Model>(results, params, "RangeEltwise");
 }
 
 // ------------------------------ V4 ------------------------------
 
-std::string RangeNumpyAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj) {
-    InferenceEngine::Precision netPrc;
-    InferenceEngine::Precision constPrc;
-    InferenceEngine::Precision outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
+std::string RangeNumpyAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
+    ov::element::Type element_type;
     float start, stop, step;
     std::string targetDevice;
-    std::tie(start, stop, step, constPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
+    std::tie(start, stop, step, element_type, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
     result << "Start=" << start << separator;
     result << "Stop=" << stop << separator;
     result << "Step=" << step << separator;
-    result << "constPRC=" << constPrc.name() << separator;
-    result << "netPRC=" << netPrc.name() << separator;
+    result << "ET=" << element_type << separator;
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void RangeNumpyAddSubgraphTest::SetUp() {
-    InferenceEngine::Precision netPrc;
-    InferenceEngine::Precision constPrc;
+    ov::element::Type element_type;
     float start, stop, step;
-    std::tie(start, stop, step, constPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngConstPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(constPrc);
-    auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
+    std::tie(start, stop, step, element_type, targetDevice) = GetParam();
 
-    auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, start);
-    auto stopConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, stop);
-    auto stepConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, step);
-    auto range = std::make_shared<ngraph::opset4::Range>(startConstant, stopConstant, stepConstant, ngNetPrc);
+    auto startConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, start);
+    auto stopConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, stop);
+    auto stepConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, step);
+    auto range = std::make_shared<ov::op::v4::Range>(startConstant, stopConstant, stepConstant, element_type);
 
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngNetPrc, range->get_shape())};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, range->get_shape())};
 
-    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
-    function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
+    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ov::test::utils::EltwiseTypes::ADD);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
+    function = std::make_shared<ov::Model>(results, params, "RangeEltwise");
 }
-}  // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 import numpy as np
 
-from generator import generator, generate
 
 from openvino.tools.mo.ops.eye import Eye
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -50,17 +49,16 @@ graph_edges_sizes = [
 ]
 
 
-@generator
-class TestComplexOp(unittest.TestCase):
-    @generate(*[
-        ([], [dynamic_dimension_value, dynamic_dimension_value]),
-        ([1], [dynamic_dimension_value, dynamic_dimension_value]),
+class TestComplexOp():
+    @pytest.mark.parametrize("input_shape, output_shape, num_rows, num_cols, batch_shape",[
+        ([], [dynamic_dimension_value, dynamic_dimension_value],None,None,[]),
+        ([1], [dynamic_dimension_value, dynamic_dimension_value],None,None,[]),
         ([1], [2, dynamic_dimension_value, dynamic_dimension_value], None, None, [2]),
         ([1], [2, 3, dynamic_dimension_value], 3, None, [2]),
         ([1], [2, dynamic_dimension_value, 4], None, 4, [2]),
         ([1], [2, 3, 4], [3], [4], [2])
     ])
-    def test_complex_op_shape_inference(self, input_shape, output_shape, num_rows=None, num_cols=None, batch_shape=[]):
+    def test_complex_op_shape_inference(self, input_shape, output_shape, num_rows, num_cols, batch_shape):
         graph = build_graph_with_attrs(nodes_with_attrs=graph_node_attrs_sizes,
                                        edges_with_attrs=graph_edges_sizes,
                                        update_nodes_attributes=[
@@ -75,8 +73,8 @@ class TestComplexOp(unittest.TestCase):
 
         msg = "Eye operation infer failed for case: expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['eye_op_data']['shape'], output_shape),
-                        msg.format(output_shape, graph.node['eye_op_data']['shape']))
+        assert np.array_equal(graph.node['eye_op_data']['shape'], output_shape),\
+                        msg.format(output_shape, graph.node['eye_op_data']['shape'])
 
     def test_value_inference(self):
         graph_node_attrs_sizes = {
@@ -103,5 +101,5 @@ class TestComplexOp(unittest.TestCase):
 
         msg = "Eye operation infer failed for case: expected_value={}, actual_value={}"
 
-        self.assertTrue(np.array_equal(graph.node['eye_op_d']['value'], output_value),
-                        msg.format(output_value, graph.node['eye_op_d']['value']))
+        assert np.array_equal(graph.node['eye_op_d']['value'], output_value),\
+                        msg.format(output_value, graph.node['eye_op_d']['value'])

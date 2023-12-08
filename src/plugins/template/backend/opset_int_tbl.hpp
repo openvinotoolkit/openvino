@@ -150,5 +150,12 @@ _OPENVINO_OP_REG(Interpolate, op::v11)
 
 _OPENVINO_OP_REG(GroupNormalization, ov::op::v12)
 
+_OPENVINO_OP_REG(BitwiseAnd, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseNot, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseOr, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseXor, ov::op::v13)
+_OPENVINO_OP_REG(NMSRotated, ov::op::v13)
+_OPENVINO_OP_REG(Multinomial, ov::op::v13)
+
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

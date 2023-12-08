@@ -8,7 +8,7 @@
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include "reshape_inst.h"
-#include "shape_nodes.hpp"
+#include "reshape_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
@@ -94,7 +94,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());
-                output_shapes = shape_infer(&op, input_shapes, ta);
+                output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
                 break;
             }
             case reshape::reshape_mode::squeeze: {
@@ -182,25 +182,15 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             _outputs = allocate_outputs();
             _mem_allocated = true;
         } else {
-            reuse_input();
+            update_output_memory();
         }
     } else {
         if (_exec_deps.size() > 0 && input_memory_ptr())
-            reuse_input();
+            update_output_memory();
     }
 }
 
 void reshape_inst::on_execute() {
-    if (!can_be_optimized())
-        return;
-
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    reuse_input();
-}
-
-void reshape_inst::reuse_input() {
     update_output_memory();
 }
 

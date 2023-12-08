@@ -13,7 +13,7 @@
 #include "frontend/layer_quantizer.hpp"
 #include "frontend/model_quantizer.hpp"
 #include "gna_matcher.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::intel_gna::limitations;
@@ -53,6 +53,10 @@ protected:
 
     void SetUp() override {
         Limitations::init(target::DeviceVersion::Default);
+    }
+
+    void TearDown() override {
+        Limitations::deinit();
     }
 };
 

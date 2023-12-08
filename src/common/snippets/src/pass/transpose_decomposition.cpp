@@ -14,7 +14,22 @@ namespace snippets {
 namespace pass {
 using namespace lowered;
 
-const std::set<std::vector<int>> TransposeDecomposition::supported_cases = {{0, 2, 3, 1}};
+bool TransposeDecomposition::is_supported_transpose(const Output<Node>& transpose_out) {
+    const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
+    if (!transpose)
+        return false;
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    if (!order)
+        return false;
+    return is_supported_transpose_order(order->cast_vector<int32_t>());
+}
+
+bool TransposeDecomposition::is_supported_transpose_order(const std::vector<int32_t>& order) {
+    const auto size = order.size();
+    if (size > 0)
+        return order.back() != static_cast<int32_t>(size - 1);
+    return true;
+}
 
 TransposeDecomposition::TransposeDecomposition() {
     MATCHER_SCOPE(TransposeDecomposition);
@@ -37,7 +52,7 @@ TransposeDecomposition::TransposeDecomposition() {
             return false;
 
         auto order_value = order->cast_vector<int>();
-        if (supported_cases.count(order_value) == 0)
+        if (!is_supported_transpose_order(order_value))
             return false;
 
         // number of elements that can be processed on every iteration. For 0,1,2,3 -> 0,2,3,1 we can guarantee only scalar access

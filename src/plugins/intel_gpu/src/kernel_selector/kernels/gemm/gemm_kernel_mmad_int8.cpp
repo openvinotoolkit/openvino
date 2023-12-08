@@ -183,6 +183,10 @@ bool GemmKernelMMADint8::Validate(const Params& params, const optional_params& o
         (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8))
         return false;
 
+    GemmTuningData tuning_data = SetTuningParams(gmm_params);
+    if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size))
+        return false;
+
     return true;
 }
 }  // namespace kernel_selector

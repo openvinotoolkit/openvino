@@ -133,13 +133,13 @@ struct ImplHasher {
 }  // namespace
 
 TEST(lru_cache, collisions) {
-    auto l1 = layout{{1, 3, 80, 80}, data_types::f32, format::bfyx};
-    auto l2 = layout{{1, 3, 81, 141}, data_types::f32, format::bfyx};
+    auto l1 = layout{{1, 3, 40, 20}, data_types::f32, format::bfyx};
+    auto l2 = layout{{1, 3, 39, 83}, data_types::f32, format::bfyx};
 
     auto input1_prim = std::make_shared<input_layout>("input1", l1);
     auto input2_prim = std::make_shared<input_layout>("input2", l2);
-    auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), 4, data_types::i64);
-    auto shape_of2_prim = std::make_shared<shape_of>("shape_of2", input_info("input2"), 4, data_types::i64);
+    auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), data_types::i64);
+    auto shape_of2_prim = std::make_shared<shape_of>("shape_of2", input_info("input2"), data_types::i64);
 
     using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
     ImplementationsCache cache(0);

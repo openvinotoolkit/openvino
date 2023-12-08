@@ -11,6 +11,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "itt.hpp"
 
 namespace ov {
@@ -164,6 +165,10 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
     if (!updatePrecisions && !fq::all_precisions_equal(eltwise)) {
+        return nullptr;
+    }
+
+    if (!getAttribute<DisableCleanupAttribute>(eltwise).empty()) {
         return nullptr;
     }
 

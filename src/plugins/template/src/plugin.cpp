@@ -194,6 +194,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
+#include "openvino/opsets/opset13_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());
@@ -236,7 +237,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::hint::inference_precision,
                                                     ov::hint::execution_mode,
                                                     ov::num_streams,
-                                                    ov::template_plugin::disable_transformations};
+                                                    ov::template_plugin::disable_transformations,
+                                                    ov::log::level};
         return rw_properties;
     };
     if (ov::supported_properties == name) {
