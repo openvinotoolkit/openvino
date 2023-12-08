@@ -108,28 +108,23 @@ StatefulMultiQuerySDPAFusion::StatefulMultiQuerySDPAFusion() {
         args.push_back(read_cvt_v_node ? read_cvt_v_node->output(0) : past_v_node->output(0));
         ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
 
+        const auto order_q_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
         const auto order_k_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
         const auto order_v_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
-        auto check_lbhs_input = [&](const std::shared_ptr<opset6::Constant>& node) {
-            const std::vector<int32_t> order = node->get_vector<int32_t>();
-            const std::vector<int32_t> target = {1, 2, 0, 3};
-            if (order.size() != 4)
-                return false;
-            bool all_equal = true;
-            for (size_t i = 0; i < target.size(); i++) {
-                all_equal = all_equal && order[i] == target[i];
-            }
-            return all_equal;
-        };
 
-        if (!(check_lbhs_input(order_k_node) && check_lbhs_input(order_v_node)))
+        const auto& permute_q = order_q_node->get_vector<int32_t>();
+        const auto& permute_k = order_k_node->get_vector<int32_t>();
+        const auto& permute_v = order_v_node->get_vector<int32_t>();
+        if (permute_q != permute_k || permute_q != permute_v) {
             return false;
+        }
+
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
-        const auto& permute_axes = order_k_node->get_vector<int32_t>();
-        config.permute_axes.resize(permute_axes.size());
-        for (size_t i = 0; i < permute_axes.size(); i++) {
-            config.permute_axes[i] = static_cast<size_t>(permute_axes[i]);
+
+        config.permute_axes.resize(permute_q.size());
+        for (size_t i = 0; i < permute_q.size(); i++) {
+            config.permute_axes[i] = static_cast<size_t>(permute_q[i]);
         }
         auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);

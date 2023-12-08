@@ -670,9 +670,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
     if (inferencePrecision == ov::element::f32)
         CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulMultiQuerySDPAFusion);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::PrintModel, "n0_preStatefulTransposeSDPAFusion.cpp");
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulTransposeSDPAFusion);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::PrintModel, "n1_postStatefulTransposeSDPAFusion.cpp");
     postLPTPassManager.run_passes(model);
 }
 
