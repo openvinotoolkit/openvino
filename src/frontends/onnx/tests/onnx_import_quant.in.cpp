@@ -59,6 +59,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_u16) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/quantize_linear_u16.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 250.f, 22883.f});
+    test_case.add_input(std::vector<float>{0.5f});
+
+    test_case.add_expected_output(std::vector<std::uint16_t>{64, 97, 500, 45766});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_zero_point) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -217,6 +230,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_ui
     test_case.add_input(std::vector<uint8_t>{128});             // zero_point
 
     test_case.add_expected_output<float>({4}, std::vector<float>{-256.0f, -250.0f, 0.0f, 254.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint16) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_u16.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input(std::vector<uint16_t>{0, 3, 32768, 65535});  // x
+    test_case.add_input(std::vector<float>{2.0f});                   // scale
+    test_case.add_input(std::vector<uint16_t>{32768});               // zero_point
+
+    test_case.add_expected_output<float>({4}, std::vector<float>{-65536.0f, -65530.0f, 0.0f, 65534.0f});
     test_case.run();
 }
 
