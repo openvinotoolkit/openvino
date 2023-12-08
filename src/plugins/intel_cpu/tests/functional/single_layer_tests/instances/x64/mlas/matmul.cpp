@@ -7,12 +7,10 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace MatMul {
 namespace {
 #ifdef OV_CPU_WITH_MLAS
@@ -33,7 +31,7 @@ const auto testParams3D_MLAS_smoke = ::testing::Combine(::testing::Combine(::tes
                                                         ::testing::Values(ElementType::f32),
                                                         ::testing::Values(ElementType::undefined),
                                                         ::testing::Values(ElementType::undefined),
-                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                         ::testing::Values(emptyAdditionalConfig())),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -48,7 +46,7 @@ const auto testParams2D_MLAS_nightly = ::testing::Combine(::testing::Combine(::t
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::Values(emptyAdditionalConfig())),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -67,7 +65,7 @@ const auto testParams2D_MLAS_smoke = ::testing::Combine(::testing::Combine(::tes
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::Values(emptyAdditionalConfig())),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -75,6 +73,7 @@ const auto testParams2D_MLAS_smoke = ::testing::Combine(::testing::Combine(::tes
                                              ::testing::ValuesIn(filterSpecificParams_MLAS()));
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_MLAS, MatMulLayerCPUTest, testParams2D_MLAS_smoke, MatMulLayerCPUTest::getTestCaseName);
 #endif
-} // namespace
-} // namespace MatMul
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace MatMul
+}  // namespace test
+}  // namespace ov
