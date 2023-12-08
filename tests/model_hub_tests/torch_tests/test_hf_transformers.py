@@ -220,8 +220,6 @@ class TestTransformersModel(TestTorchConvertModel):
         elif 'speecht5' in mi.tags:
             from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
             from datasets import load_dataset
-            import torch
-            # todo: check for torchscript=True
             processor = SpeechT5Processor.from_pretrained(name)
             model = SpeechT5ForTextToSpeech.from_pretrained(name)
 
