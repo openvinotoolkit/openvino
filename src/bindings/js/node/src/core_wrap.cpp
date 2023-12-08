@@ -76,7 +76,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::Object& model,
                                          const Napi::String& device) {
     if (model.InstanceOf(info.Env().GetInstanceData<AddonData>()->model_prototype->Value().As<Napi::Function>())) {
-        auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
+        const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
         const auto& compiled_model = _core.compile_model(m->get_model(), device);
         return CompiledModelWrap::Wrap(info.Env(), compiled_model);
     } else {
