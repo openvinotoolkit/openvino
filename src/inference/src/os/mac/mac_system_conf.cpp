@@ -44,8 +44,6 @@ void parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_
     _sockets = 0;
     _cores = 0;
 
-    _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-
     auto it = std::find_if(system_info_table.begin(),
                            system_info_table.end(),
                            [&](const std::pair<std::string, uint64_t>& item) {
@@ -69,6 +67,8 @@ void parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_
     } else {
         _cores = static_cast<int>(it->second);
     }
+
+    _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
 
     _numa_nodes = 1;
     _sockets = 1;
