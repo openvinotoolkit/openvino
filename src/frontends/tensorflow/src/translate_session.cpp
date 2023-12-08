@@ -4,7 +4,6 @@
 
 #include "translate_session.hpp"
 
-#include "helper_ops/complex_type_mark.hpp"
 #include "helper_ops/enter.hpp"
 #include "helper_ops/loop_cond.hpp"
 #include "helper_ops/merge.hpp"
@@ -323,8 +322,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 }
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
-                                       std::shared_ptr<ov::Model>& ov_model,
-                                       const ov::OutputVector& ov_inputs) {
+                                       std::shared_ptr<ov::Model>& ov_model) {
     OpMap ng_op_map;
     ControlDepsMap control_deps_map;
     std::vector<std::shared_ptr<LoopCond>> loop_cond_ops;
@@ -562,7 +560,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
-                    result_node->set_friendly_name(model_output_name + ":0");  // fail
+                    result_node->set_friendly_name(model_output_name + ":0");
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -662,10 +660,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     // during translation and topologically sorting this order could be lost
     auto input_names = model_tf->get_input_names();
     auto output_names = model_tf->get_output_names();
-
-    // ov::ParameterVector ordered_params =  params;
-    // ov::ResultVector ordered_results = results;
-
     ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
@@ -745,7 +739,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
         }
 
         // try to find a function by name in the model library
-        translate_graph(body_input_model, body_model, ov_inputs);
+        translate_graph(body_input_model, body_model);
         // save new instance of body_model in the cache of body models
         // before its injection into the parent graph
 

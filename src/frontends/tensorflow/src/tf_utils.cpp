@@ -8,7 +8,6 @@
 
 #include <vector>
 
-#include "helper_ops/complex_type_mark.hpp"
 #include "helper_ops/merge.hpp"
 #include "helper_ops/switch.hpp"
 #include "openvino/core/type/element_type.hpp"

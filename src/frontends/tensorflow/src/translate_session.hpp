@@ -40,9 +40,7 @@ public:
                      const std::string& model_name);
     std::shared_ptr<ov::Model> get_converted_model();
 
-    void translate_graph(const ov::frontend::InputModel::Ptr& input_model,
-                         std::shared_ptr<ov::Model>& ov_model,
-                         const ov::OutputVector& ov_inputs = {});
+    void translate_graph(const ov::frontend::InputModel::Ptr& input_model, std::shared_ptr<ov::Model>& ov_model);
 
     std::shared_ptr<ov::Model> get_body_ov_model(const std::string& body_graph_name,
                                                  const ov::OutputVector& ov_inputs,
