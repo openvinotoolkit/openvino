@@ -174,10 +174,22 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     auto orig_output_layout = orig_impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
-    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx) {
+
+    auto input_shape = orig_input_layout.get_partial_shape().to_shape();
+    auto output_shape = orig_output_layout.get_partial_shape().to_shape();
+
+    // Allow padding only for feature and outermost dimmension
+    auto can_apply_fake_alignment = true;
+    if (input_shape.size() == 3)
+        can_apply_fake_alignment &= orig_input_layout.data_padding.lower_size().sizes()[1] == 0 &&
+                                    orig_input_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    if (output_shape.size() == 3)
+        can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
+                                    orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
-        auto input_shape = orig_input_layout.get_partial_shape().to_shape();
-        auto output_shape = orig_output_layout.get_partial_shape().to_shape();
 
         auto batch_size = std::accumulate(input_shape.begin(),
                                           input_shape.end() - 1,
