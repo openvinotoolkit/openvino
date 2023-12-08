@@ -19,12 +19,12 @@ Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object ModelWrap::Init(Napi::Env env, Napi::Object exports) {
-    Napi::Function prototype = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(prototype);
-    auto data = env.GetInstanceData<AddonData>();
-    data->model_prototype = constructor;
+    const auto prototype_ref = new Napi::FunctionReference();
+    *prototype_ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>(); 
+    data->model_prototype = prototype_ref;
 
     exports.Set("Model", prototype);
     return exports;
