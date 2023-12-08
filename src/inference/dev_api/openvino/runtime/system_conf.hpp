@@ -261,6 +261,24 @@ OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const in
 OPENVINO_RUNTIME_API int get_socket_by_numa_node(int numa_node_id);
 
 /**
+ * @brief      Get original socket id by current socket id, the input socket id is recalculated after filtering (like
+ * numactl), while the original socket id is the original id before filtering
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  socket_id socket id
+ * @return     socket id
+ */
+OPENVINO_RUNTIME_API int get_org_socket_id(int socket_id);
+
+/**
+ * @brief      Get original numa node id by current numa node id, the input numa node id is recalculated after filtering
+ * (like numactl), while the original numa node id is the original id before filtering
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  numa_node_id numa node id
+ * @return     numa node id
+ */
+OPENVINO_RUNTIME_API int get_org_numa_id(int numa_node_id);
+
+/**
  * @enum       ColumnOfCPUMappingTable
  * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *

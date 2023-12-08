@@ -563,6 +563,10 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
         return;
     }
 
+    if (proc_type_table.size() > 1) {
+        core_type = ov::threading::IStreamsExecutor::Config::ANY;
+    }
+
     // IStreamsExecutor::Config config = initial;
     const auto total_num_cores = proc_type_table[0][ALL_PROC];
     const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
