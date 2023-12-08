@@ -1721,7 +1721,7 @@ TEST_P(CachingTest, TestCacheFileWithCompiledModelFormat) {
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_format_supported.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([&](const std::string&, const ov::AnyMap& options) {
-            auto it = options.find(ov::internal::compiled_model_format_supported.name());
+            auto it = options.find(ov::internal::compiled_model_format.name());
             ov::Any ret = true;
             if (it == options.end() || it->second.as<std::string>() != compiled_model_format)
                 ret = false;

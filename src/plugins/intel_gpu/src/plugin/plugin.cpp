@@ -104,27 +104,6 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
-/** Parse compiled model format to be ov::AnyMap
- *  input:"aaa:1234;ccc:xyzw;"
- *  output:
- *       out["aaa"] = "1234"
- *       out["ccc"] = "xyzw"
- */
-ov::AnyMap Plugin::parse_compiled_model_format(const std::string& input) const {
-    ov::AnyMap res = {};
-    auto in = input;
-    while (!in.empty()) {
-        auto pos_1 = in.find_first_of(':');
-        auto pos_2 = in.find_first_of(';');
-        if (pos_1 == std::string::npos || pos_2 == std::string::npos) {
-            break;
-        }
-        res[in.substr(0, pos_1)] = in.substr(pos_1 + 1, pos_2 - pos_1 - 1);
-        in = in.substr(pos_2 + 1);
-    }
-    return res;
-}
-
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     auto deviceInfo = m_device_map.at(config.get_property(ov::device::id))->get_info();
@@ -360,22 +339,18 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
     } else if (name == ov::internal::compiled_model_format.name()) {
-        std::string format_info;
-        for (auto& it : m_compiled_model_format) {
-            format_info += it.first + ":" + it.second.as<std::string>() + ";";
-        }
-        return decltype(ov::internal::compiled_model_format)::value_type(format_info);
+        auto model_format = ov::Any(m_compiled_model_format);
+        return decltype(ov::internal::compiled_model_format)::value_type(model_format.as<std::string>());
     } else if (name == ov::internal::compiled_model_format_supported.name()) {
         ov::Any res = true;
-        auto it = options.find(ov::internal::compiled_model_format_supported.name());
+        auto it = options.find(ov::internal::compiled_model_format.name());
         if (it == options.end()) {
             res = false;
         } else {
-            const auto data = it->second.as<std::string>();
-            auto input = parse_compiled_model_format(data);
+            ov::AnyMap input_map = it->second.as<ov::AnyMap>();
             for (auto& item : m_compiled_model_format) {
-                auto it = input.find(item.first);
-                if (it == input.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
+                auto it = input_map.find(item.first);
+                if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;
                     break;
                 }

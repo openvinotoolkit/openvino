@@ -67,7 +67,7 @@ private:
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
-    std::string compiled_model_format_info;
+    ov::AnyMap m_compiled_model_format;
 
     std::shared_ptr<void> specialSetup;
 

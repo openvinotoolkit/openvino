@@ -39,7 +39,6 @@ private:
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
     uint32_t get_optimal_batch_size(const ov::AnyMap& options) const;
     uint32_t get_max_batch_size(const ov::AnyMap& options) const;
-    ov::AnyMap parse_compiled_model_format(const std::string& input) const;
 
     ov::AnyMap preprocess_config(const ov::AnyMap& orig_config) const;
     bool is_metric(const std::string& name) const;

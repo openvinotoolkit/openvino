@@ -174,8 +174,8 @@ Engine::Engine() :
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
 #endif
-        auto& ov_version = ov::get_openvino_version();
-        compiled_model_format_info = std::string(ov_version.buildNumber);
+    auto& ov_version = ov::get_openvino_version();
+    m_compiled_model_format["OV_VERSION"] = std::string(ov_version.buildNumber);
 }
 
 Engine::~Engine() {
@@ -691,12 +691,22 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
     } else if (name == ov::internal::compiled_model_format.name()) {
-        return decltype(ov::internal::compiled_model_format)::value_type(compiled_model_format_info);
+        auto model_format = ov::Any(m_compiled_model_format);
+        return decltype(ov::internal::compiled_model_format)::value_type(model_format.as<std::string>());
     } else if (name == ov::internal::compiled_model_format_supported.name()) {
-        ov::Any res = false;
-        auto it = options.find(ov::internal::compiled_model_format_supported.name());
-        if (it != options.end() && it->second.as<std::string>() == compiled_model_format_info) {
-            res = true;
+        ov::Any res = true;
+        auto it = options.find(ov::internal::compiled_model_format.name());
+        if (it == options.end()) {
+            res = false;
+        } else {
+            ov::AnyMap input_map = it->second.as<ov::AnyMap>();
+            for (auto& item : m_compiled_model_format) {
+                auto it = input_map.find(item.first);
+                if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
+                    res = false;
+                    break;
+                }
+            }
         }
         return res;
     }
