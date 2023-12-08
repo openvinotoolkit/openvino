@@ -38,7 +38,7 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.i4, np.int8),
     ],
 )
-def test_init_with_ngraph(ov_type, numpy_dtype):
+def test_init_with_ov_type(ov_type, numpy_dtype):
     ov_tensors = []
     ov_tensors.append(ov.Tensor(type=ov_type, shape=ov.Shape([1, 3, 32, 32])))
     ov_tensors.append(ov.Tensor(type=ov_type, shape=[1, 3, 32, 32]))

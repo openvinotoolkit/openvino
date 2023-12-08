@@ -55,6 +55,12 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
             //Save it in a list, first value - path, second - amout of tests with this path
             for (auto& val : tmp_buf) {
                 bool is_op = false;
+#ifdef _WIN32
+                for (auto it = val.begin(); it != val.end(); ++it) {
+                    if (*it == '/')
+                        val.replace(it, it + 1, ov::test::utils::FileSeparator);
+                }
+#endif
                 for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
                     auto tmp_path_item = path_item;
                     auto pos = tmp_path_item.find('-');

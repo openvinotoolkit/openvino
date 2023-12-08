@@ -1673,7 +1673,7 @@ void Node::updateLastInputDims() {
     }
 
     for (size_t i = 0; i < lastInputDims.size(); i++)
-        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().getDims();
 }
 
 bool Node::canFuseSimpleOperation(const NodePtr& node) const {

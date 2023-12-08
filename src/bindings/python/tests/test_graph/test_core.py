@@ -340,18 +340,18 @@ def test_repr_dynamic_shape():
     shape = PartialShape([-1, 2])
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-    model = parameter_a + parameter_b
-    function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
+    param_sum = parameter_a + parameter_b
+    model = Model(param_sum, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
     assert (
-        repr(function)
+        repr(model)
         == "<Model: 'simple_dyn_shapes_graph'\ninputs["
         + "\n<ConstOutput: names[A] shape[?,2] type: f32>,"
         + "\n<ConstOutput: names[B] shape[?,2] type: f32>\n]"
         + "\noutputs[\n<ConstOutput: names[] shape[?,2] type: f32>\n]>"
     )
 
-    ops = function.get_ordered_ops()
+    ops = model.get_ordered_ops()
     for op in ops:
         assert "[?,2]" in repr(op)
 

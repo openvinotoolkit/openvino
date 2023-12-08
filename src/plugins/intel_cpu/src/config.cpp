@@ -382,8 +382,6 @@ void Config::updateProperties() {
 
     _config.insert({ov::device::id.name(), device_id});
 
-    _config.insert({ov::num_streams.name(), std::to_string(streamExecutorConfig._streams)});
-    _config.insert({ov::inference_num_threads.name(), std::to_string(streamExecutorConfig._threads)});
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
 
