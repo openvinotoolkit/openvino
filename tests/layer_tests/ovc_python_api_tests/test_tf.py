@@ -131,7 +131,8 @@ def create_tf_module(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_tf_module_dynamic(tmp_dir):
@@ -155,7 +156,9 @@ def create_tf_module_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input': input_shapes}
+    return net, model_ref, {'input': input_shapes,
+                            'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer(tmp_dir):
@@ -178,7 +181,8 @@ def create_keras_layer(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_dynamic(tmp_dir):
@@ -203,7 +207,10 @@ def create_keras_layer_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input': input_shapes}
+    return net, model_ref, {'input': input_shapes,
+                            'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                              np.random.rand(1, 2, 3).astype(np.float32))
+                            }
 
 
 def create_tf_checkpoint(tmp_dir):
@@ -478,17 +485,19 @@ def create_keras_layer_with_example_input_2(tmp_dir):
 
 def create_keras_layer_with_input_shapes_case1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [[1, 2, 3], [1, 2, 3]]}
+    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                                 np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case2(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [([1, 2, 3], np.float32), ([1, 2, 3], np.float32)]}
+    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                                 np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case3(tmp_dir):
     model, model_ref = create_keras_layer_input_dict_one_inp()
-    return model, model_ref, {'input': [('args', [1, 2, 3])]}
+    return model, model_ref, {'example_input':  {'args': np.random.rand(1, 2, 3).astype(np.float32)}}
 
 
 def create_keras_layer_with_input_shapes_case4(tmp_dir):

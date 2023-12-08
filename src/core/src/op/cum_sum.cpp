@@ -35,12 +35,15 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
     const auto axis = ov::get_tensor_data_as<int64_t>(inputs[1]).front();
 
     using namespace ov::element;
-    return IfTypeOf<f32>::apply<cumsum::Evaluate>(inputs[0].get_element_type(),
-                                                  inputs[0],
-                                                  outputs[0],
-                                                  axis,
-                                                  exclusive,
-                                                  reverse);
+    return IF_TYPE_OF(CumSum_evaluate,
+                      f32,
+                      cumsum::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      axis,
+                      exclusive,
+                      reverse);
 }
 }  // namespace
 }  // namespace cumsum

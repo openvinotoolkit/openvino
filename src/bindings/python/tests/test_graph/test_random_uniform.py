@@ -2,9 +2,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime as ov
-import openvino.runtime.opset8 as ops
 import numpy as np
+import openvino.runtime.opset8 as ops
+from openvino import Type
 
 
 def test_random_uniform():
@@ -17,5 +17,5 @@ def test_random_uniform():
                                              op_seed=1546)
     assert random_uniform_node.get_output_size() == 1
     assert random_uniform_node.get_type_name() == "RandomUniform"
-    assert random_uniform_node.get_output_element_type(0) == ov.Type.f32
+    assert random_uniform_node.get_output_element_type(0) == Type.f32
     assert list(random_uniform_node.get_output_shape(0)) == [2, 4, 3]

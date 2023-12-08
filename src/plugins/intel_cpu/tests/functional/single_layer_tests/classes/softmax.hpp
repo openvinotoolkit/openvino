@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ov_models/builders.hpp>
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 struct SoftMaxConfig {
     ov::test::InputShape inputShape;
@@ -38,4 +35,5 @@ namespace SoftMax {
 
 
 }  // namespace SoftMax
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

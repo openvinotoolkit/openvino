@@ -20,6 +20,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "openvino/pass/serialize.hpp"
 
 namespace py = pybind11;

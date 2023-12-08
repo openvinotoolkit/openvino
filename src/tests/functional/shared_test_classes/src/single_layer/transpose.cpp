@@ -32,14 +32,12 @@ void TransposeLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const auto inOrderShape = inputOrder.empty() ? ngraph::Shape({0}) : ngraph::Shape({inputShape.size()});
     const auto inputOrderOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
                                                                          inOrderShape,
                                                                          inputOrder);
-    const auto transpose = std::make_shared<ngraph::opset3::Transpose>(paramOuts.at(0), inputOrderOp);
+    const auto transpose = std::make_shared<ngraph::opset3::Transpose>(params.at(0), inputOrderOp);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(transpose)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose");
 }

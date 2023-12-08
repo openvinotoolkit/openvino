@@ -480,10 +480,22 @@ void add_pair(std::map<std::string, std::string>& keyValues, const std::string& 
             keyValues["opSet"] = value.substr(dPos + 1);
         }
     }
+    // Defining a subgraph extractors as an operations
+    if (key == "Extractor") {
+        keyValues["opName"] = value;
+        keyValues["opSet"] = "subgraph";  // Need to set later
+    }
     // Parse IR for opName and hash
     if (key == "IR") {
-        keyValues["hashXml"] = value;
-        keyValues["pathXml"] = value + ".xml";
+        if ((dPos = value.find_last_of('/')) != std::string::npos ||
+            (dPos = value.find_last_of('\\')) != std::string::npos) {
+            dPos += 1;                                                             // Ignores slash
+            keyValues["hashXml"] = value.substr(dPos, value.length() - dPos - 4);  // exclude extension
+            keyValues["pathXml"] = value.substr(dPos);
+        } else {
+            keyValues["hashXml"] = value;
+            keyValues["pathXml"] = value + ".xml";
+        }
         return;
     }
     // Parse Function for opName and opSet

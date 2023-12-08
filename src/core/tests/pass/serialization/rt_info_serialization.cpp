@@ -112,6 +112,34 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     check_info(add->output(0).get_rt_info());
 }
 
+TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
+    auto init_info = [](ov::RTMap& info) {
+        info[ov::DisableFP16Compression::get_type_info_static()] = ov::DisableFP16Compression{};
+    };
+    auto check_info = [](const ov::RTMap& info) {
+        const std::string& key = ov::DisableFP16Compression::get_type_info_static();
+        ASSERT_TRUE(info.count(key));
+    };
+
+    std::shared_ptr<ov::Model> function;
+    {
+        auto data_1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 10});
+        auto data_2 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{10, 1});
+        auto matmul_1 = std::make_shared<ov::opset8::MatMul>(data_1, data_2);
+        init_info(matmul_1->get_rt_info());
+        auto result = std::make_shared<ov::opset8::Result>(matmul_1);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
+    }
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
+    m.run_passes(function);
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
+
+    auto matmul = f->get_results()[0]->get_input_node_ptr(0);
+    check_info(matmul->get_rt_info());
+}
+
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     auto init_info = [](ov::RTMap& info) {
         info[ov::FusedNames::get_type_info_static()] = ov::FusedNames("add");

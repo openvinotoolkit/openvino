@@ -16,7 +16,7 @@ from openvino._offline_transformations import (
     apply_fused_names_cleanup,
 )
 
-from openvino.runtime import Model, PartialShape, Core, serialize, save_model
+from openvino import Model, PartialShape, Core, serialize, save_model
 import openvino.runtime as ov
 
 from tests.utils.helpers import create_filename_for_test, compare_models, _compare_models
@@ -141,6 +141,21 @@ def test_pruning_transformation():
 
 
 def test_make_stateful_transformations():
+    param = ov.opset13.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param.get_output_tensor(0).set_names({"parameter"})
+    relu = ov.opset13.relu(param)
+    res = ov.opset13.result(relu, name="result")
+    res.get_output_tensor(0).set_names({"result"})
+    model = Model([res], [param], "test")
+
+    apply_make_stateful_transformation(model, [(param, res)])
+
+    assert model is not None
+    assert len(model.get_parameters()) == 0
+    assert len(model.get_results()) == 0
+
+
+def test_make_stateful_transformations_with_dics():
     model = get_relu_model()
 
     apply_make_stateful_transformation(model, {"parameter": "result"})

@@ -3,25 +3,26 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/node_builders/rnn_cell.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using RNNSequenceCpuSpecificParams = typename std::tuple<
         std::vector<InputShape>,                  // Shapes
-        ngraph::helpers::SequenceTestsMode,       // Pure Sequence or TensorIterator
+        ov::test::utils::SequenceTestsMode,       // Pure Sequence or TensorIterator
         std::vector<std::string>,                 // Activations
         float,                                    // Clip
         ov::op::RecurrentSequenceDirection,       // Direction
         ElementType,                              // Network precision
         CPUSpecificParams,                        // CPU specific params
-        std::map<std::string, std::string>        // Additional config
+        ov::AnyMap        // Additional config
 >;
 
 class RNNSequenceCPUTest : public testing::WithParamInterface<RNNSequenceCpuSpecificParams>,
@@ -29,13 +30,13 @@ class RNNSequenceCPUTest : public testing::WithParamInterface<RNNSequenceCpuSpec
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RNNSequenceCpuSpecificParams> &obj) {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::test::utils::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         ov::op::RecurrentSequenceDirection direction;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig) = obj.param;
 
@@ -61,9 +62,8 @@ public:
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second;
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
         return result.str();
@@ -72,13 +72,13 @@ public:
 protected:
     void SetUp() override {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::test::utils::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         ov::op::RecurrentSequenceDirection direction;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -94,52 +94,49 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
-        if (selectedType.find("BF16") != std::string::npos) {
+        if (selectedType.find("bf16") != std::string::npos) {
             rel_threshold = 5e-2;
-        } else if (selectedType.find("FP32") != std::string::npos) {
+        } else if (selectedType.find("f32") != std::string::npos) {
             rel_threshold = 1e-4;
         }
 
-            ov::ParameterVector params;
-            for (auto&& shape : inputDynamicShapes) {
-                params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-            }
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
             inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
             1lu;
         if (inputDynamicShapes.size() > 2) {
             if (!inputDynamicShapes[2].is_dynamic() &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+                    seqMode != ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
+                    seqMode != ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
                 params.pop_back();
             } else {
                 params[2]->set_element_type(ElementType::i64);
             }
         }
 
+        ov::OutputVector paramsOuts;
+        for (const auto& param : params)
+          paramsOuts.push_back(param);
+
         std::vector<ov::Shape> WRB = {{numDirections, hiddenSize, inputSize}, {numDirections, hiddenSize, hiddenSize}, {numDirections, hiddenSize},
                                         {batchSize}};
-        auto rnn_sequence = ngraph::builder::makeRNN(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-                                                     WRB,
-                                                     hiddenSize,
-                                                     activations,
-                                                     {},
-                                                     {},
-                                                     clip,
-                                                     true,
-                                                     direction,
-                                                     seqMode);
+        auto rnn_sequence =
+            utils::make_rnn(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip, true, direction, seqMode);
         function = makeNgraphFunction(netPrecision, params, rnn_sequence, "rnnSequence");
 
-        if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
-            ngraph::pass::Manager manager;
+        if (seqMode != ov::test::utils::SequenceTestsMode::PURE_SEQ) {
+            ov::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
@@ -176,14 +173,13 @@ TEST_P(RNNSequenceCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+std::vector<ov::AnyMap> additionalConfig = {{ov::hint::inference_precision(ov::element::f32)},
+                                            {ov::hint::inference_precision(ov::element::bf16)}};
 
 CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
 CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, tnc}, {"ref_any"}, "ref_any"};
 
-std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+std::vector<ov::test::utils::SequenceTestsMode> mode{ov::test::utils::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
 std::vector<size_t> seq_lengths_zero_clip{ 2 };
 std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
@@ -217,7 +213,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, RNNSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::Values(std::map<std::string, std::string>{})),
+                                   ::testing::Values(ov::AnyMap{})),
                 RNNSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, RNNSequenceCPUTest,
@@ -228,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, RNNSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParamsBatchSizeOne),
-                                   ::testing::Values(std::map<std::string, std::string>{})),
+                                   ::testing::Values(ov::AnyMap{})),
                 RNNSequenceCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicShapes = {
@@ -296,7 +292,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(std::map<std::string, std::string>{})),
+                               ::testing::Values(ov::AnyMap{})),
             RNNSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, RNNSequenceCPUTest,
@@ -307,7 +303,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, RNNSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParamsBatchSizeOne),
-                               ::testing::Values(std::map<std::string, std::string>{})),
+                               ::testing::Values(ov::AnyMap{})),
             RNNSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, RNNSequenceCPUTest,
@@ -318,7 +314,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, RNNSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(std::map<std::string, std::string>{})),
+                               ::testing::Values(ov::AnyMap{})),
             RNNSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, RNNSequenceCPUTest,
@@ -331,5 +327,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, RNNSequenceCPUTest,
                                ::testing::Values(cpuParams),
                                ::testing::Values(additionalConfig[1])),
             RNNSequenceCPUTest::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

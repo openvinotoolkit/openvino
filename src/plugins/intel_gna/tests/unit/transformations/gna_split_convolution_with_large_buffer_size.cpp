@@ -270,6 +270,7 @@ class SplitConvolutionFixture : public ov::test::TestsCommon,
                                 public ::testing::WithParamInterface<std::tuple<DeviceVersion, TestParams>> {
 public:
     void SetUp() override;
+    void TearDown() override;
 
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
@@ -288,6 +289,10 @@ void SplitConvolutionFixture::SetUp() {
     Limitations::init(device_version);
     function = transformed_graph.createFunction();
     reference_function = reference_graph.createFunction();
+}
+
+void SplitConvolutionFixture::TearDown() {
+    Limitations::deinit();
 }
 
 void execute_test(std::shared_ptr<ngraph::Function> function,

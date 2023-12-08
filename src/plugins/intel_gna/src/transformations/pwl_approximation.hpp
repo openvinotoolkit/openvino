@@ -261,21 +261,21 @@ double lower_bound() {
 }
 
 template <typename T>
-double lower_bound(std::true_type, double exponent) {
+double lower_bound(double exponent, std::true_type) {
     return Function<ngraph::opset8::Power>::lower_bound(exponent);
 }
 
 template <typename T>
-double lower_bound(std::false_type, double exponent) {
+double lower_bound(double exponent, std::false_type) {
     throw std::runtime_error("Not supported");
 }
 
 template <typename T>
 double lower_bound(double exponent) {
     return lower_bound<T>(
+        exponent,
         std::integral_constant < bool,
-        std::is_same<T, ngraph::opset8::Power>::value || std::is_same<T, ngraph::op::PowerIE>::value > (),
-        exponent);
+        std::is_same<T, ngraph::opset8::Power>::value || std::is_same<T, ngraph::op::PowerIE>::value > ());
 }
 
 template <typename T>

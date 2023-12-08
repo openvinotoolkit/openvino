@@ -91,7 +91,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
                                                   const std::vector<PortConnectorPtr>& inputs,
                                                   const LinearIR& linear_ir) {
     OPENVINO_ASSERT(inputs.empty(), "LoopBegin cannot have inputs");
-    auto expr = std::make_shared<Expression>(Expression(n, linear_ir.m_shape_infer_factory));
+    auto expr = std::shared_ptr<Expression>(new Expression(n, linear_ir.m_shape_infer_factory));
     init_expression_inputs(expr, inputs);
     create_expression_outputs(expr);
     expr->validate();

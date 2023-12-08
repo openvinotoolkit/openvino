@@ -14,7 +14,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
-#include "tensor_conversion_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -35,20 +34,12 @@ TEST(tensor, tensor_names) {
     ASSERT_EQ(f0->get_result()->input_value(0).get_tensor().get_names(), relu->get_output_tensor(0).get_names());
 }
 
-TEST(tensor, wrap_tensor_with_unspecified_type) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(element::undefined, ov::PartialShape{});
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto tensor = ov::util::wrap_tensor(param->output(0));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    // !tensor means that the tensor is not initialized
-    EXPECT_EQ(!tensor, true);
-}
-
-TEST(tensor, wrap_tensor_with_unspecified_type_from_host_tensor) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto host_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::undefined, ov::PartialShape{});
-    auto tensor = ov::util::wrap_tensor(host_tensor);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    // !tensor means that the tensor is not initialized
-    EXPECT_EQ(!tensor, true);
+TEST(tensor, create_tensor_with_zero_dims_check_stride) {
+    ov::Shape shape = {0, 0, 0, 0};
+    auto tensor = ov::Tensor(element::f32, shape);
+    EXPECT_EQ(!!tensor, true);
+    auto stride = tensor.get_strides();
+    EXPECT_EQ(stride.size(), shape.size());
+    EXPECT_EQ(stride.back(), 0);
+    EXPECT_EQ(tensor.is_continuous(), true);
 }

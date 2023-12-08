@@ -78,7 +78,8 @@ private:
     std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,
                                                  const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
-                                                            const std::shared_ptr<const ov::Model>& model) const;
+                                                          const std::shared_ptr<const ov::Model>& model,
+                                                          PluginConfig& load_config) const;
     std::string get_log_tag() const noexcept;
     static std::mutex m_mtx;
     static std::map<unsigned int, std::list<std::string>> m_priority_map;

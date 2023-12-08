@@ -7,12 +7,10 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Eltwise {
 
 const auto params_4D = ::testing::Combine(
@@ -86,8 +84,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5
 const auto params_4D_1D_constant_mode = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::test::utils::EltwiseTypes::ADD, ov::test::utils::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -103,8 +101,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTe
 const auto params_4D_1D_parameter_mode = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::test::utils::EltwiseTypes::ADD, ov::test::utils::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -120,8 +118,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Parameter, EltwiseLayerCPUT
 const auto params_5D_1D_constant = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::test::utils::EltwiseTypes::ADD, ov::test::utils::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -137,8 +135,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTe
 const auto params_5D_1D_parameter = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::test::utils::EltwiseTypes::ADD, ov::test::utils::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -155,7 +153,7 @@ const auto params_4D_dyn_const = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes_4D_dyn_const()),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -172,7 +170,7 @@ const auto params_4D_dyn_param = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_4D_dyn_param()),
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -189,7 +187,7 @@ const auto params_5D_dyn_const = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_5D_dyn_const()),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -206,7 +204,7 @@ const auto params_5D_dyn_param = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_5D_dyn_param()),
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -219,5 +217,6 @@ const auto params_5D_dyn_param = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
-} // namespace Eltwise
-} // namespace CPULayerTestsDefinitions
+}  // namespace Eltwise
+}  // namespace test
+}  // namespace ov

@@ -4,20 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <ov_models/builders.hpp>
-#include <string>
-#include <tuple>
-#include <vector>
-
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using CtcGreedyDecoderSeqLenParams = std::tuple<size_t,   // Batch size N
                                                 size_t,   // Sequence length T
@@ -73,7 +66,7 @@ protected:
         InputShapeParams shapes;
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
-        selectedType = "ref_any_FP32";
+        selectedType = "ref_any_f32";
         targetDevice = ov::test::utils::DEVICE_CPU;
         ASSERT_EQ(shapes.first.size(), 4);
         const auto& in_dyn_N = shapes.first[0];
@@ -110,11 +103,11 @@ protected:
                                                                                            indexType,
                                                                                            indexType);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen)};
-        function = std::make_shared<ngraph::Function>(results, params, "CTCGreedyDecoderSeqLenCPU");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen)};
+        function = std::make_shared<ov::Model>(results, params, "CTCGreedyDecoderSeqLenCPU");
     };
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         const auto& dataShape = targetInputStaticShapes[0];
@@ -207,4 +200,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CtcGreedyDecoderSeqLenCPU,
                          CTCGreedyDecoderSeqLenLayerCPUTest::getTestCaseName);
 }  // namespace
 
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

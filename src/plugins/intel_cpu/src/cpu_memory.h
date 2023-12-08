@@ -17,7 +17,6 @@
 #include <functional>
 #include <memory>
 #include <vector>
-#include <ie_precision.hpp>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -76,6 +75,23 @@ public:
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
     MemoryMngrWithReuse() : m_data(nullptr, release) {}
+    void* getRawPtr() const noexcept override;
+    void setExtBuff(void* ptr, size_t size) override;
+    bool resize(size_t size) override;
+    bool hasExtBuffer() const noexcept override;
+
+private:
+    bool m_useExternalStorage = false;
+    size_t m_memUpperBound = 0ul;
+    std::unique_ptr<void, void (*)(void *)> m_data;
+
+    static void release(void *ptr);
+    static void destroy(void *ptr);
+};
+
+class MemoryMngrRealloc : public IMemoryMngr {
+public:
+    MemoryMngrRealloc() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
@@ -187,7 +203,7 @@ public:
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
     dnnl::memory::data_type getDataType() const {
-        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
+        return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
 
     virtual void nullify() = 0;
@@ -257,6 +273,7 @@ private:
     size_t m_size;
     dnnl::memory m_prim;
     MemMngrPtr m_pMemMngr;
+    std::string dnnlErrorCtx;
 };
 
 class Memory : public IMemory {

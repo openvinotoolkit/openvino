@@ -15,25 +15,25 @@ static VectorDims makeRange(size_t size) {
     return retVec;
 }
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) :
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape) :
     CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                   const VectorDims& strides) : MemoryDesc(shape, Blocked), precision(prc) {
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
-        IE_THROW() << "CpuBlockedMemoryDesc do not support undefined order.";
+        OPENVINO_THROW("CpuBlockedMemoryDesc do not support undefined order.");
     }
 
     if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
-        IE_THROW() << "CpuBlockedMemoryDesc doesn't support undefined blockedDims.";
+        OPENVINO_THROW("CpuBlockedMemoryDesc doesn't support undefined blockedDims.");
     }
 
     if (shape.hasZeroDims()) {
         const auto& dims = shape.getDims();
         for (size_t i = 0; i < shape.getRank(); i++) {
             if (dims[order[i]] == 0 && !dimsEqualWeak(blockedDims[i], 0)) {
-                IE_THROW() << "Can't create CpuBlockedMemoryDesc. Mistmatch zero dims in dims and blocked dims";
+                OPENVINO_THROW("Can't create CpuBlockedMemoryDesc. Mismatch zero dims in dims and blocked dims");
             }
         }
     }
@@ -61,13 +61,13 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
         }
     } else {
         if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0; } )) {
-            IE_THROW() << "Can't create CpuBlockedMemoryDesc with zero dim, but with non zero strides";
+            OPENVINO_THROW("Can't create CpuBlockedMemoryDesc with zero dim, but with non zero strides");
         }
         this->strides = strides;
     }
 
     if (!everyone_is(this->order.size(), this->blockedDims.size(), this->offsetPaddingToData.size(), this->strides.size())) {
-        IE_THROW() << "Order, blocked dims, offset padding to data and strides must have equals size";
+        OPENVINO_THROW("Order, blocked dims, offset padding to data and strides must have equals size");
     }
 }
 
@@ -124,7 +124,7 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }
 
-    e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
+    e_size *= getPrecision() == ov::element::u1 ? 1 : getPrecision().size();
 
     return e_size;
 }
@@ -143,14 +143,14 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     return maxDimsDesc->getCurrentMemSize();
 }
 
-size_t CpuBlockedMemoryDesc::getOffset(const InferenceEngine::SizeVector& v) const {
-    InferenceEngine::SizeVector off_v = v;
+size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
+    VectorDims off_v = v;
 
     size_t n_blocked_dims = order.size();
     if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
-        IE_THROW() << "Cannot calculate offset. Incorrect primitive descriptor!";
+        OPENVINO_THROW("Cannot calculate offset. Incorrect primitive descriptor!");
     }
-    InferenceEngine::SizeVector blockedShift(n_blocked_dims);
+    VectorDims blockedShift(n_blocked_dims);
     for (size_t i = 1; i <= n_blocked_dims; i++) {
         blockedShift[n_blocked_dims - i] = off_v[order[n_blocked_dims - i]] % blockedDims[n_blocked_dims - i];
         off_v[order[n_blocked_dims - i]] /= blockedDims[n_blocked_dims - i];
@@ -167,7 +167,7 @@ size_t CpuBlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
     // TODO [DS]: rewrite to support dynamic shapes
     auto& dims = shape.getStaticDims();
     size_t n_dims = dims.size();
-    InferenceEngine::SizeVector pos(n_dims);
+    VectorDims pos(n_dims);
     for (size_t rd = 1; rd <= n_dims; ++rd) {
         const size_t d = n_dims - rd;
         const size_t cur_dim = dims[d];
@@ -240,7 +240,7 @@ bool CpuBlockedMemoryDesc::isTailCFormat() const {
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
     if (std::any_of(dims.begin(), dims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
-        IE_THROW() << "Can't clone desc if new dims are undefined";
+        OPENVINO_THROW("Can't clone desc if new dims are undefined");
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
@@ -249,7 +249,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
             break;
 
         if (strides[i] != strides[i + 1] * blockedDims[i + 1])
-            IE_THROW(NotImplemented) << "Can't clone desc with new dims for not dense tensor";
+            OPENVINO_THROW_NOT_IMPLEMENTED("Can't clone desc with new dims for not dense tensor");
     }
 
     VectorDims newBlockedDims(order.size());
@@ -298,12 +298,12 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
         return 0;
     }
     if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
-        IE_THROW() << "Can't compute padded elements count for non undefined blocked dims";
+        OPENVINO_THROW("Can't compute padded elements count for non undefined blocked dims");
     }
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
 
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {
     auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
     return newDesc;

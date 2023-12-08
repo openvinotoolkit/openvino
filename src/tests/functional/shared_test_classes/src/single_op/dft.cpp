@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/dft.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/dft.hpp"
 
 namespace ov {
 namespace test {
@@ -49,7 +49,7 @@ void DFTLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto dft = ngraph::builder::makeDFT(param, axes, signal_size, op_type);
+    auto dft = ov::test::utils::make_dft(param, axes, signal_size, op_type);
 
     auto result = std::make_shared<ov::op::v0::Result>(dft);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "DFT");

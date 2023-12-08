@@ -65,7 +65,8 @@ def test_core_class(device):
 
     input_tensor = Tensor(input_data)
     results = request.infer({"data": input_tensor})
-    assert np.allclose(results[list(results)[0]], expected_output)
+    # convert node may be introduced by API 2.0, which brings some deviation
+    assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
@@ -299,9 +300,9 @@ def test_query_model(device):
     model = get_relu_model()
     query_model = core.query_model(model=model, device_name=device)
     ops_model = model.get_ordered_ops()
-    ops_func_names = [op.friendly_name for op in ops_model]
+    ops_model_names = [op.friendly_name for op in ops_model]
     assert [
-        key for key in query_model.keys() if key not in ops_func_names
+        key for key in query_model.keys() if key not in ops_model_names
     ] == [], "Not all network layers present in query_model results"
     assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
 

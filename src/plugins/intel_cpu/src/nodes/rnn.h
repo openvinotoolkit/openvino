@@ -19,11 +19,11 @@ namespace node {
 
 class RNN : public Node {
 public:
-    RNN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    static bool isCell(const std::shared_ptr<const ngraph::Node>& op);
-    static bool testNativeOrder(const std::shared_ptr<const ngraph::Node>& op);
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    static bool isCell(const std::shared_ptr<const ov::Node>& op);
+    static bool testNativeOrder(const std::shared_ptr<const ov::Node>& op);
     void getSupportedDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
@@ -58,12 +58,12 @@ private:
     void fillCellDesc();
     void fillSequenceDesc();
     void fillDescs();
-    bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
-                                const InferenceEngine::Precision& weightsPrec);
+    bool verifyWeightsPrecision(const ov::element::Type& layerPrec,
+                                const ov::element::Type& weightsPrec);
 
     template <typename Prec>
     void fillWeights(const int* gate_map, const size_t wIdx, const size_t rIdx);
-    template <InferenceEngine::Precision::ePrecision Prec>
+    template <ov::element::Type_t Prec>
     void fillBiases(const int* gate_map);
 
     void copyWeightsData();

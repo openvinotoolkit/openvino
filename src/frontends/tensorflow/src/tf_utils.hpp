@@ -114,7 +114,8 @@ std::shared_ptr<ov::op::v5::Loop> create_loop_for_tf_while(const std::string& wh
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
                        const std::string& operation_type,
                        const ov::OutputVector& ov_inputs,
-                       ov::OutputVector& ov_outputs);
+                       ov::OutputVector& ov_outputs,
+                       const std::vector<std::string>& ov_input_names = {});
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

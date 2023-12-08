@@ -8,15 +8,11 @@
 #include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph/function.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
 #include "base/ov_behavior_test_utils.hpp"
-
-#include <ie_core.hpp>
-#include <ie_common.h>
 
 namespace ov {
 namespace test {

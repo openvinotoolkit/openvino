@@ -12,7 +12,7 @@
 #include <cpu/ref_depthwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -78,9 +78,9 @@ struct jit_uni_normalize_kernel {
 #endif
 class NormalizeL2 : public Node {
 public:
-    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -108,8 +108,8 @@ public:
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        InferenceEngine::Precision input_prec = InferenceEngine::Precision::UNSPECIFIED;
-        InferenceEngine::Precision output_prec = InferenceEngine::Precision::UNSPECIFIED;
+        ov::element::Type input_prec = ov::element::undefined;
+        ov::element::Type output_prec = ov::element::undefined;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
     };

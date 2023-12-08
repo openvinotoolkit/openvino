@@ -13,7 +13,6 @@
 #include "openvino/op/i420_to_rgb.hpp"
 
 using namespace ov;
-using namespace InferenceEngine;
 using namespace reference_tests;
 
 class ReferenceConvertColorI420LayerTest : public testing::Test, public CommonReferenceTest {

@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "single_layer_tests/rnn_cell.hpp"
+#include "single_op_tests/rnn_cell.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::RNNCellTest;
 
 namespace {
     std::vector<bool> should_decompose{false, true};
@@ -16,25 +16,40 @@ namespace {
     std::vector<size_t> input_size{1, 30};
     std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
     std::vector<float> clip = {0.f, 0.7f};
-    std::vector<ngraph::helpers::InputLayerType> layer_types = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+    std::vector<ov::test::utils::InputLayerType> layer_types = {
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER
     };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+    std::vector<ov::element::Type> model_types = {ov::element::f32,
+                                                  ov::element::f16};
 
-    INSTANTIATE_TEST_SUITE_P(RNNCellCommon, RNNCellTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCommon1, RNNCellTest,
             ::testing::Combine(
             ::testing::ValuesIn(should_decompose),
             ::testing::ValuesIn(batch),
             ::testing::ValuesIn(hidden_size),
             ::testing::ValuesIn(input_size),
             ::testing::ValuesIn(activations),
+            ::testing::Values(clip[0]),
+            ::testing::Values(layer_types[0]),
+            ::testing::Values(layer_types[0]),
+            ::testing::Values(layer_types[0]),
+            ::testing::Values(model_types[0]),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+            RNNCellTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCommon2, RNNCellTest,
+            ::testing::Combine(
+            ::testing::Values(should_decompose[0]),
+            ::testing::Values(batch[0]),
+            ::testing::Values(hidden_size[0]),
+            ::testing::Values(input_size[0]),
+            ::testing::Values(activations[0]),
             ::testing::ValuesIn(clip),
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(layer_types),
-            ::testing::ValuesIn(netPrecisions),
+            ::testing::ValuesIn(model_types),
             ::testing::Values(ov::test::utils::DEVICE_GPU)),
             RNNCellTest::getTestCaseName);
 

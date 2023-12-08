@@ -49,7 +49,7 @@ class paddle_frontend_converter:
             self.pdiparams = "{}.pdiparams".format(self.model_name)
             self.pdiparams_info = "{}.pdiparams.info".format(self.model_name)
 
-            import paddle # pylint: disable=import-error
+            import paddle  # pylint: disable=import-error
             if isinstance(self.model, paddle.hapi.model.Model):
                 self.model.save(self.model_name, False)
             else:

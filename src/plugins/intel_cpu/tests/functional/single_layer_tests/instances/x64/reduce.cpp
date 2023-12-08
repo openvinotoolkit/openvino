@@ -8,13 +8,10 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Reduce {
 namespace {
 
@@ -100,15 +97,13 @@ std::vector<CPUSpecificParams> cpuParams_NHWC_4D = {
         CPUSpecificParams({nhwc}, {nhwc}, {}, {})
 };
 
-const std::vector<ngraph::helpers::ReductionType> reductionLogicalTypes = {
-    ngraph::helpers::ReductionType::LogicalOr,
-     ngraph::helpers::ReductionType::LogicalAnd
-};
+const std::vector<ov::test::utils::ReductionType> reductionLogicalTypes = {ov::test::utils::ReductionType::LogicalOr,
+                                                                           ov::test::utils::ReductionType::LogicalAnd};
 
-const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
-        ngraph::helpers::ReductionType::Mean,
-        ngraph::helpers::ReductionType::Max,
-        ngraph::helpers::ReductionType::L2,
+const std::vector<ov::test::utils::ReductionType> reductionTypesFusing = {
+        ov::test::utils::ReductionType::Mean,
+        ov::test::utils::ReductionType::Max,
+        ov::test::utils::ReductionType::L2,
 };
 
 // This custom subgraph is used to test post-ops fusing case with U8/I8 precision on output,
@@ -116,7 +111,7 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
 const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
-            ngraph::Shape newShape(cfg.input->get_output_partial_shape(0).size(), 1);
+            ov::Shape newShape(cfg.input->get_output_partial_shape(0).size(), 1);
             const auto fakeQuantize = ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
             std::vector<size_t> order(newShape.size());
             std::iota(order.begin(), order.end(), 0);
@@ -138,7 +133,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet {
 };
 
 // Exclude cases of fusingFakeQuantizePerChannelRelu, where FQ for non-1 channel fallbacks
-// to decomposed ngraph reference implementation, so such fusing tests are N/A
+// to decomposed reference implementation, so such fusing tests are N/A
 const std::vector<fusingSpecificParams> fusingParamsSet_KeepNoDims {
         /* activations */
         fusingSwish,
@@ -619,6 +614,7 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
-} // namespace
-} // namespace Reduce
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace Reduce
+}  // namespace test
+}  // namespace ov

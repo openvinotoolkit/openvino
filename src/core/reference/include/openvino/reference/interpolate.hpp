@@ -636,7 +636,7 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
                   reinterpret_cast<char*>(transposed_in.data()),
                   m_input_data_shape,
                   sizeof(T),
-                  in_transp_axes_order.data(),
+                  in_transp_axes_order,
                   transp_input_shape);
 
         std::vector<T> transposed_out(shape_size(m_out_shape));
@@ -667,7 +667,7 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
                   reinterpret_cast<char*>(out),
                   transp_output_shape,
                   sizeof(T),
-                  out_transp_axes_order.data(),
+                  out_transp_axes_order,
                   m_out_shape);
     }
 }

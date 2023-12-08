@@ -21,7 +21,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ACTIVATION,

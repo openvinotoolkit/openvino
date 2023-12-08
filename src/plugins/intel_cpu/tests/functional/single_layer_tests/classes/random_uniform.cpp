@@ -6,9 +6,9 @@
 #include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamInfo<RandomUniformLayerTestCPUParamSet>& obj) {
     const auto& out_shape = std::get<0>(obj.param);
@@ -71,13 +71,13 @@ void RandomUniformLayerTestCPU::SetUp() {
     } else if (output_prc == ElementType::f64) {
         updateSelectedType(getPrimitiveType(), ElementType::f32, configuration);
     } else if (output_prc == ElementType::f16) {
-        if (InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+        if (ov::with_cpu_x86_avx512_core_fp16()) {
             updateSelectedType(getPrimitiveType(), ElementType::f16, configuration);
         } else {
             updateSelectedType(getPrimitiveType(), ElementType::f32, configuration);
         }
     } else if (output_prc == ElementType::bf16) {
-        if (InferenceEngine::with_cpu_x86_bfloat16()) {
+        if (ov::with_cpu_x86_bfloat16()) {
             updateSelectedType(getPrimitiveType(), ElementType::bf16, configuration);
         } else {
             updateSelectedType("ref_any", ElementType::bf16, configuration);
@@ -124,10 +124,10 @@ void RandomUniformLayerTestCPU::SetUp() {
     function = std::make_shared<ov::Model>(results, in_params, "RandomUniformLayerTestCPU");
 
     // todo: issue: 123320
-    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (!ov::with_cpu_x86_avx512_core()) {
         convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
     }
-    if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+    if (!ov::with_cpu_x86_avx512_core_fp16()) {
         convert_precisions.insert({ ov::element::f16, ov::element::f32 });
     }
 }
@@ -257,4 +257,5 @@ TEST_P(RandomUniformLayerTestCPU, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "RandomUniform");
 }
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

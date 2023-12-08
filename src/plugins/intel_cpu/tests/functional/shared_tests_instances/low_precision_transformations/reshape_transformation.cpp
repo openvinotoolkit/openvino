@@ -26,7 +26,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, 3, 4, 8 },
         { 256ul, ngraph::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 3D -> 1D
     {
@@ -34,7 +34,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { -1 },
         { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 4D -> 3D
     {
@@ -42,7 +42,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, 3, 256 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 4D -> 3D
     {
@@ -50,7 +50,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 0, 3, -1 },
         { 256ul, ngraph::Shape{ 1, 3, 1, 1 }, { 0.f }, { 255.f }, { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 4D -> 2D
     {
@@ -58,7 +58,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, -1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 4D -> 6D
     {
@@ -66,7 +66,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, 3, 4, 8, 1, 1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 4D -> 2D
     {
@@ -81,7 +81,7 @@ const std::vector<ReshapeTransformationParam> params = {
             { 255.f, 255.f/2.f, 255.f/3.f },
         },
         "Reshape",
-        "U8"
+        "u8"
     },
     // 4D -> 3D
     {
@@ -96,7 +96,7 @@ const std::vector<ReshapeTransformationParam> params = {
             { 255.f, 255.f/2.f, 255.f/3.f },
         },
         "Reshape",
-        "U8"
+        "u8"
     },
     // per-channel
     // 4D -> 3D
@@ -112,7 +112,7 @@ const std::vector<ReshapeTransformationParam> params = {
             { 255.f, 255.f/2.f, 255.f/3.f },
         },
         "Reshape",
-        "U8"
+        "u8"
     },
     // Channels count reducing, per-channel dequantizations 4d -> 4d
     {
@@ -122,7 +122,7 @@ const std::vector<ReshapeTransformationParam> params = {
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
-        "FP32"
+        "f32"
     },
     // Channels count reducing, per-channel dequantizations 3d -> 4d
     {
@@ -132,7 +132,7 @@ const std::vector<ReshapeTransformationParam> params = {
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
-        "FP32"
+        "f32"
     },
     // Channels count reducing, per-channel dequantizations 4d -> 3d
     {
@@ -142,7 +142,7 @@ const std::vector<ReshapeTransformationParam> params = {
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
-        "FP32"
+        "f32"
     },
     // Channels count reducing, per-channel dequantizations 5d -> 3d
     {
@@ -152,7 +152,7 @@ const std::vector<ReshapeTransformationParam> params = {
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
-        "FP32"
+        "f32"
     },
     // Channels count reducing, per-channel dequantizations 5d -> 4d
     {
@@ -162,7 +162,7 @@ const std::vector<ReshapeTransformationParam> params = {
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
-        "FP32"
+        "f32"
     },
 };
 

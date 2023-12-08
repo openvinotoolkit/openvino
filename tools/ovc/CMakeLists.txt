@@ -36,6 +36,16 @@ install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
         USE_SOURCE_PERMISSIONS)
 
 #
+# Tests
+#
+if(ENABLE_TESTS)
+    install(DIRECTORY unit_tests
+            DESTINATION tests/ovc
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
+
+#
 # Cpack
 #
 

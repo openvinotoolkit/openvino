@@ -1872,3 +1872,89 @@ TEST(scatter_update_gpu_fp32, output_padding) {
         }
     }
 }
+
+TEST(scatter_update_gpu_fp32, d8111_axisB_first_iteration_kernel_check) {
+    //  Dictionary : 8x1x1x1
+    //  Indexes : 4x1x1x1
+    //  Updates : 4x1x1x1
+    //  Axis : 0
+    //  Output : 8x1x1x1
+    //  Input values in fp32
+
+    //  Indexes:
+    //  4.f, 3.f, 1.f, 7.f
+    //
+    //  Updates:
+    //  9.f, 10.f, 11.f, 12.f
+    //
+    //  Dictionary:
+    //  1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f
+    //
+    //  Output:
+    //  1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
+
+
+    auto& engine = get_test_engine();
+
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{8, 1, 1, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{1, 1, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{1, 1, 1, 1}}); // Updates
+        auto axis = 0;
+
+        set_values(input1, {
+                1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f
+        });
+
+        set_values(input2, {
+                4.f
+        });
+
+        set_values(input3, {
+                9.0f
+        });
+
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f32));
+        topology.add(
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
+        );
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
+
+        network network(engine, topology, get_test_default_config(engine));
+
+
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
+
+        // allocate new output memory
+        layout out_l = network.get_output_memory("out")->get_layout();
+        //auto output_mem = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{8, 1, 1, 1}}); 
+        auto output_mem = engine.allocate_memory(out_l);
+        set_values(output_mem, {
+                -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f
+        });
+        
+        network.set_output_memory("out", output_mem);
+        auto outputs = network.execute();
+
+        auto output = outputs.at("out").get_memory();
+        ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        std::vector<float> expected_results = {
+                1.0f, 2.0f, 3.0f, 4.0f, 9.0f, 6.0f, 7.0f, 8.0f
+        };
+
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            ASSERT_EQ(expected_results[i], output_ptr[i])
+                                << "i=" << i << ", target_format=" << target_format;
+        }
+    }
+}

@@ -35,45 +35,57 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
 **Table of contents:**
 
-- `Preparation <#preparation>`__
 
-  - `Imports <#imports>`__
-  - `Settings <#settings>`__
-  - `Load Model <#load-model>`__
+-  `Preparation <#preparation>`__
 
-- `ONNX Model Conversion <#onnx-model-conversion>`__
+   -  `Imports <#imports>`__
+   -  `Settings <#settings>`__
+   -  `Load Model <#load-model>`__
 
-  - `Convert PyTorch model to ONNX <#convert-pytorch-model-to-onnx>`__
-  - `Convert ONNX Model to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
+-  `ONNX Model Conversion <#onnx-model-conversion>`__
 
-- `Show Results <#show-results>`__
+   -  `Convert PyTorch model to
+      ONNX <#convert-pytorch-model-to-onnx>`__
+   -  `Convert ONNX Model to OpenVINO IR
+      Format <#convert-onnx-model-to-openvino-ir-format>`__
 
-  - `Load and Preprocess an Input Image <#load-and-preprocess-an-input-image>`__
-  - `Load the OpenVINO IR Network and Run Inference on the ONNX model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
+-  `Show Results <#show-results>`__
 
-    - `1. ONNX Model in OpenVINO Runtime <#onnx-model-in-openvino-runtime>`__
-    - `Select an inference device <#select-an-inference-device>`__
-    - `2. OpenVINO IR Model in OpenVINO Runtime <#openvino-ir-model-in-openvino-runtime>`__
-    - `Select the inference device <#select-the-inference-device>`__
+   -  `Load and Preprocess an Input
+      Image <#load-and-preprocess-an-input-image>`__
+   -  `Load the OpenVINO IR Network and Run Inference on the ONNX
+      model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
 
-- `PyTorch Comparison <#pytorch-comparison>`__
-- `Performance Comparison <#performance-comparison>`__
-- `References <#references>`__
+      -  `1. ONNX Model in OpenVINO
+         Runtime <#-onnx-model-in-openvino-runtime>`__
+      -  `Select inference device <#select-inference-device>`__
+      -  `2. OpenVINO IR Model in OpenVINO
+         Runtime <#-openvino-ir-model-in-openvino-runtime>`__
+      -  `Select inference device <#select-inference-device>`__
+
+-  `PyTorch Comparison <#pytorch-comparison>`__
+-  `Performance Comparison <#performance-comparison>`__
+-  `References <#references>`__
 
 .. code:: ipython3
 
     # Install openvino package
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    %pip install -q "openvino>=2023.1.0" onnx
 
-Preparation
-########################################################################
 
-Imports
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Preparation 
+-----------------------------------------------------
+
+Imports 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    import sys
     import time
     import warnings
     from pathlib import Path
@@ -84,11 +96,17 @@ Imports
     import torch
     from torchvision.models.segmentation import lraspp_mobilenet_v3_large, LRASPP_MobileNet_V3_Large_Weights
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file
 
-Settings
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Settings 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Set a name for the model, then define width and height of the image that
 will be used by the network during inference. According to the input
@@ -109,12 +127,14 @@ transforms function, the model is pre-trained on images with a height of
         onnx_path.parent.mkdir()
     ir_path = onnx_path.with_suffix(".xml")
 
-Load Model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Generally, PyTorch models represent an instance of ``torch.nn.Module``
 class, initialized by a state dictionary with model weights. Typical
-steps for getting a pre-trained model: 1. Create instance of model class
+steps for getting a pre-trained model:
+
+1. Create instance of model class
 2. Load checkpoint state dict, which contains pre-trained model weights
 3. Turn model to evaluation for switching some operations to inference
 mode
@@ -160,11 +180,11 @@ have not downloaded the model before.
     Loaded PyTorch LRASPP MobileNetV3 model
 
 
-ONNX Model Conversion
-################################################################################
+ONNX Model Conversion 
+---------------------------------------------------------------
 
-Convert PyTorch model to ONNX
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Convert PyTorch model to ONNX 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO supports PyTorch models that are exported in ONNX format. We
 will use the ``torch.onnx.export`` function to obtain the ONNX model,
@@ -203,8 +223,8 @@ line of the output will read:
     ONNX model exported to model/lraspp_mobilenet_v3_large.onnx.
 
 
-Convert ONNX Model to OpenVINO IR Format
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Convert ONNX Model to OpenVINO IR Format 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To convert the ONNX model to OpenVINO IR with ``FP16`` precision, use
 model conversion API. The models are saved inside the current directory.
@@ -226,14 +246,14 @@ For more information on how to convert models, see this
     Exporting ONNX model to IR... This may take a few minutes.
 
 
-Show Results
-######################################################################
+Show Results 
+------------------------------------------------------
 
 Confirm that the segmentation results look as expected by comparing
 model predictions on the ONNX, OpenVINO IR and PyTorch models.
 
-Load and Preprocess an Input Image
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load and Preprocess an Input Image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Images need to be normalized before propagating through the network.
 
@@ -254,8 +274,13 @@ Images need to be normalized before propagating through the network.
 
 .. code:: ipython3
 
-    image_filename = "../data/image/coco.jpg"
-    image = cv2.cvtColor(cv2.imread(image_filename), cv2.COLOR_BGR2RGB)
+    # Download the image from the openvino_notebooks storage
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        directory="data"
+    )
+    
+    image = cv2.cvtColor(cv2.imread(str(image_filename)), cv2.COLOR_BGR2RGB)
     
     resized_image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
     normalized_image = normalize(resized_image)
@@ -264,8 +289,15 @@ Images need to be normalized before propagating through the network.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
     normalized_input_image = np.expand_dims(np.transpose(normalized_image, (2, 0, 1)), 0)
 
-Load the OpenVINO IR Network and Run Inference on the ONNX model
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+.. parsed-literal::
+
+    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+
+
+Load the OpenVINO IR Network and Run Inference on the ONNX model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO Runtime can load ONNX models directly. First, load the ONNX
 model, do inference and show the results. Then, load the model that was
@@ -273,8 +305,8 @@ converted to OpenVINO Intermediate Representation (OpenVINO IR) with
 OpenVINO Converter and do inference on that model, and show the results
 on an image.
 
-1. ONNX Model in OpenVINO Runtime
-------------------------------------------------------------------------------------------
+1. ONNX Model in OpenVINO Runtime 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
 
@@ -284,10 +316,10 @@ on an image.
     # Read model to OpenVINO Runtime
     model_onnx = core.read_model(model=onnx_path)
 
-Select an inference device
-...................................................................................
+Select inference device 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Select a device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -366,13 +398,13 @@ be applied to each label for more convenient visualization.
 
 
 
-2. OpenVINO IR Model in OpenVINO Runtime
-------------------------------------------------------------------------------------------------------
+2. OpenVINO IR Model in OpenVINO Runtime 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Select the inference device
-.....................................................................................
+Select inference device 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Select a device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -416,8 +448,8 @@ Select a device from dropdown list for running inference using OpenVINO:
 
 
 
-PyTorch Comparison
-############################################################################
+PyTorch Comparison 
+------------------------------------------------------------
 
 Do inference on the PyTorch model to verify that the output visually
 looks the same as the output on the ONNX/OpenVINO IR models.
@@ -442,8 +474,8 @@ looks the same as the output on the ONNX/OpenVINO IR models.
 
 
 
-Performance Comparison
-################################################################################
+Performance Comparison 
+----------------------------------------------------------------
 
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
@@ -515,9 +547,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.035 seconds per image, FPS: 28.95
-    ONNX model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 32.42
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 32.13
+    PyTorch model on CPU: 0.044 seconds per image, FPS: 22.94
+    ONNX model in OpenVINO Runtime/CPU: 0.020 seconds per image, FPS: 49.24
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.032 seconds per image, FPS: 30.92
 
 
 **Show Device Information**
@@ -535,8 +567,8 @@ performance.
     CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 
 
-References
-######################################################################
+References 
+----------------------------------------------------
 
 -  `Torchvision <https://pytorch.org/vision/stable/index.html>`__
 -  `Pytorch ONNX

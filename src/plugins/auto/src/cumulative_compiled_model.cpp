@@ -47,7 +47,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                                                     ov::optimal_number_of_infer_requests,
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::intel_auto::schedule_policy};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -72,6 +73,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         return decltype(ov::supported_properties)::value_type(supported_properties);
     } else if (name == ov::hint::performance_mode) {
         return m_context->m_performance_hint;
+    } else if (name == ov::intel_auto::schedule_policy) {
+        return m_context->m_schedule_policy;
     } else if (name == ov::device::priorities) {
         // device priority does not support change on-the-fly
         return decltype(ov::device::priorities)::value_type(m_context->m_str_devices);

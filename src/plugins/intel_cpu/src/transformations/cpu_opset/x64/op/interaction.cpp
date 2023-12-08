@@ -15,7 +15,7 @@ ov::intel_cpu::InteractionNode::InteractionNode(const NodeVector& args) :
     validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ov::intel_cpu::InteractionNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::InteractionNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(InteractionNode_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::InteractionNode>(new_args);
@@ -48,7 +48,7 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     if (feature.is_static()) {
         output_feature_size = input_size * (input_size - 1) / 2 + feature.get_length();
     }
-    auto output_type = m_output_type == ngraph::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     m_output_type = output_type;
     PartialShape output_shape = ov::PartialShape::dynamic(2);
     output_shape[0] = batch;
@@ -57,7 +57,7 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     return;
 }
 
-bool ov::intel_cpu::InteractionNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
+bool ov::intel_cpu::InteractionNode::visit_attributes(ov::AttributeVisitor &visitor) {
     INTERNAL_OP_SCOPE(InteractionNode_visit_attributes);
     visitor.on_attribute("out-type", m_output_type);
     return true;

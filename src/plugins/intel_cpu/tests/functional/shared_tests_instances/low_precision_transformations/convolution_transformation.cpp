@@ -27,7 +27,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         {},
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         {},
@@ -35,7 +35,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -43,7 +43,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -51,7 +51,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -59,7 +59,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -67,7 +67,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -75,7 +75,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.7f }, { 12.8f } },
@@ -83,7 +83,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -91,7 +91,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -102,7 +102,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -114,7 +114,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     // not supported quantization level on data
     {
@@ -123,7 +123,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     // not supported quantization level on data & weights
     {
@@ -132,7 +132,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
-        "FP32"
+        "f32"
     },
     // not supported quantization level on weights
     {
@@ -141,7 +141,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
-        "FP32"
+        "f32"
     }
 };
 
@@ -191,7 +191,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 

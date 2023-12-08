@@ -114,7 +114,7 @@ bool pin_current_thread_to_socket(int socket) {
 std::tuple<CpuSet, int> get_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
     if (0 != GetProcessAffinityMask(GetCurrentProcess(), &pro_mask, &sys_mask)) {
-        CpuSet mask(new DWORD_PTR(pro_mask));
+        CpuSet mask = std::make_unique<cpu_set_t>(pro_mask);
         return std::make_tuple(std::move(mask), 0);
     }
     return std::make_tuple(nullptr, 0);
@@ -130,7 +130,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
     return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
-    DWORD_PTR mask = static_cast<DWORD_PTR>(*procMask.get());
+    DWORD_PTR mask = *procMask.get();
     return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
 bool pin_current_thread_to_socket(int socket) {

@@ -23,8 +23,8 @@ namespace node {
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     int src_data_size;
     int dst_data_size;
     int indices_size;
@@ -78,7 +78,7 @@ public:
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
 
 public:
-    Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -91,7 +91,7 @@ public:
     }
     bool canFuse(const NodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
@@ -110,6 +110,7 @@ private:
     // 2. axis alignment [1,2] to [2,3].
     // 3. config planar layout support and treated it as channel_first layout.
     bool NCHWAsNHWC = false;
+    size_t dataRank = 0;
 
     class InterpolateExecutorBase {
         public:
@@ -147,7 +148,7 @@ private:
             InterpolateCoordTransMode coordTransMode;
             InterpolateLayoutType configured_for_layout;
             VectorDims srcDimPad5d, dstDim5d;
-            InferenceEngine::Precision inputPrec, outputPrec;
+            ov::element::Type inputPrec, outputPrec;
             size_t srcDataSize, dstDataSize;
             int spatialDimSize;
             size_t dataRank;
@@ -213,8 +214,8 @@ private:
                                       float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
             void pillowRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
-            static float getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec);
-            static void setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec);
+            static float getValue(const uint8_t *base, size_t offset, ov::element::Type prec);
+            static void setValue(uint8_t *base, size_t offset, float value, ov::element::Type prec);
 
         private:
             bool antialias;

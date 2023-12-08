@@ -3,18 +3,20 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/clamp.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-ov::OutputVector translate_relu_6_op(const NodeContext& node) {
+OutputVector translate_relu_6_op(const NodeContext& node) {
+    default_op_checks(node, 1, {});
+
     auto data = node.get_input(0);
-    auto res = std::make_shared<Clamp>(data, 0.0, 6.0f);
+    auto res = make_shared<v0::Clamp>(data, 0.0, 6.0f);
     set_node_name(node.get_name(), res);
     return res->outputs();
 }

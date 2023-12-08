@@ -47,7 +47,10 @@ void NormalizeL2LayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto data_input = params[0];
     data_input->set_friendly_name("data");
-    auto norm = ngraph::builder::makeNormalizeL2(data_input, axes, eps, epsMode);
+
+    auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
+    auto norm = std::make_shared<ov::op::v0::NormalizeL2>(data_input, normAxes, eps, epsMode);
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
 }

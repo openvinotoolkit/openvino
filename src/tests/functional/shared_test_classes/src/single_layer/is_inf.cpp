@@ -62,10 +62,9 @@ void IsInfLayerTest::SetUp() {
         parameters.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrc, shape));
     }
     parameters[0]->set_friendly_name("Data");
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(parameters));
 
     ov::op::v10::IsInf::Attributes attributes {detectNegative, detectPositive};
-    auto isInf = std::make_shared<ov::op::v10::IsInf>(paramOuts[0], attributes);
+    auto isInf = std::make_shared<ov::op::v10::IsInf>(parameters[0], attributes);
     ov::ResultVector results;
     for (int i = 0; i < isInf->get_output_size(); i++) {
         results.push_back(std::make_shared<ov::op::v0::Result>(isInf->output(i)));

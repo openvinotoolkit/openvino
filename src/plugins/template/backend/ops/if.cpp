@@ -103,14 +103,9 @@ void function(const std::shared_ptr<ov::Model>& function, const ov::TensorVector
                         " bytes");
     }
 
-    const auto& results = function->get_results();
-    outputs.reserve(results.size());
-    for (size_t i = 0; i < results.size(); ++i) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::Shape res_shape = results[i]->get_output_partial_shape(0).is_static() ? results[i]->get_output_shape(0)
-                                                                                  : ov::util::make_dynamic_shape();
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        outputs.push_back(ov::Tensor(results[i]->get_element_type(), res_shape));
+    outputs.reserve(function->get_output_size());
+    for (const auto& result : function->get_results()) {
+        outputs.emplace_back(result->output(0));
     }
     call(outputs, inputs, function);
 }

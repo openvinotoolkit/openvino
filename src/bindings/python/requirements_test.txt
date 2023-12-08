@@ -21,7 +21,7 @@ flake8-rst-docstrings
 pygments
 flake8-string-format
 flake8-variables-names
-flake8_builtins
+flake8_builtins<2.3.0
 flake8_coding
 flake8_commas
 flake8_pep3101

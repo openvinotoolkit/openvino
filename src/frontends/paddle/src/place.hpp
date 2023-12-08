@@ -44,6 +44,10 @@ public:
         return m_names;
     }
 
+    int64_t get_version() const {
+        return dynamic_cast<const ov::frontend::paddle::InputModel&>(m_input_model).get_version();
+    }
+
 private:
     const ov::frontend::InputModel& m_input_model;
     std::vector<std::string> m_names;

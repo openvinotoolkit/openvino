@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
-#include "single_layer_tests/tile.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/tile.hpp"
 
 namespace {
+using ov::test::TileLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<std::vector<int64_t>> repeats = {
@@ -27,11 +24,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Tile, TileLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(repeats),
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({2, 3, 4})),
+                ::testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{2, 3, 4}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
         TileLayerTest::getTestCaseName);
 
@@ -39,11 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Tile6d, TileLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::vector<int64_t>({1, 1, 1, 2, 1, 2})),
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 4, 3, 1, 3, 1})),
+                ::testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{1, 4, 3, 1, 3, 1}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
         TileLayerTest::getTestCaseName);
 

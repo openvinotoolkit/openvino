@@ -25,42 +25,60 @@ The tutorial consists from the following parts:
 
 **Table of contents:**
 
-- `Preparation <#preparation>`__
 
-  - `Download the YOLOv5 model <#download-the-yolov5-model>`__
-  - `Conversion of the YOLOv5 model to OpenVINO <#conversion-of-the-yolov5-model-to-openvino>`__
-  - `Imports <#imports>`__
+-  `Preparation <#preparation>`__
 
-- `Prepare dataset for quantization <#prepare-dataset-for-quantization>`__
+   -  `Download the YOLOv5 model <#download-the-yolov-model>`__
+   -  `Conversion of the YOLOv5 model to
+      OpenVINO <#conversion-of-the-yolov-model-to-openvino>`__
+   -  `Imports <#imports>`__
 
-  - `Create YOLOv5 DataLoader class for POT <#create-yolov5-dataloader-class-for-pot>`__
-  - `Create NNCF Dataset <#create-nncf-dataset>`__
+-  `Prepare dataset for
+   quantization <#prepare-dataset-for-quantization>`__
 
-- `Configure quantization pipeline <#configure-quantization-pipeline>`__
+   -  `Create YOLOv5 DataLoader class for
+      POT <#create-yolov-dataloader-class-for-pot>`__
+   -  `Create NNCF Dataset <#create-nncf-dataset>`__
 
-  - `Prepare config and pipeline for POT <#prepare-config-and-pipeline-for-pot>`__
-  - `Prepare configuration parameters for NNCF <#prepare-configuration-parameters-for-nncf>`__
+-  `Configure quantization
+   pipeline <#configure-quantization-pipeline>`__
 
-- `Perform model optimization <#perform-model-optimization>`__
+   -  `Prepare config and pipeline for
+      POT <#prepare-config-and-pipeline-for-pot>`__
+   -  `Prepare configuration parameters for
+      NNCF <#prepare-configuration-parameters-for-nncf>`__
 
-  - `Run quantization using POT <#run-quantization-using-pot>`__
-  - `Run quantization using NNCF <#run-quantization-using-nncf>`__
+-  `Perform model optimization <#perform-model-optimization>`__
 
-- `Compare accuracy FP32 and INT8 models <#compare-accuracy-fp32-and-int8-models>`__
-- `Inference Demo Performance Comparison <#inference-demo-performance-comparison>`__
-- `Benchmark <#benchmark>`__
-- `References <#references>`__
+   -  `Run quantization using
+      POT <#run-quantization-using-pot>`__
+   -  `Run quantization using
+      NNCF <#run-quantization-using-nncf>`__
 
-Preparation
-###############################################################################################################################
+-  `Compare accuracy FP32 and INT8
+   models <#compare-accuracy-fp-and-int-models>`__
+-  `Inference Demo Performance
+   Comparison <#inference-demo-performance-comparison>`__
+-  `Benchmark <#benchmark>`__
+-  `References <#references>`__
 
-Download the YOLOv5 model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Preparation 
+-----------------------------------------------------
+
+Download the YOLOv5 model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q "openvino-dev==2023.1.0.dev20230811" "nncf>=2.5.0"
-    !pip install -q psutil "seaborn>=0.11.0" matplotlib numpy onnx
+    %pip install -q "openvino-dev>=2023.1.0" "nncf>=2.5.0"
+    %pip install -q psutil "seaborn>=0.11.0" matplotlib numpy onnx
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -91,8 +109,8 @@ Download the YOLOv5 model
 ``git clone https://github.com/ultralytics/yolov5.git -b v7.0``
 
 
-Conversion of the YOLOv5 model to OpenVINO
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Conversion of the YOLOv5 model to OpenVINO 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are three variables provided for easy run through all the notebook
 cells.
@@ -139,21 +157,21 @@ following content:
 .. parsed-literal::
 
     export: data=data/coco128.yaml, weights=['yolov5m/yolov5m.pt'], imgsz=[640], batch_size=1, device=cpu, half=False, inplace=False, keras=False, optimize=False, int8=False, dynamic=False, simplify=False, opset=12, verbose=False, workspace=4, nms=False, agnostic_nms=False, topk_per_class=100, topk_all=100, iou_thres=0.45, conf_thres=0.25, include=['ONNX']
-    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU
+    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU
     
     Downloading https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5m.pt to yolov5m/yolov5m.pt...
-    100%|██████████████████████████████████████| 40.8M/40.8M [00:10<00:00, 4.11MB/s]
+    100%|██████████████████████████████████████| 40.8M/40.8M [00:10<00:00, 4.01MB/s]
     
     Fusing layers... 
     YOLOv5m summary: 290 layers, 21172173 parameters, 0 gradients
     
     PyTorch: starting from yolov5m/yolov5m.pt with output shape (1, 25200, 85) (40.8 MB)
     
-    ONNX: starting export with onnx 1.14.1...
-    ONNX: export success ✅ 1.3s, saved as yolov5m/yolov5m.onnx (81.2 MB)
+    ONNX: starting export with onnx 1.15.0...
+    ONNX: export success ✅ 1.4s, saved as yolov5m/yolov5m.onnx (81.2 MB)
     
-    Export complete (13.3s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/yolov5m
+    Export complete (13.8s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/yolov5m
     Detect:          python detect.py --weights yolov5m/yolov5m.onnx 
     Validate:        python val.py --weights yolov5m/yolov5m.onnx 
     PyTorch Hub:     model = torch.hub.load('ultralytics/yolov5', 'custom', 'yolov5m/yolov5m.onnx')  
@@ -203,8 +221,8 @@ saved with FP16 precision.
     Export ONNX to OpenVINO FP16 IR to: yolov5/yolov5m/FP16_openvino_model/yolov5m_fp16.xml
 
 
-Imports
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Imports 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -213,8 +231,8 @@ Imports
     from yolov5.utils.dataloaders import create_dataloader
     from yolov5.utils.general import check_dataset
 
-Prepare dataset for quantization
-###############################################################################################################################
+Prepare dataset for quantization 
+--------------------------------------------------------------------------
 
 Before starting quantization, we should prepare dataset, which will be
 used for quantization. Ultralytics YOLOv5 provides data loader for
@@ -251,23 +269,14 @@ first.
 .. parsed-literal::
 
     Downloading https://ultralytics.com/assets/coco128.zip to datasets/coco128.zip...
-
-
-
-.. parsed-literal::
-
-      0%|          | 0.00/6.66M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
+    100%|██████████| 6.66M/6.66M [00:01<00:00, 3.74MB/s]
     Unzipping datasets/coco128.zip...
-    Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
-    New cache created: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache
+    Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    New cache created: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache
 
 
-Create YOLOv5 DataLoader class for POT
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Create YOLOv5 DataLoader class for POT 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a class for loading the YOLOv5 dataset and annotation which
 inherits from POT API class DataLoader.
@@ -341,10 +350,10 @@ index. Any implementation should override the following methods:
     [ DEBUG ] Creating converter from 5 to 7
     [ DEBUG ] Creating converter from 7 to 5
     [ DEBUG ] Creating converter from 5 to 7
-    [ WARNING ] /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/accuracy_checker/preprocessor/launcher_preprocessing/ie_preprocessor.py:21: FutureWarning: OpenVINO Inference Engine Python API is deprecated and will be removed in 2024.0 release.For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    [ WARNING ] /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/accuracy_checker/preprocessor/launcher_preprocessing/ie_preprocessor.py:21: FutureWarning: OpenVINO Inference Engine Python API is deprecated and will be removed in 2024.0 release.For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
       from openvino.inference_engine import ResizeAlgorithm, PreProcessInfo, ColorFormat, MeanVariant  # pylint: disable=import-outside-toplevel,package-absolute-imports
     
-    [ WARNING ] /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/accuracy_checker/launcher/dlsdk_launcher.py:60: FutureWarning: OpenVINO nGraph Python API is deprecated and will be removed in 2024.0 release.For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    [ WARNING ] /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/accuracy_checker/launcher/dlsdk_launcher.py:60: FutureWarning: OpenVINO nGraph Python API is deprecated and will be removed in 2024.0 release.For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
       import ngraph as ng
     
 
@@ -355,8 +364,8 @@ index. Any implementation should override the following methods:
     Nevergrad package could not be imported. If you are planning to use any hyperparameter optimization algo, consider installing it using pip. This implies advanced usage of the tool. Note that nevergrad is compatible only with Python 3.7+
 
 
-Create NNCF Dataset
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Create NNCF Dataset 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For preparing quantization dataset for NNCF, we should wrap
 framework-specific data source into ``nncf.Dataset`` instance.
@@ -391,24 +400,16 @@ format).
 
 .. parsed-literal::
 
-    2023-09-08 22:55:10.459989: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-08 22:55:10.495368: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-08 22:55:11.043305: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Configure quantization pipeline
-###############################################################################################################################
+Configure quantization pipeline 
+-------------------------------------------------------------------------
 
 Next, we should define quantization algorithm parameters.
 
-Prepare config and pipeline for POT
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Prepare config and pipeline for POT 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 in POT, all quantization parameters should be defined using
 configuration dictionary. Config consists of 3 sections: ``algorithms``
@@ -456,8 +457,8 @@ pipeline using ``create_pipeline`` function.
     # Step 5: Create a pipeline of compression algorithms.
     pipeline = create_pipeline(algorithms_config, engine)
 
-Prepare configuration parameters for NNCF
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Prepare configuration parameters for NNCF 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Post-training quantization pipeline in NNCF represented by
 ``nncf.quantize`` function for Default Quantization Algorithm and
@@ -476,11 +477,11 @@ in our case ``ov.Model`` instance created using ``core.read_model`` or
     subset_size = 300
     preset = nncf.QuantizationPreset.MIXED
 
-Perform model optimization
-###############################################################################################################################
+Perform model optimization 
+--------------------------------------------------------------------
 
-Run quantization using POT
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Run quantization using POT 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To start model quantization using POT API, we should call
 ``pipeline.run(pot_model)`` method. As the result, we got quantized
@@ -500,8 +501,8 @@ size of final .bin file.
     save_model(compressed_model, optimized_save_dir, model_config["model_name"] + "_int8")
     pot_int8_path = f"{optimized_save_dir}/{MODEL_NAME}_int8.xml"
 
-Run quantization using NNCF
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Run quantization using NNCF 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To run NNCF quantization, we should call ``nncf.quantize`` function. As
 the result, the function returns quantized model in the same format like
@@ -522,12 +523,16 @@ device for inference and can be saved on disk using
 
 .. parsed-literal::
 
-    Statistics collection:  43%|████▎     | 128/300 [00:31<00:42,  4.03it/s]
-    Biases correction: 100%|██████████| 82/82 [00:10<00:00,  7.60it/s]
+    2023-10-30 22:46:22.063247: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-10-30 22:46:22.095130: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-10-30 22:46:22.494703: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    Statistics collection:  43%|████▎     | 128/300 [00:31<00:42,  4.01it/s]
+    Applying Fast Bias correction: 100%|██████████| 82/82 [00:10<00:00,  8.09it/s]
 
 
-Compare accuracy FP32 and INT8 models
-###############################################################################################################################
+Compare accuracy FP32 and INT8 models 
+-------------------------------------------------------------------------------
 
 For getting accuracy results, we will use ``yolov5.val.run`` function
 which already supports OpenVINO backend. For making int8 model is
@@ -577,7 +582,7 @@ same directory, where model located.
 
 .. parsed-literal::
 
-    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU
+    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU
     
     Loading yolov5/yolov5m/FP32_openvino_model for OpenVINO inference...
 
@@ -590,10 +595,10 @@ same directory, where model located.
 .. parsed-literal::
 
     Forcing --batch-size 1 square inference (1,3,640,640) for non-PyTorch models
-    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
                      Class     Images  Instances          P          R      mAP50   mAP50-95: 100%|██████████| 128/128 00:05
                        all        128        929      0.726      0.687      0.769      0.554
-    Speed: 0.2ms pre-process, 35.3ms inference, 3.1ms NMS per image at shape (1, 3, 640, 640)
+    Speed: 0.2ms pre-process, 36.1ms inference, 3.5ms NMS per image at shape (1, 3, 640, 640)
     Results saved to yolov5/runs/val/exp
 
 
@@ -624,7 +629,7 @@ same directory, where model located.
 
 .. parsed-literal::
 
-    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU
+    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU
     
     Loading yolov5/yolov5m/POT_INT8_openvino_model for OpenVINO inference...
 
@@ -637,10 +642,10 @@ same directory, where model located.
 .. parsed-literal::
 
     Forcing --batch-size 1 square inference (1,3,640,640) for non-PyTorch models
-    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
                      Class     Images  Instances          P          R      mAP50   mAP50-95: 100%|██████████| 128/128 00:03
                        all        128        929      0.761      0.677      0.773      0.548
-    Speed: 0.2ms pre-process, 16.9ms inference, 3.2ms NMS per image at shape (1, 3, 640, 640)
+    Speed: 0.2ms pre-process, 17.6ms inference, 3.9ms NMS per image at shape (1, 3, 640, 640)
     Results saved to yolov5/runs/val/exp2
 
 
@@ -671,7 +676,7 @@ same directory, where model located.
 
 .. parsed-literal::
 
-    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU
+    YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU
     
     Loading yolov5/yolov5m/NNCF_INT8_openvino_model for OpenVINO inference...
 
@@ -684,10 +689,10 @@ same directory, where model located.
 .. parsed-literal::
 
     Forcing --batch-size 1 square inference (1,3,640,640) for non-PyTorch models
-    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
                      Class     Images  Instances          P          R      mAP50   mAP50-95: 100%|██████████| 128/128 00:03
                        all        128        929      0.742      0.684      0.766      0.546
-    Speed: 0.2ms pre-process, 17.1ms inference, 3.3ms NMS per image at shape (1, 3, 640, 640)
+    Speed: 0.2ms pre-process, 17.3ms inference, 3.7ms NMS per image at shape (1, 3, 640, 640)
     Results saved to yolov5/runs/val/exp3
 
 
@@ -750,11 +755,11 @@ model.
 .. image:: 111-yolov5-quantization-migration-with-output_files/111-yolov5-quantization-migration-with-output_34_0.png
 
 
-Inference Demo Performance Comparison
-###############################################################################################################################
+Inference Demo Performance Comparison 
+-------------------------------------------------------------------------------
 
 This part shows how to use the Ultralytics model detection code
-```detect.py`` <https://github.com/ultralytics/yolov5/blob/master/detect.py>`__
+`detect.py <https://github.com/ultralytics/yolov5/blob/master/detect.py>`__
 to run synchronous inference, using the OpenVINO Python API on two
 images.
 
@@ -780,12 +785,12 @@ images.
 .. parsed-literal::
 
     ["\x1b[34m\x1b[1mdetect: \x1b[0mweights=['./yolov5m/FP32_openvino_model'], source=data/images, data=data/coco128.yaml, imgsz=[640, 640], conf_thres=0.25, iou_thres=0.45, max_det=1000, device=, view_img=False, save_txt=False, save_conf=False, save_crop=False, nosave=False, classes=None, agnostic_nms=False, augment=False, visualize=False, update=False, project=runs/detect, name=exp, exist_ok=False, line_thickness=3, hide_labels=False, hide_conf=False, half=False, dnn=False, vid_stride=1",
-     'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU',
+     'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU',
      '',
      'Loading yolov5m/FP32_openvino_model for OpenVINO inference...',
-     'image 1/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 56.6ms',
-     'image 2/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 45.9ms',
-     'Speed: 1.5ms pre-process, 51.2ms inference, 1.3ms NMS per image at shape (1, 3, 640, 640)',
+     'image 1/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 57.4ms',
+     'image 2/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 42.3ms',
+     'Speed: 1.4ms pre-process, 49.8ms inference, 1.3ms NMS per image at shape (1, 3, 640, 640)',
      'Results saved to \x1b[1mruns/detect/exp\x1b[0m']
 
 
@@ -807,12 +812,12 @@ images.
 .. parsed-literal::
 
     ["\x1b[34m\x1b[1mdetect: \x1b[0mweights=['./yolov5m/POT_INT8_openvino_model'], source=data/images, data=data/coco128.yaml, imgsz=[640, 640], conf_thres=0.25, iou_thres=0.45, max_det=1000, device=, view_img=False, save_txt=False, save_conf=False, save_crop=False, nosave=False, classes=None, agnostic_nms=False, augment=False, visualize=False, update=False, project=runs/detect, name=exp, exist_ok=False, line_thickness=3, hide_labels=False, hide_conf=False, half=False, dnn=False, vid_stride=1",
-     'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU',
+     'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU',
      '',
      'Loading yolov5m/POT_INT8_openvino_model for OpenVINO inference...',
-     'image 1/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 35.4ms',
-     'image 2/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 1 tie, 33.8ms',
-     'Speed: 1.6ms pre-process, 34.6ms inference, 1.4ms NMS per image at shape (1, 3, 640, 640)',
+     'image 1/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 36.7ms',
+     'image 2/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 1 tie, 31.5ms',
+     'Speed: 1.5ms pre-process, 34.1ms inference, 1.4ms NMS per image at shape (1, 3, 640, 640)',
      'Results saved to \x1b[1mruns/detect/exp2\x1b[0m']
 
 
@@ -834,12 +839,12 @@ images.
 .. parsed-literal::
 
     ["\x1b[34m\x1b[1mdetect: \x1b[0mweights=['./yolov5m/NNCF_INT8_openvino_model'], source=data/images, data=data/coco128.yaml, imgsz=[640, 640], conf_thres=0.25, iou_thres=0.45, max_det=1000, device=, view_img=False, save_txt=False, save_conf=False, save_crop=False, nosave=False, classes=None, agnostic_nms=False, augment=False, visualize=False, update=False, project=runs/detect, name=exp, exist_ok=False, line_thickness=3, hide_labels=False, hide_conf=False, half=False, dnn=False, vid_stride=1",
-     'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU',
+     'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-2.1.0+cpu CPU',
      '',
      'Loading yolov5m/NNCF_INT8_openvino_model for OpenVINO inference...',
-     'image 1/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 37.1ms',
-     'image 2/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 30.5ms',
-     'Speed: 1.6ms pre-process, 33.8ms inference, 1.4ms NMS per image at shape (1, 3, 640, 640)',
+     'image 1/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 37.3ms',
+     'image 2/2 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 30.5ms',
+     'Speed: 1.5ms pre-process, 33.9ms inference, 1.4ms NMS per image at shape (1, 3, 640, 640)',
      'Results saved to \x1b[1mruns/detect/exp3\x1b[0m']
 
 
@@ -870,8 +875,8 @@ images.
 .. image:: 111-yolov5-quantization-migration-with-output_files/111-yolov5-quantization-migration-with-output_40_0.png
 
 
-Benchmark
-###############################################################################################################################
+Benchmark 
+---------------------------------------------------
 
 .. code:: ipython3
 
@@ -888,7 +893,70 @@ Benchmark
 .. parsed-literal::
 
     Inference FP32 model (OpenVINO IR) on CPU
-    /bin/bash: benchmark_app: command not found
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] CPU
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 39.90 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 322.73 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: main_graph
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   NUM_STREAMS: 6
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 24
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
+    [ INFO ] Fill input 'images' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 102.38 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            450 iterations
+    [ INFO ] Duration:         15134.50 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        201.54 ms
+    [ INFO ]    Average:       200.97 ms
+    [ INFO ]    Min:           133.47 ms
+    [ INFO ]    Max:           216.06 ms
+    [ INFO ] Throughput:   29.73 FPS
 
 
 .. code:: ipython3
@@ -904,7 +972,70 @@ Benchmark
 .. parsed-literal::
 
     Inference FP16 model (OpenVINO IR) on CPU
-    /bin/bash: benchmark_app: command not found
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] CPU
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 33.36 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 346.06 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: main_graph
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   NUM_STREAMS: 6
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 24
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
+    [ INFO ] Fill input 'images' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 99.48 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            456 iterations
+    [ INFO ] Duration:         15202.34 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        200.63 ms
+    [ INFO ]    Average:       199.53 ms
+    [ INFO ]    Min:           115.31 ms
+    [ INFO ]    Max:           219.45 ms
+    [ INFO ] Throughput:   30.00 FPS
 
 
 .. code:: ipython3
@@ -920,7 +1051,70 @@ Benchmark
 .. parsed-literal::
 
     Inference POT INT8 model (OpenVINO IR) on CPU
-    /bin/bash: benchmark_app: command not found
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] CPU
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 48.57 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 684.56 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: main_graph
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   NUM_STREAMS: 6
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 24
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
+    [ INFO ] Fill input 'images' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 52.63 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            1416 iterations
+    [ INFO ] Duration:         15069.24 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        63.76 ms
+    [ INFO ]    Average:       63.63 ms
+    [ INFO ]    Min:           49.18 ms
+    [ INFO ]    Max:           83.95 ms
+    [ INFO ] Throughput:   93.97 FPS
 
 
 .. code:: ipython3
@@ -936,11 +1130,74 @@ Benchmark
 .. parsed-literal::
 
     Inference NNCF INT8 model (OpenVINO IR) on CPU
-    /bin/bash: benchmark_app: command not found
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] CPU
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 52.87 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 691.16 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: main_graph
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   NUM_STREAMS: 6
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 24
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
+    [ INFO ] Fill input 'images' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 50.65 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            1416 iterations
+    [ INFO ] Duration:         15060.29 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        63.70 ms
+    [ INFO ]    Average:       63.61 ms
+    [ INFO ]    Min:           47.79 ms
+    [ INFO ]    Max:           83.82 ms
+    [ INFO ] Throughput:   94.02 FPS
 
 
-References
-###############################################################################################################################
+References 
+----------------------------------------------------
 
 -  `Ultralytics YOLOv5 <https://github.com/ultralytics/yolov5>`__
 -  `OpenVINO Post-training Optimization

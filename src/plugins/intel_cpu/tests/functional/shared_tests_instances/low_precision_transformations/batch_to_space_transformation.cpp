@@ -22,7 +22,7 @@ const std::vector<BatchToSpaceTransformationParam> params = {
         { 1, 1, 2, 2 }, { 0, 0, 0, 0 }, { 0, 0, 0, 1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         "BatchToSpace",
-        "U8"
+        "u8"
     },
     // per-channel quantization
     {
@@ -37,7 +37,7 @@ const std::vector<BatchToSpaceTransformationParam> params = {
             { 255.f, 255.f/2.f, 255.f/3.f },
         },
         "BatchToSpace",
-        "FP32"
+        "f32"
     }
 };
 

@@ -52,7 +52,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                     expr->get()->updateShapes();
                 return std::make_pair(expr, n);
             };
-            const ov::PartialShape broadcasted_shape(softmax_expr->get_input_port_descriptor(0)->get_shape());
+            const ov::Dimension broadcasted_dim(*(softmax_expr->get_input_port_descriptor(0)->get_shape().rbegin()));
             // Note: VectorBuffer is a special case, since it should go before the initial Load. So we handle it separately
             const auto& vector_buffer_max = push_node(std::make_shared<op::VectorBuffer>());
             // Init value of vector buffer for ReduceMax is -FLOAT_MIN.
@@ -67,8 +67,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                     std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
                                                                 (*max.first)->get_input_port(1)},
                                     std::vector<ExpressionPort>{(*max.first)->get_output_port(0)});
-            const auto broadcast_horizon_max = push_node(
-                    std::make_shared<op::BroadcastMove>(horizon_max.second, broadcasted_shape));
+            const auto broadcast_horizon_max = push_node(std::make_shared<op::BroadcastMove>(horizon_max.second, broadcasted_dim));
             const auto vector_buffer_sum = push_node(std::make_shared<op::VectorBuffer>());
             // Init value of vector buffer for ReduceSum is zero.
             const auto fill_sum = push_node(std::make_shared<op::Fill>(vector_buffer_sum.second, 0, zero_constant));
@@ -90,7 +89,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
 
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
             const auto pow = push_node(std::make_shared<op::PowerStatic>(horizon_sum.second, -1.f));
-            const auto broadcast_pow = push_node(std::make_shared<op::BroadcastMove>(pow.second, broadcasted_shape));
+            const auto broadcast_pow = push_node(std::make_shared<op::BroadcastMove>(pow.second, broadcasted_dim));
 
             // Mul (pseudo-Divide loop)
             const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));

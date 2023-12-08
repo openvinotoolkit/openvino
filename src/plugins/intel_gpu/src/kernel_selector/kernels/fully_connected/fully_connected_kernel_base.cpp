@@ -26,6 +26,8 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS", 1)});
         if (params.weights.GetDType() == WeightsType::INT8 || params.weights.GetDType() == WeightsType::UINT8) {
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
+        } else if (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
         }
 
         const size_t scale_groups_num = params.decompression_scale.Feature().v;
@@ -35,12 +37,17 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUPS_NUM", scale_groups_num)});
         jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUP_SIZE", scale_group_size)});
         if (params.has_decompression_zp) {
-            const size_t zp_groups_num = params.decompression_zero_point.Feature().v;
-            const size_t zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
             jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_TERM", 1)});
-            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP", params.decompression_zero_point)});
-            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUPS_NUM", zp_groups_num)});
-            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUP_SIZE", zp_group_size)});
+            if (params.scalar_zp) {
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_VALUE", params.zp_value)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_SCALAR", 1)});
+            } else {
+                const size_t zp_groups_num = params.decompression_zero_point.Feature().v;
+                const size_t zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP", params.decompression_zero_point)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUPS_NUM", zp_groups_num)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUP_SIZE", zp_group_size)});
+            }
         }
     }
 
@@ -48,7 +55,7 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 }
 
 FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params,
-                                                                            int) const {
+                                                                            int, int /*kernel_number*/) const {
     DispatchData dispatchData;
 
     // Determine global work sizes.
@@ -64,12 +71,24 @@ FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(cons
     return dispatchData;
 }
 
+void FullyConnectedKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const fully_connected_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                                                            const optional_params &options,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
                                                            const std::string exeMode,
-                                                           int autoTuneIndex) const {
+                                                           int autoTuneIndex,
+                                                           int kernel_number) const {
     if (!Validate(params, options)) {
         return KernelsData();
     }
@@ -83,14 +102,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     }
 
     KernelData kd = KernelData::Default<fully_connected_params>(params);
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const fully_connected_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    GetUpdateDispatchDataFunc(kd);
     fully_connected_params& newParams = *static_cast<fully_connected_params*>(kd.params.get());
 
     if (!bProperInput) {
@@ -110,16 +122,16 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     kd.kernels.resize(1);
 
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options, kernel_number);
 
-    const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
+    const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex, kernel_number);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     int inputs_count = 1;
     if (newParams.compressed) {
         inputs_count++;
-        if (newParams.has_decompression_zp)
+        if (newParams.has_decompression_zp && !newParams.scalar_zp)
             inputs_count++;
     }
 

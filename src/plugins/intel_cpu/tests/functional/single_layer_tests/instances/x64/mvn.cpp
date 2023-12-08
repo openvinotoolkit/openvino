@@ -6,16 +6,12 @@
 #include "shared_test_classes/single_layer/mvn.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include <ov_models/builders.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace MVN {
 namespace {
 
@@ -219,6 +215,7 @@ const auto MvnSmallSpatial = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MvnSmallSpatial, MvnLayerCPUTest, MvnSmallSpatial, MvnLayerCPUTest::getTestCaseName);
 
-} // namespace
-} // namespace MVN
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace MVN
+}  // namespace test
+}  // namespace ov

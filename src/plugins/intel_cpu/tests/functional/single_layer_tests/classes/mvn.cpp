@@ -6,24 +6,22 @@
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
     basicCpuMvnParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     ElementType inputPrecision, outputPrecision;
-    std::map<std::string, ov::element::Type> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision, additionalConfig) = obj.param;
 
     InputShape inputShapes;
     ElementType netPrecision;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool acrossChanels, normalizeVariance;
     double eps;
     std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
@@ -50,7 +48,7 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto& item : additionalConfig) {
-            result << "_" << item.first << "=" << item.second.get_type_name();
+            result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
 
@@ -80,7 +78,7 @@ void MvnLayerCPUTest::SetUp() {
     fusingSpecificParams fusingParams;
     ElementType inPrc;
     ElementType outPrc;
-    std::map<std::string, ov::element::Type> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc, additionalConfig) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -88,7 +86,7 @@ void MvnLayerCPUTest::SetUp() {
 
     InputShape inputShapes;
     ElementType netPrecision;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool normalizeVariance;
     double eps;
     std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
@@ -100,14 +98,22 @@ void MvnLayerCPUTest::SetUp() {
     init_input_shapes({inputShapes});
 
     ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
+    for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-    }
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
+
+    std::shared_ptr<ov::op::v0::MVN> mvn;
     if (!axes.empty()) {
-        mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
+        mvn = std::make_shared<ov::op::v0::MVN>(params[0], axes, normalizeVariance, eps);
+    } else {
+        mvn = std::make_shared<ov::op::v0::MVN>(params[0], acrossChanels, normalizeVariance, eps);
+
+        // OpenVINO MVN implementation implicitly adds 0th dimension to reduction axes set which is not valid behavior
+        ov::AxisSet axes;
+        const size_t startAxis = acrossChanels ? 1 : 2;
+        const size_t numOfDims = params[0]->output(0).get_partial_shape().size();
+        for (size_t i = startAxis; i < numOfDims; i++)
+            axes.insert(i);
+        mvn->set_reduction_axes(axes);
     }
 
     rel_threshold = 0.015f;
@@ -128,8 +134,8 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
 }
 
 namespace MVN {
-const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig() {
-    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+const std::vector<ov::AnyMap>& additionalConfig() {
+    static const std::vector<ov::AnyMap> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
         {{ov::hint::inference_precision.name(), ov::element::f16}}
     };
@@ -338,8 +344,8 @@ const std::vector<ov::Shape>& inputShapesStatic_5D() {
     return inputShapesStatic_5D;
 }
 
-const std::vector<ngraph::AxisSet>& emptyReductionAxes() {
-    static const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+const std::vector<ov::AxisSet>& emptyReductionAxes() {
+    static const std::vector<ov::AxisSet> emptyReductionAxes = {{}};
     return emptyReductionAxes;
 }
 
@@ -359,4 +365,5 @@ const std::vector<double>& epsilon() {
 }
 
 }  // namespace MVN
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

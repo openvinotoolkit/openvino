@@ -139,7 +139,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return rw_properties;
     };
     if (ov::model_name == name) {
-        auto model_name = m_model->get_friendly_name();
+        auto& model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;

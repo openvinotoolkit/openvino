@@ -67,7 +67,7 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
-    void validate(const ov::PartialShape& planar_pshape, const ov::element::Type& element_type);
+    void validate_element_type(const ov::element::Type& element_type);
     void compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n);
 
     Type m_type = Type::OnlyRepacking;

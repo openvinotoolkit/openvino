@@ -72,11 +72,7 @@ void scatter_nd_update_inst::on_execute() {
     auto same_layouts = _impl_params->input_layouts[0] == _impl_params->output_layouts[0];
 
     if (same_layouts && ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0)))
-        reuse_input();
-}
-
-void scatter_nd_update_inst::reuse_input() {
-    update_output_memory();
+        update_output_memory();
 }
 
 void scatter_nd_update_inst::update_output_memory() {

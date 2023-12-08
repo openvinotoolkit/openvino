@@ -48,10 +48,13 @@ bool ReduceLogicalOr::evaluate(TensorVector& outputs, const TensorVector& inputs
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;
-    return IfTypeOf<boolean>::apply<reduce_or::Evaluate>(inputs[0].get_element_type(),
-                                                         inputs[0],
-                                                         outputs[0],
-                                                         reduction_axes);
+    return IF_TYPE_OF(v1_ReduceLogicalOr_evaluate,
+                      boolean,
+                      reduce_or::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      reduction_axes);
 }
 
 bool ReduceLogicalOr::has_evaluate() const {

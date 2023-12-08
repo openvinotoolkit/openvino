@@ -37,8 +37,7 @@ void DFTLayerTest::SetUp() {
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto dft = ngraph::builder::makeDFT(paramOuts[0], axes, signalSize, opType);
+    auto dft = ngraph::builder::makeDFT(paramVector[0], axes, signalSize, opType);
 
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(dft)};

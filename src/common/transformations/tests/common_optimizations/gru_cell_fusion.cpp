@@ -21,7 +21,7 @@ namespace {
 
 enum class WeightsFormat { zr, rz };
 
-Output<Node> create_activation_by_name(const string& activation_name, const Output<Node>& input) {
+Output<Node> create_activation_by_name(const std::string& activation_name, const Output<Node>& input) {
     if (activation_name == "sigmoid") {
         return make_shared<Sigmoid>(input);
     } else if (activation_name == "tanh") {
@@ -33,8 +33,8 @@ Output<Node> create_activation_by_name(const string& activation_name, const Outp
 }
 
 shared_ptr<Model> gen_model(WeightsFormat format,
-                            const string& activation_1,
-                            const string& activation_2,
+                            const std::string& activation_1,
+                            const std::string& activation_2,
                             size_t batch,
                             size_t hidden_size,
                             size_t input_size,
@@ -83,8 +83,8 @@ shared_ptr<Model> gen_model(WeightsFormat format,
 }
 
 shared_ptr<Model> gen_reference(WeightsFormat format,
-                                const string& activation_1,
-                                const string& activation_2,
+                                const std::string& activation_1,
+                                const std::string& activation_2,
                                 size_t batch,
                                 size_t hidden_size,
                                 size_t input_size,
@@ -132,15 +132,15 @@ shared_ptr<Model> gen_reference(WeightsFormat format,
 
     auto squeeze_B = make_shared<Squeeze>(Bzrh, axis_0);
     auto cell =
-        make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{activation_1, activation_2});
+        make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<std::string>{activation_1, activation_2});
     return make_shared<Model>(OutputVector{cell}, params);
 }
 }  // namespace
 
 struct GRUFusionParams {
     WeightsFormat format;
-    string activation_1;
-    string activation_2;
+    std::string activation_1;
+    std::string activation_2;
     size_t batch;
     size_t hidden_size;
     size_t input_size;

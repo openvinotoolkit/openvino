@@ -12,9 +12,10 @@
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
-namespace InferenceEngine {
+namespace ov {
+namespace threading {
 
 /**
  * @brief This class provides optimal thread safe default implementation.
@@ -77,4 +78,5 @@ protected:
     ITaskExecutor::Ptr _callbackExecutor = nullptr;  //!< Holds a callback executor
 };
 
-}  // namespace InferenceEngine
+}  // namespace threading
+}  // namespace ov

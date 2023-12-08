@@ -243,7 +243,7 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
 
-  # TODO Reenable PDPD after paddlepaddle==2.5.1 with compliant protobuf is released (ticket 95904)
+  # TODO Reenable PDPD after paddlepaddle==2.5.2 with compliant protobuf is released (ticket 95904)
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     enabled: 'false'

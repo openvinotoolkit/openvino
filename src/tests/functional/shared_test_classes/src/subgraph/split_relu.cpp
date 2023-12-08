@@ -33,7 +33,8 @@ namespace SubgraphTestsDefinitions {
         for (auto&& shape : inputs) {
             input.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
         }
-        auto split = ngraph::builder::makeSplit(input[0], ngPrc, 4, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(input[0], split_axis_op, 4);
         ngraph::ResultVector results;
 
         for (size_t i : connect_index) {

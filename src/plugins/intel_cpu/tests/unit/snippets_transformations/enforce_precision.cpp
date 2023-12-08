@@ -27,7 +27,7 @@ public:
         const std::set<std::vector<element::Type>>& precisions2) : precisions1(precisions1), precisions2(precisions2) {
     }
 
-    std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& op) noexcept {
+    std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& op) noexcept {
         if (ov::is_type<ov::test::snippets::DummyOperation1>(op)) {
             return precisions1;
         } else if (ov::is_type<ov::test::snippets::DummyOperation2>(op)) {
@@ -176,7 +176,7 @@ TEST_P(EnforcePrecisionTest, CompareFunctions) {
 
     auto dummyPrecisionSelection = std::make_shared<DummyPrecisionSelection>(test_values.actual.precisions1, test_values.actual.precisions2);
 
-    auto get_supported_precisions = [dummyPrecisionSelection](const std::shared_ptr<ngraph::Node>& op) {
+    auto get_supported_precisions = [dummyPrecisionSelection](const std::shared_ptr<ov::Node>& op) {
         return dummyPrecisionSelection->get_supported_precisions(op);;
     };
 

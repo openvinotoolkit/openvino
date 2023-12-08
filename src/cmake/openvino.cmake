@@ -21,7 +21,7 @@ endif()
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:ngraph_obj_version>
-    $<TARGET_OBJECTS:frontend_common_obj>
+    $<TARGET_OBJECTS:openvino_frontend_common_obj>
     $<TARGET_OBJECTS:inference_engine_obj>
     $<TARGET_OBJECTS:inference_engine_obj_version>
     $<TARGET_OBJECTS:inference_engine_transformations_obj>
@@ -30,6 +30,8 @@ add_library(${TARGET_NAME}
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
+
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_11)
 
 ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 

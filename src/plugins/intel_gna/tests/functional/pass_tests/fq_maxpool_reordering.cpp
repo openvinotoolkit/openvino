@@ -145,6 +145,7 @@ protected:
             node_before_pooling = reshapeNode2;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto maxpool = ngraph::builder::makePooling(node_before_pooling,
                                                     {1, 2},
                                                     {0, 0},
@@ -154,6 +155,7 @@ protected:
                                                     ngraph::op::PadType::VALID,
                                                     false,
                                                     ngraph::helpers::PoolingTypes::MAX);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQMaxPoolReorder");

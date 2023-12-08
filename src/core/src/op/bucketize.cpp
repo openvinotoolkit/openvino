@@ -45,9 +45,7 @@ void op::v3::Bucketize::validate_and_infer_types() {
                           "Output type must be i32 or i64. Got: ",
                           m_output_type);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     if (get_input_partial_shape(0).is_dynamic()) {

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compilation_context.hpp"
 #include <mutex>
 #include <atomic>
 #include <unordered_set>
 #include <future>
 #include "intel_gpu/runtime/utils.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
+
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 namespace cldnn {
 class CompilationContext : public ICompilationContext {
@@ -83,7 +85,7 @@ private:
     std::vector<std::future<void>> futures;
 };
 
-std::unique_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {
+std::shared_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {
     return cldnn::make_unique<CompilationContext>(task_executor_config);
 }
 

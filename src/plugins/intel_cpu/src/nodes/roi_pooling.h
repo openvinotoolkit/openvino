@@ -25,8 +25,8 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 
     Algorithm alg;
 
@@ -68,7 +68,7 @@ struct jit_uni_roi_pooling_kernel {
 
 class ROIPooling : public Node {
 public:
-    ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -80,7 +80,7 @@ public:
     void prepareParams() override;
 
 private:
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     template<typename T> void execute();
     template<typename T> struct ROIPoolingExecute;

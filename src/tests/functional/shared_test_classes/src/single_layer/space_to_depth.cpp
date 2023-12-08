@@ -46,8 +46,7 @@ void SpaceToDepthLayerTest::SetUp() {
     std::tie(inShape, inputPrecision, mode, blockSize, targetDevice) = this->GetParam();
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto s2d = ngraph::builder::makeSpaceToDepth(paramOuts[0], mode, blockSize);
+    auto s2d = std::make_shared<ov::op::v0::SpaceToDepth>(params[0], mode, blockSize);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, params, "SpaceToDepth");
 }

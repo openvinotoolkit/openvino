@@ -6,14 +6,12 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-/* 
+/*
             ---------------
             |    Input    |
             ---------------
@@ -73,7 +71,7 @@ public:
 protected:
     template<typename T>
     void transposeShape(T& shape) {
-        IE_ASSERT(shape.size() > 1);
+        OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
@@ -107,14 +105,13 @@ protected:
         const auto& inShapeB = inputDynamicShapes[1];
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        std::shared_ptr<Node> inputB = builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
+        std::shared_ptr<Node> inputB = ngraph::builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
 
-        auto split = builder::makeVariadicSplit(paramOuts[0], {1, 1}, 0);
+        auto split = ngraph::builder::makeVariadicSplit(params[0], {1, 1}, 0);
 
-        auto matMul = builder::makeMatMul(split->output(0), inputB, transpA, transpB);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(split->output(0), inputB, transpA, transpB);
 
-        auto concat = builder::makeConcat({matMul, split->output(1)}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{matMul, split->output(1)}, 0);
 
         function = CPUTestsBase::makeNgraphFunction(ElementType::f32, params, concat, "FullyConnected");
     }
@@ -144,4 +141,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32, SplitMatMulConcatTest, testParams2D_F
 
 } // namespace
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

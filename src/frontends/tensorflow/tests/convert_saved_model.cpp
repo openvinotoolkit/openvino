@@ -19,8 +19,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelProgramOnly) {
         model = convert_model("saved_model_program-only");
 
         // check tensor names in the resulted model
-        unordered_set<string> input_tensor_names = {"y"};
-        unordered_set<string> output_tensor_names = {"z"};
+        unordered_set<std::string> input_tensor_names = {"y"};
+        unordered_set<std::string> output_tensor_names = {"z"};
         ASSERT_EQ(model->get_results().size(), 1);
         ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == output_tensor_names);
         ASSERT_EQ(model->get_parameters().size(), 1);
@@ -61,9 +61,9 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithInputIntegerType) {
                               {PartialShape{10, 5}, PartialShape{3}});
 
         // check tensor names in the resulted model
-        unordered_set<string> input_tensor_name1 = {"params"};
-        unordered_set<string> input_tensor_name2 = {"indices"};
-        unordered_set<string> output_tensor_names = {"test_output_name"};
+        unordered_set<std::string> input_tensor_name1 = {"params"};
+        unordered_set<std::string> input_tensor_name2 = {"indices"};
+        unordered_set<std::string> output_tensor_names = {"test_output_name"};
         ASSERT_EQ(model->get_results().size(), 1);
         ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == output_tensor_names);
         ASSERT_EQ(model->get_parameters().size(), 2);
@@ -97,7 +97,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
         model = convert_model("saved_model_parameter_result");
 
         // check tensor names in the resulted model
-        unordered_set<string> tensor_names = {"params", "test_output_name"};
+        unordered_set<std::string> tensor_names = {"params", "test_output_name"};
         ASSERT_EQ(model->get_results().size(), 1);
         ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == tensor_names);
         ASSERT_EQ(model->get_parameters().size(), 1);

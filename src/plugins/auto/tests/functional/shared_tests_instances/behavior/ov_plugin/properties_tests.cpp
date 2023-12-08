@@ -80,13 +80,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                                             ::testing::ValuesIn(auto_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> default_properties = {{ov::enable_profiling(false)},
-                                                    {ov::log::level("LOG_NONE")},
-                                                    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-                                                    {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
-                                                    {ov::intel_auto::device_bind_buffer(false)},
-                                                    {ov::intel_auto::enable_startup_fallback(true)},
-                                                    {ov::device::priorities("")}};
+const std::vector<ov::AnyMap> default_properties = {
+    {ov::enable_profiling(false)},
+    {ov::log::level("LOG_NONE")},
+    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
+    {ov::intel_auto::device_bind_buffer(false)},
+    {ov::intel_auto::enable_startup_fallback(true)},
+    {ov::intel_auto::schedule_policy(ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY)},
+    {ov::device::priorities("")}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
                          OVPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),

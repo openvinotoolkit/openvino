@@ -65,7 +65,6 @@ void FakeQuantizeSubgraphTest::SetUp() {
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const int seed = 0;
     std::mt19937 gen(seed);
@@ -114,7 +113,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
     auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
 
-    auto inputFQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
+    auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], constShape[0],
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
     auto weightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(const_param,

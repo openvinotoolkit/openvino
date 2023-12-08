@@ -149,7 +149,6 @@ public:
 private:
     void run(program& p) override;
     void handle_quantize_node(program& p, quantize_node& quantize_node);
-    void prepare_packed_quantize(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
     void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);

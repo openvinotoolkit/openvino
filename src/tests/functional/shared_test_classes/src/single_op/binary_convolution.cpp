@@ -6,6 +6,7 @@
 
 #include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/binary_convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -70,7 +71,7 @@ void BinaryConvolutionLayerTest::SetUp() {
 
     // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
     auto bin_conv =
-        ngraph::builder::makeBinaryConvolution(params[0], kernel_size, strides, pads_begin, pads_end, dilations, pad_type, num_out_channels, pad_value);
+        ov::test::utils::make_binary_convolution(params[0], kernel_size, strides, pads_begin, pads_end, dilations, pad_type, num_out_channels, pad_value);
     auto result = std::make_shared<ov::op::v0::Result>(bin_conv);
     function = std::make_shared<ov::Model>(ov::OutputVector{result}, params, "BinaryConvolution");
 }

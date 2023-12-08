@@ -16,11 +16,11 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
                                                    const std::string& layer_type,
                                                    const bool extra_multipy) {
     ov::ParameterVector input_params{std::make_shared<ov::op::v0::Parameter>(precision, input_shape)};
-    auto il = opset1::Constant::create(precision, {}, {0.f});
-    auto ih = opset1::Constant::create(precision, {}, {12.5f});
-    auto ol = opset1::Constant::create(precision, {}, {0.f});
-    auto oh = opset1::Constant::create(precision, {}, {12.5f});
-    auto fq = std::make_shared<opset1::FakeQuantize>(input_params[0], il, ih, ol, oh, 256);
+    auto il = ov::opset1::Constant::create(precision, {}, {0.f});
+    auto ih = ov::opset1::Constant::create(precision, {}, {12.5f});
+    auto ol = ov::opset1::Constant::create(precision, {}, {0.f});
+    auto oh = ov::opset1::Constant::create(precision, {}, {12.5f});
+    auto fq = std::make_shared<ov::opset1::FakeQuantize>(input_params[0], il, ih, ol, oh, 256);
 
     std::shared_ptr<ov::Node> layer;
     const size_t out_channels = 10;
@@ -67,11 +67,11 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
     } else if (layer_type == "MatMul") {
         auto new_param = std::make_shared<ov::opset1::Parameter>(precision, input_shape);
         input_params.push_back(new_param);
-        auto il_2 = opset1::Constant::create(precision, {}, {-128.f});
-        auto ih_2 = opset1::Constant::create(precision, {}, {127.f});
-        auto ol_2 = opset1::Constant::create(precision, {}, {-128.f});
-        auto oh_2 = opset1::Constant::create(precision, {}, {127.f});
-        auto fq_2 = std::make_shared<opset1::FakeQuantize>(new_param, il_2, ih_2, ol_2, oh_2, 256);
+        auto il_2 = ov::opset1::Constant::create(precision, {}, {-128.f});
+        auto ih_2 = ov::opset1::Constant::create(precision, {}, {127.f});
+        auto ol_2 = ov::opset1::Constant::create(precision, {}, {-128.f});
+        auto oh_2 = ov::opset1::Constant::create(precision, {}, {127.f});
+        auto fq_2 = std::make_shared<ov::opset1::FakeQuantize>(new_param, il_2, ih_2, ol_2, oh_2, 256);
         layer = std::make_shared<ov::opset1::MatMul>(fq, fq_2, false, true);
     } else if (layer_type == "MatMulWithConstant") {
         const size_t in_channels = input_params[0]->get_partial_shape()[1].get_length();

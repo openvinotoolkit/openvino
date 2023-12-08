@@ -136,7 +136,7 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 }
 
 FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params,
-                                                                            int) const {
+                                                                            int, int /*kernel_number*/) const {
     FullyConnectedTuningData tuning_data = GetTuningParams(params);
     auto dispatchData = Parent::SetDefault(params);
     const auto& output = params.outputs[0];

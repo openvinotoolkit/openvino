@@ -108,6 +108,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_VerboseColor", "Print verbose color");
     message_list.emplace_back("OV_GPU_ListLayers", "Print layers names");
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
+    message_list.emplace_back("OV_GPU_PrintInputDataShapes",  "Print data_shapes of input layers for benchmark_app.");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
     message_list.emplace_back("OV_GPU_DisableOnednnOptPostOps", "Disable onednn optimize post operators");
@@ -139,6 +140,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
     message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DisableMemoryReuse", "Disable memory reuse");
+    message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPool", "Dump memory pool contents of each iteration");
     message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes", "Disable build time weight reorder for dynmaic nodes.");
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
@@ -173,6 +175,7 @@ debug_configuration::debug_configuration()
         , verbose_color(0)
         , list_layers(0)
         , print_multi_kernel_perf(0)
+        , print_input_data_shapes(0)
         , disable_usm(0)
         , disable_onednn(0)
         , disable_onednn_opt_post_ops(0)
@@ -206,6 +209,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("VerboseColor", verbose_color);
     get_gpu_debug_env_var("ListLayers", list_layers);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
+    get_gpu_debug_env_var("PrintInputDataShapes", print_input_data_shapes);
     get_gpu_debug_env_var("DisableUsm", disable_usm);
     get_gpu_debug_env_var("DumpGraphs", dump_graphs);
     get_gpu_debug_env_var("DumpSources", dump_sources);

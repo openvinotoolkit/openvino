@@ -71,7 +71,6 @@ public:
 
 private:
     void on_execute() override;
-    void reuse_input();
 };
 
 using permute_inst = typed_primitive_inst<permute>;

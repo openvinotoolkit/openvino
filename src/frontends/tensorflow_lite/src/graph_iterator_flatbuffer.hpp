@@ -8,6 +8,7 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
 
@@ -20,6 +21,15 @@ struct TensorInfo {
     const tflite::Tensor* tensor;
     const tflite::Buffer* buffer;
 };
+
+template <typename T>
+std::basic_string<T> get_model_extension() {}
+template <>
+std::basic_string<char> get_model_extension<char>();
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+std::basic_string<wchar_t> get_model_extension<wchar_t>();
+#endif
 
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
@@ -40,6 +50,34 @@ public:
     using Ptr = std::shared_ptr<GraphIteratorFlatBuffer>;
 
     ~GraphIteratorFlatBuffer() = default;
+
+    /// Verifies file is supported
+    template <typename T>
+    static bool is_supported(const std::basic_string<T>& path) {
+        try {
+            if (!ov::util::ends_with<T>(path, get_model_extension<T>())) {
+                return false;
+            }
+            const std::streamsize offset_size = static_cast<std::streamsize>(sizeof(::flatbuffers::uoffset_t));
+            std::streamsize file_size = util::file_size(path);
+            // Skip files which less than size of file identifier
+            if (file_size < offset_size) {
+                return false;
+            }
+            std::ifstream tflite_stream(path, std::ios::in | std::ifstream::binary);
+            char buf[offset_size * 2] = {};
+            tflite_stream.read(buf, offset_size * 2);
+            // If we have enough readed bytes - try to detect prefixed identifier, else try without size prefix
+            if ((tflite_stream.gcount() == offset_size * 2) && ::tflite::ModelBufferHasIdentifier(buf + offset_size)) {
+                return true;
+            } else if (tflite_stream.gcount() >= offset_size && ::tflite::ModelBufferHasIdentifier(buf)) {
+                return true;
+            }
+            return false;
+        } catch (...) {
+            return false;
+        }
+    }
 
     /// Set iterator to the start position
     void reset() {

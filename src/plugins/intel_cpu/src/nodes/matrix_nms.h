@@ -25,14 +25,14 @@ enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
 
 class MatrixNms : public Node {
 public:
-    MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -100,7 +100,7 @@ private:
     size_t m_realNumClasses = 0;
     size_t m_realNumBoxes = 0;
     float (*m_decay_fn)(float, float, float) = nullptr;
-    void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
+    void checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name,
                         const std::string type);
 
     size_t nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx);

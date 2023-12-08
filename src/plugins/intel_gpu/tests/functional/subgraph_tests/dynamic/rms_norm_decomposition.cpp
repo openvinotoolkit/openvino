@@ -2,14 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace {
+using ov::test::InputShape;
+
 /*
  *           Input(F32) Const(F32)
  *              |  \     /
@@ -31,17 +41,16 @@ namespace SubgraphTestsDefinitions {
  *          Convert(F16)
  */
 using RMSNormDecompositionParams = std::tuple<std::vector<InputShape>,             // input shapes
-                                              ov::test::ElementType,               // input precision
-                                              std::map<std::string, std::string>>; // additional config
+                                              ov::element::Type>;                  // input precision
 
-class RMSNormDecomposition : public testing::WithParamInterface<RMSNormDecompositionParams>, public SubgraphBaseTest {
+class RMSNormDecomposition : public testing::WithParamInterface<RMSNormDecompositionParams>,
+                             virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RMSNormDecompositionParams> obj) {
         std::vector<InputShape> input_shapes;
-        ElementType input_precision;
-        std::map<std::string, std::string> additional_config;
+        ov::element::Type input_precision;
 
-        std::tie(input_shapes, input_precision, additional_config) = obj.param;
+        std::tie(input_shapes, input_precision) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -59,14 +68,7 @@ public:
             }
             result << ")_";
         }
-        result << "input_precision=" << input_precision << "_";
-
-        result << "config=(";
-        for (const auto& configEntry : additional_config) {
-            result << configEntry.first << ", " << configEntry.second << ":";
-        }
-        result << ")";
-
+        result << "input_precision=" << input_precision;
         return result.str();
     }
 
@@ -77,47 +79,47 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0])};
 
         // x^2
-        auto power_const = ov::opset10::Constant::create(input_precision, {}, {2.f});
-        auto power = std::make_shared<ov::opset10::Power>(params[0], power_const);
+        auto power_const = ov::op::v0::Constant::create(input_precision, {}, {2.f});
+        auto power = std::make_shared<ov::op::v1::Power>(params[0], power_const);
 
         // ReduceMean(x^2,axes)
-        auto mean_axes = ov::opset10::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-        auto mean = std::make_shared<ov::opset10::ReduceMean>(power, mean_axes, true);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
 
         // ReduceMean(x^2,axes)+eps
-        auto eps = ov::opset10::Constant::create(input_precision, {}, {1e-5f});
-        auto add_eps = std::make_shared<ov::opset10::Add>(mean, eps);
+        auto eps = ov::op::v0::Constant::create(input_precision, {}, {1e-5f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
 
         // Sqrt(ReduceMean(x^2,axes)+eps)
-        auto sqrt = std::make_shared<ov::opset10::Sqrt>(add_eps);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
 
         // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-        auto div_const = ov::opset10::Constant::create(input_precision, {}, {1});
-        auto div = std::make_shared<ov::opset10::Divide>(div_const, sqrt);
+        auto div_const = ov::op::v0::Constant::create(input_precision, {}, {1});
+        auto div = std::make_shared<ov::op::v1::Divide>(div_const, sqrt);
 
         // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
-        auto mul1 = std::make_shared<ov::opset10::Multiply>(params[0], div);
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(params[0], div);
 
         // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
         auto dim = *target_shape.rbegin();
-        auto gamma = ngraph::builder::makeConstant<float>(input_precision, ov::Shape{dim}, std::vector<float>{}, true);
-        auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
 
-        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
+        auto tensor = ov::test::utils::create_and_fill_tensor(input_precision, ov::Shape{dim});
+        auto gamma = std::make_shared<ov::op::v0::Constant>(tensor);
+        auto mul2 = std::make_shared<ov::op::v1::Multiply>(gamma, mul1);
 
-        return std::make_shared<ov::Model>(NodeVector{comp}, params, "RMSNormDecomposition");
+        auto comp = std::make_shared<ov::op::v0::Convert>(mul2, ov::element::f16);
+
+        return std::make_shared<ov::Model>(ov::NodeVector{comp}, params, "RMSNormDecomposition");
     }
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> input_shapes;
-        ElementType input_precision;
-        std::map<std::string, std::string> additional_config;
+        ov::element::Type input_precision;
 
-        std::tie(input_shapes, input_precision, additional_config) = GetParam();
+        std::tie(input_shapes, input_precision) = GetParam();
 
-        configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(input_shapes);
 
         inType = outType = input_precision;
@@ -126,14 +128,32 @@ protected:
     }
 };
 
-TEST_P(RMSNormDecomposition, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(RMSNormDecomposition, Inference) {
     run();
 }
 
-namespace {
+TEST_P(RMSNormDecomposition, Inference_cached) {
+    std::stringstream ss;
+    ss << "gpu_model_cache_" << std::hash<std::string>{}(
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    std::string cacheDirName = ss.str();
+    {
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+        core->set_property(ov::cache_dir(cacheDirName));
+        compile_model();
+    }
+    {
+        run();
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+    }
+}
 
-const std::vector<ov::test::ElementType> input_precisions = {ov::element::f32, ov::element::f16};
+const std::vector<ov::element::Type> input_precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::vector<InputShape>> input_shapes_basic = {
     {{{-1, -1, 96}, {{1, 4, 96}}}},
@@ -145,9 +165,6 @@ const std::vector<std::vector<InputShape>> input_shapes_basic = {
 INSTANTIATE_TEST_SUITE_P(smoke_RMSNormDecomposition_basic,
                          RMSNormDecomposition,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
-                                            ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(std::map<std::string, std::string>())),
+                                            ::testing::ValuesIn(input_precisions)),
                          RMSNormDecomposition::getTestCaseName);
 } // namespace
-
-} // namespace SubgraphTestsDefinitions

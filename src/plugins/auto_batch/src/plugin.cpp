@@ -77,7 +77,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
     if (it == full_properties.end())
         OPENVINO_THROW("Value for ov::device::priorities is not set");
 
-    auto val = it->second.as<std::string>();
+    auto& val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     full_properties.erase(it);
     return get_core()->create_context(metaDevice.device_name, full_properties);
@@ -237,18 +237,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // let's query the optimal batch size
         // auto cloned_model = model->clone();
         ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
-        unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
-        auto requests = core->get_property(device_name, ov::hint::num_requests);
-        const auto& reqs = properties.find(ov::hint::num_requests.name());
-        if (reqs != properties.end())
-            requests = reqs->second.as<unsigned int>();
-        if (requests)
-            opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
-        if (opt_batch_size >
-            2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
-            meta_device.device_batch_size = opt_batch_size;
-        else
+        auto supported_properties = core->get_property(device_name, ov::supported_properties);
+        if (std::count(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size)) {
+            unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
+            auto requests = core->get_property(device_name, ov::hint::num_requests);
+            const auto& reqs = properties.find(ov::hint::num_requests.name());
+            if (reqs != properties.end())
+                requests = reqs->second.as<unsigned int>();
+            if (requests)
+                opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
+            if (opt_batch_size >
+                2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
+                meta_device.device_batch_size = opt_batch_size;
+            else
+                meta_device.device_batch_size = 1;
+        } else {
             meta_device.device_batch_size = 1;
+        }
     }
 
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
@@ -303,7 +308,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 auto& rt_info = input.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     rt_info["ie_legacy_td"] =
                         InferenceEngine::TensorDesc(td.getPrecision(), input.get_shape(), td.getLayout());
                 }
@@ -313,7 +318,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 auto& rt_info = output.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
                     rt_info["ie_legacy_td"] =
                         InferenceEngine::TensorDesc(td.getPrecision(), output.get_shape(), td.getLayout());
                 }

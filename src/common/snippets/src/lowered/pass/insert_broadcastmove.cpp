@@ -56,12 +56,7 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                 OPENVINO_ASSERT(last_dims[i] == 1,
                                 "Attempt to broadcast non-1 dimension. Target dim: ", broadcasted_dim,
                                 " This dim: ", last_dims[i]);
-                auto input_shape = descriptors[i]->get_shape();
-                // Note that input_shape could be empty (aka ngraph scalar), so we can't just replace the last dim
-                if (input_shape.empty())
-                    input_shape.resize(1);
-                input_shape.back() = last_dims[i];
-                const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), utils::vdims_to_pshape(input_shape));
+                const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), broadcasted_dim);
 
                 PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), connectors[i]->get_source().get_descriptor_ptr()->clone());
                 const auto broadcast_expr = linear_ir.create_expression(broadcast, {connectors[i]});

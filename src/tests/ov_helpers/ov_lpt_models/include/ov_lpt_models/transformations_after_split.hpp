@@ -6,7 +6,8 @@
 
 #include <string>
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
+#include "openvino/core/model.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -14,7 +15,7 @@ namespace subgraph {
 
 class TransformationsAfterSplitFunction {
 public:
-    static std::shared_ptr<Function> get(const std::string transformationName);
+    static std::shared_ptr<ov::Model> get(const std::string transformationName);
 
     static std::shared_ptr<Node> getLayerByTransformationName(
         const std::string transformationName,

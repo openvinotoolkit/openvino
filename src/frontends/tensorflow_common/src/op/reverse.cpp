@@ -3,23 +3,28 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
 shared_ptr<Node> compute_sequence_lengths(const Output<Node>& input_shape, int64_t batch_axis, int64_t seq_axis) {
-    auto batch_axis_const = make_shared<Constant>(element::i32, Shape{1}, batch_axis);
-    auto seq_axis_const = make_shared<Constant>(element::i32, Shape{1}, seq_axis);
-    auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
-    auto batch_dim = make_shared<Gather>(input_shape, batch_axis_const, gather_axis);
-    auto seq_dim = make_shared<Gather>(input_shape, seq_axis_const, gather_axis);
-    auto seq_lengths = make_shared<Broadcast>(seq_dim, batch_dim);
+    auto batch_axis_const = make_shared<v0::Constant>(element::i32, Shape{1}, batch_axis);
+    auto seq_axis_const = make_shared<v0::Constant>(element::i32, Shape{1}, seq_axis);
+    auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto batch_dim = make_shared<v8::Gather>(input_shape, batch_axis_const, gather_axis);
+    auto seq_dim = make_shared<v8::Gather>(input_shape, seq_axis_const, gather_axis);
+    auto seq_lengths = make_shared<v3::Broadcast>(seq_dim, batch_dim);
 
     return seq_lengths;
 }
@@ -56,18 +61,20 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
     auto batched_input = input;
     if (unsqueeze_axes.size() > 0) {
         // prepare input to issue auxiliary dimensions for batch
-        auto unsqueeze_axes_const = make_shared<Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
-        batched_input = make_shared<Unsqueeze>(input, unsqueeze_axes_const);
+        auto unsqueeze_axes_const =
+            make_shared<v0::Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
+        batched_input = make_shared<v0::Unsqueeze>(input, unsqueeze_axes_const);
     }
 
-    auto input_shape = make_shared<ShapeOf>(batched_input, element::i32);
+    auto input_shape = make_shared<v3::ShapeOf>(batched_input, element::i32);
     auto seq_lenghts = compute_sequence_lengths(input_shape, batch_axis, seq_axis);
-    auto reverse_sequence = make_shared<ReverseSequence>(batched_input, seq_lenghts, batch_axis, seq_axis)->output(0);
+    auto reverse_sequence =
+        make_shared<v0::ReverseSequence>(batched_input, seq_lenghts, batch_axis, seq_axis)->output(0);
 
     if (unsqueeze_axes.size() > 0) {
         // remove earlier added additional dimensions from the result
-        auto squeeze_axes_const = make_shared<Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
-        reverse_sequence = make_shared<Squeeze>(reverse_sequence, squeeze_axes_const);
+        auto squeeze_axes_const = make_shared<v0::Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
+        reverse_sequence = make_shared<v0::Squeeze>(reverse_sequence, squeeze_axes_const);
     }
 
     set_node_name(node.get_name(), reverse_sequence.get_node_shared_ptr());

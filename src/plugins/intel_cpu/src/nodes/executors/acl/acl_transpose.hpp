@@ -49,8 +49,8 @@ public:
             DEBUG_LOG("NEPermute requires the same input and output precisions");
             return false;
         }
-        if (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-            srcDescs[0]->getPrecision() != InferenceEngine::Precision::I8) {
+        if (srcDescs[0]->getPrecision() != ov::element::f32 &&
+            srcDescs[0]->getPrecision() != ov::element::i8) {
             DEBUG_LOG("NEPermute supports 1, 2, 4 bytes data types. FP16 implementation is disabled due to performance issues");
             return false;
         }

@@ -798,3 +798,115 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
+        auto indices = opset5::Constant::create(element::i32, {1}, {1});
+        auto axis = opset5::Constant::create(element::i32, {}, {0});
+        auto seq_lengths = std::make_shared<opset5::Gather>(shape_of, indices, axis);
+
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
+        auto b_val = std::vector<float>(512, 0);
+        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+
+        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+                                                                   Y,
+                                                                   Z,
+                                                                   seq_lengths,
+                                                                   W,
+                                                                   R,
+                                                                   B,
+                                                                   128,
+                                                                   op::RecurrentSequenceDirection::FORWARD);
+        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        Y_out->set_friendly_name("Y_out");
+        Ho->set_friendly_name("Ho");
+        Co->set_friendly_name("Co");
+
+        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
+
+        pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
+
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+
+        // Body
+        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
+        auto b_val = std::vector<float>(512, 0);
+        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+
+        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
+
+        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
+
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+
+        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
+        auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
+
+        auto body = std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
+
+        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
+
+        tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
+        tensor_iterator->set_merged_input(Zi, squeeze_z, Co);
+
+        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
+        auto indices = opset5::Constant::create(element::i32, {1}, {1});
+        auto axis = opset5::Constant::create(element::i32, {}, {0});
+        auto seq_lengths = std::make_shared<opset5::Gather>(shape_of, indices, axis);
+        tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
+
+        tensor_iterator->get_iter_value(Ho);
+        tensor_iterator->get_iter_value(Co);
+
+        auto res_ti_Y = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_C = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
+        res_ti_Y->set_friendly_name("Y_out");
+        res_ti_H->set_friendly_name("Ho");
+        res_ti_C->set_friendly_name("Co");
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}

@@ -5,7 +5,6 @@
 #pragma once
 
 #include "cache/cache.hpp"
-
 #include "matchers/single_op/single_op.hpp"
 #include "matchers/single_op/convolutions.hpp"
 
@@ -37,7 +36,7 @@ public:
     };
 
 protected:
-    std::map<std::shared_ptr<ov::Node>, MetaInfo> m_ops_cache;
+    std::map<std::shared_ptr<ov::Node>, ov::conformance::MetaInfo> m_ops_cache;
     static std::shared_ptr<OpCache> m_cache_instance;
     MatchersManager m_manager = MatchersManager();
 
@@ -51,7 +50,7 @@ protected:
     }
 
     void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path, size_t model_op_cnt = 1, bool from_cache = false);
-    bool serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo>& op_info);
+    bool serialize_op(const std::pair<std::shared_ptr<ov::Node>, ov::conformance::MetaInfo>& op_info);
     std::string get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node);
 };
 

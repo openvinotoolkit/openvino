@@ -13,7 +13,7 @@ but to have unique data type in SUPPORTED_DATA_TYPES map
 
 
 class packed_U1(np.generic):
-       pass
+    pass
 
 
 class packed_U4(np.generic):

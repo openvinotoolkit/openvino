@@ -36,8 +36,6 @@ void ApiSummaryDestroyer::initialize(ApiSummary* p) {
 
 ApiSummary::ApiSummary() : apiStats() {
     reportFilename = ov::test::utils::API_REPORT_FILENAME;
-    isCrashReported = false;
-    isHangReported = false;
 }
 
 ApiSummary& ApiSummary::getInstance() {
@@ -71,14 +69,14 @@ void ApiSummary::updateStat(ov_entity entity,
     if (cur_stat.find(real_device) == cur_stat.end()) {
         cur_stat.insert({real_device, PassRate()});
     }
-    if (isCrashReported) {
+    if (cur_stat[real_device].isCrashReported) {
         cur_stat[real_device].crashed--;
-        isCrashReported = false;
+        cur_stat[real_device].isCrashReported = false;
     } else {
         cur_stat[real_device].rel_all += rel_influence_coef;
     }
-    if (isHangReported) {
-        isHangReported = false;
+    if (cur_stat[real_device].isHangReported) {
+        cur_stat[real_device].isHangReported = false;
         return;
     }
     switch (status) {
@@ -96,7 +94,7 @@ void ApiSummary::updateStat(ov_entity entity,
     }
     case PassRate::Statuses::HANGED: {
         cur_stat[real_device].hanged++;
-        isHangReported = true;
+        cur_stat[real_device].isHangReported = true;
         break;
     }
     case PassRate::Statuses::FAILED: {
@@ -105,7 +103,7 @@ void ApiSummary::updateStat(ov_entity entity,
     }
     case PassRate::Statuses::CRASHED:
         cur_stat[real_device].crashed++;
-        isCrashReported = true;
+        cur_stat[real_device].isCrashReported = true;
         break;
     }
 }

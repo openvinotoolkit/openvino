@@ -4,23 +4,23 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-using convConcatCPUParams = std::tuple<
-    nodeType,                           // Ngraph convolution type
-    InferenceEngine::SizeVector         // Input shapes
->;
+using convConcatCPUParams = std::tuple<nodeType,  // Node convolution type
+                                       ov::Shape  // Input shapes
+                                       >;
 
 // Subgraph:
 /*
@@ -44,7 +44,7 @@ using convConcatCPUParams = std::tuple<
 
 class ConvWithZeroPointFuseSubgraphTest : public testing::WithParamInterface<convConcatCPUParams>,
                                           public CPUTestsBase,
-                                          virtual public LayerTestsUtils::LayerTestsCommon {
+                                          virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj);
 
@@ -53,4 +53,5 @@ protected:
     std::string pluginTypeNode;
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

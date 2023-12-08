@@ -69,6 +69,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
             const_data.emplace(2, make_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
             ov::op::v1::VariadicSplit op;
+            op.set_friendly_name(desc->id);
             output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
         } else {
             auto input0_layout = impl_param.get_input_layout(0);
@@ -84,6 +85,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         const_data.emplace(1, make_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
         ov::op::v1::Split op;
+        op.set_friendly_name(desc->id);
         op.set_num_splits(desc->num_splits);
         output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::none) {
@@ -240,21 +242,11 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 
     if (node.can_be_optimized()) {
         build_deps();
-        reuse_input();
+        update_output_memory();
     }
 }
 
 void crop_inst::on_execute() {
-    if (!can_be_optimized())
-        return;
-
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    reuse_input();
-}
-
-void crop_inst::reuse_input() {
     update_output_memory();
 }
 

@@ -28,7 +28,7 @@ public:
             auto memPtr = t_iter->second;
             // use scalar shape {} instead of {1} if required by shapeInference
             const auto shape = (m_ranks[port] != 0) ? ov::Shape(memPtr->getStaticDims()) : ov::Shape();
-            return {InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+            return {memPtr->getDesc().getPrecision(),
                     shape,
                     memPtr->getData()
                    };

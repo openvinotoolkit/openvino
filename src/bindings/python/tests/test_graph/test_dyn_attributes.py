@@ -97,16 +97,6 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     assert node.get_framework() == "OpenVINO"
 
 
-def test_dynamic_attr_cache(proposal_node):
-    node = proposal_node
-
-    assert not node._attr_cache_valid
-    node.set_nms_thresh(1.3453678102)
-    assert not node._attr_cache_valid
-    assert np.isclose(node.get_nms_thresh(), np.float64(1.3453678102))
-    assert node._attr_cache_valid
-
-
 def test_dynamic_attr_transitivity(proposal_node):
     node = proposal_node
     node2 = node

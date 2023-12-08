@@ -85,7 +85,7 @@ void PermConvPermConcat::SetUp() {
                                       {1, 1, 1, permute_out_shape[3]},
                                       ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 
-    auto concat = ngraph::builder::makeConcat({permute_out, concat_const}, 2);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{permute_out, concat_const}, 2);
 
     auto reshape_out_pattern = std::make_shared<ov::op::v0::Constant>(
         ov::element::i64,

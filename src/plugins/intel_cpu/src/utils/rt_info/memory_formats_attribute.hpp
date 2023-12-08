@@ -7,7 +7,7 @@
 #include <string>
 #include <set>
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov {
@@ -29,7 +29,7 @@ public:
         return (!ov::op::util::is_constant(to));
     }
 
-    ov::Any merge(const ngraph::NodeVector & nodes) const override {
+    ov::Any merge(const ov::NodeVector & nodes) const override {
         std::set<std::string> unique_mem_format;
 
         for (auto &node : nodes) {
@@ -65,7 +65,7 @@ public:
     ~InputMemoryFormats() override;
 };
 
-std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
+std::string getInputMemoryFormats(const std::shared_ptr<ov::Node>& node);
 
 class OutputMemoryFormats : public MemoryFormats<OutputMemoryFormats> {
 public:
@@ -75,7 +75,7 @@ public:
     ~OutputMemoryFormats() override;
 };
 
-std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
+std::string getOutputMemoryFormats(const std::shared_ptr<ov::Node>& node);
 
 }   // namespace intel_cpu
 }   // namespace ov

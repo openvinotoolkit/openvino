@@ -289,13 +289,13 @@ ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const i
     if (!infer_request) {
         return ov_status_e::INVALID_C_PARAM;
     }
-
+    bool ret = true;
     try {
-        infer_request->object->wait_for(std::chrono::milliseconds(timeout));
+        ret = infer_request->object->wait_for(std::chrono::milliseconds(timeout));
     }
     CATCH_OV_EXCEPTIONS
 
-    return ov_status_e::OK;
+    return ret ? ov_status_e::OK : ov_status_e::UNEXPECTED;
 }
 
 ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {

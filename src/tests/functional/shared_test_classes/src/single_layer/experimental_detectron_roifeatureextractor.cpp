@@ -67,10 +67,12 @@ void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
     attrs.pyramid_scales = pyramidScales;
 
     ov::ParameterVector params;
+    ov::OutputVector paramsOuts;
     for (auto&& shape : inputDynamicShapes) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        auto param = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
+        params.push_back(param);
+        paramsOuts.push_back(param);
     }
-    auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectronROIFeatureExtractor = std::make_shared<ExperimentalROI>(paramsOuts, attrs);
     function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectronROIFeatureExtractor->output(0),
                                                                experimentalDetectronROIFeatureExtractor->output(1)},

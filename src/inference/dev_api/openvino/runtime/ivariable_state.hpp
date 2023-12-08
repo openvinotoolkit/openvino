@@ -49,7 +49,7 @@ public:
      * @brief Returns the value of the variable state.
      * @return The value of the variable state
      */
-    virtual const ov::SoPtr<ov::ITensor>& get_state() const;
+    virtual ov::SoPtr<ov::ITensor> get_state() const;
 
 protected:
     /**

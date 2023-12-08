@@ -7,7 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/group_normalization.hpp>
 #include "openvino/reference/group_normalization.hpp"
-#include "compilation_context.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 
 
 using namespace cldnn;

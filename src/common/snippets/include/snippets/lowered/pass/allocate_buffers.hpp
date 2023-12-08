@@ -5,7 +5,6 @@
 #pragma once
 
 #include "pass.hpp"
-#include "snippets/snippets_isa.hpp"
 
 namespace ov {
 namespace snippets {
@@ -14,26 +13,40 @@ namespace pass {
 
 /**
  * @interface AllocateBuffers
- * @brief The pass calculates common size of buffer scratchpad and propagates Buffer offsets to connected MemoryAccess operations.
- *        Notes:
- *           - The pass implicitly regulates InPlace processing for some Buffers when it's possible.
- *             The pass don't allocate new memory for InPlace Buffers, we propagate the same offsets for them.
- *           - The pass should be splitted into two passes: ProcessInplace (markup of Buffers which can use the same memory)
- *             and AllocateBuffer (allocate memory for Buffers using MemorySolver which can optimally reuse memory).
+ * @brief The pass allocates common memory for all Buffers.
+ *        There are two modes: default and optimized allocation. Default allocation (non-optimized) mode sets unique offsets and ID to Buffers.
+ *        Optimized mode allocates memory for Buffer ops using the following optimizations:
+ *         - MemorySolver: helps to solve issue of optimal memory allocation;
+ *         - InPlace: Loop or MemoryAccess ops read from the memory and store data to the same memory if possible
+ *         - Reusing Buffer IDs: Buffers have the same IDs (gpr) in cases when Buffers aren't connected or have the same data ptr shifts
+ *        Note: All buffers are related to each other and represent common buffer scratchpad of Subgraph.
+ *              The buffer scratchpad has one general data pointer. Each buffer has offset relative to the data pointer of buffer scratchpad.
  * @ingroup snippets
  */
-
-class AllocateBuffers : public Pass {
+class AllocateBuffers: public Pass {
 public:
     OPENVINO_RTTI("AllocateBuffers", "Pass")
-    bool run(lowered::LinearIR& linear_ir) override;
+    AllocateBuffers(size_t& buffer_scratchpad_size, bool is_optimized = true);
 
-    size_t get_scratchpad_size() const { return m_buffer_scratchpad_size; }
+    /**
+     * @brief Apply the pass to the Linear IR
+     * @param linear_ir the target Linear IR
+     * @return status of the pass
+     */
+    bool run(LinearIR& linear_ir) override;
 
+    /**
+     * @brief Set offset to Buffer op and propagates its to the connected memory access ops
+     * @param buffer_expr expression with Buffer op
+     * @param offset offset in common buffer scratchpad
+     */
+    static void set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset);
+
+    using BufferCluster = std::set<ExpressionPtr>;
+    using BufferClusters = std::vector<BufferCluster>;
 private:
-    static void propagate_offset(const LinearIR& linear_ir, const ExpressionPtr& buffer_expr, size_t offset);
-
-    size_t m_buffer_scratchpad_size = 0;
+    size_t& m_buffer_scratchpad_size;
+    bool m_is_optimized_mode = true;
 };
 
 } // namespace pass

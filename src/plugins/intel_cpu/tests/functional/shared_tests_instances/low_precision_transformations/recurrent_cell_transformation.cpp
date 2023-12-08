@@ -49,7 +49,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
-        "U8"
+        "u8"
     },
     // asymmetrical FQ on weights
     {
@@ -79,7 +79,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
-        "FP32"
+        "f32"
     }
 };
 
@@ -128,7 +128,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
-        "U8"
+        "u8"
     },
     // asymmetrical FQ on weights
     {
@@ -158,7 +158,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
-        "FP32"
+        "f32"
     }
 };
 

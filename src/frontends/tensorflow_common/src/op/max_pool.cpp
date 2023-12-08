@@ -128,7 +128,7 @@ OutputVector translate_max_pool_v2(const NodeContext& node) {
     return translate_max_pool_util(node, 2, ksize_vector, strides_vector);
 }
 
-OutputVector translate_max_pool_with_argmax(const NodeContext& node) {
+NamedOutputVector translate_max_pool_with_argmax(const NodeContext& node) {
     // MaxPoolWithArgmax has just one input. ksize and strides are attributes
     TENSORFLOW_OP_VALIDATION(node,
                              node.get_input_size() > 0,
@@ -199,8 +199,9 @@ OutputVector translate_max_pool_with_argmax(const NodeContext& node) {
         convert_nchw_to_nhwc(true, output_indices, 4);
     }
 
+    set_out_name(node_name + ":0", max_pool);
     set_out_name(node_name + ":1", output_indices);
-    return {max_pool, output_indices};
+    return {{"output", max_pool}, {"argmax", output_indices}};
 }
 
 OutputVector translate_max_pool_op(const NodeContext& node) {
@@ -210,8 +211,6 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
         return translate_max_pool_v2(node);
     } else if (node.get_op_type() == "MaxPool3D") {
         return translate_max_pool(node, 3);
-    } else if (node.get_op_type() == "MaxPoolWithArgmax") {
-        return translate_max_pool_with_argmax(node);
     } else {
         TENSORFLOW_OP_VALIDATION(node, false, "Only MaxPool2D, MaxPoolV2 and MaxPool3D are supported.");
     }

@@ -22,8 +22,8 @@ struct jit_args_logistic {
 };
 
 struct jit_logistic_config_params {
-    InferenceEngine::Precision src_dt;
-    InferenceEngine::Precision dst_dt;
+    ov::element::Type src_dt;
+    ov::element::Type dst_dt;
     unsigned src_data_size = 0;
     unsigned dst_data_size = 0;
 };
@@ -41,7 +41,7 @@ struct jit_uni_logistic_kernel {
 
 class RegionYolo : public Node {
 public:
-    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -49,7 +49,7 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     bool needPrepareParams() const override;
@@ -61,7 +61,7 @@ private:
     int num;
     float do_softmax;
     std::vector<int64_t> mask;
-    InferenceEngine::Precision input_prec, output_prec;
+    ov::element::Type input_prec, output_prec;
 
     std::string errorPrefix;
 

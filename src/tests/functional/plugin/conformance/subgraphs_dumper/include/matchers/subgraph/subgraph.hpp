@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"
-
 #include "utils/model_comparator.hpp"
 
 namespace ov {
@@ -17,6 +16,8 @@ namespace subgraph_dumper {
 class SubgraphExtractor {
 public:
     using Ptr = std::shared_ptr<SubgraphExtractor>;
+    // ov_model, input_info, extractor_name
+    using ExtractedPattern = std::tuple<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>, std::string>;
 
     virtual std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) {
         return std::vector<ExtractedPattern>{};

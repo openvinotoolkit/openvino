@@ -1429,4 +1429,6 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(
 GNAPlugin::~GNAPlugin() {
     if (gnadevice)
         gnadevice->close();
+
+    Limitations::deinit();
 }

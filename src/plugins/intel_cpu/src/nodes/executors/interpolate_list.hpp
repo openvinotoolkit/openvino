@@ -66,7 +66,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported Interpolate executor is not found";
+        OPENVINO_THROW("Supported Interpolate executor is not found");
     }
 
     bool isEmpty() {

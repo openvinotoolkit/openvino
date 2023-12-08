@@ -5,12 +5,15 @@
 #pragma once
 
 #include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(QuantizedConvolutionBatchNorm, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

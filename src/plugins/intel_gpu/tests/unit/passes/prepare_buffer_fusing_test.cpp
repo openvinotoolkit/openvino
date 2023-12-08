@@ -632,7 +632,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_inside_shape_of_subgraph) {
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
     topology.add(data("data_2", data_2));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, 0, {}, 0, true));
     topology.add(reorder("reorder0", input_info("gather0"), format::any, data_types::f32,
                          std::vector<float>(), reorder_mean_mode::subtract, padding(), true));

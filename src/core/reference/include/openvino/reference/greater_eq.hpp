@@ -4,23 +4,13 @@
 
 #pragma once
 
-#include <cstddef>
-
-#include "openvino/core/shape.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "openvino/reference/autobroadcast_binop.hpp"
+#include "openvino/reference/less_eq.hpp"
 
 namespace ov {
 namespace reference {
 template <typename T>
-void greater_eq(const T* arg0,
-                const T* arg1,
-                char* out,
-                size_t count)  // TODO: using char for bool, is this right?
-{
-    for (size_t i = 0; i < count; i++) {
-        out[i] = arg0[i] >= arg1[i];
-    }
+void greater_eq(const T* arg0, const T* arg1, char* out, size_t count) {
+    less_eq(arg1, arg0, out, count);
 }
 
 template <typename T, typename U>
@@ -30,9 +20,7 @@ void greater_eq(const T* arg0,
                 const Shape& arg0_shape,
                 const Shape& arg1_shape,
                 const op::AutoBroadcastSpec& broadcast_spec) {
-    autobroadcast_binop(arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> U {
-        return static_cast<U>(x >= y);
-    });
+    less_eq(arg1, arg0, out, arg1_shape, arg0_shape, broadcast_spec);
 }
 }  // namespace reference
 }  // namespace ov

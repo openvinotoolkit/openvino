@@ -9,16 +9,15 @@
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include <deque>
 #include <inference_engine.hpp>
-#include <threading/ie_cpu_streams_executor.hpp>
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
 
 using namespace ::testing;
 using namespace std;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace ov::threading;
 
 struct DeferedExecutor : public ITaskExecutor {
     using Ptr = std::shared_ptr<DeferedExecutor>;
@@ -183,7 +182,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackIsCalledIfAsyncRequestFailed)
 }
 
 TEST_F(InferRequestThreadSafeDefaultTests, canCatchExceptionIfAsyncRequestFailedAndNoCallback) {
-    auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
+    auto taskExecutor = std::make_shared<CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{});
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));
     testRequest->StartAsync();

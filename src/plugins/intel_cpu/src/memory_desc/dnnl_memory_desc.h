@@ -19,11 +19,11 @@ using DnnlMemoryDescCPtr = std::shared_ptr<const DnnlMemoryDesc>;
 
 class DnnlMemoryDesc : public virtual MemoryDesc {
 public:
-    InferenceEngine::Precision getPrecision() const override;
+    ov::element::Type getPrecision() const override;
 
     MemoryDescPtr clone() const override;
 
-    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+    MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override;
 
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const DnnlMemoryDesc& rhs) const;
@@ -54,8 +54,8 @@ protected:
 
     dnnl::memory::desc desc;
 
-    void setPrecision(InferenceEngine::Precision prc) override {
-        desc.get()->data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(prc));
+    void setPrecision(ov::element::Type prc) override {
+        desc.get()->data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(prc));
     }
 
 private:

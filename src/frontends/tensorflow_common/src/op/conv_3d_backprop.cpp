@@ -3,10 +3,12 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -78,31 +80,31 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
     convert_nhwc_to_nchw(is_nhwc, out_backprop, ov::Rank(5));
 
     // initially think that output shape defined for NCDHW layout
-    auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
-    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{5});
-    auto ss_strides = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    auto ss_begin = make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
+    auto ss_end = make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{5});
+    auto ss_strides = make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
     // change range of indices for spatial dimensions in case NDHWC layout
     if (is_nhwc) {
-        ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-        ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{4});
+        ss_begin = make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        ss_end = make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{4});
     }
 
-    auto spatial_shape = make_shared<StridedSlice>(input_sizes,
-                                                   ss_begin,
-                                                   ss_end,
-                                                   ss_strides,
-                                                   std::vector<int64_t>{},
-                                                   std::vector<int64_t>{});
+    auto spatial_shape = make_shared<v1::StridedSlice>(input_sizes,
+                                                       ss_begin,
+                                                       ss_end,
+                                                       ss_strides,
+                                                       std::vector<int64_t>{},
+                                                       std::vector<int64_t>{});
 
-    auto conv_backprop = make_shared<ConvolutionBackpropData>(out_backprop,
-                                                              filter,
-                                                              spatial_shape,
-                                                              strides,
-                                                              pads_begin,
-                                                              pads_end,
-                                                              dilations,
-                                                              auto_pad);
+    auto conv_backprop = make_shared<v1::ConvolutionBackpropData>(out_backprop,
+                                                                  filter,
+                                                                  spatial_shape,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad);
 
     // insert Transpose only if original Conv3DBackpropInput is in NDHWC layout
     auto conv_backprop_output = conv_backprop->output(0);

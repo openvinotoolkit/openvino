@@ -66,9 +66,26 @@ Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<util::Variab
 
 void Assign::validate_and_infer_types() {
     OV_OP_SCOPE(v6_Assign_validate_and_infer_types);
-    m_variable->update({get_input_partial_shape(0), get_input_element_type(0), m_variable->get_info().variable_id});
+    const auto& variable_info = m_variable->get_info();
+    const auto& variable_type = variable_info.data_type;
+    const auto& variable_shape = variable_info.data_shape;
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    const auto& input_type = get_input_element_type(0);
+    const auto& input_shape = get_input_partial_shape(0);
+
+    OPENVINO_ASSERT(input_type.compatible(variable_type),
+                    "The type specified in the Variable is not compatible with the input type.",
+                    " Input type: ",
+                    input_type,
+                    " Variable type: ",
+                    variable_type);
+    OPENVINO_ASSERT(input_shape.compatible(variable_shape),
+                    "The shape specified in the Variable is not compatible with the shape of the input.",
+                    " Input shape: ",
+                    input_shape,
+                    " Variable shape: ",
+                    variable_shape);
+    set_output_type(0, input_type, input_shape);
 }
 
 std::shared_ptr<Node> Assign::clone_with_new_inputs(const OutputVector& new_args) const {

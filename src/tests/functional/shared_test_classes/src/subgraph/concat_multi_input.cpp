@@ -102,7 +102,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(concatInputs, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concatInputs, 1);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
@@ -112,7 +112,7 @@ void ConcatMultiInput::GenerateMemoryModel() {
     int axis = 1;
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
 
-    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(),
+    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ov::Shape(inputShapes[0]),
                                                                             ngraph::element::dynamic, "concat_input_memory"});
     auto mem_i = std::make_shared<ngraph::opset8::Constant>(ngPrc, inputShapes[0]);
     auto mem_r = std::make_shared<ngraph::opset8::ReadValue>(mem_i, variable);

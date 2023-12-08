@@ -1,0 +1,241 @@
+name: macOS ARM64 (Python 3.11)
+on:
+  workflow_dispatch:
+  schedule:
+    # at 00:00 on workdays
+    - cron: '0 0 * * 1,2,3,4,5'
+#  pull_request:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
+#  push:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
+#    branches:
+#      - master
+#      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-mac-arm64
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+  Build:
+    needs: Smart_CI
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    runs-on: 'macos-13-xlarge'
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+      BUILD_DIR: ${{ github.workspace }}/build
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+          submodules: 'true'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: 'openvino_contrib'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: brew install coreutils ninja scons
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Install python dependencies
+        run: |
+          # For Python API
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
+
+          # For running Python API tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+
+          # For running ONNX frontend unit tests
+          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+
+          # For running TensorFlow frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+
+      #
+      # Build
+      #
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: "2000M"
+          # Should save cache only if run in the master branch of the base repo
+          # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
+          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          verbose: 2
+          key: ${{ runner.os }}-${{ runner.arch }}-main
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-main
+
+      - name: CMake configure
+        run: |
+          cmake \
+            -G "${{ env.CMAKE_GENERATOR }}" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_TESTS=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -S ${{ env.OPENVINO_REPO }} \
+            -B ${{ env.BUILD_DIR }}
+
+      - name: Cmake build - OpenVINO
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Show ccache stats
+        run: ccache --show-stats
+
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Pack Artifacts
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -czvf ${{ env.BUILD_DIR }}/openvino_package.tar.gz *
+          popd
+
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -czvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz *
+          popd
+
+      - name: Cmake & Build - OpenVINO Contrib
+        run: |
+          cmake \
+            -DBUILD_nvidia_plugin=OFF \
+            -DBUILD_java_api=OFF \
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
+            -S ${{ env.OPENVINO_REPO }} \
+            -B ${{ env.BUILD_DIR }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      #
+      # Upload build artifacts
+      #
+
+      - name: Upload openvino package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+  Samples:
+    needs: Build
+    uses: ./.github/workflows/job_samples_tests.yml
+    with:
+      runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
+    with:
+      runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  Python_Unit_Tests:
+    name: Python unit tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_unit_tests.yml
+    with:
+      runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_cpu_functional_tests.yml
+    with:
+      runner: 'macos-13-xlarge'

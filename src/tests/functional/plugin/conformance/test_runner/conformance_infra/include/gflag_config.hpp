@@ -22,8 +22,6 @@ namespace test {
 namespace conformance {
 
 static const char help_message[] = "Print a usage message.";
-static const char disable_test_config_message[] = "Optional. Ignore tests skipping rules and run all the test (except those which are skipped with DISABLED "
-                                                  "prefix). Default value is true";
 static const char extend_report_config_message[] = "Optional. Extend operation coverage report without overwriting the device results."
                                                    "Mutually exclusive with --report_unique_name. Default value is false";
 static const char target_device_message[] = "Required. Specify the target device for Conformance Test Suite "
@@ -38,8 +36,6 @@ static const char report_unique_name_message[] = "Optional. Allow to save report
                                                  "Mutually exclusive with --extend_report. Default value is false";
 static const char save_report_timeout_message[] = "Optional. Allow to try to save report in cycle using timeout (in seconds). "
                                                   "Default value is 60 seconds";
-static const char skip_config_path_message[] = "Optional. Allows to specify paths to files contain regular expressions list to skip tests. "
-                                               "Delimiter is `,` symbol. Default value is empty string.";
 static const char config_path_message[] = "Optional. Allows to specify path to file contains plugin config. "
                                           "Default value is empty string.";
 static const char extract_body_message[] = "Optional. Allows to count extracted operation bodies to report. Default value is false.";
@@ -57,10 +53,8 @@ DEFINE_string(device, "CPU", target_device_message);
 DEFINE_string(plugin_lib_name, "", target_plugin_message);
 DEFINE_string(input_folders, ".", input_folders_message);
 DEFINE_string(output_folder, ".", output_folder_message);
-DEFINE_string(skip_config_path, "", skip_config_path_message);
 DEFINE_string(config_path, "", config_path_message);
 DEFINE_uint32(save_report_timeout, 60, save_report_timeout_message);
-DEFINE_bool(disable_test_config, true, disable_test_config_message);
 DEFINE_bool(extend_report, false, extend_report_config_message);
 DEFINE_bool(report_unique_name, false, report_unique_name_message);
 DEFINE_bool(extract_body, false, extract_body_message);
@@ -78,8 +72,6 @@ static void showUsage() {
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
     std::cout << "    -h                               " << help_message << std::endl;
-    std::cout << "    --disable_test_config            " << disable_test_config_message << std::endl;
-    std::cout << "    --skip_config_path  \"<paths>\"    " << disable_test_config_message << std::endl;
     std::cout << "    --config_path  \"<paths\"          " << config_path_message << std::endl;
     std::cout << "    --extend_report                  " << extend_report_config_message << std::endl;
     std::cout << "    --extract_body                   " << extend_report_config_message << std::endl;

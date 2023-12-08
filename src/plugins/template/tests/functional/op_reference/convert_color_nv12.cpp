@@ -13,7 +13,6 @@
 #include "openvino/op/nv12_to_rgb.hpp"
 
 using namespace ov;
-using namespace InferenceEngine;
 using namespace reference_tests;
 
 class ReferenceConvertColorNV12LayerTest : public testing::Test, public CommonReferenceTest {

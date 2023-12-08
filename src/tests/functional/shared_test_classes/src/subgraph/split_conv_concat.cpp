@@ -37,7 +37,8 @@ void SplitConvConcatBase::configure_test(const ov::test::BasicParams& param) {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], element_type, 2, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
     std::vector<float> filterWeights1;
     std::vector<float> filterWeights2;

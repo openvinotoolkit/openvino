@@ -41,10 +41,7 @@ void LogSoftmaxLayerTest::SetUp() {
 
     const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    const auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-    const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(paramOuts.at(0), axis);
+    const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(params.at(0), axis);
 
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(logSoftmax)};
 

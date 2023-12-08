@@ -3,11 +3,16 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/roi_pooling.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -28,21 +33,21 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
     // concatenate boxes and box_ind inputs because
     // ROIPooling accepts ROIs in a format [batch_id, x_1, y_1, x_2, y_2]
     // prepare box_ind for futher concatenation
-    auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
-    box_ind = make_shared<Unsqueeze>(box_ind, const_one);
-    box_ind = make_shared<Convert>(box_ind, element::f32);
-    boxes = make_shared<Concat>(OutputVector{box_ind, boxes}, 1);
+    auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    box_ind = make_shared<v0::Unsqueeze>(box_ind, const_one);
+    box_ind = make_shared<v0::Convert>(box_ind, element::f32);
+    boxes = make_shared<v0::Concat>(OutputVector{box_ind, boxes}, 1);
 
     // boxes are going in the format [y1, x1, y2, x2]
     // so we need to adjust them to the format [x_1, y_1, x_2, y_2]
     // use Gather operation for the swapping
-    auto gather_order = make_shared<Constant>(element::i32, Shape{5}, vector<int32_t>{0, 2, 1, 4, 3});
-    auto gather_axis = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1});
-    boxes = make_shared<Gather>(boxes, gather_order, gather_axis);
+    auto gather_order = make_shared<v0::Constant>(element::i32, Shape{5}, vector<int32_t>{0, 2, 1, 4, 3});
+    auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{1});
+    boxes = make_shared<v8::Gather>(boxes, gather_order, gather_axis);
 
     // prepare input image for ROIPooling
     image = make_transpose(image, {0, 3, 1, 2})->output(0);
-    Output<Node> roi_pooling = make_shared<ROIPooling>(image, boxes, crop_sizes, 1.0f, "bilinear");
+    Output<Node> roi_pooling = make_shared<v0::ROIPooling>(image, boxes, crop_sizes, 1.0f, "bilinear");
     roi_pooling = make_transpose(roi_pooling, {0, 2, 3, 1})->output(0);
     set_node_name(node.get_name(), roi_pooling.get_node_shared_ptr());
     return {roi_pooling};

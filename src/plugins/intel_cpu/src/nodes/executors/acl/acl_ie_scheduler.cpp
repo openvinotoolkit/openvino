@@ -7,7 +7,7 @@
 #include "arm_compute/core/CPP/ICPPKernel.h"
 #include "arm_compute/core/Error.h"
 #include "arm_compute/core/Helpers.h"
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,10 +24,11 @@ void ACLScheduler::set_num_threads(unsigned int num_threads) {}
 
 void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
     const Window & max_window = window;
-    const unsigned int num_iterations = max_window.num_iterations_total();
+    const unsigned int num_iterations =
+            max_window.num_iterations(hints.split_dimension()) == 1 ? 1 : max_window.num_iterations_total();
     const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
 
-    if (num_iterations == 0) {
+    if (num_iterations < 1) {
         return;
     }
 
@@ -50,7 +51,7 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
         const auto num_windows = _num_threads;
         const auto hints_split_dimension = hints.split_dimension();
 
-        InferenceEngine::parallel_for(num_windows, [&](int wid) {
+        ov::parallel_for(num_windows, [&](int wid) {
             Window win = max_window.split_window(hints_split_dimension, wid, num_windows);
             win.validate();
             main_run(win, {wid, static_cast<int>(_num_threads), &cpu_info()});
@@ -68,7 +69,7 @@ void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Win
 }
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
-    InferenceEngine::parallel_for(workloads.size(), [&](int wid) {
+    ov::parallel_for(workloads.size(), [&](int wid) {
         workloads[wid]({wid, static_cast<int>(parallel_get_num_threads()), &cpu_info()});
     });
 }

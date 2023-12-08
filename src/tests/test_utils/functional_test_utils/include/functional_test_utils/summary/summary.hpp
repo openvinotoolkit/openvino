@@ -26,6 +26,9 @@ struct PassRate {
     double rel_passed = 0;
     double rel_all = 0;
 
+    bool isCrashReported = false;
+    bool isHangReported = false;
+
     PassRate() = default;
 
     PassRate(unsigned long p,
@@ -51,8 +54,6 @@ protected:
     std::string ts = ov::test::utils::GetTimestamp();
 
     static size_t saveReportTimeout;
-    static bool isCrashReported;
-    static bool isHangReported;
     static bool extendReport;
     static bool saveReportWithUniqueName;
     static const char* outputFolder;

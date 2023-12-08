@@ -26,7 +26,7 @@ struct jit_test_kernel : public jit_kernel {
 
     void init() {
         if (create_kernel() != status::success)
-            IE_THROW() << "Can't generate jit kernel";
+            OPENVINO_THROW("Can't generate jit kernel");
         _fn = (function_t)jit_ker();
     }
 

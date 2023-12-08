@@ -30,19 +30,22 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info('OpenVINO:')
     log.info(f"{'Build ':.<39} {get_version()}")
-    if len(sys.argv) != 2:
-        log.info(f'Usage: {sys.argv[0]} <path_to_model>')
+    device_name = 'CPU'
+    if len(sys.argv) == 3:
+        device_name = sys.argv[2]
+    elif len(sys.argv) != 2:
+        log.info(f'Usage: {sys.argv[0]} <path_to_model> <device_name>(default: CPU)')
         return 1
     # Optimize for latency. Most of the devices are configured for latency by default,
     # but there are exceptions like GNA
     latency = {'PERFORMANCE_HINT': 'LATENCY'}
 
     # Create Core and use it to compile a model.
-    # Pick a device by replacing CPU, for example AUTO:GPU,CPU.
+    # Select the device by providing the name as the second parameter to CLI.
     # Using MULTI device is pointless in sync scenario
     # because only one instance of openvino.runtime.InferRequest is used
     core = ov.Core()
-    compiled_model = core.compile_model(sys.argv[1], 'CPU', latency)
+    compiled_model = core.compile_model(sys.argv[1], device_name, latency)
     ireq = compiled_model.create_infer_request()
     # Fill input data for the ireq
     for model_input in compiled_model.inputs:

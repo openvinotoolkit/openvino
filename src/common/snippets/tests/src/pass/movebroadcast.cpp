@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, InsertBroadcastMove) {
     {
         auto data0 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
         auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 1});
-        auto move1 = std::make_shared<snippets::isa::BroadcastMove>(data1, Shape{1, 2, 3});
+        auto move1 = std::make_shared<snippets::isa::BroadcastMove>(data1, ov::Dimension{3});
         auto add = std::make_shared<ov::op::v1::Add>(data0, move1);
         model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{data0, data1});
     }

@@ -15,8 +15,7 @@ from tests.tests_python.utils import (
     run_model,
     run_node,
 )
-from tests import (xfail_issue_35927,
-                   xfail_issue_44858,
+from tests import (xfail_issue_44858,
                    xfail_dynamic_rank)
 
 
@@ -126,7 +125,6 @@ def test_transpose():
     assert np.array_equal(graph_results, [expected_output])
 
 
-@xfail_issue_35927
 def test_slice_opset1():
     data = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
 

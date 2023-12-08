@@ -21,9 +21,6 @@ else()
     set(paddlepaddle_FOUND ON)
 endif()
 
-# PDPD 2.5.1 is not compatible with tests models we use
-set(paddlepaddle_FOUND OFF)
-
 if(paddlepaddle_FOUND)
     set(ctest_labels OV UNIT)
 endif()

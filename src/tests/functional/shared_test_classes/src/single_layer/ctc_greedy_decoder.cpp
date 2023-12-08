@@ -45,11 +45,11 @@ void CTCGreedyDecoderLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto ctcGreedyDecoder = std::dynamic_pointer_cast<ngraph::opset1::CTCGreedyDecoder>(
-            ngraph::builder::makeCTCGreedyDecoder(paramOuts[0], mergeRepeated));
+            ngraph::builder::makeCTCGreedyDecoder(paramsIn[0], mergeRepeated));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoder");

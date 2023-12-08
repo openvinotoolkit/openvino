@@ -11,6 +11,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -195,6 +196,7 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         RECORD_NO_ATTRIBUTES(v0::Squeeze),
         RECORD_NO_ATTRIBUTES(v0::Tile),
         RECORD_NO_ATTRIBUTES(v0::Unsqueeze),
+        RECORD_NO_ATTRIBUTES(v3::ScatterUpdate),
 
         // with attributes
         RECORD(v0::Concat, concats_are_equal),

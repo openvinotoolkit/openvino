@@ -19,6 +19,31 @@
 
 namespace LayerTestsUtils {
 
+namespace {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> getConstData(
+    const std::shared_ptr<ov::Model>& function) {
+    size_t numOutputs = function->get_output_size();
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
+    auto funcResults = function->get_results();
+    for (size_t i = 0; i < numOutputs; i++) {
+        outputs[i].first = funcResults[i]->get_element_type();
+        const auto& output = function->output(i).get_node_shared_ptr();
+        OPENVINO_ASSERT(output->inputs().size() == 1);
+        auto parrentNode = output->input_value(0).get_node_shared_ptr();
+        OPENVINO_ASSERT(ov::op::util::is_constant(parrentNode),
+                        "Function was not fully folded to constant state!\n",
+                        "Parent node of one of results is not constant and has type ",
+                        parrentNode->get_type_name());
+
+        const auto data = std::dynamic_pointer_cast<ov::op::v0::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
+        const auto dataSize = ov::shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
+        outputs[i].second.resize(dataSize);
+        std::copy(data, data + dataSize, outputs[i].second.data());
+    }
+    return outputs;
+}
+}  // namespace
+
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
 }
@@ -460,7 +485,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
         }
         case CONSTANT_FOLDING: {
             const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
+            expectedOutputs = getConstData(foldedFunc);
             break;
         }
         case IE: {

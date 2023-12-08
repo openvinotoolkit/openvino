@@ -266,16 +266,4 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                             input_layout.feature(),
                             "Weights/ifm mismatch");
 }
-
-void convolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    ob << _deform_conv_dep_offset;
-}
-
-void convolution_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    ib >> _deform_conv_dep_offset;
-}
 }  // namespace cldnn

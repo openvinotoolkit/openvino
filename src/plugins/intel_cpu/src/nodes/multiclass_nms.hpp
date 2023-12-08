@@ -21,14 +21,14 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -91,24 +91,24 @@ private:
 
     std::vector<filteredBoxes> m_filtBoxes; // rois after nms for each class in each image
 
-    void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
+    void checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name,
                         const std::string type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
-                    const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
+    void nmsWithEta(const float* boxes, const float* scores, const int* roisnum, const VectorDims& boxesStrides,
+                    const VectorDims& scoresStrides, const VectorDims& roisnumStrides, const bool shared);
 
-    void nmsWithoutEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
-                       const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
+    void nmsWithoutEta(const float* boxes, const float* scores, const int* roisnum, const VectorDims& boxesStrides,
+                       const VectorDims& scoresStrides, const VectorDims& roisnumStrides, const bool shared);
 
     const float* slice_class(const int batch_idx,
                             const int class_idx,
                             const float* dataPtr,
-                            const InferenceEngine::SizeVector& dataStrides,
+                            const VectorDims& dataStrides,
                             const bool is_boxes,
                             const int* roisnum,
-                            const InferenceEngine::SizeVector& roisnumStrides,
+                            const VectorDims& roisnumStrides,
                             const bool shared);
 };
 

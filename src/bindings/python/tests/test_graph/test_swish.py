@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Shape, Type
+from openvino import Shape, Type
 
 
 @pytest.mark.parametrize(("beta"), [

@@ -9,6 +9,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions,
@@ -62,6 +63,16 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
         if (ov::op::util::is_on_constant_path(input)) {
             // disable ConstantFolding if dequantization subgraph is on constant data
             ov::disable_constant_folding(convert);
+            // It is also necessary to avoid precision conversion for constant nodes with input_precision
+            auto keep_const_precision = [&](Node* node) {
+                if (auto constant = ov::as_type<ov::opset10::Constant>(node)) {
+                    const auto& const_et = constant->get_element_type();
+                    if (std::find(precisions.begin(), precisions.end(), const_et) != precisions.end())
+                        ov::enable_keep_const_precision(convert->get_input_node_shared_ptr(0));
+                }
+            };
+            std::unordered_set<Node*> visited;
+            ov::op::util::visit_constant_path(input.get_node(), visited, keep_const_precision);
         }
 
         if (subtract_it != pattern_map.end()) {
@@ -75,6 +86,7 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
                 // so we don't have to constantfold it and then convert it back to
                 // low precision in LP transformations
                 ov::disable_constant_folding(zero_point);
+                ov::enable_keep_const_precision(zero_point->get_input_node_shared_ptr(0));
             }
         }
 

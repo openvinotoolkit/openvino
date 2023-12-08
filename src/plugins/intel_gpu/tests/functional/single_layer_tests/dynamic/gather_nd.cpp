@@ -100,11 +100,8 @@ protected:
             params.back()->set_friendly_name("indices");
         }
 
-        auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
-
-        gather_ndNode = std::make_shared<ov::op::v8::GatherND>(paramOuts[0],
-                                                          isIndicesConstant ? indicesNode : paramOuts[1],
+        gather_ndNode = std::make_shared<ov::op::v8::GatherND>(params[0],
+                                                          isIndicesConstant ? indicesNode : params[1],
                                                           batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gather_ndNode)};
         function = std::make_shared<ngraph::Function>(results, params, "GatherND");

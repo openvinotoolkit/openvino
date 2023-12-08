@@ -11,7 +11,6 @@
 #include "cpu_streams_calculation.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
 using namespace ov;
 
 namespace {

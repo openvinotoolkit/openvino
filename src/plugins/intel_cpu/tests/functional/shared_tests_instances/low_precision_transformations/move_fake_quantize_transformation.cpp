@@ -29,7 +29,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concatenation",
-        "U8",
+        "u8",
         1,
     },
     // with ReLU operation
@@ -40,7 +40,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concatenation",
-        "U8",
+        "u8",
         1
     },
     // Q/DQ
@@ -55,7 +55,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concatenation",
-        "U8",
+        "u8",
         1
     },
     // Q/DQ with ReLU
@@ -70,7 +70,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concatenation",
-        "U8",
+        "u8",
         1
     },
     // multi-chanels
@@ -88,7 +88,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concatenation",
-        "I8",
+        "i8",
         1
     },
     // Q/DQ with multi-channels multiply
@@ -110,7 +110,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
            { {0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f}, ngraph::element::f32, {1, 6, 1, 1} },
        },
        "Concatenation",
-       "U8",
+       "u8",
        1
     },
     // Q/DQ with multi-channels subtract
@@ -132,7 +132,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
            { 0.01f },
        },
        "Concatenation",
-       "U8",
+       "u8",
        1
     },
 };
@@ -164,7 +164,7 @@ namespace testValues2 {
             {},
             {},
             "Concatenation",
-            "I8",
+            "i8",
             -1
         },
     };

@@ -83,7 +83,9 @@ void handle_reshape::run(program& p) {
 
     for (const auto& node : p.get_processing_order()) {
         if (node->is_type<reshape>()) {
-            auto& input_node = node->get_dependency(0);
+            const auto& dep = node->get_dependency_with_port(0);
+            auto& input_node = *dep.first;
+            auto& input_port = dep.second;
 
             if (input_node.is_type<reorder>())
                 continue;
@@ -98,7 +100,8 @@ void handle_reshape::run(program& p) {
             // find the users of reshape that are reorder type, if none present then skip the current node
             // find users who are onednn impl
             for (const auto& user : node->get_users()) {
-                if (user->is_type<reorder>())
+                if (user->is_type<reorder>() &&
+                    (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
                 if (user->get_preferred_impl_type() == cldnn::impl_types::onednn)
                     onednn_users.push_back(user);
@@ -161,8 +164,10 @@ void handle_reshape::run(program& p) {
                     if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
                         reorder_node_to_split.end()) {
                         auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
-                                                                     input_node.id(),
+                                                                     cldnn::input_info(input_node.id(), input_port),
                                                                      output_shape);
+                        GPU_DEBUG_LOG << "reshape_handler: " << new_reshape->id
+                            << " input_info : " << new_reshape->dependencies().front().to_string() << std::endl;
                         new_reshape->special_zero = prim->special_zero;
                         new_reshape->output_partial_shape = prim->output_partial_shape;
                         new_reshape->output_pattern = prim->output_pattern;
@@ -191,9 +196,12 @@ void handle_reshape::run(program& p) {
                     auto format = cldnn::format::get_default_format(dims);
                     auto reshape_input = std::make_shared<reorder>(
                         "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
-                        input_node.id(),
+                        cldnn::input_info(input_node.id(), input_port),
                         format,
                         reshape_in_layout.data_type);
+                    GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
+                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
+
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node,
                                        *reorder_reshape_node,
@@ -213,9 +221,11 @@ void handle_reshape::run(program& p) {
                 // in reshape stage we assume user provides the input vector in bfyx
                 if (!reshape_layout.compatible(target_layout)) {
                     auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
-                                                                   input_node.id(),
+                                                                   cldnn::input_info(input_node.id(), input_port),
                                                                    target_format,
                                                                    reshape_layout.data_type);
+                    GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
+                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
                     reshape_input_node.recalc_output_layout();

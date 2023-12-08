@@ -35,9 +35,8 @@ ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
         // will be handled by pointer arithmetics. Note that this behavior should be changed in case of full op::Boradcast support.
         Output<ov::Node> in_value = root->input_value(0);
         if (*target_shape.rbegin() != *value_shape.rbegin()) {
-            auto broadcasted_shape = value_shape;
-            *broadcasted_shape.rbegin() = *target_shape.rbegin();
-            const auto& broadcast_node = std::make_shared<ov::snippets::op::BroadcastMove>(in_value, broadcasted_shape);
+            auto broadcasted_dim = ov::Dimension(*target_shape.rbegin());
+            const auto& broadcast_node = std::make_shared<ov::snippets::op::BroadcastMove>(in_value, broadcasted_dim);
             in_value = broadcast_node->output(0);
         }
 

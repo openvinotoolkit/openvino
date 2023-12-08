@@ -122,9 +122,9 @@ bool InsertLoadStore::run(LinearIR& linear_ir) {
             modified |= insert_load(linear_ir, expr_it);
         } else if (ov::is_type<ov::op::v0::Result>(node)) {
             modified |= insert_store(linear_ir, expr_it);
-        } else if (auto buffer = ov::as_type_ptr<op::Buffer>(node)) {
+        } else if (ov::is_type<op::Buffer>(node)) {
             modified |= insert_load(linear_ir, expr_it);
-            if (buffer->is_intermediate_memory())
+            if (ov::is_type<op::IntermediateMemoryBuffer>(node))
                 modified |= insert_store(linear_ir, expr_it);
         }
     }

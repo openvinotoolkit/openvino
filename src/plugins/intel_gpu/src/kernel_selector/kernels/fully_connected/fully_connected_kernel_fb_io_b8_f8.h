@@ -18,7 +18,7 @@ public:
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
-    DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1, int kernel_number = 0) const override;
     size_t GetBatchesPerWorkItem(const fully_connected_params& params) const override;
 };
 }  // namespace kernel_selector

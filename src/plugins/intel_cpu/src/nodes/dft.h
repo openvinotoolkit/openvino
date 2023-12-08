@@ -16,7 +16,7 @@ namespace node {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;
@@ -26,7 +26,7 @@ public:
 
     void prepareParams() override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     std::vector<int32_t> getAxes() const;

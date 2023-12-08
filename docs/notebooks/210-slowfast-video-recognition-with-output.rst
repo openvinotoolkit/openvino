@@ -40,29 +40,32 @@ This tutorial consists of the following steps
 
 **Table of contents:**
 
-- `Prepare PyTorch Model <#prepare-pytorch-model>`__
 
-  - `Install necessary packages <#install-necessary-packages>`__
-  - `Imports and Settings <#imports-and-settings>`__
+-  `Prepare PyTorch Model <#prepare-pytorch-model>`__
 
-- `Export to ONNX <#export-to-onnx>`__
-- `Convert ONNX to OpenVINO™ Intermediate Representation <#convert-onnx-to-openvino-intermediate-representation>`__
-- `Select inference device <#select-inference-device>`__
-- `Verify Model Inference <#verify-model-inference>`__
+   -  `Install necessary
+      packages <#install-necessary-packages>`__
+   -  `Imports and Settings <#imports-and-settings>`__
 
-Prepare PyTorch Model
-###############################################################################################################################
+-  `Export to ONNX <#export-to-onnx>`__
+-  `Convert ONNX to OpenVINO™ Intermediate
+   Representation <#convert-onnx-to-openvino-intermediate-representation>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Verify Model Inference <#verify-model-inference>`__
 
-Install necessary packages
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Prepare PyTorch Model 
+---------------------------------------------------------------
+
+Install necessary packages 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    !pip install -q "openvino>=2023.1.0"
     !pip install -q fvcore
 
-Imports and Settings
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Imports and Settings 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -164,20 +167,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(256, 64, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_a): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(64, 64, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(64, 256, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
+                (1-2): 2 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(256, 64, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
                     (norm_a): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -209,20 +199,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(32, 8, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(8, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(8, 8, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(8, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(8, 32, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
+                (1-2): 2 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(32, 8, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
                     (norm_a): BatchNorm3d(8, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -263,33 +240,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(512, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_a): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(128, 128, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(128, 512, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(512, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_a): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(128, 128, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(128, 512, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (3): ResBlock(
+                (1-3): 3 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(512, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
                     (norm_a): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -321,33 +272,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(64, 16, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(16, 16, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(16, 64, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(64, 16, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(16, 16, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(16, 64, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (3): ResBlock(
+                (1-3): 3 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(64, 16, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
                     (norm_a): BatchNorm3d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -388,59 +313,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(1024, 256, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(256, 256, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(256, 1024, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(1024, 256, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(256, 256, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(256, 1024, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (3): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(1024, 256, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(256, 256, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(256, 1024, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (4): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(1024, 256, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(256, 256, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(256, 1024, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (5): ResBlock(
+                (1-5): 5 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(1024, 256, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
                     (norm_a): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -472,59 +345,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(128, 32, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(32, 32, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(32, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(128, 32, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(32, 32, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(32, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (3): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(128, 32, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(32, 32, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(32, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (4): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(128, 32, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(32, 32, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(32, 128, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (5): ResBlock(
+                (1-5): 5 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(128, 32, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
                     (norm_a): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -565,20 +386,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(2048, 512, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(512, 512, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(512, 2048, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
+                (1-2): 2 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(2048, 512, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
                     (norm_a): BatchNorm3d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -610,20 +418,7 @@ each action. Read more about the dataset and the paper
                   )
                   (activation): ReLU()
                 )
-                (1): ResBlock(
-                  (branch2): BottleneckBlock(
-                    (conv_a): Conv3d(256, 64, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
-                    (norm_a): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_a): ReLU()
-                    (conv_b): Conv3d(64, 64, kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1), bias=False)
-                    (norm_b): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                    (act_b): ReLU()
-                    (conv_c): Conv3d(64, 256, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
-                    (norm_c): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                  )
-                  (activation): ReLU()
-                )
-                (2): ResBlock(
+                (1-2): 2 x ResBlock(
                   (branch2): BottleneckBlock(
                     (conv_a): Conv3d(256, 64, kernel_size=(3, 1, 1), stride=(1, 1, 1), padding=(1, 0, 0), bias=False)
                     (norm_a): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -914,8 +709,8 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-Export to ONNX
-###############################################################################################################################
+Export to ONNX 
+--------------------------------------------------------
 
 Now that we have obtained our trained model and checked inference with
 it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
@@ -938,8 +733,8 @@ quantization.
         export_params=True,
     )
 
-Convert ONNX to OpenVINO Intermediate Representation
-###############################################################################################################################
+Convert ONNX to OpenVINO Intermediate Representation 
+----------------------------------------------------------------------------------------------
 
 Now that our ONNX model is ready, we can convert it to IR format. In
 this format, the network is represented using two files: an ``xml`` file
@@ -970,10 +765,10 @@ using the ``weights`` parameter.
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
-Select inference device
-###############################################################################################################################
+Select inference device 
+-----------------------------------------------------------------
 
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -1002,8 +797,8 @@ Select device from dropdown list for running inference using OpenVINO:
     # load model on device
     compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
-Verify Model Inference
-###############################################################################################################################
+Verify Model Inference 
+----------------------------------------------------------------
 
 Using the compiled model, we run inference on the same sample video and
 print the top 5 predictions again.

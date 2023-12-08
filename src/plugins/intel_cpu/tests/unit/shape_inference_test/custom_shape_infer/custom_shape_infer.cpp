@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 
 #include "custom_shape_infer.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/cc/factory.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
@@ -127,7 +126,7 @@ void cpu_test_shape_infer(ov::Node* op,
                     elementType = const_op->get_element_type();
                 }
                 CpuBlockedMemoryDesc desc(
-                        InferenceEngine::details::convertPrecision(elementType),
+                        elementType,
                         ov::intel_cpu::Shape(tmpInputShapes[port]));
                 MemoryPtr memoryPtr = std::make_shared<Memory>(eng, desc, data, true);
                 cusInputValues[port] = memoryPtr;

@@ -12,31 +12,31 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
- std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
-    const ngraph::PartialShape& inputShape,
+ std::shared_ptr<ov::Model> UnsqueezeFunction::getOriginal(
+    const ov::PartialShape& inputShape,
     const std::vector<float>& axes,
-    const ngraph::element::Type precisionBeforeDequantization,
+    const ov::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
 
-    const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
+    const auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
         dequantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
 
     unsqueeze->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(unsqueeze) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "UnsqueezeTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(unsqueeze) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "UnsqueezeTransformation");
 }
 
-std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
-    const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> UnsqueezeFunction::getOriginal(
+    const ov::element::Type originalFunctionPrecision,
+    const ov::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& axes) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fakeQuantize = fakeQuantizeOnData.empty() ?
         nullptr :
@@ -44,32 +44,32 @@ std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
             input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ngraph::Node> unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
+    const std::shared_ptr<ov::Node> unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
         fakeQuantize == nullptr ? input : fakeQuantize,
-        std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(unsqueeze) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "UnsqueezeTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(unsqueeze) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "UnsqueezeTransformation");
 }
 
-std::shared_ptr<ngraph::Function> UnsqueezeFunction::getReference(
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> UnsqueezeFunction::getReference(
+    const ov::PartialShape& inputShape,
     const std::vector<float>& axes,
-    const ngraph::element::Type precisionBeforeDequantization,
+    const ov::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ngraph::element::Type precisionAfterOperation,
+    const ov::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
-    const auto unsqueeze = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Unsqueeze>>(
-        op::v0::Unsqueeze(dequantizationOpBefore, std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
+    const auto unsqueeze = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Unsqueeze>>(
+        op::v0::Unsqueeze(dequantizationOpBefore, std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
         precisionAfterOperation);
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(unsqueeze, dequantizationAfter);
     dequantizationOpAfter->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "UnsqueezeTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(dequantizationOpAfter) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "UnsqueezeTransformation");
 }
 
 }  // namespace subgraph

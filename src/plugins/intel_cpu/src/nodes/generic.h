@@ -18,7 +18,7 @@ namespace node {
 
 class Generic : public Node {
 public:
-    Generic(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Generic(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~Generic() = default;
 
     void getSupportedDescriptors() override;

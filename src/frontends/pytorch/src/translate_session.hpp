@@ -34,10 +34,10 @@ public:
                                                  const TensorMap& external_tensor_map = {},
                                                  const std::shared_ptr<pytorch::InputModel>& input_model = nullptr);
 
-    /// \brief Returns backprop operations for direct operation
-    Output<Node> get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
-                                 const Output<Node>& direct_op_output,
-                                 const Output<Node>& value);
+    /// \brief Returns reverseprop operations for direct operation
+    Output<Node> get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                    const Output<Node>& direct_op_output,
+                                    const Output<Node>& value);
 
     /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,

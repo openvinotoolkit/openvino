@@ -24,7 +24,9 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
 class OnnxNodeValidationFailure : public ov::AssertFailure {
 public:
-    OPENVINO_SUPPRESS_DEPRECATED_START [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    OPENVINO_SUPPRESS_DEPRECATED_START [[noreturn]] static void create(const char* file,
+                                                                       int line,
+                                                                       const char* check_string,
                                                                        const Node& node,
                                                                        const std::string& explanation);
     OPENVINO_SUPPRESS_DEPRECATED_END

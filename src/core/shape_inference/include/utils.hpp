@@ -62,31 +62,6 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     return out;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-/**
- * \brief Get data from Host tensor as object TResult.
- *
- * \tparam T               TResult data type.
- * \tparam TResult         Type of return object, must support creation of std::inserter. Default std::vector<T>.
- * \tparam UnaryOperation  Unary function object applied on data with signature (T f(const U u)).
- *
- * \param tv    Input host tensor.
- * \param func  Unary operation function object.
- *
- * \return Object of TResult with data from host tensor.
- */
-template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(ngraph::HostTensor& tv, UnaryOperation&& func) {
-    auto t = Tensor(tv.get_element_type(), tv.get_shape(), tv.get_data_ptr());
-    return get_tensor_data_as<T, TResult>(t, std::forward<UnaryOperation>(func));
-}
-
-template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(ngraph::HostTensor* tv, UnaryOperation&& func) {
-    return get_tensor_data_as<T, TResult>(*tv, std::forward<UnaryOperation>(func));
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 /**
  * \brief Get data from ov:tensor as object TResult.
  *
@@ -385,19 +360,20 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
         };
     };
 
+    constexpr auto cast = ov::util::Cast<TData>();
     ov::optional<TResult> out;
 
-    if (auto lowers = op::get_input_const_data_as<TShape, TData>(op, port, ta)) {
-        const auto& et = get_input_const_element_type(op, port, ta);
+    if (const auto t = ta(port)) {
+        const auto& et = t.get_element_type();
+        const auto lowers = get_tensor_data_as<TData>(t, cast);
         out.emplace();
-        out->reserve(lowers->size());
-        std::transform(lowers->cbegin(), lowers->cend(), lowers->begin(), std::back_inserter(*out), make_bound(et));
+        out->reserve(lowers.size());
+        std::transform(lowers.cbegin(), lowers.cend(), lowers.cbegin(), std::back_inserter(*out), make_bound(et));
     } else {
         auto bounds = ov::evaluate_both_bounds(op->get_input_source_output(port));
 
         if (bounds.first && bounds.second) {
             const auto& et = bounds.first.get_element_type();
-            constexpr auto cast = ov::util::Cast<TData>();
             auto lowers = get_tensor_data_as<TData>(bounds.first, cast);
             auto uppers = get_tensor_data_as<TData>(bounds.second, cast);
 
@@ -405,6 +381,10 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
             out->reserve(lowers.size());
             std::transform(lowers.begin(), lowers.end(), uppers.begin(), std::back_inserter(*out), make_bound(et));
         }
+    }
+
+    if (!std::is_same<TShape, PartialShape>::value) {
+        NODE_VALIDATION_CHECK(op, out, "Static shape inference lacks constant data on port ", port);
     }
     return out;
 }

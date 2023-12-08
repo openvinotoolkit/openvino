@@ -3,12 +3,18 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -28,18 +34,18 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto indices_type = segment_ids.get_element_type();
     // 1. compute a number of segments using segment_ids values
     // do not forget that segment ids are counting from zero
-    auto reduction_axis = make_shared<Constant>(element::i32, Shape{1}, 0);
-    auto num_segments_minus1 = make_shared<ReduceMax>(segment_ids, reduction_axis, false);
-    auto num_segments = make_shared<Add>(num_segments_minus1, const_one);
+    auto reduction_axis = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    auto num_segments_minus1 = make_shared<v1::ReduceMax>(segment_ids, reduction_axis, false);
+    auto num_segments = make_shared<v1::Add>(num_segments_minus1, const_one);
 
     // 2. generate indices input for EmbeddingSegmentSum
     // that will collect slices consequently from data for each segment
-    auto squeeze_axis = make_shared<Constant>(element::i32, Shape{1}, 0);
-    auto segment_ids_shape = make_shared<ShapeOf>(segment_ids, indices_type);
-    auto num_indices = make_shared<Squeeze>(segment_ids_shape, squeeze_axis);
-    auto indices = make_shared<Range>(const_zero, num_indices, const_one, indices_type);
+    auto squeeze_axis = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    auto segment_ids_shape = make_shared<v3::ShapeOf>(segment_ids, indices_type);
+    auto num_indices = make_shared<v0::Squeeze>(segment_ids_shape, squeeze_axis);
+    auto indices = make_shared<v4::Range>(const_zero, num_indices, const_one, indices_type);
 
-    auto emb_segment_sum = make_shared<EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+    auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
     set_node_name(node.get_name(), emb_segment_sum);
     return {emb_segment_sum};
 }

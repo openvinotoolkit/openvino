@@ -13,13 +13,13 @@
 #include <vector>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
@@ -637,7 +637,7 @@ private:
         if (jcp_.with_binarization) {
             int binarization_idx = p.find(primitive_kind::binarization);
 
-            IE_ASSERT(binarization_idx >= 0) << "postops don't contain binarization";
+            OPENVINO_ASSERT(binarization_idx >= 0, "postops don't contain binarization");
 
             pop(reg_oc_off);
 
@@ -878,20 +878,20 @@ private:
     }
 };
 #endif
-bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
 
-        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
         if (!binConv) {
             errorMessage = "Only opset1 BinaryConvolution operation is supported";
             return false;
         }
-        if (binConv->get_mode() != ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(binConv->get_mode());
+        if (binConv->get_mode() != ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
+            errorMessage = "Doesn't support mode: " + ov::as_string(binConv->get_mode());
             return false;
         }
     } catch (...) {
@@ -900,12 +900,12 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
-        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
         for (size_t i = 0; i < binConv->get_strides().size(); i++) {
@@ -927,7 +927,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, co
             implType = impl_desc_type::ref;
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -944,21 +944,21 @@ void BinaryConvolution::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
 
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 }
 
@@ -985,7 +985,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 
         //activation
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0)));
+        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
 
         //weights
         size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512 ? 16 : 8; //memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
@@ -994,10 +994,10 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder));
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::u1, Shape(weiDims), weiBlockDims, weiOrder));
 
         //result
-        auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;
+        auto outputPrecision = withBinarization ? ov::element::u1 : ov::element::f32;
         config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
         if (withSum) {
             config.inConfs.push_back(config.outConfs[0]);
@@ -1009,9 +1009,9 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
 
-        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0)));
-        config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(1)));
-        config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::FP32, getOutputShapeAtPort(0)));
+        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(1)));
+        config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 }
@@ -1019,7 +1019,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
 
     auto srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     auto weiDims = getParentEdgesAtPort(1)[0]->getMemory().getStaticDims();
@@ -1080,9 +1080,9 @@ void BinaryConvolution::createPrimitive() {
     auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(dstPrecision);
-    jcp.typesize_in = srcPrecision == Precision::BIN ? 1 : srcPrecision.size();
-    jcp.typesize_out = dstPrecision == Precision::BIN ? 1 : dstPrecision.size();
+    jcp.dst_dt = DnnlExtensionUtils::ElementTypeToDataType(dstPrecision);
+    jcp.typesize_in = srcPrecision == ov::element::u1 ? 1 : srcPrecision.size();
+    jcp.typesize_out = dstPrecision == ov::element::u1 ? 1 : dstPrecision.size();
 
     int r_pad_no_tail = nstl::max(0, (jcp.ow - jcp.ur_w_tail - 1) * jcp.stride_w
                                      + (jcp.kw - 1) * (jcp.dilate_w + 1) - (jcp.iw + jcp.l_pad - 1));
@@ -1090,7 +1090,7 @@ void BinaryConvolution::createPrimitive() {
     bool args_ok = jcp.l_pad <= jcp.ur_w && (r_pad_no_tail <= jcp.ur_w) && (jcp.l_pad <= jcp.ur_w) &&
                    IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok)
-        IE_THROW() << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
+        OPENVINO_THROW("BinaryConvolution with name '", getName(), "' has unsupported parameters");
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
@@ -1146,7 +1146,11 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -1326,7 +1330,7 @@ void BinaryConvolution::execute(dnnl::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
     if (implType != impl_desc_type::ref) {

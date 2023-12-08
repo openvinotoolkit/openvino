@@ -1,0 +1,96 @@
+ir_version: 9
+opset_import {
+  domain: ""
+  version: 18
+}
+producer_name: "onnx-frontend-test"
+graph {
+  node {
+    input: "x"
+    input: "scale"
+    input: "bias"
+    output: "Y"
+    op_type: "GroupNormalization"
+    attribute {
+      name: "epsilon"
+      type: FLOAT
+      f: 0.0001
+    }
+    attribute {
+      name: "num_groups"
+      type: INT
+      i: 3
+    }
+  }
+  name: "test-model-group-normalization"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}

@@ -73,4 +73,4 @@ https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a09282
  ## See also
  * [OpenVINO™ README](../../../../README.md)
  * [C API developer guide](../README.md)
- * [C API Reference](https://docs.openvino.ai/2023.1/api/api_reference.html)
+ * [C API Reference](https://docs.openvino.ai/2023.2/api/api_reference.html)

@@ -464,6 +464,8 @@ static void regenum_graph_ResizeAlgorithm(py::module m) {
         .value("RESIZE_LINEAR", ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR)
         .value("RESIZE_CUBIC", ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC)
         .value("RESIZE_NEAREST", ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST)
+        .value("RESIZE_BILINEAR_PILLOW", ov::preprocess::ResizeAlgorithm::RESIZE_BILINEAR_PILLOW)
+        .value("RESIZE_BICUBIC_PILLOW", ov::preprocess::ResizeAlgorithm::RESIZE_BICUBIC_PILLOW)
         .export_values();
 }
 

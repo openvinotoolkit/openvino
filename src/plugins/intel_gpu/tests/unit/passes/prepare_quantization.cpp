@@ -45,3 +45,29 @@ TEST(prepare_quantization, program_replace_check_num_of_nodes) {
 
     ASSERT_TRUE(prog->get_node("quantize").get_dependencies().size() == 9);
 }
+
+TEST(prepare_quantization, dynamic_conv_asymmetric_data_weight_no_failure) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = { 1, 15, 4, 5 };
+    auto in_layout = layout{ ov::PartialShape::dynamic(in_shape.size()), data_types::u8, format::bfyx };
+    auto input_ptr = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 15, 4, 5 } });
+    auto w_mem_ptr = engine.allocate_memory({ ov::PartialShape{ 30, 15, 3, 3 }, data_types::i8, format::bfyx });
+    auto zp_mem_ptr = engine.allocate_memory({ in_shape, data_types::u8, format::bfyx });
+
+    topology topology;
+
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", w_mem_ptr));
+    topology.add(data("a_zp", zp_mem_ptr));
+    topology.add(eltwise("a_sub", { input_info("input"), input_info("a_zp") }, eltwise_mode::sub, data_types::f32));
+    topology.add(convolution("conv_prim", input_info("a_sub"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_ptr);
+
+    EXPECT_NO_THROW(network.execute());
+}

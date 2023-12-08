@@ -22,7 +22,8 @@ using namespace ov::op;
 
 OutputVector translate_cat_common(const NodeContext& context,
                                   const std::deque<ov::Output<ov::Node>>& list_elems,
-                                  int64_t axis) {
+                                  int64_t axis,
+                                  bool is_fx) {
     if (list_elems.empty()) {
         // couldn't get list elements
         auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{context.get_input(0)}, 1);
@@ -39,8 +40,8 @@ OutputVector translate_cat_common(const NodeContext& context,
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
     if (list_elems.size() == 1 &&
-        !std::dynamic_pointer_cast<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
-        // Case when list was merged into tensor
+        !std::dynamic_pointer_cast<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
+        // Case when list was merged into tensor. // This case doesn't work with torchfx
         auto tensor = list_elems[0];
         auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
         auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -63,7 +64,7 @@ OutputVector translate_cat(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     auto axis = context.const_input<int64_t>(1);
-    auto out = translate_cat_common(context, list_elems, axis);
+    auto out = translate_cat_common(context, list_elems, axis, false);
     if (!context.input_is_none(2)) {
         context.mutate_input(2, out[0]);
     }
@@ -78,7 +79,7 @@ OutputVector translate_cat_fx(const NodeContext& context) {
         list_elems.push_back(context.get_input(static_cast<int>(i)));
     }
     auto axis = context.const_input<int64_t>(context.get_input_size() - 1);
-    return translate_cat_common(context, list_elems, axis);
+    return translate_cat_common(context, list_elems, axis, true);
 };
 
 OutputVector translate_quantized_cat(const NodeContext& context) {
@@ -87,7 +88,7 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
     auto axis = context.const_input<int64_t>(1);
     FRONT_END_OP_CONVERSION_CHECK(!list_elems.empty(), "Couldn't find quantized input for quantized::cat operation.");
     return {quantize(context,
-                     translate_cat_common(context, list_elems, axis)[0],
+                     translate_cat_common(context, list_elems, axis, false)[0],
                      context.get_input(2),
                      context.get_input(3),
                      list_elems.front())};

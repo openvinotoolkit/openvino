@@ -7,7 +7,6 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 
-#include "binary_convolution_inst.h"
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
@@ -134,8 +133,13 @@ void remove_redundant_reorders::run(program& p) {
         auto node = *itr++;
         if (!node->is_type<reorder>())  // only care for reorders
             continue;
-
         auto& r_node = node->as<reorder>();
+
+        // Do not opt out result reorder of Loop body network
+        bool is_loop_body_network_output = (r_node.get_program().is_body_program() && r_node.is_output());
+        if (is_loop_body_network_output)
+            continue;
+
         auto& dep_node = r_node.get_dependency(0);
 
         if (!dep_node.is_type<reorder>())
@@ -261,6 +265,9 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
                 r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
+        // Do not opt out result reorder of Loop body network
+        no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output());
+
         if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
             r_node.get_primitive()->has_surface_input())
@@ -351,8 +358,11 @@ void remove_redundant_reorders::run(program& p) {
                 !user->has_fused_primitives()) {
                 auto l1 = node->get_output_layout();
                 auto l2 = user->get_output_layout();
+                // in multiple outputs, remove redundant reorder is only allowed for same output port idx
+                auto l1_port_idx = node->get_dependency_with_port(0).second;
+                auto l2_port_idx = user->get_dependency_with_port(0).second;
 
-                if (l1.identical(l2))
+                if (l1.identical(l2) && (l1_port_idx == l2_port_idx))
                     r_nodes_to_remove.push_back(user);
             }
         }
@@ -405,6 +415,11 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
+                continue;
+
+            // Do not opt out result reorder of Loop body network
+            bool is_loop_body_network_output = (node.get_program().is_body_program() && node.is_output());
+            if (is_loop_body_network_output)
                 continue;
 
             auto old_output_layout_of_input = input.get_output_layout();

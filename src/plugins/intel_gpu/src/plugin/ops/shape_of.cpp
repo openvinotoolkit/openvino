@@ -14,12 +14,11 @@ namespace intel_gpu {
 
 static void CreateShapeOfOpCommon(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     validate_inputs_count(op, {1, 2});
-    auto inputs = p.GetInputInfo(op);
-    std::string layerName = layer_type_name_ID(op);
+    const auto inputs = p.GetInputInfo(op);
+    const std::string layerName = layer_type_name_ID(op);
 
-    auto primitive = cldnn::shape_of(layerName,
+    const auto primitive = cldnn::shape_of(layerName,
                                      inputs[0],
-                                     op->get_input_partial_shape(0).rank().get_length(),
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
     p.add_primitive(*op, primitive);

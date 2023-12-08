@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/lrn.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -38,9 +40,9 @@ OutputVector translate_lrn_op(const NodeContext& node) {
     // the current implementation supports only the normalization across channel (axes={1})
     // and spatial dimensions (axes={2,3})
     // so we have to transpose inputs and outputs due to this limitation
-    auto axis = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto axis = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
     ov::frontend::tensorflow::convert_nhwc_to_nchw(true, input);
-    Output<Node> lrn = make_shared<LRN>(input, axis, alpha, beta, bias, attr_size);
+    Output<Node> lrn = make_shared<v0::LRN>(input, axis, alpha, beta, bias, attr_size);
     ov::frontend::tensorflow::convert_nchw_to_nhwc(true, lrn);
     set_node_name(node.get_name(), lrn.get_node_shared_ptr());
     return {lrn};

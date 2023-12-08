@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
 from typing import List
 
 from openvino.tools.ovc.error import Error
-from openvino.runtime import Model # pylint: disable=no-name-in-module,import-error
 
 
 def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int = 0):
@@ -62,11 +60,15 @@ def create_params_with_custom_types(packed_user_shapes: [None, dict]):
                 params_with_custom_types.append(p_name)
     return params_with_custom_types
 
+
 def get_available_transformations():
     try:
-        from openvino._offline_transformations import apply_low_latency_transformation # pylint: disable=import-error,no-name-in-module
-        from openvino._offline_transformations import apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
-        from openvino._offline_transformations import apply_pruning_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import \
+            apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import \
+            apply_make_stateful_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import \
+            apply_pruning_transformation  # pylint: disable=import-error,no-name-in-module
         return {
             'MakeStateful': apply_make_stateful_transformation,
             'LowLatency2': apply_low_latency_transformation,
@@ -88,14 +90,18 @@ def apply_user_transformations(func: object, transforms: list):
 
 
 def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
-    from openvino._offline_transformations import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import \
+        apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_legacy_transformations(func, params_with_custom_types)
 
 
 def compress_model(func: object):
-    from openvino._offline_transformations import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import \
+        compress_model_transformation  # pylint: disable=import-error,no-name-in-module
     compress_model_transformation(func)
 
+
 def apply_fused_names_cleanup(func: object):
-    from openvino._offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import \
+        apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
     apply_fused_names_cleanup(func)

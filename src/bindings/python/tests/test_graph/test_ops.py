@@ -8,7 +8,8 @@ import pytest
 from contextlib import nullcontext as does_not_raise
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import AxisSet, Shape, Type
+from openvino import Shape, Type
+from openvino.runtime import AxisSet
 from openvino.runtime.op import Constant, Parameter
 
 @pytest.mark.parametrize(("ov_op", "expected_ov_str", "expected_type"), [
@@ -128,6 +129,7 @@ def test_constant(const, args, expectation):
         assert node.get_output_size() == 1
         assert list(node.get_output_shape(0)) == [3, 3]
         assert node.get_output_element_type(0) == Type.f32
+        assert node.get_byte_size() == 36
 
 
 def test_concat():

@@ -75,6 +75,10 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 }
 
+int64_t DecoderProto::get_version() const {
+    return get_place()->get_version();
+}
+
 ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& type_info) const {
     if (data.is<int32_t>() && type_info == typeid(ov::element::Type)) {
         return get_ov_type(static_cast<proto::VarType_Type>(data.as<int32_t>()));

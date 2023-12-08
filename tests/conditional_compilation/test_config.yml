@@ -41,11 +41,6 @@
         precision: FP32
 -
     - model:
-        name: octave-resnet-26-0.25
-        type: omz
-        precision: FP32
--
-    - model:
         name: fast-neural-style-mosaic-onnx
         type: omz
         precision: FP32

@@ -21,7 +21,7 @@ Given a grayscale image as input, the model generates colorized version
 of the image as the output.
 
 About Colorization-v2
-###############################################################################################################################
+^^^^^^^^^^^^^^^^^^^^^
 
 -  The colorization-v2 model is one of the colorization group of models
    designed to perform image colorization.
@@ -30,7 +30,7 @@ About Colorization-v2
    A- and B-channels of LAB-image as output.
 
 About Colorization-siggraph
-###############################################################################################################################
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  The colorization-siggraph model is one of the colorization group of
    models designed to real-time user-guided image colorization.
@@ -40,24 +40,53 @@ About Colorization-siggraph
    A- and B-channels of LAB-image as output.
 
 See the `colorization <https://github.com/richzhang/colorization>`__
-repository for more details. 
+repository for more details.
 
 **Table of contents:**
+---
 
-- `Imports <#imports>`__ 
-- `Configurations <#configurations>`__ 
-
-  - `Select inference device <#select-inference-device>`__ 
-
-- `Download the model <#download-the-model>`__ 
-- `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__ 
-- `Loading the Model <#loading-the-model>`__ 
-- `Utility Functions <#utility-functions>`__ 
-- `Load the Image <#load-the-image>`__ 
+- `Imports <#imports>`__
+- `Configurations <#configurations>`__
+- `Select inference device <#select-inference-device>`__
+- `Download the model <#download-the-model>`__
+- `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
+- `Loading the Model <#loading-the-model>`__
+- `Utility Functions <#utility-functions>`__
+- `Load the Image <#load-the-image>`__
 - `Display Colorized Image <#display-colorized-image>`__
 
-Imports
-###############################################################################################################################
+.. code:: ipython3
+
+    %pip install "openvino-dev>=2023.1.0"
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: openvino-dev>=2023.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2023.1.0)
+    Requirement already satisfied: addict>=2.4.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (2.4.0)
+    Requirement already satisfied: defusedxml>=0.7.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (0.7.1)
+    Requirement already satisfied: jstyleson>=0.0.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (0.0.2)
+    Requirement already satisfied: networkx<=3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (2.8.2)
+    Requirement already satisfied: numpy>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (1.24.3)
+    Requirement already satisfied: opencv-python in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (4.8.1.78)
+    Requirement already satisfied: openvino-telemetry>=2022.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (2023.2.1)
+    Requirement already satisfied: pillow>=8.1.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (10.0.1)
+    Requirement already satisfied: pyyaml>=5.4.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (6.0.1)
+    Requirement already satisfied: requests>=2.25.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (2.31.0)
+    Requirement already satisfied: texttable>=1.6.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (1.7.0)
+    Requirement already satisfied: tqdm>=4.54.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (4.66.1)
+    Requirement already satisfied: openvino==2023.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (2023.1.0)
+    Requirement already satisfied: scipy<1.11,>=1.8 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino-dev>=2023.1.0) (1.10.1)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->openvino-dev>=2023.1.0) (3.3.1)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->openvino-dev>=2023.1.0) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->openvino-dev>=2023.1.0) (2.0.7)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->openvino-dev>=2023.1.0) (2023.7.22)
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
@@ -68,13 +97,13 @@ Imports
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
     
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Configurations
-###############################################################################################################################
+Configurations 
+--------------------------------------------------------
 
 -  ``PRECISION`` - {FP16, FP32}, default: FP16.
 -  ``MODEL_DIR`` - directory where the model is to be stored, default:
@@ -92,16 +121,16 @@ Configurations
     MODEL_PATH = f"{MODEL_DIR}/public/{MODEL_NAME}/{PRECISION}/{MODEL_NAME}.xml"
     DATA_DIR = "data"
 
-Select inference device
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Select device from dropdown list for running inference using OpenVINO
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -121,8 +150,8 @@ Select device from dropdown list for running inference using OpenVINO
 
 
 
-Download the model
-###############################################################################################################################
+Download the model 
+------------------------------------------------------------
 
 ``omz_downloader`` downloads model files from online sources and, if
 necessary, patches them to make them more usable with Model Converter.
@@ -170,8 +199,8 @@ above.
     
 
 
-Convert the model to OpenVINO IR
-###############################################################################################################################
+Convert the model to OpenVINO IR 
+--------------------------------------------------------------------------
 
 ``omz_converter`` converts the models that are not in the OpenVINO™ IR
 format into that format using model conversion API.
@@ -196,41 +225,40 @@ respectively
 .. parsed-literal::
 
     ========== Converting colorization-v2 to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-path=models/public/colorization-v2 --model-name=ECCVGenerator --weights=models/public/colorization-v2/ckpt/colorization-v2-eccv16.pth --import-module=model --input-shape=1,1,256,256 --output-file=models/public/colorization-v2/colorization-v2-eccv16.onnx --input-names=data_l --output-names=color_ab
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-path=models/public/colorization-v2 --model-name=ECCVGenerator --weights=models/public/colorization-v2/ckpt/colorization-v2-eccv16.pth --import-module=model --input-shape=1,1,256,256 --output-file=models/public/colorization-v2/colorization-v2-eccv16.onnx --input-names=data_l --output-names=color_ab
     
     ONNX check passed successfully.
     
     ========== Converting colorization-v2 to IR (FP16)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=models/public/colorization-v2/FP16 --model_name=colorization-v2 --input=data_l --output=color_ab --input_model=models/public/colorization-v2/colorization-v2-eccv16.onnx '--layout=data_l(NCHW)' '--input_shape=[1, 1, 256, 256]' --compress_to_fp16=True
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=models/public/colorization-v2/FP16 --model_name=colorization-v2 --input=data_l --output=color_ab --input_model=models/public/colorization-v2/colorization-v2-eccv16.onnx '--layout=data_l(NCHW)' '--input_shape=[1, 1, 256, 256]' --compress_to_fp16=True
     
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
     Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/222-vision-image-colorization/models/public/colorization-v2/FP16/colorization-v2.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/222-vision-image-colorization/models/public/colorization-v2/FP16/colorization-v2.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/222-vision-image-colorization/models/public/colorization-v2/FP16/colorization-v2.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/222-vision-image-colorization/models/public/colorization-v2/FP16/colorization-v2.bin
     
 
 
-Loading the Model
-###############################################################################################################################
+Loading the Model 
+-----------------------------------------------------------
 
 Load the model in OpenVINO Runtime with ``ie.read_model`` and compile it
 for the specified device with ``ie.compile_model``.
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model=MODEL_PATH)
     compiled_model = core.compile_model(model=model, device_name=device.value)
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
     N, C, H, W = list(input_layer.shape)
 
-
-Utility Functions
-###############################################################################################################################
+Utility Functions 
+-----------------------------------------------------------
 
 .. code:: ipython3
 
@@ -306,8 +334,8 @@ Utility Functions
     
         plt.show()
 
-Load the Image
-###############################################################################################################################
+Load the Image 
+--------------------------------------------------------
 
 .. code:: ipython3
 
@@ -372,9 +400,8 @@ Load the Image
     color_img_0 = colorize(test_img_0)
     color_img_1 = colorize(test_img_1)
 
-
-Display Colorized Image
-###############################################################################################################################
+Display Colorized Image 
+-----------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -382,7 +409,7 @@ Display Colorized Image
 
 
 
-.. image:: 222-vision-image-colorization-with-output_files/222-vision-image-colorization-with-output_20_0.png
+.. image:: 222-vision-image-colorization-with-output_files/222-vision-image-colorization-with-output_21_0.png
 
 
 .. code:: ipython3
@@ -391,5 +418,5 @@ Display Colorized Image
 
 
 
-.. image:: 222-vision-image-colorization-with-output_files/222-vision-image-colorization-with-output_21_0.png
+.. image:: 222-vision-image-colorization-with-output_files/222-vision-image-colorization-with-output_22_0.png
 

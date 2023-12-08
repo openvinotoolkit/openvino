@@ -249,7 +249,11 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
 
     // then body
     const std::vector<int64_t> pads(p1->get_partial_shape().rank().get_length(), 2);
-    auto thenOp = ngraph::builder::makePad(p1, pads, pads, 0, ngraph::helpers::PadMode::CONSTANT);
+    auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads.size()}, pads.data());
+    auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads.size()}, pads.data());
+    auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, std::vector<int64_t>{0});
+    auto thenOp = std::make_shared<ov::op::v1::Pad>(p1, pads_begin, pads_end, arg_pad_value, ov::op::PadMode::CONSTANT);
+
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 
@@ -299,10 +303,12 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
 
     const size_t axis = 1;
     const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
-    auto thenOp = ngraph::builder::makeSplit(p1, inType, dim, axis);
+    auto thenOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto thenOp = std::make_shared<ov::op::v1::Split>(p1, thenOp_axis_op, dim);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
 
-    auto elseOp = ngraph::builder::makeSplit(p2, inType, dim, axis);
+    auto elseOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto elseOp = std::make_shared<ov::op::v1::Split>(p2, elseOp_axis_op, dim);
     auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
 
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});

@@ -27,28 +27,28 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         { 2, 3 },
         true,
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         false,
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         true,
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         false,
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -61,7 +61,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         { 2, 3 },
         true,
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -74,7 +74,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         { 2, 3 },
         false,
         "Output_original",
-        "U8"
+        "u8"
     },
     {
         {
@@ -87,7 +87,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         { 0, 1 },
         true,
         "Output",
-        "FP32"
+        "f32"
     },
     {
         {
@@ -100,7 +100,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         { 0, 1 },
         false,
         "Output",
-        "FP32"
+        "f32"
     },
 };
 

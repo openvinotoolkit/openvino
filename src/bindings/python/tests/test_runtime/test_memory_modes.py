@@ -5,8 +5,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime as ov
-from openvino import Tensor
+from openvino import Tensor, Type
 from openvino.runtime.op import Constant
 
 from tests.utils.helpers import generate_image
@@ -28,18 +27,18 @@ def test_init_with_numpy_fail(cls, cls_str):
 @pytest.mark.parametrize("cls", [Tensor, Constant])
 @pytest.mark.parametrize("shared_flag", [True, False])
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (ov.Type.f32, np.float32),
-    (ov.Type.f64, np.float64),
-    (ov.Type.f16, np.float16),
-    (ov.Type.i8, np.int8),
-    (ov.Type.u8, np.uint8),
-    (ov.Type.i32, np.int32),
-    (ov.Type.u32, np.uint32),
-    (ov.Type.i16, np.int16),
-    (ov.Type.u16, np.uint16),
-    (ov.Type.i64, np.int64),
-    (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, bool),
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, bool),
 ])
 def test_with_numpy_memory(cls, shared_flag, ov_type, numpy_dtype):
     arr = np.ascontiguousarray(generate_image().astype(numpy_dtype))
@@ -95,18 +94,18 @@ def test_with_external_memory(cls, shared_flag):
 @pytest.mark.parametrize("shared_flag_one", [True, False])
 @pytest.mark.parametrize("shared_flag_two", [True, False])
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (ov.Type.f32, np.float32),
-    (ov.Type.f64, np.float64),
-    (ov.Type.f16, np.float16),
-    (ov.Type.i8, np.int8),
-    (ov.Type.u8, np.uint8),
-    (ov.Type.i32, np.int32),
-    (ov.Type.u32, np.uint32),
-    (ov.Type.i16, np.int16),
-    (ov.Type.u16, np.uint16),
-    (ov.Type.i64, np.int64),
-    (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, bool),
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, bool),
 ])
 def test_with_tensor_memory(cls, shared_flag_one, shared_flag_two, ov_type, numpy_dtype):
     arr = np.ascontiguousarray(generate_image().astype(numpy_dtype))

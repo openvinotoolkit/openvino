@@ -13,7 +13,7 @@ namespace node {
 
 class CTCGreedyDecoderSeqLen : public Node {
 public:
-    CTCGreedyDecoderSeqLen(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    CTCGreedyDecoderSeqLen(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -22,7 +22,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     const size_t DATA_INDEX = 0lu;

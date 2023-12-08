@@ -18,7 +18,7 @@ class PartitionedMemoryMngr : public IMemoryMngrObserver {
 public:
     PartitionedMemoryMngr(MemoryMngrPtr pMngr, size_t total_blocks = 1, ptrdiff_t offset_blocks = 0, size_t size_blocks = 1)
         : m_pMngr(pMngr), m_total_blocks(total_blocks), m_offset_blocks(offset_blocks), m_size_blocks(size_blocks) {
-        IE_ASSERT(m_pMngr) << "Memory manager is uninitialized";
+        OPENVINO_ASSERT(m_pMngr, "Memory manager is uninitialized");
     }
 
     void* getRawPtr() const noexcept override;

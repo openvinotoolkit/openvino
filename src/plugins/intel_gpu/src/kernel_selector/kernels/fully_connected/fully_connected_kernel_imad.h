@@ -23,7 +23,7 @@ public:
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,

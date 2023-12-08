@@ -40,8 +40,6 @@ public:
     static std::string to_string(data_node const& node);
 
     typed_primitive_inst(network& network, data_node const& node);
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
 };
 
 using data_inst = typed_primitive_inst<data>;

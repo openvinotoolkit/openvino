@@ -39,12 +39,16 @@ namespace LayerTestsDefinitions {
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
             input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         function = std::make_shared<ngraph::Function>(op, input, "MinMax");
     }
 } // namespace LayerTestsDefinitions

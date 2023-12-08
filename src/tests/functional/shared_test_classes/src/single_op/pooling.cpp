@@ -78,15 +78,12 @@ void PoolingLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    std::shared_ptr<ov::Node> pooling = ngraph::builder::makePooling(param,
-                                                                         stride,
-                                                                         pad_begin,
-                                                                         pad_end,
-                                                                         kernel,
-                                                                         rounding_type,
-                                                                         pad_type,
-                                                                         excludePad,
-                                                                         pool_type);
+    std::shared_ptr<ov::Node> pooling;
+    if (ov::test::utils::PoolingTypes::MAX == pool_type) {
+        pooling = std::make_shared<ov::op::v1::MaxPool>(param, stride, pad_begin, pad_end, kernel, rounding_type, pad_type);
+    } else {
+        pooling = std::make_shared<ov::op::v1::AvgPool>(param, stride, pad_begin, pad_end, kernel, excludePad, rounding_type, pad_type);
+    }
 
     auto result = std::make_shared<ov::op::v0::Result>(pooling);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "pooling");
@@ -150,9 +147,9 @@ void MaxPoolingV8LayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    std::shared_ptr<ov::Node> max_pool = ngraph::builder::makeMaxPoolingV8(param, stride, dilation, pad_begin, pad_end,
-                                                                              kernel, rounding_type, pad_type,
-                                                                              index_element_type, axis);
+    auto max_pool = std::make_shared<ov::op::v8::MaxPool>(param, stride, dilation, pad_begin, pad_end,
+                                                          kernel, rounding_type, pad_type,
+                                                          index_element_type, axis);
 
     const auto max_pool_v8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
 

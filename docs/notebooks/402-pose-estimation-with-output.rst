@@ -1,8 +1,6 @@
 Live Human Pose Estimation with OpenVINO™
 =========================================
 
-
-
 This notebook demonstrates live pose estimation with OpenVINO, using the
 OpenPose
 `human-pose-estimation-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/human-pose-estimation-0001>`__
@@ -11,38 +9,40 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-.. note::
-
-   To use a webcam, you must run this Jupyter notebook on a
+   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a server, the webcam will not
    work. However, you can still do inference on a video in the final
    step.
 
-.. _top:
 
-**Table of contents**:
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `The model <#the-model>`__
-
-  - `Download the model <#download-the-model>`__
-  - `Load the model <#load-the-model>`__
-
+- `Download the model <#download-the-model>`__
+- `Load the model <#load-the-model>`__
 - `Processing <#processing>`__
-
-  - `OpenPose Decoder <#openpose-decoder>`__
-  - `Process Results <#process-results>`__
-  - `Draw Pose Overlays <#draw-pose-overlays>`__
-  - `Main Processing Function <#main-processing-function>`__
-
+- `OpenPose Decoder <#openpose-decoder>`__
+- `Process Results <#process-results>`__
+- `Draw Pose Overlays <#draw-pose-overlays>`__
+- `Main Processing Function <#main-processing-function>`__
 - `Run <#run>`__
+- `Run Live Pose Estimation <#run-live-pose-estimation>`__
+- `Run Pose Estimation on a Video File <#run-pose-estimation-on-a-video-file>`__
 
-  - `Run Live Pose Estimation <#run-live-pose-estimation>`__
-  - `Run Pose Estimation on a Video File <#run-pose-estimation-on-a-video-file>`__
+.. code:: ipython3
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
+    %pip install -q "openvino>=2023.1.0"
 
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
@@ -55,20 +55,18 @@ Imports `⇑ <#top>`__
     import numpy as np
     from IPython import display
     from numpy.lib.stride_tricks import as_strided
-    from openvino.runtime import Core
+    import openvino as ov
     
     from decoder import OpenPoseDecoder
     
     sys.path.append("../utils")
     import notebook_utils as utils
 
-The model `⇑ <#top>`__
-###############################################################################################################################
+The model 
+---------------------------------------------------
 
-
-Download the model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Download the model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -77,10 +75,7 @@ selected model.
 If you want to download another model, replace the name of the model and
 precision in the code below.
 
-.. note::
-
-   This may require a different pose decoder.
-
+   **NOTE**: This may require a different pose decoder.
 
 .. code:: ipython3
 
@@ -112,9 +107,8 @@ precision in the code below.
     model/intel/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.bin:   0%|          | 0.00/4.03M […
 
 
-Load the model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Load the model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, the name of the model and a precision.
@@ -129,7 +123,7 @@ using OpenVINO.
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -152,7 +146,7 @@ using OpenVINO.
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime
-    core = Core()
+    core = ov.Core()
     # Read the network from a file.
     model = core.read_model(model_path)
     # Let the AUTO device decide where to load the model (you can use CPU, GPU as well).
@@ -182,13 +176,11 @@ there is 1 input and 2 outputs: PAFs and keypoints heatmap.
 
 
 
-Processing `⇑ <#top>`__
-###############################################################################################################################
+Processing 
+----------------------------------------------------
 
-
-OpenPose Decoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+OpenPose Decoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To transform the raw results from the neural network into pose
 estimations, you need OpenPose Decoder. It is provided in the `Open
@@ -206,9 +198,8 @@ of Open Model Zoo.
 
     decoder = OpenPoseDecoder()
 
-Process Results `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Process Results 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A bunch of useful functions to transform results into poses.
 
@@ -278,9 +269,8 @@ factor.
         poses[:, :, :2] *= output_scale
         return poses, scores
 
-Draw Pose Overlays `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Draw Pose Overlays 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Draw pose overlays on the image to visualize estimated poses. Joints are
 drawn as circles and limbs are drawn as lines. The code is based on the
@@ -317,9 +307,8 @@ from Open Model Zoo.
         cv2.addWeighted(img, 0.4, img_limbs, 0.6, 0, dst=img)
         return img
 
-Main Processing Function `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Main Processing Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run pose estimation on the specified source. Either a webcam or a video
 file.
@@ -413,13 +402,11 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run `⇑ <#top>`__
-###############################################################################################################################
+Run 
+---------------------------------------------
 
-
-Run Live Pose Estimation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Live Pose Estimation 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -428,14 +415,11 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-.. note::
-
-   To use this notebook with a webcam, you need to run the
+   **NOTE**: To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    server (for example, Binder), the webcam will not work. Popup mode
    may not work if you run this notebook on a remote computer (for
    example, Binder).
-
 
 Run the pose estimation:
 
@@ -451,13 +435,12 @@ Run the pose estimation:
 
 .. parsed-literal::
 
-    [ WARN:0@2.649] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@2.649] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@2.988] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@2.988] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-Run Pose Estimation on a Video File `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Pose Estimation on a Video File 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -472,7 +455,7 @@ will work. You can skip first ``N`` frames to fast forward video.
 
 
 
-.. image:: 402-pose-estimation-with-output_files/402-pose-estimation-with-output_21_0.png
+.. image:: 402-pose-estimation-with-output_files/402-pose-estimation-with-output_22_0.png
 
 
 .. parsed-literal::

@@ -65,7 +65,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported Eltwise executor is not found";
+        OPENVINO_THROW("Supported Eltwise executor is not found");
     }
 
     bool isEmpty() {

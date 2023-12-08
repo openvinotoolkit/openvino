@@ -14,7 +14,9 @@ namespace ov {
 namespace frontend {
 class FRONTEND_API GeneralFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
 
@@ -24,7 +26,9 @@ protected:
 
 class FRONTEND_API InitializationFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
 
@@ -34,7 +38,9 @@ protected:
 
 class FRONTEND_API OpValidationFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
 
@@ -44,7 +50,9 @@ protected:
 
 class FRONTEND_API OpConversionFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
 
@@ -54,7 +62,9 @@ protected:
 
 class FRONTEND_API NotImplementedFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
 

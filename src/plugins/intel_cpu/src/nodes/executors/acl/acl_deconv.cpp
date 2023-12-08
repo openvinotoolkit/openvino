@@ -3,7 +3,7 @@
 //
 
 #include "acl_deconv.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -146,7 +146,7 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs &deconvAttrs,
     }
 
     // TODO: Ticket CVS-114087 - enable FP16 when check FP16 scoup
-    if (!(one_of(srcDescs[0]->getPrecision(), /*InferenceEngine::Precision::FP16, */InferenceEngine::Precision::FP32) &&
+    if (!(one_of(srcDescs[0]->getPrecision(), /*ov::element::f16, */ov::element::f32) &&
           srcDescs[0]->getPrecision() == srcDescs[1]->getPrecision() &&
           srcDescs[1]->getPrecision() == dstDescs[0]->getPrecision())) {
         DEBUG_LOG("AclDeconvExecutor does not support precisions:",

@@ -28,7 +28,6 @@ void gather(const T* const data,
 
     int64_t batch_data_mul = shape_size(span(data_shape).subspan(batch_dims));
     int64_t batch_out_mul = shape_size(span(out_shape).subspan(batch_dims));
-    int64_t batch_indices_mul = shape_size(span(indices_shape).subspan(batch_dims));
 
     int64_t axis_size = data_shape[axis];
     int64_t data_offset, out_offset, idx;
@@ -40,7 +39,7 @@ void gather(const T* const data,
             data_offset = batch_data_mul * batch + inner_size * axis_size * outer_idx;
             out_offset = batch_out_mul * batch + indices_size * inner_size * outer_idx;
             for (int64_t i = 0; i < indices_size; i++) {
-                idx = indices[i + batch_indices_mul * batch];
+                idx = indices[i + indices_size * batch];
                 if (idx < 0)
                     idx += axis_size;
                 // for out of bound values have to be filled with zeros
@@ -48,9 +47,8 @@ void gather(const T* const data,
                     continue;
 
                 const auto src_begin = std::next(data, data_offset + inner_size * idx);
-                const auto src_end = std::next(src_begin, inner_size);
                 const auto out_ptr = std::next(out, out_offset + inner_size * i);
-                std::copy(src_begin, src_end, out_ptr);
+                std::copy_n(src_begin, inner_size, out_ptr);
             }
         }
 }

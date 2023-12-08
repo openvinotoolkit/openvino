@@ -23,13 +23,13 @@ class RepeatPatternExtractorTest : public SubgraphsDumperBaseTest {
 protected:
     RepeatPatternExtractor extractor;
 
-    bool is_match(const std::vector<ExtractedPattern>& models,
+    bool is_match(const std::vector<RepeatPatternExtractor::ExtractedPattern>& models,
                   const std::vector<std::shared_ptr<ov::Model>>& ref_models) {
         size_t match_numbers = 0;
         for (const auto& model : models) {
             bool is_match = false;
             for (const auto& ref_model : ref_models) {
-                if (ModelComparator::get()->match(std::get<0>(model), ref_model)) {
+                if (ov::util::ModelComparator::get()->match(std::get<0>(model), ref_model)) {
                     is_match = true;
                     ++match_numbers;
                     break;

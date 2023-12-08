@@ -7,6 +7,8 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -99,7 +101,7 @@ protected:
             const auto & rtInfo = node->get_rt_info();
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
+                OPENVINO_ASSERT(rtInfo.end() != it);
                 return it->second.as<std::string>();
             };
 
@@ -193,14 +195,11 @@ protected:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
-                ngraph::builder::makeGroupConvolution(paramOuts[0], netType, kernel, stride, padBegin,
-                                                      padEnd, dilation, padType, convOutChannels, numGroups));
+
+        auto groupConv = ov::test::utils::make_group_convolution(params[0], netType, kernel, stride, padBegin,
+                                                                 padEnd, dilation, padType, convOutChannels, numGroups);
         function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
     }
 };
@@ -218,7 +217,7 @@ TEST_P(ExpectFallbackGroupConvolutionLayerCPUTest, CompareWithRefs) {
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         if ("Convolution" == getExecValue(ExecGraphInfoSerialization::LAYER_TYPE)) {

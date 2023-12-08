@@ -27,8 +27,8 @@ using namespace ngraph::op;
 using namespace ngraph::opset9;
 using namespace std;
 
-using DiagonalInsertionTestParams = tuple<map<string, string>,   // Configuration
-                                          vector<vector<float>>  // FakeQuantize min/max params
+using DiagonalInsertionTestParams = tuple<map<std::string, std::string>,  // Configuration
+                                          vector<vector<float>>           // FakeQuantize min/max params
                                           >;
 
 constexpr uint16_t fq_levels = numeric_limits<uint16_t>::max();
@@ -89,13 +89,13 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
         return std::make_shared<Reshape>(input_node, target_shape_const, false);
     }
 
-    bool IsDebugEnabled(map<string, string>& configuration) {
+    bool IsDebugEnabled(map<std::string, std::string>& configuration) {
         return configuration.find("LOG_LEVEL") != configuration.end() && configuration["LOG_LEVEL"] == "LOG_DEBUG";
     }
 
 public:
-    static string getTestCaseName(testing::TestParamInfo<DiagonalInsertionTestParams> obj) {
-        map<string, string> configuration;
+    static std::string getTestCaseName(testing::TestParamInfo<DiagonalInsertionTestParams> obj) {
+        map<std::string, std::string> configuration;
         vector<vector<float>> fq_min_max;
 
         tie(configuration, fq_min_max) = obj.param;
@@ -136,7 +136,7 @@ protected:
         auto mm_const = makeConstant<float>(precision, {height, width}, {}, true);
         auto mm_const_fq = CreateFQNode(precision, mm_const, fq_min_max[1][0], fq_min_max[1][1], fq_levels);
 
-        auto matmul = makeMatMul(mm_const_fq, reshape);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(mm_const_fq, reshape);
         auto matmul_fq = CreateFQNode(precision, matmul, fq_min_max[2][0], fq_min_max[2][1], fq_levels);
         auto add_mm_reshape = CreateReshapeNode(ngraph::element::Type_t::i32, matmul, {height});
 
@@ -156,7 +156,7 @@ TEST_P(DiagonalInsertionTest, CompareWithRefs) {
     Run();
 };
 
-const vector<map<string, string>> configs = {
+const vector<map<std::string, std::string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_PRECISION", "I16"},

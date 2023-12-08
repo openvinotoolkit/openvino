@@ -19,7 +19,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
-#include "tensor_conversion_util.hpp"
 
 using namespace std;
 
@@ -29,17 +28,24 @@ static const char idx_txt[] = "index '";
 static const char out_of_range_txt[] = "' out of range";
 }  // namespace
 
-void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void ov::NodeValidationFailure::create(const char* file,
+                                       int line,
+                                       const char* check_string,
                                        const Node* node,
                                        const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(check_loc_info, node_validation_failure_loc_string(node), explanation));
+    throw ov::NodeValidationFailure(
+        make_what(file, line, check_string, node_validation_failure_loc_string(node), explanation));
 }
 
 template <>
-void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void ov::NodeValidationFailure::create(const char* file,
+                                       int line,
+                                       const char* check_string,
                                        std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
                                        const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(check_loc_info,
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
@@ -713,18 +719,27 @@ protected:
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
-    } else if (ov::util::is_dynamic_shape(t.get_shape())) {
+    } else {
+        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
+    }
+}
+
+inline ngraph::HostTensorPtr make_tmp_out_host_tensor(const ov::Tensor& t) {
+    if (!t) {
+        return std::make_shared<DynamicTensor>(ov::element::dynamic);
+    } else if (t.get_shape() == ov::Shape{0}) {
         return std::make_shared<DynamicTensor>(t.get_element_type());
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
 }
 
-inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
+inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors, const bool is_output) {
+    const auto make_tmp_ht = is_output ? make_tmp_out_host_tensor : make_tmp_host_tensor;
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        result.push_back(make_tmp_host_tensor(tensor));
+        result.push_back(make_tmp_ht(tensor));
     }
     return result;
 }
@@ -752,8 +767,8 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 }  // namespace
 
 bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
+    HostTensorVector output = create_tmp_tensors(output_values, true);
+    HostTensorVector input = create_tmp_tensors(input_values, false);
     bool sts = evaluate(output, input);
     if (sts)
         update_output_tensors(output_values, output);
@@ -764,8 +779,8 @@ bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
     // Call evaluate for old implementation with EvaluationContext
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
+    HostTensorVector output = create_tmp_tensors(output_values, true);
+    HostTensorVector input = create_tmp_tensors(input_values, false);
     bool sts = evaluate(output, input, evaluationContext);
     if (sts)
         update_output_tensors(output_values, output);
@@ -819,9 +834,13 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     }
 
     TensorVector output_tensors;
-    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& output : outputs()) {
-        output_tensors.push_back(ov::util::wrap_tensor(output));
+        const auto& et = output.get_element_type();
+        if (et != element::undefined && et.is_static()) {
+            output_tensors.emplace_back(output);
+        } else {
+            output_tensors.emplace_back();
+        }
     }
 
     if (evaluate(output_tensors, input_tensors)) {
@@ -831,7 +850,6 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         }
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

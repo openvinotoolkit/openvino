@@ -72,7 +72,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
-    auto concat = ngraph::builder::makeConcat({concat_constant, reshape_1}, 0);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_constant, reshape_1}, 0);
 
     memory_write->add_control_dependency(memory_read);
     concat->add_control_dependency(memory_write);
@@ -107,7 +107,7 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
-    auto concat = ngraph::builder::makeConcat({concat_constant, squeeze}, 0);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_constant, squeeze}, 0);
 
     function = std::make_shared<ngraph::Function>(concat, input_parameter, "memory_multiply_reshape_concat");
 }

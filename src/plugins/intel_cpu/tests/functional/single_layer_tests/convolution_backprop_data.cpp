@@ -11,7 +11,9 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -147,7 +149,7 @@ public:
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
-                IE_ASSERT(inputDynamicShapes.size() == 2);
+                OPENVINO_ASSERT(inputDynamicShapes.size() == 2);
                 auto outShapeParam = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
                 outShapeNode = outShapeParam;
@@ -162,12 +164,12 @@ public:
 
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
-            IE_ASSERT(outShapeNode != nullptr);
-            deconv = ngraph::builder::makeConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
-                                                                  padEnd, dilation, padType, convOutChannels);
+            OPENVINO_ASSERT(outShapeNode != nullptr);
+            deconv = ov::test::utils::make_convolution_backprop_data(params[0], outShapeNode, prec, kernel, stride, padBegin,
+                                                                     padEnd, dilation, padType, convOutChannels);
         } else {
-            deconv = ngraph::builder::makeConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
-                                                                  padEnd, dilation, padType, convOutChannels, false, outPadding);
+            deconv = ov::test::utils::make_convolution_backprop_data(params[0], prec, kernel, stride, padBegin,
+                                                                     padEnd, dilation, padType, convOutChannels, false, outPadding);
         }
 
         return makeNgraphFunction(prec, params, deconv, "DeconvCPU");

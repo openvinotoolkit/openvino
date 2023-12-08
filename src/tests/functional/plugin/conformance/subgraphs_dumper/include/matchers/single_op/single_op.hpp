@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "pugixml.hpp"
-
 #include "matchers/single_op/config.hpp"
 
 namespace ov {

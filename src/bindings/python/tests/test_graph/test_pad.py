@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset13 as ov
-from openvino.runtime import  Type
+from openvino import  Type
 
 
 @pytest.mark.parametrize(

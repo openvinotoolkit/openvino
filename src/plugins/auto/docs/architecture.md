@@ -8,8 +8,8 @@ AUTO is a meta plugin in OpenVINO that doesn’t bind to a specific type of hard
 
 The logic behind the choice is as follows:
 * Check what supported devices are available.
-* Check performance hint of input setting (For detailed information of performance hint, please read more on the [ov::hint::PerformanceMode](https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html)).
-* Check precisions of the input model (for detailed information on precisions read more on the [ov::device::capabilities](https://docs.openvino.ai/2023.0/namespaceov_1_1device_1_1capability.html)).
+* Check performance hint of input setting (For detailed information of performance hint, please read more on the [ov::hint::PerformanceMode](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_Performance_Hints.html)).
+* Check precisions of the input model (for detailed information on precisions read more on the [ov::device::capabilities](https://docs.openvino.ai/2023.2/namespaceov_1_1device_1_1capability.html)).
 * Select the highest-priority device capable of supporting the given model for LATENCY hint and THROUGHPUT hint. Or Select all devices capable of supporting the given model for CUMULATIVE THROUGHPUT hint.
 * If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
 
@@ -21,7 +21,7 @@ The AUTO plugin is also the default plugin for OpenVINO, if the user does not se
 
 Compiling the model to accelerator-optimized kernels may take some time. When AUTO selects one accelerator, it can start inference with the system's CPU by default, as it provides very low latency and can start inference with no additional delays. While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready. 
 
-![alt text](https://docs.openvino.ai/2023.0/_images/autoplugin_accelerate.svg "AUTO cuts first inference latency (FIL) by running inference on the CPU until the GPU is ready")
+![alt text](https://docs.openvino.ai/2023.2/_images/autoplugin_accelerate.svg "AUTO cuts first inference latency (FIL) by running inference on the CPU until the GPU is ready")
 
 The user can disable this acceleration feature by excluding CPU from the priority list or disabling `ov::intel_auto::enable_startup_fallback`. Its default value is `true`.
 

@@ -58,6 +58,11 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Ou
 /// \return Tensor with maximum value.
 Tensor make_tensor_of_max_value(const element::Type_t et);
 
+/// \brief Make scalar tensor which stores minimum value of ov::element::Type.
+/// \param et  Element type to get its minimum.
+/// \return Tensor with minimum value.
+Tensor make_tensor_of_min_value(const element::Type_t et);
+
 /// \brief Apply auto padding to padding_above and padding_below inputs
 ///        if all needed informations are known.
 ///
@@ -86,5 +91,20 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
 /// @param tensors  Input tensors vector to get their shapes.
 /// @return Vector of partial shapes same size as input tensor vector.
 OPENVINO_API std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors);
+
+/// \brief Get the node input partial shapes.
+///
+/// \param node   Node to extract input shapes.
+///
+/// \return Vector of PartialShapes of each input.
+OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
+
+/// \brief Check if rank is compatible to any of others ranks.
+///
+/// \param r       Rank to check.
+/// \param others  List of ranks used to check compatibility.
+///
+/// \return True if rank compatible to any of others, otherwise false.
+OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others);
 }  // namespace util
 }  // namespace ov

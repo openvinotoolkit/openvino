@@ -79,6 +79,48 @@ TEST_F(TransformationTestsF, MulMulMulFusion) {
     }
 }
 
+TEST_F(TransformationTestsF, MulMulMulFusion_f64) {
+    {
+        auto input = std::make_shared<opset3::Parameter>(element::f64, Shape{1, 128, 3072});
+        auto mul1_const = opset3::Constant::create(element::f64, Shape{128, 1}, {2});
+        auto mul2_const = opset3::Constant::create(element::f64, Shape{128, 1}, {3});
+        auto mul3_const = opset3::Constant::create(element::f64, Shape{1}, {3});
+
+        auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
+        auto mul2 = std::make_shared<opset3::Multiply>(mul1, mul2_const);
+        auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
+
+        model = std::make_shared<ov::Model>(NodeVector{mul2}, ParameterVector{input});
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
+    }
+
+    {
+        auto input = std::make_shared<opset3::Parameter>(element::f64, Shape{1, 128, 3072});
+        auto mul1_const = opset3::Constant::create(element::f64, Shape{128, 1}, {12});
+
+        auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{mul1}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, MulMulMulFusion_not_supported_type) {
+    constexpr auto et = element::u8;
+    {
+        auto input = std::make_shared<opset3::Parameter>(et, Shape{1, 128, 3072});
+        auto mul1_const = opset3::Constant::create(et, Shape{128, 1}, {2});
+        auto mul2_const = opset3::Constant::create(et, Shape{128, 1}, {3});
+        auto mul3_const = opset3::Constant::create(et, Shape{1}, {3});
+
+        auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
+        auto mul2 = std::make_shared<opset3::Multiply>(mul1, mul2_const);
+        auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
+
+        model = std::make_shared<ov::Model>(NodeVector{mul2}, ParameterVector{input});
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
+    }
+}
+
 TEST_F(TransformationTestsF, AddAddAddFusion) {
     {
         auto input = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 128, 3072});

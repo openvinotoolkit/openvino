@@ -50,15 +50,25 @@ void SliceConcatTest::SetUp() {
             ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape), false);
     }
 
-    auto ss = ngraph::builder::makeStridedSlice(input, begin, end, strides, ngPrc, beginMask, endMask,
-                                                std::vector<int64_t>(inputShape.size(), 0),
-                                                std::vector<int64_t>(inputShape.size(), 0),
-                                                std::vector<int64_t>(inputShape.size(), 0));
+    ov::Shape constShape = {begin.size()};
+    auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, begin.data());
+    auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, end.data());
+    auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, strides.data());
+
+    auto ss = std::make_shared<ov::op::v1::StridedSlice>(input,
+                                                        beginNode,
+                                                        endNode,
+                                                        strideNode,
+                                                        beginMask,
+                                                        endMask,
+                                                        std::vector<int64_t>(inputShape.size(), 0),
+                                                        std::vector<int64_t>(inputShape.size(), 0),
+                                                        std::vector<int64_t>(inputShape.size(), 0));
 
     ngraph::Shape const_shape(inputShape.size(), 1);
     const_shape.back() = 32;
     auto const_input = ngraph::builder::makeConstant(ngPrc, const_shape, std::vector<float>{}, true);
-    auto concat = ngraph::builder::makeConcat({const_input, ss}, inputShape.size() - 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const_input, ss}, inputShape.size() - 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "StridedSliceConcatTest");
 }

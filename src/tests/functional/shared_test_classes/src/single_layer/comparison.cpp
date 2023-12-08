@@ -68,7 +68,9 @@ void ComparisonLayerTest::SetUp() {
 
     ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondInputType == InputLayerType::PARAMETER) {
         inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondInput));
     }

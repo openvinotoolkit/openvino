@@ -65,7 +65,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported MVN executor is not found";
+        OPENVINO_THROW("Supported MVN executor is not found");
     }
 
     bool isEmpty() {

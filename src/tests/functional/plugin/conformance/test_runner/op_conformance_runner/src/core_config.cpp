@@ -9,6 +9,7 @@
 
 #include "conformance.hpp"
 
+// todo: remove as LayerTestClass will be removed
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {}
 
 namespace ov {

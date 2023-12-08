@@ -63,7 +63,7 @@ void copy_conditional_flow_markers_for_producer(
 }
 
 template <typename T>
-void extract_tensor_content(const string& tensor_content, Tensor* values) {
+void extract_tensor_content(const std::string& tensor_content, Tensor* values) {
     const auto tensor_content_size = tensor_content.size();
     FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
                             "Size of tensor_content (",
@@ -82,17 +82,17 @@ void extract_tensor_content(const string& tensor_content, Tensor* values) {
 #    pragma warning(disable : 4244)  // possible loss of data
 #    pragma warning(disable : 4267)  // possible loss of data
 #endif
-template <typename T>
+template <typename SRC_T, typename DST_T = SRC_T>
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
                                        Tensor* values) {
-    auto val_lastsaved = static_cast<T>(0);
-    auto values_data = values->data<T>();
+    auto val_lastsaved = static_cast<SRC_T>(0);
+    auto values_data = values->data<DST_T>();
     for (size_t i = 0; i < values->get_size(); i++) {
         if (val_size == 0) {
-            values_data[i] = static_cast<T>(0);
+            values_data[i] = static_cast<DST_T>(0);
         } else if (static_cast<int64_t>(i) < val_size) {
-            auto val_i = static_cast<T>(0);
+            auto val_i = static_cast<SRC_T>(0);
             switch (values->get_element_type()) {
             // TODO: there are more element types to support here
             case boolean:
@@ -113,13 +113,34 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             case f64:
                 val_i = tensor_proto.double_val()[i];
                 break;
+            case u8:
+                val_i = tensor_proto.int_val()[i];
+                break;
+            case u16:
+                val_i = tensor_proto.int_val()[i];
+                break;
+            case u64:
+                val_i = tensor_proto.uint64_val()[i];
+                break;
+            case i8:
+                val_i = tensor_proto.int_val()[i];
+                break;
+            case bf16:
+                val_i = bfloat16::from_bits(tensor_proto.half_val()[i]);
+                break;
+            case u32:
+                val_i = tensor_proto.uint32_val()[i];
+                break;
+            case i16:
+                val_i = tensor_proto.int_val()[i];
+                break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + values->get_element_type().get_type_name());
             }
-            values_data[i] = val_i;
+            values_data[i] = static_cast<DST_T>(val_i);
             val_lastsaved = val_i;
         } else {
-            values_data[i] = val_lastsaved;
+            values_data[i] = static_cast<DST_T>(val_lastsaved);
         }
     }
 }
@@ -150,16 +171,18 @@ bool CfMarkerType::is_copyable() const {
 }
 
 Type get_ov_type(const ::tensorflow::DataType& type) {
-    static const map<::tensorflow::DataType, Type> type_map{{::tensorflow::DataType::DT_BOOL, boolean},
-                                                            {::tensorflow::DataType::DT_INT16, i16},
-                                                            {::tensorflow::DataType::DT_INT32, i32},
-                                                            {::tensorflow::DataType::DT_INT64, i64},
-                                                            {::tensorflow::DataType::DT_HALF, f16},
-                                                            {::tensorflow::DataType::DT_FLOAT, f32},
-                                                            {::tensorflow::DataType::DT_DOUBLE, f64},
-                                                            {::tensorflow::DataType::DT_UINT8, u8},
-                                                            {::tensorflow::DataType::DT_INT8, i8},
-                                                            {::tensorflow::DataType::DT_BFLOAT16, bf16}};
+    using ::tensorflow::DataType;
+
+    static map<DataType, Type> type_map{
+        {DataType::DT_FLOAT, f32},         {DataType::DT_DOUBLE, f64},     {DataType::DT_INT32, i32},
+        {DataType::DT_UINT8, u8},          {DataType::DT_INT16, i16},      {DataType::DT_INT8, i8},
+        {DataType::DT_INT64, i64},         {DataType::DT_BOOL, boolean},   {DataType::DT_BFLOAT16, bf16},
+        {DataType::DT_UINT16, u16},        {DataType::DT_HALF, f16},       {DataType::DT_UINT32, u32},
+        {DataType::DT_UINT64, u64},        {DataType::DT_FLOAT_REF, f32},  {DataType::DT_DOUBLE_REF, f64},
+        {DataType::DT_INT32_REF, i32},     {DataType::DT_UINT8_REF, u8},   {DataType::DT_INT16_REF, i16},
+        {DataType::DT_INT8_REF, i8},       {DataType::DT_INT64_REF, i64},  {DataType::DT_BOOL_REF, boolean},
+        {DataType::DT_BFLOAT16_REF, bf16}, {DataType::DT_UINT16_REF, u16}, {DataType::DT_HALF_REF, f16},
+        {DataType::DT_UINT32_REF, u32},    {DataType::DT_UINT64_REF, u64}};
 
     auto it = type_map.find(type);
     // for all unsupported types return dynamic type
@@ -185,42 +208,55 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
             ov_type.is_static(),
             "Encountered unknown element type " + DataType_Name(tensor_type) + " on an empty tensor_proto");
     } else {
-        auto data = vector<string>();
+        auto data = vector<std::string>();
         for (const auto& item : tensor_proto.string_val()) {
             data.push_back(item);
         }
         return data;
     }
+
     Tensor res(ov_type, pshape.get_shape());
     auto tensor_content = tensor_proto.tensor_content();
     if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
         switch (ov_type) {
+        case f32:
+            extract_tensor_content<float>(tensor_content, &res);
+            break;
         case u8:
             extract_tensor_content<uint8_t>(tensor_content, &res);
-            break;
-        case i8:
-            extract_tensor_content<int8_t>(tensor_content, &res);
-            break;
-        case i16:
-            extract_tensor_content<int16_t>(tensor_content, &res);
-            break;
-        case i32:
-            extract_tensor_content<int32_t>(tensor_content, &res);
             break;
         case i64:
             extract_tensor_content<int64_t>(tensor_content, &res);
             break;
-        case f16:
-            extract_tensor_content<float16>(tensor_content, &res);
+        case u16:
+            extract_tensor_content<uint16_t>(tensor_content, &res);
             break;
-        case f32:
-            extract_tensor_content<float>(tensor_content, &res);
+        case u64:
+            extract_tensor_content<uint64_t>(tensor_content, &res);
+            break;
+        case i32:
+            extract_tensor_content<int32_t>(tensor_content, &res);
+            break;
+        case i8:
+            extract_tensor_content<int8_t>(tensor_content, &res);
+            break;
+        case bf16:
+            extract_tensor_content<bfloat16>(tensor_content, &res);
+            break;
+        case u32:
+            extract_tensor_content<uint32_t>(tensor_content, &res);
             break;
         case f64:
             extract_tensor_content<double>(tensor_content, &res);
             break;
-        case bf16:
-            extract_tensor_content<bfloat16>(tensor_content, &res);
+        case i16:
+            extract_tensor_content<int16_t>(tensor_content, &res);
+            break;
+        case boolean:
+            extract_tensor_content<bool>(tensor_content, &res);
+            break;
+        case f16:
+            extract_tensor_content<float16>(tensor_content, &res);
             break;
         default:
             FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
@@ -228,29 +264,57 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
     } else {
         int64_t val_size = 0;
         switch (ov_type) {
-        case boolean:
-            val_size = tensor_proto.bool_val_size();
-            extract_compressed_tensor_content<bool>(tensor_proto, val_size, &res);
+        case f32:
+            val_size = tensor_proto.float_val_size();
+            extract_compressed_tensor_content<float>(tensor_proto, val_size, &res);
             break;
-        case i32:
+        case u8:
             val_size = tensor_proto.int_val_size();
-            extract_compressed_tensor_content<int32_t>(tensor_proto, val_size, &res);
+            extract_compressed_tensor_content<int32_t, uint8_t>(tensor_proto, val_size, &res);
             break;
         case i64:
             val_size = tensor_proto.int64_val_size();
             extract_compressed_tensor_content<int64_t>(tensor_proto, val_size, &res);
             break;
-        case f16:
-            val_size = tensor_proto.half_val_size();
-            extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
+        case u16:
+            val_size = tensor_proto.int_val_size();
+            extract_compressed_tensor_content<uint16_t, int32_t>(tensor_proto, val_size, &res);
             break;
-        case f32:
-            val_size = tensor_proto.float_val_size();
-            extract_compressed_tensor_content<float>(tensor_proto, val_size, &res);
+        case u64:
+            val_size = tensor_proto.uint64_val_size();
+            extract_compressed_tensor_content<uint64_t>(tensor_proto, val_size, &res);
+            break;
+        case i32:
+            val_size = tensor_proto.int_val_size();
+            extract_compressed_tensor_content<int32_t>(tensor_proto, val_size, &res);
+            break;
+        case i8:
+            val_size = tensor_proto.int_val_size();
+            extract_compressed_tensor_content<int32_t, int8_t>(tensor_proto, val_size, &res);
+            break;
+        case bf16:
+            val_size = tensor_proto.half_val_size();
+            extract_compressed_tensor_content<int32_t, bfloat16>(tensor_proto, val_size, &res);
+            break;
+        case u32:
+            val_size = tensor_proto.uint32_val_size();
+            extract_compressed_tensor_content<uint32_t>(tensor_proto, val_size, &res);
             break;
         case f64:
             val_size = tensor_proto.double_val_size();
             extract_compressed_tensor_content<double>(tensor_proto, val_size, &res);
+            break;
+        case i16:
+            val_size = tensor_proto.int_val_size();
+            extract_compressed_tensor_content<int32_t, int16_t>(tensor_proto, val_size, &res);
+            break;
+        case boolean:
+            val_size = tensor_proto.bool_val_size();
+            extract_compressed_tensor_content<bool>(tensor_proto, val_size, &res);
+            break;
+        case f16:
+            val_size = tensor_proto.half_val_size();
+            extract_compressed_tensor_content<int32_t, float16>(tensor_proto, val_size, &res);
             break;
         default:
             FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
@@ -456,19 +520,34 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
                        const std::string& operation_type,
                        const ov::OutputVector& ov_inputs,
-                       ov::OutputVector& ov_outputs) {
+                       ov::OutputVector& ov_outputs,
+                       const std::vector<std::string>& ov_input_names) {
     ov_outputs.clear();
     auto body_parameters = ov_model_to_inject->get_parameters();
-    FRONT_END_GENERAL_CHECK(body_parameters.size() == ov_inputs.size(),
+    // some external inputs can be skipped if some body graph inputs turn to be Constant nodes
+    FRONT_END_GENERAL_CHECK(body_parameters.size() <= ov_inputs.size(),
                             "[TensorFlow Error] Internal error or incorrect input models: number of "
                             "inputs and arguments to the function " +
                                 operation_type + " do not match.");
     for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
+        auto param_name = body_parameters[param_ind]->get_friendly_name();
+        // find suitable index of external input
+        size_t ext_found_ind = param_ind;
+        if (ov_input_names.size() > 0) {
+            // only used for PartitionedCall translator
+            for (size_t ext_input_ind = 0; ext_input_ind < ov_input_names.size(); ++ext_input_ind) {
+                if (ov_input_names[ext_input_ind] == param_name) {
+                    ext_found_ind = ext_input_ind;
+                    break;
+                }
+            }
+        }
+
         auto orig_type = body_parameters[param_ind]->get_element_type();
         // avoid not needed tensor names from body graph Parameter node after replacing
         body_parameters[param_ind]->output(0).set_names({});
-        body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
-        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
+        body_parameters[param_ind]->output(0).replace(ov_inputs[ext_found_ind]);
+        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[ext_found_ind].get_node_shared_ptr())) {
             // save type of a Parameter as converted in the body
             // this is important if the external conversion extension is applied to body graph node
             // with setting its own type

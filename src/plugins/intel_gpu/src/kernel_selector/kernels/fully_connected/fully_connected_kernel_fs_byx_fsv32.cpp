@@ -37,7 +37,8 @@ DeviceFeaturesKey FullyConnected_fs_byx_fsv32::get_required_device_features_key(
 
 FullyConnected_fs_byx_fsv32::Parent::DispatchData FullyConnected_fs_byx_fsv32::SetDefault(
     const fully_connected_params& params,
-    int autoTuneIndex) const {
+    int autoTuneIndex,
+    int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params, autoTuneIndex);
 
     auto blockSizeB = std::min(outputBlockSizeB, params.outputs[0].Batch().v);

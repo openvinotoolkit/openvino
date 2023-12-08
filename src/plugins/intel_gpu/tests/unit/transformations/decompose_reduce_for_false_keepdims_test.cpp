@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset10.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset10.hpp>
+#include <openvino/pass/manager.hpp>
 #include <plugin/transformations/decompose_reduce_for_false_keepdims.hpp>
 #include <string>
 #include <transformations/init_node_info.hpp>
@@ -15,7 +15,7 @@
 #include <tuple>
 
 #include "intel_gpu/primitives/reduce.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "test_utils.h"
 
@@ -23,7 +23,7 @@ using namespace testing;
 using namespace ::tests;
 using namespace cldnn;
 
-using InputShape = ngraph::PartialShape;
+using InputShape = ov::PartialShape;
 using KeepDims = bool;
 using ReduceAxes = std::vector<int64_t>;
 using ReduceType = cldnn::reduce_mode;
@@ -35,7 +35,7 @@ class ReduceDecomposeTests
       public testing::WithParamInterface<
           std::tuple<ReduceType, InputShape, ReduceAxes, KeepDims, NeedDecompose, ReshapeShape>> {
 public:
-    std::shared_ptr<ngraph::Function> fc;
+    std::shared_ptr<ov::Model> fc;
     bool need_decompose;
     ReshapeShape result_shape;
 
@@ -50,42 +50,42 @@ public:
         fc = get_transformed_function(input_shape, axes, reduce_type, keep_dims);
     }
 
-    static std::shared_ptr<ngraph::Function> get_transformed_function(const ngraph::PartialShape& input_shape,
+    static std::shared_ptr<ov::Model> get_transformed_function(const ov::PartialShape& input_shape,
                                                                       const std::vector<int64_t>& axes,
                                                                       const ReduceType& reduce_type,
                                                                       const bool keep_dim) {
-        auto param = std::make_shared<ngraph::opset10::Parameter>(ngraph::element::f32, input_shape);
+        auto param = std::make_shared<ov::opset10::Parameter>(ov::element::f32, input_shape);
         if (reduce_type == reduce_mode::logical_or || reduce_type == reduce_mode::logical_and)
-            param = std::make_shared<ngraph::opset10::Parameter>(ngraph::element::boolean, input_shape);
+            param = std::make_shared<ov::opset10::Parameter>(ov::element::boolean, input_shape);
 
-        ngraph::Output<ngraph::Node> input = param->output(0);
+        ov::Output<ov::Node> input = param->output(0);
 
-        auto axes_const = ngraph::opset10::Constant::create(ngraph::element::i64, ngraph::Shape{axes.size()}, axes);
+        auto axes_const = ov::opset10::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
 
         if (reduce_type == reduce_mode::sum)
-            input = std::make_shared<ngraph::opset10::ReduceSum>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceSum>(input, axes_const, keep_dim);
         else if (reduce_type == reduce_mode::mean)
-            input = std::make_shared<ngraph::opset10::ReduceMean>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceMean>(input, axes_const, keep_dim);
         else if (reduce_type == reduce_mode::min)
-            input = std::make_shared<ngraph::opset10::ReduceMin>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceMin>(input, axes_const, keep_dim);
         else if (reduce_type == reduce_mode::max)
-            input = std::make_shared<ngraph::opset10::ReduceMax>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceMax>(input, axes_const, keep_dim);
         else if (reduce_type == reduce_mode::prod)
-            input = std::make_shared<ngraph::opset10::ReduceProd>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceProd>(input, axes_const, keep_dim);
         else if (reduce_type == reduce_mode::logical_or)
-            input = std::make_shared<ngraph::opset10::ReduceLogicalOr>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceLogicalOr>(input, axes_const, keep_dim);
         else if (reduce_type == reduce_mode::logical_and)
-            input = std::make_shared<ngraph::opset10::ReduceLogicalAnd>(input, axes_const, keep_dim);
+            input = std::make_shared<ov::opset10::ReduceLogicalAnd>(input, axes_const, keep_dim);
         else
             throw std::runtime_error("Invalid reduce type for this test-case.");
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node_shared_ptr()},
-                                                  ngraph::ParameterVector{param});
+        return std::make_shared<ov::Model>(ov::NodeVector{input.get_node_shared_ptr()},
+                                                  ov::ParameterVector{param});
     }
 };
 
 TEST_P(ReduceDecomposeTests, CompareFunctions) {
-    ngraph::pass::Manager m;
+    ov::pass::Manager m;
     m.set_per_pass_validation(false);
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gpu::DecomposeReduceForFalseKeepDims>();
@@ -208,8 +208,8 @@ INSTANTIATE_TEST_SUITE_P(ReduceDecomposeForTrueKeepdims,
 
 TEST(DecomposeReduceForFalseKeepDims, Negative) {
     auto f =
-        ReduceDecomposeTests::get_transformed_function(ngraph::PartialShape::dynamic(), {3}, reduce_mode::max, true);
-    ngraph::pass::Manager manager;
+        ReduceDecomposeTests::get_transformed_function(ov::PartialShape::dynamic(), {3}, reduce_mode::max, true);
+    ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::DecomposeReduceForFalseKeepDims>();
     ASSERT_NO_THROW(manager.run_passes(f));
 }

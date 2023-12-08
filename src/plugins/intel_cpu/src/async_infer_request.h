@@ -4,22 +4,21 @@
 
 #pragma once
 
-#include <string>
-#include <map>
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include "infer_request.h"
+#include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
-    AsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
-                      const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                      const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
+    AsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
     ~AsyncInferRequest();
+
+    void throw_if_canceled() const;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
-
+}  // namespace intel_cpu
+}  // namespace ov

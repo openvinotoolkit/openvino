@@ -47,3 +47,13 @@ def get_compression_message():
 def get_try_legacy_fe_message():
     message = '[ INFO ] You can also try to use legacy TensorFlow Frontend by using argument --use_legacy_frontend.\n'
     return message
+
+
+def get_ovc_message():
+    link = "https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html"
+    message = '[ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. ' \
+              'Please use OpenVINO Model Converter (OVC). ' \
+              'OVC represents a lightweight alternative of MO and provides simplified model conversion API. \n' \
+              'Find more information about transition from MO to OVC at {}'.format(link)
+
+    return message

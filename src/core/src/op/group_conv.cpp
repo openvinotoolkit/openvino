@@ -54,9 +54,7 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
     if (num_spatial != convolution::num_spatial_undefined) {
@@ -241,9 +239,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto out_spatial_shape = get_convolution_output_shape();
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes, out_spatial_shape);
 

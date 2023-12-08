@@ -17,7 +17,6 @@
 
 // OK to have 'using' in mock header
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 ////////////////////////////////
@@ -247,8 +246,8 @@ struct MOCK_API ModelStat
     Place::Ptr m_lastArgPlace = nullptr;
     std::vector<Place::Ptr> m_lastArgInputPlaces;
     std::vector<Place::Ptr> m_lastArgOutputPlaces;
-    ngraph::element::Type m_lastArgElementType;
-    ngraph::PartialShape m_lastArgPartialShape;
+    ov::element::Type m_lastArgElementType;
+    ov::PartialShape m_lastArgPartialShape;
 
     // Getters
     int get_inputs() const { return m_get_inputs; }
@@ -268,8 +267,8 @@ struct MOCK_API ModelStat
     Place::Ptr get_lastArgPlace() const { return m_lastArgPlace; }
     std::vector<Place::Ptr> get_lastArgInputPlaces() const { return m_lastArgInputPlaces; }
     std::vector<Place::Ptr> get_lastArgOutputPlaces() const { return m_lastArgOutputPlaces; }
-    ngraph::element::Type get_lastArgElementType() const { return m_lastArgElementType; }
-    ngraph::PartialShape get_lastArgPartialShape() const { return m_lastArgPartialShape; }
+    ov::element::Type get_lastArgElementType() const { return m_lastArgElementType; }
+    ov::PartialShape get_lastArgPartialShape() const { return m_lastArgPartialShape; }
 };
 
 /// \brief Mock implementation of InputModel
@@ -278,7 +277,7 @@ struct MOCK_API ModelStat
 class MOCK_API InputModelMockPy : public InputModel
 {
     static ModelStat m_stat;
-    static PartialShape m_returnShape;
+    static ov::PartialShape m_returnShape;
 
     std::set<std::string> m_operations = {
         "8", "9", "8:9", "operation", "operation:0", "0:operation", "tensorAndOp", "conv2d"};
@@ -358,28 +357,28 @@ public:
     }
 
     // Setting tensor properties
-    void set_partial_shape(const Place::Ptr& place, const ngraph::PartialShape& shape) override
+    void set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape) override
     {
         m_stat.m_set_partial_shape++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgPartialShape = shape;
     }
 
-    ngraph::PartialShape get_partial_shape(const Place::Ptr& place) const override
+    ov::PartialShape get_partial_shape(const Place::Ptr& place) const override
     {
         m_stat.m_get_partial_shape++;
         m_stat.m_lastArgPlace = place;
         return m_returnShape;
     }
 
-    void set_element_type(const Place::Ptr& place, const ngraph::element::Type& type) override
+    void set_element_type(const Place::Ptr& place, const ov::element::Type& type) override
     {
         m_stat.m_set_element_type++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgElementType = type;
     }
 
-    static void mock_return_partial_shape(const PartialShape& shape) { m_returnShape = shape; }
+    static void mock_return_partial_shape(const ov::PartialShape& shape) { m_returnShape = shape; }
 
     //---------------Stat--------------------
     static ModelStat get_stat() { return m_stat; }

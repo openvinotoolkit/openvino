@@ -18,18 +18,18 @@ DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc) :
     MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims)), Dnnl),
     desc(DnnlExtensionUtils::clone_desc(cdesc)) {
     if (getFormatKind() == dnnl::memory::format_kind::any)
-        IE_THROW(Unexpected) << "Memory format any is prohibited!";
+        OPENVINO_THROW("Unexpected: Memory format any is prohibited!");
 }
 
-InferenceEngine::Precision DnnlMemoryDesc::getPrecision() const {
-    return DnnlExtensionUtils::DataTypeToIEPrecision(getDataType());
+ov::element::Type DnnlMemoryDesc::getPrecision() const {
+    return DnnlExtensionUtils::DataTypeToElementType(getDataType());
 }
 
 MemoryDescPtr DnnlMemoryDesc::clone() const {
     return std::make_shared<DnnlMemoryDesc>(*this);
 }
 
-MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {
     auto newDesc = std::make_shared<DnnlMemoryDesc>(*this);
     newDesc->setPrecision(prec);
     return newDesc;
@@ -70,7 +70,7 @@ std::string DnnlMemoryDesc::serializeFormat() const {
 
 size_t DnnlMemoryDesc::getMaxMemSize() const {
     if (shape.isDynamic()) {
-        IE_THROW() << "Can't compute max mem size for DnnlMemoryDesc with dynamic shape";
+        OPENVINO_THROW("Can't compute max mem size for DnnlMemoryDesc with dynamic shape");
     }
 
     return getCurrentMemSize();
@@ -117,7 +117,7 @@ bool DnnlMemoryDesc::isDefinedImp() const {
 }
 
 MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
-    IE_THROW(Unexpected) << "Cannot clone non blocked oneDNN desc with new dims";
+    OPENVINO_THROW("Unexpected: Cannot clone non blocked oneDNN desc with new dims");
 }
 
 size_t DnnlMemoryDesc::getOffsetPadding() const {

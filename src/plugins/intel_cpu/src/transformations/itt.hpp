@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include <openvino/cc/pass/itt.hpp>
 
 namespace ov {
 namespace intel_cpu {

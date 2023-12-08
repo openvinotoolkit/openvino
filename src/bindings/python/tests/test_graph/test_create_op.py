@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-from openvino.runtime import PartialShape, Dimension, Model
+from openvino import PartialShape, Dimension, Model, Type
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.types import make_constant_node
 
@@ -13,7 +13,6 @@ import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 import openvino.runtime.opset10 as ov_opset10
 import openvino.runtime.opset11 as ov
-from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -805,9 +804,38 @@ def test_roi_pooling():
     node = ov.roi_pooling(inputs, coords, [6, 6], 0.0625, "Max")
 
     assert node.get_type_name() == "ROIPooling"
+    assert node.get_output_roi() == [6, 6]
+    assert list(node.get_output_shape(0)) == [150, 3, 6, 6]
+    assert node.get_output_element_type(0) == Type.f32
+    node.set_output_roi([2, 1])
+    assert node.get_output_roi() == [2, 1]
+
+
+def test_roi_pooling_deprecation():
+    inputs = ov.parameter([2, 3, 4, 5], dtype=np.float32)
+    coords = ov.parameter([150, 5], dtype=np.float32)
+
+    with pytest.raises(AttributeError) as e:
+        _ = ov.roi_pooling(inputs, coords=coords, spatial_scale=0.0625, method="Max")
+    assert "One of the following arguments must be defined: `output_roi`, `output_size`!" in str(e.value)
+
+    with pytest.raises(AttributeError) as e:
+        _ = ov.roi_pooling(inputs, coords=coords, output_roi=[6, 6])
+    assert "The following arguments must be defined: `spatial_scale`!" in str(e.value)
+
+    with pytest.warns(DeprecationWarning) as w:
+        node = ov.roi_pooling(inputs, coords=coords, output_size=[6, 6], spatial_scale=0.0625, method="Max")
+    assert issubclass(w[0].category, DeprecationWarning)
+    assert "`output_size` is deprecated and will be removed in future" in str(w[0].message)
+
+    assert node.get_type_name() == "ROIPooling"
+    assert node.get_output_roi() == [6, 6]
     assert node.get_output_size() == [6, 6]
     assert list(node.get_output_shape(0)) == [150, 3, 6, 6]
     assert node.get_output_element_type(0) == Type.f32
+    node.set_output_size([2, 1])  # the same as: node.set_output_roi([2, 1])
+    assert node.get_output_roi() == [2, 1]
+    assert node.get_output_size() == [2, 1]
 
 
 @pytest.mark.parametrize(
@@ -1154,7 +1182,7 @@ def test_assign_opset5():
 def test_read_value():
     init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
 
-    node = ov.read_value(init_value, "var_id_667")
+    node = ov.read_value(init_value, "var_id_667", np.int32, [2, 2])
 
     assert node.get_type_name() == "ReadValue"
     assert node.get_output_size() == 1
@@ -1162,9 +1190,20 @@ def test_read_value():
     assert node.get_output_element_type(0) == Type.i32
 
 
+def test_read_value_dyn_variable_pshape():
+    init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
+
+    node = ov.read_value(init_value, "var_id_667", np.int32, [Dimension(1, 10), -1])
+
+    assert node.get_type_name() == "ReadValue"
+    assert node.get_output_size() == 1
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(1, 10), -1])
+    assert node.get_output_element_type(0) == Type.i32
+
+
 def test_assign():
     input_data = ov.parameter([5, 7], name="input_data", dtype=np.int32)
-    rv = ov.read_value(input_data, "var_id_667")
+    rv = ov.read_value(input_data, "var_id_667", np.int32, [5, 7])
     node = ov.assign(rv, "var_id_667")
 
     assert node.get_type_name() == "Assign"
@@ -2151,6 +2190,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_shape_calculation_mode() == shape_calculation_mode
 
 
 @pytest.mark.parametrize(

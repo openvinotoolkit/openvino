@@ -11,6 +11,7 @@
 using namespace testing;
 using namespace ov::element;
 
+namespace {
 struct TestVisitor : public ov::element::NotSupported<bool> {
     using ov::element::NotSupported<bool>::visit;
 
@@ -46,6 +47,7 @@ struct TestVisitorVoidReturn : public ov::element::NoAction<void> {
 };
 
 int TestVisitorVoidReturn::test_value;
+}  // namespace
 
 class IfTypeOfTest : public Test {
 protected:

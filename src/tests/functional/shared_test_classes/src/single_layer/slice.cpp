@@ -52,7 +52,9 @@ void Slice8LayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto sliceOp = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::ResultVector results;
     for (int i = 0; i < sliceOp->get_output_size(); i++)

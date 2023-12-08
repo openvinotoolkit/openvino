@@ -5,7 +5,6 @@
 # index_select paddle model generator
 #
 import numpy as np
-from paddle.fluid import param_attr
 from save_model import saveModel
 import paddle
 import sys

@@ -1,9 +1,0 @@
-[general]
-footnote_backlinks = false
-
-[restructuredtext parser]
-trim_footnote_reference_space = false
-tab_width = %tab_width%
-
-[html4css1 writer]
-footnote_references = superscript

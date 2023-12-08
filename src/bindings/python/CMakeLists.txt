@@ -187,7 +187,7 @@ if(LINUX)
                       DOC "Path to patchelf tool")
     if(NOT patchelf_program)
         set(ENABLE_WHEEL_DEFAULT OFF)
-        message(${message_mode} "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via apt-get install patchelf")
+        message(${message_mode} "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via `pip install patchelf` or `apt install patchelf`.")
     endif()
 endif()
 
@@ -403,6 +403,14 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
+    install(FILES constraints.txt
+            DESTINATION tests/bindings/python
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+    install(FILES src/openvino/preprocess/torchvision/requirements.txt
+            DESTINATION tests/python/preprocess/torchvision
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)

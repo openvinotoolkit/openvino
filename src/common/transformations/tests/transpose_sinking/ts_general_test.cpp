@@ -501,6 +501,38 @@ TEST(TransformationTests, TSGeneralBackwardCheckFriendlyAndTensorNamesForMultipl
         EXPECT_NE(actual_names.find(name), actual_names.end());
     }
 }
+
+TEST_F(TransformationTestsF, TSGeneralDisableShapeOf) {
+    using namespace transpose_sinking::testing::general;
+    ov::Shape input_shape = {1};
+    ov::element::Type input_type = ov::element::f32;
+
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        auto ng_order = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, ov::Shape{0});
+        auto transpose = std::make_shared<Transpose>(X, ng_order);
+
+        auto shape_of = std::make_shared<ShapeOf>(transpose);
+
+        model = std::make_shared<ov::Model>(shape_of, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        auto shape_of = std::make_shared<ShapeOf>(X);
+
+        auto indices = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, ov::Shape{0});
+        auto axes = std::make_shared<Constant>(ov::element::i32, ov::Shape{1}, ov::Shape{0});
+        auto gather = std::make_shared<Gather>(shape_of, indices, axes);
+
+        model = std::make_shared<ov::Model>(gather, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSGeneral>();
+}
+
 }  // namespace general
 }  // namespace testing
 }  // namespace transpose_sinking

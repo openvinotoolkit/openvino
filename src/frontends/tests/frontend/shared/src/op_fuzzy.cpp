@@ -107,7 +107,12 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ov::Model> mod
     }
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 126830
+TEST_P(FrontEndFuzzyOpTest, DISABLED_testOpFuzzy) {
+#else
 TEST_P(FrontEndFuzzyOpTest, testOpFuzzy) {
+#endif
     // load
     ASSERT_NO_THROW(doLoadFromFile());
 

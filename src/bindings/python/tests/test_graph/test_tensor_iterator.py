@@ -4,7 +4,7 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, Shape
+from openvino import Model, Shape
 
 from openvino.runtime.op.util import (
     InvariantInputDescription,

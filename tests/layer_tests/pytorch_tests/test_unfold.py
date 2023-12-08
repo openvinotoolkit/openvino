@@ -11,9 +11,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 @pytest.mark.parametrize('dimension', (0, 1, 2))
 @pytest.mark.parametrize('size', (1, 2))
 @pytest.mark.parametrize('step', (1, 2, 3, 4))
-@pytest.mark.parametrize('input_tensor', (np.random.randn(2, 2, 5).astype(np.float32),
-                                          np.random.randn(3, 3, 3, 3).astype(np.float32),
-                                          np.random.randn(2, 3, 4, 5).astype(np.float32)))
+@pytest.mark.parametrize('input_shape',
+[
+    [2, 2, 5], [3, 3, 3, 3], [2, 3, 4, 5]
+])
 class TestUnfold(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -37,7 +38,7 @@ class TestUnfold(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_tensor):
-        self.input_tensor = input_tensor
+    def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_shape):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(dimension, size, step),
                    ie_device, precision, ir_version)

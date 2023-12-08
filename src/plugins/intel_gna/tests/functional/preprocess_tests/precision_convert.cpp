@@ -55,12 +55,13 @@ protected:
         init_input_shapes({input_shapes});
 
         ov::ParameterVector params;
+        ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(net_type, shape));
+            auto param = std::make_shared<ov::op::v0::Parameter>(net_type, shape);
+            params.push_back(param);
+            paramsOuts.push_back(param);
         }
-        auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto concat = std::make_shared<ngraph::opset8::Concat>(paramOuts, 1);
+        auto concat = std::make_shared<ngraph::opset8::Concat>(paramsOuts, 1);
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
         function = std::make_shared<ngraph::Function>(results, params, "concat");
     }

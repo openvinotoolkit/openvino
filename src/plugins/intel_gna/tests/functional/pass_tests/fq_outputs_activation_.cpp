@@ -80,7 +80,9 @@ protected:
         auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
         ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(inputVector[0], ngPrc, outputCount, 1);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < outputCount; ++i) {

@@ -215,6 +215,14 @@ int get_socket_by_numa_node(int numa_node_id) {
     return -1;
 };
 
+int get_org_socket_id(int socket_id) {
+    return -1;
+}
+
+int get_org_numa_id(int numa_node_id) {
+    return -1;
+}
+
 #elif defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -266,6 +274,24 @@ int get_socket_by_numa_node(int numa_node_id) {
     }
     return -1;
 };
+
+int get_org_socket_id(int socket_id) {
+    CPU& cpu = cpu_info();
+    auto iter = cpu._socketid_mapping_table.find(socket_id);
+    if (iter != cpu._socketid_mapping_table.end()) {
+        return iter->second;
+    }
+    return -1;
+}
+
+int get_org_numa_id(int numa_node_id) {
+    CPU& cpu = cpu_info();
+    auto iter = cpu._numaid_mapping_table.find(numa_node_id);
+    if (iter != cpu._numaid_mapping_table.end()) {
+        return iter->second;
+    }
+    return -1;
+}
 
 #else
 
@@ -417,6 +443,25 @@ int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
 #    endif
     return logical_cores;
 }
+
+int get_org_socket_id(int socket_id) {
+    CPU& cpu = cpu_info();
+    auto iter = cpu._socketid_mapping_table.find(socket_id);
+    if (iter != cpu._socketid_mapping_table.end()) {
+        return iter->second;
+    }
+    return -1;
+}
+
+int get_org_numa_id(int numa_node_id) {
+    CPU& cpu = cpu_info();
+    auto iter = cpu._numaid_mapping_table.find(numa_node_id);
+    if (iter != cpu._numaid_mapping_table.end()) {
+        return iter->second;
+    }
+    return -1;
+}
+
 #endif
 
 #if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))

@@ -24,6 +24,7 @@ TEST(element_type, from) {
     EXPECT_EQ(element::from<uint16_t>(), element::u16);
     EXPECT_EQ(element::from<uint32_t>(), element::u32);
     EXPECT_EQ(element::from<uint64_t>(), element::u64);
+    EXPECT_EQ(element::from<std::string>(), element::string);
 }
 
 TEST(element_type, from_string) {
@@ -66,6 +67,8 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("U64"), element::u64);
     EXPECT_EQ(element::Type("nf4"), element::nf4);
     EXPECT_EQ(element::Type("NF4"), element::nf4);
+    EXPECT_EQ(element::Type("string"), element::string);
+    EXPECT_EQ(element::Type("STRING"), element::string);
 
     EXPECT_EQ(element::Type("undefined"), element::undefined);
     EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);

@@ -73,6 +73,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         strides_shape
     };
 
+    op.set_friendly_name(desc->id);
     op.set_begin_mask(desc->begin_mask);
     op.set_end_mask(desc->end_mask);
     op.set_new_axis_mask(desc->new_axis_mask);

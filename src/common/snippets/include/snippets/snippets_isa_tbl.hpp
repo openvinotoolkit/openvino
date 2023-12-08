@@ -24,6 +24,9 @@ OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
 OV_OP(RankNormalization, ov::snippets::op)
 
+OV_OP(PerfCountBegin, ov::snippets::op)
+OV_OP(PerfCountEnd, ov::snippets::op)
+
 // Layout-oblivious from opset1
 
 // opset completeness

@@ -57,6 +57,7 @@ public:
         return DeviceFeaturesKey();
     }
     virtual const std::string GetName() const { return kernelName; }
+    virtual void GetUpdateDispatchDataFunc(KernelData& kd) const { }
 
     static const primitive_db& get_db() { return db; }
 

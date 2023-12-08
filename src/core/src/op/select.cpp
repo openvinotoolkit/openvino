@@ -40,9 +40,7 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }
@@ -122,6 +120,15 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostT
     OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto autob = get_auto_broadcast();
+
+    auto out_shape = shape_infer(this,
+                                 std::vector<PartialShape>{input_values[0]->get_partial_shape(),
+                                                           input_values[1]->get_partial_shape(),
+                                                           input_values[2]->get_partial_shape()})[0]
+                         .to_shape();
+
+    output_values[0]->set_shape(out_shape);
+
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
 }
 

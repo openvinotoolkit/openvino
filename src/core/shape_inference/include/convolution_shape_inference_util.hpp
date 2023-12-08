@@ -285,12 +285,10 @@ void append_spatial_shape(const TOp* op,
 namespace validate {
 template <class TShape>
 void data_shape(const ov::op::util::ConvolutionBase* op, const TShape& data_shape) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(data_shape.rank(), {3, 4, 5}),
+                          ov::util::is_rank_compatible_any_of(data_shape.rank(), {3, 4, 5}),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           data_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 template <class TShape>

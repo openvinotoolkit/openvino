@@ -18,7 +18,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -47,11 +47,11 @@ public:
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     bool canFuse(const NodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -60,8 +60,8 @@ public:
         this->weightsNonTransposed = weightsNonTransposed;
     }
 
-    void fuseDecompressionMultiply(const NodePtr& constData);
-    void fuseDecompressionSubtract(const NodePtr& constData);
+    void fuseDecompressionMultiply(const MemoryCPtr& memory);
+    void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -99,7 +99,7 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
-    void fuseDecompressionConstant(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr);
+    void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     // sparse weights
     bool useSparseWeights = false;

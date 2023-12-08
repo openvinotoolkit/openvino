@@ -46,6 +46,18 @@ TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForOutput) {
     ASSERT_THROW(req.set_tensor(output, {}), ov::Exception);
 }
 
+TEST_P(OVInferRequestIOTensorTest, failToSetUninitializedInputTensor) {
+    ov::Tensor tensor;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_THROW(req.set_tensor(input, tensor), ov::Exception);
+}
+
+TEST_P(OVInferRequestIOTensorTest, failToSetUninitializedOutputTensor) {
+    ov::Tensor tensor;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_THROW(req.set_tensor(output, tensor), ov::Exception);
+}
+
 TEST_P(OVInferRequestIOTensorTest, canSetAndGetInput) {
     auto tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, tensor));
@@ -175,6 +187,15 @@ TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
+TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
+    ov::Tensor output_tensor;
+    OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(req.get_tensor(output));
+}
+
 TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedInputTensorThrow) {
     const ov::Shape shape1 = {1, 2, 32, 32};
     const ov::Shape shape2 = {1, 2, 40, 40};
@@ -217,6 +238,24 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedOutputTensorThrow
     // Set shape
     OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
     ASSERT_ANY_THROW(req.infer());
+}
+
+TEST_P(OVInferRequestIOTensorTest, CheckInferIsNotChangeInput) {
+    ov::Tensor input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
+    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
+    OV_ASSERT_NO_THROW(req.get_tensor(input));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    ov::Tensor input_after_infer;
+    OV_ASSERT_NO_THROW(input_after_infer = req.get_tensor(input));
+    ov::test::utils::compare(input_tensor, input_after_infer);
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    ov::Tensor input_after_several_infer;
+    OV_ASSERT_NO_THROW(input_after_several_infer = req.get_tensor(input));
+    ov::test::utils::compare(input_tensor, input_after_several_infer);
 }
 
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {

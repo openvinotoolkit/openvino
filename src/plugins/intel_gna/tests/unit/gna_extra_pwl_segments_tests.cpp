@@ -144,6 +144,7 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
     std::shared_ptr<Result> result = nullptr;
 
     if (use_pooling) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto maxpool = ngraph::builder::makePooling(activation,
                                                     stride,
                                                     pad_begin_pool,
@@ -153,6 +154,7 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
                                                     PadType::VALID,
                                                     false,
                                                     ngraph::helpers::PoolingTypes::MAX);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         result = std::make_shared<Result>(maxpool);
     } else {
         result = std::make_shared<Result>(activation);

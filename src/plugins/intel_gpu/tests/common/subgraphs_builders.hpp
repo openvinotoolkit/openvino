@@ -14,13 +14,15 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/pass/make_stateful.hpp"
 
 namespace tests {
 
 inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::Dimension::dynamic(),
                                                             ov::Dimension n_heads = ov::Dimension::dynamic(),
                                                             ov::Dimension n_features = ov::Dimension::dynamic(),
-                                                            ov::element::Type_t element_type = ov::element::f32) {
+                                                            ov::element::Type_t element_type = ov::element::f32,
+                                                            bool stateful = false) {
     ov::PartialShape kv_cache_size = {batch, n_heads, -1, n_features};
     ov::PartialShape new_token_size = {batch, -1, n_heads, n_features};
     ov::PartialShape matmul_in_size = {batch, n_heads, -1, -1};
@@ -44,7 +46,12 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
 
     ov::ParameterVector params{in_kv_prev, in_new_token, in_matmul};
     ov::ResultVector results{kv_present, matmul_out};
-    return std::make_shared<ov::Model>(results, params, "LLM-KV-Cache");
+    auto model = std::make_shared<ov::Model>(results, params, "LLM-KV-Cache");
+    if (stateful) {
+        ov::pass::MakeStateful({{in_kv_prev, kv_present}}).run_on_model(model);
+    }
+
+    return model;
 }
 
 } // namespace tests

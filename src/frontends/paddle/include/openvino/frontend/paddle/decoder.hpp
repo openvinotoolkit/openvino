@@ -40,6 +40,9 @@ public:
     virtual size_t get_output_size() const = 0;
     virtual size_t get_output_size(const std::string& port_name) const = 0;
 
+    /// \brief Get the version
+    virtual int64_t get_version() const = 0;
+
     /// \brief Get output port type
     ///
     /// Current API assumes that output port has only one output type.

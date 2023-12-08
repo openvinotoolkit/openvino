@@ -88,12 +88,11 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
                             const ov::Output<ov::Node>& B,
                             const ov::op::RecurrentSequenceDirection& direction) {
     auto X_pshape = X.get_partial_shape();
-    if (X_pshape.size() < 2 || X_pshape[1].is_dynamic()) {
+    if (X_pshape.size() < 2) {
         return false;
     }
 
-    auto max_seq_len = X_pshape[1].get_length();
-    bool enable_mask = ov::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+    bool enable_mask = ov::op::util::is_seq_len_provided(X.get_node_shared_ptr(), seq_lengths.get_node_shared_ptr());
 
     const bool is_reverse = direction == ov::op::RecurrentSequenceDirection::REVERSE;
     std::shared_ptr<ov::Node> reverse_seq_before;

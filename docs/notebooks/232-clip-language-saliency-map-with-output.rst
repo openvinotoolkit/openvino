@@ -77,31 +77,46 @@ used to build the saliency map. Here is how it can be done:
    ``crop`` is closer to the ``query``, and it should be a red region on
    the saliency map. If negative, it should be blue.
 5. Update the corresponding region on the ``saliency map``.
-6. Repeat steps 2-5 multiple times (``n_iters``).
+6. Repeat steps 2-5 multiple times (``n_iters``). 
+
+**Table of contents:**
+---
+
+-  `Initial Implementation with Transformers and
+   Pytorch <#initial-implementation-with-transformers-and-pytorch>`__
+-  `Separate Text and Visual
+   Processing <#separate-text-and-visual-processing>`__
+-  `Convert to OpenVINO™ Intermediate Representation (IR)
+   Format <#convert-to-openvino-intermediate-representation-ir-format>`__
+-  `Inference with OpenVINO™ <#inference-with-openvino>`__
+
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Accelerate Inference with
+   AsyncInferQueue <#accelerate-inference-with-asyncinferqueue>`__
+-  `Pack the Pipeline into a
+   Function <#pack-the-pipeline-into-a-function>`__
+-  `Interactive demo with
+   Gradio <#interactive-demo-with-gradio>`__
+-  `What To Do Next <#what-to-do-next>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
 .. |image1| image:: https://openaiassets.blob.core.windows.net/$web/clip/draft/20210104b/overview-a.svg
 
-Initial Implementation with Transformers and Pytorch
-----------------------------------------------------
+Initial Implementation with Transformers and Pytorch 
+----------------------------------------------------------------------------------------------
 
 .. code:: ipython3
 
     # Install requirements
-    !pip install -q "openvino-dev>=2023.0.0"
-    !pip install -q onnx transformers torch
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu transformers torch gradio
 
 .. code:: ipython3
 
     from pathlib import Path
-    from typing import Tuple, Union
+    from typing import Tuple, Union, Optional
+    from urllib.request import urlretrieve
     
     from matplotlib import colors
     import matplotlib.pyplot as plt
@@ -111,6 +126,15 @@ Initial Implementation with Transformers and Pytorch
     import tqdm
     from PIL import Image
     from transformers import CLIPModel, CLIPProcessor
+
+
+.. parsed-literal::
+
+    2023-09-12 14:10:49.435909: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-12 14:10:49.470573: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-09-12 14:10:50.130215: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
 
 To get the CLIP model, you will use the ``transformers`` library and the
 official ``openai/clip-vit-base-patch16`` from OpenAI. You can use any
@@ -129,15 +153,6 @@ steps.
     
     model = CLIPModel.from_pretrained(model_checkpoint).eval()
     processor = CLIPProcessor.from_pretrained(model_checkpoint)
-
-
-.. parsed-literal::
-
-    2023-07-18 23:28:44.655634: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-18 23:28:44.687925: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-18 23:28:45.260957: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 Let us write helper functions first. You will generate crop coordinates
 and size with ``get_random_crop_params``, and get the actual crop with
@@ -181,13 +196,16 @@ formula above.
     ) -> Union[np.ndarray, torch.Tensor]:
         return one @ other.T / (np.linalg.norm(one) * np.linalg.norm(other))
 
-Parameters to be defined: - ``n_iters`` - number of times the procedure
-will be repeated. Larger is better, but will require more time to
-inference - ``min_crop_size`` - minimum size of the crop window. A
-smaller size will increase the resolution of the saliency map but may
-require more iterations - ``query`` - text that will be used to query
-the image - ``image`` - the actual image that will be queried. You will
-download the image from a link
+Parameters to be defined:
+
+-  ``n_iters`` - number of times the procedure will be repeated. Larger
+   is better, but will require more time to inference
+-  ``min_crop_size`` - minimum size of the crop window. A smaller size
+   will increase the resolution of the saliency map but may require more
+   iterations
+-  ``query`` - text that will be used to query the image
+-  ``image`` - the actual image that will be queried. You will download
+   the image from a link
 
 The image at the beginning was acquired with ``n_iters=2000`` and
 ``min_crop_size=50``. You will start with the lower number of inferences
@@ -200,8 +218,9 @@ parameters at the end, when you get an optimized model.
     min_crop_size = 50
     
     query = "Who developed the Theory of General Relativity?"
-    image_url = "https://pbs.twimg.com/media/Ee_aDODUMAAEBjW?format=jpg&name=small"
-    image = Image.open(requests.get(image_url, stream=True).raw)
+    image_path = Path("example.jpg")
+    urlretrieve("https://www.storypick.com/wp-content/uploads/2016/01/AE-2.jpg", image_path)
+    image = Image.open(image_path)
     im_tensor = np.array(image)
     
     x_dim, y_dim = image.size
@@ -280,8 +299,8 @@ Let us overlay the saliency map on the image:
 
 .. code:: ipython3
 
-    def plot_saliency_map(image_tensor: np.array, saliency_map: np.array, query: str) -> None:
-        plt.figure(dpi=150)
+    def plot_saliency_map(image_tensor: np.ndarray, saliency_map: np.ndarray, query: Optional[str]) -> None:
+        fig = plt.figure(dpi=150)
         plt.imshow(image_tensor)
         plt.imshow(
             saliency_map, 
@@ -289,20 +308,22 @@ Let us overlay the saliency map on the image:
             cmap="jet", 
             alpha=0.5,  # make saliency map trasparent to see original picture
         )
-        plt.title(f'Query: "{query}"')
+        if query:
+            plt.title(f'Query: "{query}"')
         plt.axis("off")
-        plt.show()
+        return fig
+        
     
     
-    plot_saliency_map(im_tensor, saliency_map, query)
+    plot_saliency_map(im_tensor, saliency_map, query);
 
 
 
 .. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_17_0.png
 
 
-Separate Text and Visual Processing
------------------------------------
+Separate Text and Visual Processing 
+-----------------------------------------------------------------------------
 
 The code above is functional, but there are some repeated computations
 that can be avoided. The text embedding can be computed once because it
@@ -333,7 +354,7 @@ obtain embeddings for the cropped images.
         similarity = cosine_similarity(text_embeds, image_embeds).item() - initial_similarity
         update_saliency_map(saliency_map, similarity, x, y, crop_size)
     
-    plot_saliency_map(im_tensor, saliency_map, query)
+    plot_saliency_map(im_tensor, saliency_map, query);
 
 
 
@@ -349,8 +370,8 @@ obtain embeddings for the cropped images.
 The result might be slightly different because you use random crops to
 build a saliency map.
 
-Convert to OpenVINO™ Intermediate Representation (IR) Format
-------------------------------------------------------------
+Convert to OpenVINO™ Intermediate Representation (IR) Format 
+------------------------------------------------------------------------------------------------------
 
 The process of building a saliency map can be quite time-consuming. To
 speed it up, you will use OpenVINO. OpenVINO is an inference framework
@@ -358,93 +379,39 @@ designed to run pre-trained neural networks efficiently. One way to use
 it is to convert a model from its original framework representation to
 an OpenVINO Intermediate Representation (IR) format and then load it for
 inference. The model currently uses PyTorch. To get an IR, you need to
-first convert the PyTorch model to the ONNX format. It can be done with
-the ``torch.onnx.export`` function. See the `PyTorch
-documentation <https://pytorch.org/docs/stable/onnx.html>`__ for more
-information on ONNX conversion.
+use Model Conversion API. ``ov.convert_model`` function accepts PyTorch
+model object and example input and converts it to OpenVINO Model
+instance, that ready to load on device using ``ov.compile_model`` or can
+be saved on disk using ``ov.save_model``. To separate model on text and
+image parts, we overload forward method with ``get_text_features`` and
+``get_image_features`` methods respectively. Internally, PyTorch
+conversion to OpenVINO involves TorchScript tracing. For achieving
+better conversion results, we need to guarantee that model can be
+successfully traced. ``model.config.torchscript = True`` parameters
+allows to prepare HuggingFace models for TorchScript tracing. More
+details about that can be found in HuggingFace Transformers
+`documentation <https://huggingface.co/docs/transformers/torchscript>`__
 
 .. code:: ipython3
 
-    model_name = model_checkpoint.split('/')[-1]
+    import openvino as ov
     
-    onnx_model_path = Path("onnx") / f"{model_name}.onnx"
-    onnx_model_path.parent.mkdir(exist_ok=True)
+    model_name = model_checkpoint.split("/")[-1]
     
-    torch.onnx.export(
-        model,  # model is being run
-        dict(inputs),
-        onnx_model_path,  # where to save the model
-        opset_version=14,  # the ONNX version to export the model to
-        input_names=["input_ids", "pixel_values", "attention_mask"],  # the model's input names
-        output_names=["logits_per_image", "logits_per_text", "text_embeds", "image_embeds"],  # the model's output names
-        dynamic_axes={  # variable length axes
-            "input_ids": {0: "batch", 1: "sequence"},
-            "pixel_values": {0: "batch", 1: "num_channels", 2: "height", 3: "width"},
-            "attention_mask": {0: "batch", 1: "sequence"},
-            "logits_per_image": {0: "batch"},
-            "logits_per_text": {0: "batch"},
-            "text_embeds": {0: "batch"},
-            "image_embeds": {0: "batch"}
-        }
-    )
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:286: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:326: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:294: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:303: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
-      warnings.warn(
-
-
-Currently, you can load an ONNX file to OpenVINO and serialize the
-resulting model into an IR. This may not be optimal for your use case.
-The CLIP model contains two separate parts: the image encoder and the
-text encoder. You can split the CLIP into two models and call them
-separately.
-
-To convert the model to IR, you can use `Model Optimizer
-(MO) <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
-When you convert a model to the OpenVINO format, Model Optimizer enables
-specifying the inputs and outputs you want to use. During the
-conversion, it will trim the remaining parts of the model. Therefore,
-when you pass the text inputs and outputs, the MO will “extract” only
-the text part of the model.
-
-You already know the required outputs: ``text_embeds`` and
-``image_embeds``. The input for the image is ``pixel_values``, and the
-remaining ``input_ids`` and ``attention_mask`` correspond to the text.
-You also make the image input of the model static because there is no
-variation in the input size after preprocessing.
-
-.. code:: ipython3
-
-    from openvino.runtime import serialize
-    from openvino.tools import mo
-    
-    
-    text_ov_model = mo.convert_model(
-        onnx_model_path, 
-        compress_to_fp16=True,
-        input="input_ids,attention_mask",
-        output="text_embeds",
+    model.config.torchscript = True
+    model.forward = model.get_text_features
+    text_ov_model = ov.convert_model(
+        model, 
+        example_input={"input_ids": inputs.input_ids, "attention_mask": inputs.attention_mask}
     )
     
     # get image size after preprocessing from the processor
     crops_info = processor.image_processor.crop_size.values() if hasattr(processor, "image_processor") else processor.feature_extractor.crop_size.values()
-    processed_image_height_width = ",".join(map(str, crops_info))
-    image_ov_model = mo.convert_model(
-        onnx_model_path, 
-        compress_to_fp16=True,
-        input="pixel_values",
-        input_shape=f"[1,3,{processed_image_height_width}]",
-        output="image_embeds",
+    model.forward = model.get_image_features
+    image_ov_model = ov.convert_model(
+        model, 
+        example_input={"pixel_values": inputs.pixel_values},
+        input=[1,3, *crops_info],
     )
     
     ov_dir = Path("ir")
@@ -453,23 +420,55 @@ variation in the input size after preprocessing.
     image_model_path = ov_dir / f"{model_name}_image.xml"
     
     # write resulting models on disk
-    serialize(text_ov_model, str(text_model_path))
-    serialize(image_ov_model, str(image_model_path))
+    ov.save_model(text_ov_model, text_model_path)
+    ov.save_model(image_ov_model, image_model_path)
 
 
 .. parsed-literal::
 
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 
 
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:295: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:304: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attention_mask.size() != (bsz, 1, tgt_len, src_len):
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:327: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
+
+
 Now, you have two separate models for text and images, stored on disk
 and ready to be loaded and inferred with OpenVINO™.
 
-Inference with OpenVINO™
-------------------------
+Inference with OpenVINO™ 
+------------------------------------------------------------------
 
 1. Create an instance of the ``Core`` object that will handle any
    interaction with OpenVINO runtime for you.
@@ -480,17 +479,15 @@ Inference with OpenVINO™
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    
-    core = Core()
+    core = ov.Core()
     
     text_model = core.read_model(text_model_path)
     image_model = core.read_model(image_model_path)
 
-Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -510,7 +507,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -536,8 +533,8 @@ the inference process is mostly similar.
     )
     image_inputs = text_inputs.pop("pixel_values")
     
-    text_embeds = text_model(text_inputs)[text_model.output()]
-    image_embeds = image_model(image_inputs)[image_model.output()]
+    text_embeds = text_model(text_inputs)[0]
+    image_embeds = image_model(image_inputs)[0]
     
     initial_similarity = cosine_similarity(text_embeds, image_embeds)
     saliency_map = np.zeros((y_dim, x_dim))
@@ -552,7 +549,7 @@ the inference process is mostly similar.
         similarity = cosine_similarity(text_embeds, image_embeds) - initial_similarity
         update_saliency_map(saliency_map, similarity, x, y, crop_size)
     
-    plot_saliency_map(im_tensor, saliency_map, query)
+    plot_saliency_map(im_tensor, saliency_map, query);
 
 
 
@@ -562,11 +559,11 @@ the inference process is mostly similar.
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_31_1.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_29_1.png
 
 
-Accelerate Inference with ``AsyncInferQueue``
----------------------------------------------
+Accelerate Inference with ``AsyncInferQueue`` 
+---------------------------------------------------------------------------------------
 
 Up until now, the pipeline was synchronous, which means that the data
 preparation, model input population, model inference, and output
@@ -597,7 +594,6 @@ performance hint.
 .. code:: ipython3
 
     from typing import Dict, Any
-    from openvino.runtime import AsyncInferQueue, InferRequest
     
     
     image_model = core.read_model(image_model_path)
@@ -622,9 +618,11 @@ performance hint.
     saliency_map = np.zeros((y_dim, x_dim))
 
 Your callback should do the same thing that you did after inference in
-the sync mode: - Pull the image embeddings from an inference request. -
-Compute cosine similarity between text and image embeddings. - Update
-saliency map based.
+the sync mode:
+
+-  Pull the image embeddings from an inference request.
+-  Compute cosine similarity between text and image embeddings.
+-  Update saliency map based.
 
 If you do not change the progress bar, it will show the progress of
 pushing data to the inference queue. To track the actual progress, you
@@ -634,7 +632,7 @@ should pass a progress bar object and call ``update`` method after
 .. code:: ipython3
 
     def completion_callback(
-        infer_request: InferRequest,  # inferente result
+        infer_request: ov.InferRequest,  # inferente result
         user_data: Dict[str, Any],  # data that you passed along with input pixel values
     ) -> None:
         pbar = user_data.pop("pbar")
@@ -648,38 +646,40 @@ should pass a progress bar object and call ``update`` method after
         pbar.update(1)  # update the progress bar
     
     
-    infer_queue = AsyncInferQueue(image_model)
+    infer_queue = ov.AsyncInferQueue(image_model)
     infer_queue.set_callback(completion_callback)
 
 .. code:: ipython3
 
-    with tqdm.notebook.tqdm(total=n_iters) as pbar:
-        for _ in range(n_iters):    
-            x, y, crop_size = get_random_crop_params(y_dim, x_dim, min_crop_size)
-            im_crop = get_cropped_image(im_tensor, x, y, crop_size)
-    
-            image_inputs = processor(images=[im_crop], return_tensors="np")
-            
-            # push data to the queue
-            infer_queue.start_async(
-                # pass inference data as usual
-                image_inputs.pixel_values,
-                # the data that will be passed to the callback after the inference complete
-                {
-                    "text_embeds": text_embeds, 
-                    "saliency_map": saliency_map,
-                    "initial_similarity": initial_similarity,
-                    "x": x, 
-                    "y": y, 
-                    "crop_size": crop_size,
-                    "pbar": pbar,
-                }
-            )
+    def infer(im_tensor, x_dim, y_dim, text_embeds, image_embeds, initial_similarity, saliency_map, query, n_iters, min_crop_size, _tqdm=tqdm.notebook.tqdm, include_query=True):
+        with _tqdm(total=n_iters) as pbar:
+            for _ in range(n_iters):    
+                x, y, crop_size = get_random_crop_params(y_dim, x_dim, min_crop_size)
+                im_crop = get_cropped_image(im_tensor, x, y, crop_size)
         
-        # after you pushed all data to the queue you wait until all callbacks finished
-        infer_queue.wait_all()
-    
-    plot_saliency_map(im_tensor, saliency_map, query)
+                image_inputs = processor(images=[im_crop], return_tensors="np")
+                
+                # push data to the queue
+                infer_queue.start_async(
+                    # pass inference data as usual
+                    image_inputs.pixel_values,
+                    # the data that will be passed to the callback after the inference complete
+                    {
+                        "text_embeds": text_embeds, 
+                        "saliency_map": saliency_map,
+                        "initial_similarity": initial_similarity,
+                        "x": x, 
+                        "y": y, 
+                        "crop_size": crop_size,
+                        "pbar": pbar,
+                    }
+                )
+            
+            # after you pushed all data to the queue you wait until all callbacks finished
+            infer_queue.wait_all()
+        
+        return plot_saliency_map(im_tensor, saliency_map, query if include_query else None)
+    infer(im_tensor, x_dim, y_dim, text_embeds, image_embeds, initial_similarity, saliency_map, query, n_iters, min_crop_size, _tqdm=tqdm.notebook.tqdm, include_query=True);
 
 
 
@@ -689,11 +689,11 @@ should pass a progress bar object and call ``update`` method after
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_37_1.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_35_1.png
 
 
-Pack the Pipeline into a Function
----------------------------------
+Pack the Pipeline into a Function 
+---------------------------------------------------------------------------
 
 Let us wrap all code in the function and add a user interface to it.
 
@@ -702,7 +702,7 @@ Let us wrap all code in the function and add a user interface to it.
     import ipywidgets as widgets
     
     
-    def build_saliency_map(image: Image, query: str, n_iters: int = n_iters, min_crop_size=min_crop_size):
+    def build_saliency_map(image: Image, query: str, n_iters: int = n_iters, min_crop_size=min_crop_size, _tqdm=tqdm.notebook.tqdm, include_query=True):
         x_dim, y_dim = image.size
         im_tensor = np.array(image)
     
@@ -717,27 +717,7 @@ Let us wrap all code in the function and add a user interface to it.
         initial_similarity = cosine_similarity(text_embeds, image_embeds)
         saliency_map = np.zeros((y_dim, x_dim))
     
-        with tqdm.notebook.tqdm(total=n_iters) as pbar:
-            for _ in range(n_iters):
-                x, y, crop_size = get_random_crop_params(y_dim, x_dim, min_crop_size)
-                im_crop = get_cropped_image(im_tensor, x, y, crop_size)
-    
-                image_inputs = processor(images=[im_crop], return_tensors="np")
-                infer_queue.start_async(
-                    image_inputs.pixel_values,
-                    {
-                        "text_embeds": text_embeds,
-                        "saliency_map": saliency_map,
-                        "initial_similarity": initial_similarity,
-                        "x": x,
-                        "y": y,
-                        "crop_size": crop_size,
-                        "pbar": pbar,
-                    }
-                )
-            infer_queue.wait_all()
-    
-        plot_saliency_map(im_tensor, saliency_map, query)
+        return infer(im_tensor, x_dim, y_dim, text_embeds, image_embeds, initial_similarity, saliency_map, query, n_iters, min_crop_size, _tqdm=_tqdm, include_query=include_query)
 
 The first version will enable passing a link to the image, as you have
 done so far in the notebook.
@@ -820,19 +800,72 @@ The second version will enable loading the image from your computer.
     interactive(children=(FileUpload(value=(), accept='image/*', description='Image file'), Text(value='', continu…
 
 
-What To Do Next
----------------
+Interactive demo with Gradio 
+----------------------------------------------------------------------
+
+.. code:: ipython3
+
+    import gradio as gr
+    
+    
+    def _process(image, query, n_iters, min_crop_size, _=gr.Progress(track_tqdm=True)):
+        saliency_map = build_saliency_map(image, query, n_iters, min_crop_size, _tqdm=tqdm.tqdm, include_query=False)
+    
+        return saliency_map
+    
+    
+    demo = gr.Interface(
+        _process,
+        [
+            gr.Image(label="Image", type="pil"),
+            gr.Textbox(label="Query"),
+            gr.Slider(1, 10000, n_iters, label="Number of iterations"),
+            gr.Slider(1, 200, min_crop_size, label="Minimum crop size"),
+        ],
+        gr.Plot(label="Result"),
+        examples=[[image_path, query]],
+    )
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+.. .. raw:: html
+
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
+What To Do Next 
+---------------------------------------------------------
 
 Now that you have a convenient interface and accelerated inference, you
-can explore the CLIP capabilities further. For example: - Can CLIP read?
-Can it detect text regions in general and specific words on the image? -
-Which famous people and places does CLIP know? - Can CLIP identify
-places on a map? Or planets, stars, and constellations? - Explore
-different CLIP models from HuggingFace Hub: just change the
-``model_checkpoint`` at the beginning of the notebook. - Add batch
-processing to the pipeline: modify ``get_random_crop_params``,
-``get_cropped_image`` and ``update_saliency_map`` functions to process
-multiple crop images at once and accelerate the pipeline even more. -
-Optimize models with
-`NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__
-to get further acceleration.
+can explore the CLIP capabilities further. For example:
+
+-  Can CLIP read? Can it detect text regions in general and specific
+   words on the image?
+-  Which famous people and places does CLIP know?
+-  Can CLIP identify places on a map? Or planets, stars, and
+   constellations?
+-  Explore different CLIP models from HuggingFace Hub: just change the
+   ``model_checkpoint`` at the beginning of the notebook.
+-  Add batch processing to the pipeline: modify
+   ``get_random_crop_params``, ``get_cropped_image`` and
+   ``update_saliency_map`` functions to process multiple crop images at
+   once and accelerate the pipeline even more.
+-  Optimize models with
+   `NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__
+   to get further acceleration. You can find example how to quantize
+   CLIP model in `this
+   notebook <228-clip-zero-shot-image-classification-with-output.html>`__

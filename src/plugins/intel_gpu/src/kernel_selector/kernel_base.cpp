@@ -201,6 +201,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         return jit;
 
     std::string input_decls = "";
+    std::string input_args = "";
 
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
@@ -211,10 +212,12 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
             input_decls += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_DECLS";
+            input_args += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_ARGS";
         }
     }
 
     jit.AddConstant(MakeJitConstant("FUSED_OPS_DECLS", input_decls));
+    jit.AddConstant(MakeJitConstant("FUSED_OPS_ARGS", input_args));
     jit.AddConstant(MakeJitConstant("HAS_FUSED_OPS", true));
     jit.AddConstant(MakeJitConstant("HAS_FUSED_OPS_DECLS", !input_decls.empty()));
 

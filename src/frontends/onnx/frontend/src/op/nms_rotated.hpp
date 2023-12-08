@@ -30,7 +30,8 @@ inline OutputVector nms_rotated(const Node& node) {
                                                          node.get_ng_inputs().at(1),
                                                          max_output_boxes_per_class,
                                                          iou_threshold_const,
-                                                         score_threshold_const);
+                                                         score_threshold_const,
+                                                         false);
 
     return {nms->output(0)};
 }

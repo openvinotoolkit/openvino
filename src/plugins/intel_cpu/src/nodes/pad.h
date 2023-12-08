@@ -46,7 +46,7 @@ private:
         VectorIdxs padsEnd;
         int beginPadIdx = 0;
         int endPadIdx = 0;
-        InferenceEngine::Precision prc;
+        ov::element::Type prc;
         bool constPadValue = false;
     } attrs;
 

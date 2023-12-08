@@ -65,8 +65,7 @@ protected:
             std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[2]),
         };
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-        auto select = builder::makeSelect(paramOuts, broadcast);
+        auto select = std::make_shared<ov::op::v1::Select>(params[0], params[1], params[2], broadcast);
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;

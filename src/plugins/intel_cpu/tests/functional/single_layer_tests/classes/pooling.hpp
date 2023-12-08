@@ -9,20 +9,21 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/single_layer/pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/single_op/pooling.hpp"
 
-using namespace ov::test;
 using namespace CPUTestUtils;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-using poolLayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::poolSpecificParams,
+using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              InputShape,
                                              ElementType,
                                              bool,
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
-using maxPoolV8LayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::maxPoolV8SpecificParams,
+using maxPoolV8LayerCpuTestParamsSet = std::tuple<maxPoolV8SpecificParams,
         InputShape,
         ElementType,
         CPUSpecificParams>;
@@ -47,23 +48,24 @@ protected:
 
 namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
-const ngraph::op::RoundingType expectedAvgRoundingType();
+const ov::op::RoundingType expectedAvgRoundingType();
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax3D();
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg3D();
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax4D();
+const std::vector<poolSpecificParams>& paramsMax3D();
+const std::vector<poolSpecificParams>& paramsAvg3D();
+const std::vector<poolSpecificParams>& paramsMax4D();
 
-const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams>& paramsMaxV84D();
-const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams>& paramsMaxV85D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
 
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes4D();
 const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D();
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D_Large();
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg5D();
-const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax5D();
-} // namespace Pooling
-} // namespace CPULayerTestsDefinitions
+const std::vector<poolSpecificParams>& paramsAvg4D();
+const std::vector<poolSpecificParams>& paramsAvg4D_Large();
+const std::vector<poolSpecificParams>& paramsAvg5D();
+const std::vector<poolSpecificParams>& paramsMax5D();
+}  // namespace Pooling
+}  // namespace test
+}  // namespace ov

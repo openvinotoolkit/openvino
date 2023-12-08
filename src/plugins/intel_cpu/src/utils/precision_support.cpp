@@ -4,16 +4,15 @@
 
 #include "precision_support.h"
 
-#include "ie_precision.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-bool hasHardwareSupport(const InferenceEngine::Precision& precision) {
+bool hasHardwareSupport(const ov::element::Type& precision) {
     switch (precision) {
-    case InferenceEngine::Precision::FP16: {
+    case ov::element::f16: {
 #if defined(OPENVINO_ARCH_X86_64)
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16))
             return true;
@@ -24,7 +23,7 @@ bool hasHardwareSupport(const InferenceEngine::Precision& precision) {
         return false;
 #endif
     }
-    case InferenceEngine::Precision::BF16: {
+    case ov::element::bf16: {
 #if defined(OPENVINO_ARCH_X86_64)
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             return true;

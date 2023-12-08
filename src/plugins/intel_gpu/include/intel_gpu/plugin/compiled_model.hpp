@@ -28,7 +28,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config);
-    CompiledModel(cldnn::BinaryInputBuffer ib,
+    CompiledModel(cldnn::BinaryInputBuffer& ib,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config);
@@ -43,11 +43,7 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
     void set_property(const ov::AnyMap& properties) override {
-        OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
-                               "",
-                               false,
-                               "Not Implemented: ",
-                               "CompiledModel::set_property is not supported by this plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented: CompiledModel::set_property is not supported by this plugin!");
     };
 
     const std::vector<ov::Output<const ov::Node>>& outputs() const override { return m_outputs; }
@@ -62,7 +58,6 @@ private:
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
-    std::shared_ptr<ov::Model> m_model;
     std::string m_model_name;
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;

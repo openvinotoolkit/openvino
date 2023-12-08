@@ -6,7 +6,7 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
@@ -93,7 +93,7 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
 std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
-    auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+    auto dataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     const auto& srcDims = node->getInputShapeAtPort(0).getDims();
     const auto& inDataShape = node->getInputShapeAtPort(0);
@@ -101,19 +101,25 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
 
     NodeConfig config;
     if (repeats.size() != outDataShapeRank && !repeats.empty())
-        IE_THROW() << node->getTypeStr() << " node with name " << node->getName() << " has incorrect Repeats vector."
-                "Repeats rank must be equal to output shape rank. Repeats rank: " << repeats.size() << ", output shape rank: " << outDataShapeRank;
+        OPENVINO_THROW(node->getTypeStr(),
+                       " node with name ",
+                       node->getName(),
+                       " has incorrect Repeats vector."
+                       "Repeats rank must be equal to output shape rank. Repeats rank: ",
+                       repeats.size(),
+                       ", output shape rank: ",
+                       outDataShapeRank);
 
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
     config.inConfs[0].constant(constMap[0]);
     config.inConfs[1].inPlace(-1);
     config.inConfs[1].constant(constMap[1]);
-    config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(1)));
+    config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(1)));
     if (config.inConfs.size() == 3) {
         config.inConfs[2].inPlace(-1);
         config.inConfs[2].constant(constMap[2]);
-        config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(2)));
+        config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(2)));
     }
 
     config.outConfs.resize(node->getChildEdges().size());

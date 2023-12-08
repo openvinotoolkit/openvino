@@ -12,7 +12,7 @@ using ov::test::Mvn1LayerTest;
 using ov::test::Mvn6LayerTest;
 
 const std::vector<bool> empty_across_channels = {{}};
-const std::vector<ngraph::AxisSet> empty_reduction_axes = {{}};
+const std::vector<ov::AxisSet> empty_reduction_axes = {{}};
 
 const std::vector<std::vector<ov::Shape>> input_shapes_static = {
     {{8}},
@@ -69,7 +69,7 @@ const std::vector<std::vector<ov::Shape>> input_shapes_reduction_axes_static = {
 const auto MvnReductionAxes = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_reduction_axes_static)),
     ::testing::Values(ov::element::f32),
-    ::testing::ValuesIn(std::vector<ngraph::AxisSet>{{1, 2, 3}, {2, 3}}),
+    ::testing::ValuesIn(std::vector<ov::AxisSet>{{1, 2, 3}, {2, 3}}),
     ::testing::ValuesIn(empty_across_channels),
     ::testing::ValuesIn(normalize_variance),
     ::testing::ValuesIn(epsilon),

@@ -4,24 +4,24 @@
 
 #include <vector>
 
-#include "single_layer_tests/gather_tree.hpp"
+#include "single_op_tests/gather_tree.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::GatherTreeLayerTest;
+using ov::test::utils::InputLayerType;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i32
 };
 
-const std::vector<std::vector<size_t>> inputShapes = { {5, 1, 10}, {1, 1, 10}, {20, 1, 10}, {20, 20, 10} };
+const std::vector<ov::Shape> inputShapes = { {5, 1, 10}, {1, 1, 10}, {20, 1, 10}, {20, 20, 10} };
 
-const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<InputLayerType> secondaryInputTypes = {
+        InputLayerType::CONSTANT,
+        InputLayerType::PARAMETER
 };
 
 INSTANTIATE_TEST_SUITE_P(Basic_smoke, GatherTreeLayerTest,
@@ -29,10 +29,6 @@ INSTANTIATE_TEST_SUITE_P(Basic_smoke, GatherTreeLayerTest,
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
         GatherTreeLayerTest::getTestCaseName);
 

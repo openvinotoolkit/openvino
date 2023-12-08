@@ -51,11 +51,10 @@ void ExperimentalDetectronTopKROIsLayerTest::SetUp() {
     init_input_shapes(inputShapes);
 
     ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
+    for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-    }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto experimentalDetectronTopKROIs = std::make_shared<ov::op::v6::ExperimentalDetectronTopKROIs>(paramOuts[0], paramOuts[1], maxRois);
+
+    auto experimentalDetectronTopKROIs = std::make_shared<ov::op::v6::ExperimentalDetectronTopKROIs>(params[0], params[1], maxRois);
     function = std::make_shared<ov::Model>(ov::OutputVector {experimentalDetectronTopKROIs->output(0)}, "ExperimentalDetectronTopKROIs");
 }
 } // namespace subgraph
