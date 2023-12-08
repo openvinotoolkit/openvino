@@ -42,7 +42,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "remote_context_wrapper.hpp"
-#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -232,7 +231,7 @@ public:
         version.description = ver.description;
         SetVersion(version);
         _isNewAPI = plugin->is_new_api();
-        _executorManager = InferenceEngine::create_old_manager(plugin->get_executor_manager());
+        _executorManager = plugin->get_executor_manager();
     }
 
     virtual ~IInferencePluginWrapper() = default;
@@ -651,7 +650,6 @@ namespace InferenceEngine {
 class IVariableStateWrapper : public ov::IVariableState {
 private:
     std::shared_ptr<InferenceEngine::IVariableStateInternal> m_state;
-    mutable ov::SoPtr<ov::ITensor> m_converted_state;
 
 public:
     explicit IVariableStateWrapper(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& state)
@@ -666,10 +664,8 @@ public:
         m_state->SetState(ov::tensor_to_blob(state));
     }
 
-    const ov::SoPtr<ov::ITensor>& get_state() const override {
-        m_converted_state = ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()));
-
-        return m_converted_state;
+    ov::SoPtr<ov::ITensor> get_state() const override {
+        return ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()));
     }
 };
 

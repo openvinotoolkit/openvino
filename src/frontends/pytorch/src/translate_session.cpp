@@ -4,18 +4,11 @@
 
 #include "translate_session.hpp"
 
+#include "helper_ops/gather_assign.hpp"
+#include "helper_ops/slice_assign.hpp"
 #include "input_model.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/scatter_nd_update.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
@@ -344,92 +337,54 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
 }
 
 namespace {
-Output<Node> slice_backprop(const Output<Node>& slice_output, const Output<Node>& value) {
+Output<Node> slice_reverseprop(const Output<Node>& slice_output, const Output<Node>& value) {
     auto slice_node = slice_output.get_node_shared_ptr();
     FRONT_END_OP_CONVERSION_CHECK(ov::as_type_ptr<v8::Slice>(slice_node),
                                   "Conversion rule for aten::slice doesn't contain Slice node.");
 
-    auto zero = v0::Constant::create(element::i64, Shape{}, {0});
-    auto one = v0::Constant::create(element::i64, Shape{}, {1});
-    auto neg_one_1d = v0::Constant::create(element::i64, Shape{1}, {-1});
-    auto scattering_shape = v0::Constant::create(element::i64, Shape{2}, {-1, 1});
-
-    // Get 1d indices [0..numel)
     auto to_insert_data = slice_node->input_value(0);
-    auto input_shape = std::make_shared<v3::ShapeOf>(to_insert_data, element::i64);
-    auto numel = std::make_shared<v1::ReduceProd>(input_shape, zero, false);
-    auto full_data_indices_1d = std::make_shared<v4::Range>(zero, numel, one, element::i64);
-
-    // Slice indices by same start, stop, slice, axes as initial Slice
-    auto full_data_indices = std::make_shared<v1::Reshape>(full_data_indices_1d, input_shape, false);
-    Output<Node> data_indices;
+    Output<Node> res;
     if (slice_node->get_input_size() == 5) {
-        data_indices = std::make_shared<v8::Slice>(full_data_indices,
-                                                   slice_node->input_value(1),
-                                                   slice_node->input_value(2),
-                                                   slice_node->input_value(3),
-                                                   slice_node->input_value(4));
+        res = std::make_shared<SliceAssign>(to_insert_data,
+                                            value,
+                                            slice_node->input_value(1),
+                                            slice_node->input_value(2),
+                                            slice_node->input_value(3),
+                                            slice_node->input_value(4));
     } else if (slice_node->get_input_size() == 4) {
-        data_indices = std::make_shared<v8::Slice>(full_data_indices,
-                                                   slice_node->input_value(1),
-                                                   slice_node->input_value(2),
-                                                   slice_node->input_value(3));
+        res = std::make_shared<SliceAssign>(to_insert_data,
+                                            value,
+                                            slice_node->input_value(1),
+                                            slice_node->input_value(2),
+                                            slice_node->input_value(3));
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Incorrect number of Slice inputs");
     }
 
-    // Scatter in flattened tensor with indices and flattened data to be inserted
-    auto to_insert_data_1d = std::make_shared<v1::Reshape>(to_insert_data, neg_one_1d, false);
-    auto data_indices_1d = std::make_shared<v1::Reshape>(data_indices, scattering_shape, false);
-    auto to_be_inserted_data_1d = std::make_shared<v1::Reshape>(value, neg_one_1d, false);
-    auto updated_data_1d =
-        std::make_shared<v3::ScatterNDUpdate>(to_insert_data_1d, data_indices_1d, to_be_inserted_data_1d);
-
-    // Reshape to initial shape
-    return std::make_shared<v1::Reshape>(updated_data_1d, input_shape, false);
+    return res;
 }
 
-Output<Node> select_backprop(const Output<Node>& select_output, const Output<Node>& value) {
+Output<Node> select_reverseprop(const Output<Node>& select_output, const Output<Node>& value) {
     auto gather_node = select_output.get_node_shared_ptr();
     FRONT_END_OP_CONVERSION_CHECK(ov::as_type_ptr<v8::Gather>(gather_node),
                                   "Conversion rule for aten::select doesn't contain Gather node.");
 
-    auto zero = v0::Constant::create(element::i64, Shape{}, {0});
-    auto one = v0::Constant::create(element::i64, Shape{}, {1});
-    auto neg_one_1d = v0::Constant::create(element::i64, Shape{1}, {-1});
-    auto scattering_shape = v0::Constant::create(element::i64, Shape{2}, {-1, 1});
-
-    // Get 1d indices [0..numel)
     auto to_insert_data = gather_node->input_value(0);
-    auto input_shape = std::make_shared<v3::ShapeOf>(to_insert_data, element::i64);
-    auto numel = std::make_shared<v1::ReduceProd>(input_shape, zero, false);
-    auto full_data_indices_1d = std::make_shared<v4::Range>(zero, numel, one, element::i64);
-
-    // Slice indices by same start, stop, slice, axes as initial Slice
-    auto full_data_indices = std::make_shared<v1::Reshape>(full_data_indices_1d, input_shape, false);
-    Output<Node> data_indices =
-        std::make_shared<v8::Gather>(full_data_indices, gather_node->input_value(1), gather_node->input_value(2));
-
-    // Scatter in flattened tensor with indices and flattened data to be inserted
-    auto to_insert_data_1d = std::make_shared<v1::Reshape>(to_insert_data, neg_one_1d, false);
-    auto data_indices_1d = std::make_shared<v1::Reshape>(data_indices, scattering_shape, false);
-    auto to_be_inserted_data_1d = std::make_shared<v1::Reshape>(value, neg_one_1d, false);
-    auto updated_data_1d =
-        std::make_shared<v3::ScatterNDUpdate>(to_insert_data_1d, data_indices_1d, to_be_inserted_data_1d);
-
-    // Reshape to initial shape
-    return std::make_shared<v1::Reshape>(updated_data_1d, input_shape, false);
+    return std::make_shared<GatherAssign>(to_insert_data,
+                                          value,
+                                          gather_node->input_value(1),
+                                          gather_node->input_value(2));
 }
 }  // namespace
 
-using BackpropCreatorFunction = std::function<ov::Output<ov::Node>(const Output<Node>&, const Output<Node>&)>;
+using ReversepropCreatorFunction = std::function<ov::Output<ov::Node>(const Output<Node>&, const Output<Node>&)>;
 
-Output<Node> TranslateSession::get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
-                                               const Output<Node>& direct_op_output,
-                                               const Output<Node>& value) {
-    std::map<std::string, BackpropCreatorFunction> backprop_map = {
-        {"aten::slice", slice_backprop},
-        {"aten::select", select_backprop},
+Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                                  const Output<Node>& direct_op_output,
+                                                  const Output<Node>& value) {
+    std::map<std::string, ReversepropCreatorFunction> backprop_map = {
+        {"aten::slice", slice_reverseprop},
+        {"aten::select", select_reverseprop},
     };
 
     Output<Node> backprop_node;

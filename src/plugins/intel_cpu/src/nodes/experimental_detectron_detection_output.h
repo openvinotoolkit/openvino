@@ -13,7 +13,7 @@ namespace node {
 
 class ExperimentalDetectronDetectionOutput : public Node {
 public:
-    ExperimentalDetectronDetectionOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ExperimentalDetectronDetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -23,7 +23,7 @@ public:
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     const int INPUT_ROIS {0};

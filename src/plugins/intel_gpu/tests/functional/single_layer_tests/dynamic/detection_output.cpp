@@ -212,8 +212,14 @@ protected:
             ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         } else {
-            auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-            auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
+            std::shared_ptr<ov::op::v0::DetectionOutput> detOut;
+            if (params.size() == 3)
+                detOut = std::make_shared<ov::op::v0::DetectionOutput>(params[0], params[1], params[2], attrs);
+            else if (params.size() == 5)
+                detOut = std::make_shared<ov::op::v0::DetectionOutput>(params[0], params[1], params[2], params[3], params[4], attrs);
+            else
+                OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
+
             ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         }

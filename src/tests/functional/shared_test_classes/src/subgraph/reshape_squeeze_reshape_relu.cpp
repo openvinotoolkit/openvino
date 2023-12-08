@@ -37,7 +37,20 @@ void ReshapeSqueezeReshapeRelu::SetUp() {
                                                                    ov::Shape{squeezeShape.first.size()},
                                                                    squeezeShape.first);
     auto reshape1 = std::make_shared<ov::op::v1::Reshape>(input[0], reshape1_pattern, false);
-    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(reshape1, ov::element::i64, squeezeShape.second, opType);
+
+    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{squeezeShape.second.size()}, squeezeShape.second);
+    std::shared_ptr<ov::Node> squeeze;
+    switch (opType) {
+    case ov::test::utils::SqueezeOpType::SQUEEZE:
+        squeeze = std::make_shared<ov::op::v0::Squeeze>(reshape1, constant);
+        break;
+    case ov::test::utils::SqueezeOpType::UNSQUEEZE:
+        squeeze = std::make_shared<ov::op::v0::Unsqueeze>(reshape1, constant);
+        break;
+    default:
+        throw std::logic_error("Unsupported operation type");
+    }
+
     auto reshape2_pattern =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<size_t>{1, input_dim});
     auto reshape2 = std::make_shared<ov::op::v1::Reshape>(squeeze, reshape2_pattern, false);

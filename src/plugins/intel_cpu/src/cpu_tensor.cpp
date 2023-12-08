@@ -17,7 +17,7 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
     auto memdesc = m_memptr->getDescPtr();
     OPENVINO_ASSERT(memdesc->hasLayoutType(LayoutType::ncsp), "intel_cpu::Tensor only supports memory with ncsp layout.");
 
-    m_element_type = InferenceEngine::details::convertPrecision(memdesc->getPrecision());
+    m_element_type = memdesc->getPrecision();
 }
 
 void Tensor::set_shape(ov::Shape new_shape) {

@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/opsets/opset4.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include <openvino/opsets/opset4.hpp>
 
 namespace ov {
 namespace intel_cpu {
 
 class MHAFusionBase : public ov::pass::MatcherPass {
 protected:
-    bool valid_transpose_order(const std::shared_ptr<ngraph::Node>& node, const std::vector<int64_t>& expected_order) {
-        if (auto transpose_pattern = ngraph::as_type_ptr<ngraph::opset4::Constant>(node)) {
+    bool valid_transpose_order(const std::shared_ptr<ov::Node>& node, const std::vector<int64_t>& expected_order) {
+        if (auto transpose_pattern = ov::as_type_ptr<ov::opset4::Constant>(node)) {
             if (transpose_pattern->cast_vector<int64_t>() != expected_order) {
                 return false;
             }

@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "openvino/openvino.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace tools {

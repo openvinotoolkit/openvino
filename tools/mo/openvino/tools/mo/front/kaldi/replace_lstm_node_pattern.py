@@ -81,7 +81,9 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         init_value_prev_lstm_output = create_const_with_batch_from_input(input_out_port,
                                                                          node.gifo_r_weights_shape[1])
         prev_lstm_output = ReadValue(graph, {'name': 'prev_memory_output',
-                                             'variable_id': memory_pair_input
+                                             'variable_id': memory_pair_input,
+                                             'variable_shape': None,
+                                             'variable_type': None
                                              }).create_node()
         prev_lstm_output.in_port(0).connect(init_value_prev_lstm_output.out_port(0))
 
@@ -121,7 +123,10 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         init_value_prev_lstm_state = create_const_with_batch_from_input(split_joined_input.out_port(0),
                                                                         node.input_gate_weights.shape[0])
         prev_lstm_state = ReadValue(graph, {'name': 'prev_memory_state',
-                                            'variable_id': memory_pair_output}).create_node()
+                                            'variable_id': memory_pair_output,
+                                            'variable_shape': None,
+                                            'variable_type': None
+                                            }).create_node()
         prev_lstm_state.in_port(0).connect(init_value_prev_lstm_state.out_port(0))
 
         # *Memory(state) -> *ScaleShift(input)

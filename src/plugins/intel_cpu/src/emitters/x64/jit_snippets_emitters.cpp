@@ -26,10 +26,6 @@ using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-namespace {
-constexpr size_t gpr_size = 8;
-} // namespace
-
 inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::vector<Reg64>& regs) {
     regs.resize(idxs.size());
     std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
@@ -43,7 +39,7 @@ jit_container_emitter::jit_container_emitter(jit_generator* h, cpu_isa_t isa, co
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
                                                    snippets::lowered::LinearIR::container& expressions) const {
     if (expressions.empty())
-        IE_THROW() << "Cannot map registers when there is no allocated_emitters provided";
+        OPENVINO_THROW("Cannot map registers when there is no allocated_emitters provided");
     auto map_regs = [](const std::vector<size_t>& abstract_regs, mapping_info& mapping) {
         auto& abstract_to_physical = mapping.first;
         auto& regs_pool = mapping.second;
@@ -53,7 +49,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
             auto& physical = physical_regs[i];
             if (abstract_to_physical.count(abstract) == 0) {
                 if (regs_pool.empty())
-                    IE_THROW() << "Cannot map registers for jit_container_emitter: not enough regs in the pool";
+                    OPENVINO_THROW("Cannot map registers for jit_container_emitter: not enough regs in the pool");
                 physical = regs_pool.back();
                 regs_pool.pop_back();
                 abstract_to_physical[abstract] = physical;
@@ -90,7 +86,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 out_physical_regs = map_regs(out_abstract_regs, vec_map_pool);
                 break;
             default:
-                IE_THROW() << "Unhandled in_out type";
+                OPENVINO_THROW("Unhandled in_out type");
         }
         expression->set_reg_info({in_physical_regs, out_physical_regs});
         if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(expression->get_emitter()))
@@ -104,11 +100,11 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
       reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     if (!kernel)
-        IE_THROW() << "KernelEmitter invoked with invalid op argument";
+        OPENVINO_THROW("KernelEmitter invoked with invalid op argument");
     if (kernel->region.empty())
-        IE_THROW() << "KernelEmitter invoked with empty body";
+        OPENVINO_THROW("KernelEmitter invoked with empty body");
     if (kernel->compile_params == nullptr)
-        IE_THROW() << "KernelEmitter invoked with op::Kernel that contains no compile_params";
+        OPENVINO_THROW("KernelEmitter invoked with op::Kernel that contains no compile_params");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     master_shape = body.get_master_shape();
@@ -139,7 +135,7 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
-                IE_THROW() << "Kernel detected unsupported io_type";
+                OPENVINO_THROW("Kernel detected unsupported io_type");
             }
         }
         const auto& shape = desc->get_shape();
@@ -214,14 +210,17 @@ void KernelEmitter::emit_code(const std::vector<size_t> &in,
 void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
                                        const std::vector<size_t> &out) const {
     if (!in.empty())
-        IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
+        OPENVINO_THROW("KernelEmitter got invalid number of inputs. Expected 0, got ", in.size());
     if (!out.empty())
-        IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
+        OPENVINO_THROW("KernelEmitter got invalid number of outputs. Expected 0, got ", out.size());
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
-        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsistent with the number of allocated registers "
-        << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
+        OPENVINO_THROW(
+            "KernelEmitter: number of inputs and outputs is inconsistent with the number of allocated registers ",
+            num_params,
+            " data_ptr_regs_idx.size() = ",
+            data_ptr_regs_idx.size());
 }
 
 void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,
@@ -334,14 +333,15 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
 LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     if (!loop_begin)
-        IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
+        OPENVINO_THROW("LoopBeginEmitter invoked with invalid op argument");
     const auto& target_inputs = loop_begin->output(loop_begin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (target_inputs.size() != 1)
-        IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
+        OPENVINO_THROW("LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one "
+                       "input attached");
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!loop_end)
-        IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
+        OPENVINO_THROW("LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd");
     work_amount = loop_end->get_work_amount();
     evaluate_once = loop_end->get_evaluate_once();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -356,9 +356,9 @@ void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
 void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
                                           const std::vector<size_t> &out) const {
     if (!in.empty())
-        IE_THROW() << "Invalid inputs size: expected 0 got " << in.size();
+        OPENVINO_THROW("Invalid inputs size: expected 0 got ", in.size());
     if (out.size() != 1)
-        IE_THROW() << "Invalid outputs size: expected 1 got " << out.size();
+        OPENVINO_THROW("Invalid outputs size: expected 1 got ", out.size());
 }
 
 void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
@@ -379,11 +379,11 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
 LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     if (!loop_end)
-        IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
+        OPENVINO_THROW("LoopEndEmitter invoked with invalid op argument");
     loop_begin = loop_end->get_loop_begin();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (!loop_begin)
-        IE_THROW() << "LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin";
+        OPENVINO_THROW("LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin");
     // Note that 1 edge connects LoopBegin and LoopEnd
     num_inputs = loop_end->get_input_num();
     num_outputs = loop_end->get_output_num();
@@ -406,14 +406,14 @@ void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
 void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
                                         const std::vector<size_t> &out) const {
     if (out.size() != num_outputs)
-        IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
+        OPENVINO_THROW("Invalid number of out arguments: expected ", num_outputs, " got ", out.size());
     if (in.size() != num_inputs)
-        IE_THROW() << "Invalid number of in arguments: expected " << num_inputs  << " got " << in.size();
+        OPENVINO_THROW("Invalid number of in arguments: expected ", num_inputs , " got ", in.size());
     const auto io_size = num_inputs - 1;
     if (ptr_increments.size() != io_size)
-        IE_THROW() << "Invalid ptr_increments size: expected " << io_size << " got " << ptr_increments.size();
+        OPENVINO_THROW("Invalid ptr_increments size: expected ", io_size, " got ", ptr_increments.size());
     if (finalization_offsets.size() != io_size)
-        IE_THROW() << "Invalid finalization_offsets size: expected: " << io_size << " got " << finalization_offsets.size();
+        OPENVINO_THROW("Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
 }
 
 void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
@@ -458,8 +458,10 @@ BroadcastMoveEmitter::BroadcastMoveEmitter(jit_generator* h, cpu_isa_t isa, cons
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
-        IE_THROW() << "BroadcastMoveEmitter supports only equal input and output types but gets: "
-            << n->get_input_element_type(0) << " and " << n->get_output_element_type(0);
+        OPENVINO_THROW("BroadcastMoveEmitter supports only equal input and output types but gets: ",
+                       n->get_input_element_type(0),
+                       " and ",
+                       n->get_output_element_type(0));
     byte_size = n->get_input_element_type(0).size();
 }
 
@@ -472,7 +474,7 @@ void BroadcastMoveEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "BroadcastMove emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("BroadcastMove emitter doesn't support ", host_isa_);
     }
 }
 
@@ -504,7 +506,7 @@ ScalarEmitter::ScalarEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             break;
         }
         default: {
-            IE_THROW() << "Scalar emitter doesn't support " << precision;
+            OPENVINO_THROW("Scalar emitter doesn't support ", precision);
         }
     }
     push_arg_entry_of("scalar", value, true);
@@ -520,7 +522,7 @@ void ScalarEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Scalar emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Scalar emitter doesn't support ", host_isa_);
     }
 }
 
@@ -534,13 +536,16 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 
 MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
-    src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
-    dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
+    src_prc = n->get_input_element_type(0);
+    dst_prc = n->get_output_element_type(0);
 }
 
 StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        OPENVINO_THROW("StoreEmitter supports only equal input and output types but gets: ",
+                       src_prc.get_type_name(),
+                       " and ",
+                       dst_prc.get_type_name());
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     count = store->get_count();
@@ -558,14 +563,14 @@ void StoreEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Store emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Store emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
-        IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
+        OPENVINO_THROW("Store CPU emitter isn't initialized for StoreEmitter!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -575,7 +580,10 @@ void StoreEmitter::emit_data() const {
 
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
+                       src_prc.get_type_name(),
+                       " and ",
+                       dst_prc.get_type_name());
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     count = load->get_count();
@@ -593,14 +601,14 @@ void LoadEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Load emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Load emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
-        IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
+        OPENVINO_THROW("Load CPU emitter isn't initialized for LoadEmitter!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -611,7 +619,10 @@ void LoadEmitter::emit_data() const {
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        OPENVINO_THROW("BroadcastEmitters support only equal input and output types but gets: ",
+                       src_prc.get_type_name(),
+                       " and ",
+                       dst_prc.get_type_name());
 
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     byte_offset = broadcast_load->get_offset();
@@ -627,7 +638,7 @@ void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "BroadcastLoad emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("BroadcastLoad emitter doesn't support ", host_isa_);
     }
 }
 
@@ -666,14 +677,14 @@ void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "LoadConvert emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("LoadConvert emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void LoadConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
-        IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
+        OPENVINO_THROW("Load CPU emitter isn't initialized for LoadEmitter!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -704,22 +715,19 @@ void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "StoreConvert emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("StoreConvert emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
-        IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
+        OPENVINO_THROW("Store CPU emitter isn't initialized for StoreEmitter!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
-}
-size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
-    return kIdx * BRGEMM_N_KERNEL_NUM + nIdx;
 }
 
 size_t BrgemmEmitter::get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
@@ -750,17 +758,11 @@ size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::ve
 }
 
 BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
-    m_brgCtxs.fill(brgemmCtx());
-    std::generate(m_brgKernels.begin(), m_brgKernels.end(), [](){ return nullptr; });
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    if (brgemm_node->is_dynamic())
-        IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
-    const auto brgemm_copy = brgemm_node->is_with_data_repacking() ? brgemm_node->get_brgemm_copy() : nullptr;
+    OPENVINO_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
 
     std::vector<size_t> leading_dimensions;
-    std::vector<std::vector<size_t>> io_layouts;
-
      auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
         if (!layout.empty()) return layout;
         std::vector<size_t> default_layout(io_shape.size());
@@ -769,46 +771,30 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     };
 
     auto init_in_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& input) {
-        io_layouts.push_back(get_layout(input->get_layout(), input->get_shape()));
-        leading_dimensions.push_back(get_in_leading_dim(input->get_shape(), io_layouts.back()));
+        const auto& layout = get_layout(input->get_layout(), input->get_shape());
+        leading_dimensions.push_back(get_in_leading_dim(input->get_shape(), layout));
     };
     auto init_out_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& output) {
-        io_layouts.push_back(get_layout(output->get_layout(), output->get_shape()));
-        leading_dimensions.push_back(get_out_leading_dim(output->get_shape(), io_layouts.back()));
+        const auto& layout = get_layout(output->get_layout(), output->get_shape());
+        leading_dimensions.push_back(get_out_leading_dim(output->get_shape(), layout));
     };
-    init_in_scheduling_params(expr->get_input_port_descriptor(0));
+
+    const auto& input_0_desc = expr->get_input_port_descriptor(0);
+    const auto& input_1_desc = expr->get_input_port_descriptor(1);
+    const auto& output_desc = expr->get_output_port_descriptor(0);
+
+    init_in_scheduling_params(input_0_desc);
     if (brgemm_node->is_with_data_repacking()) {
-        io_layouts.push_back(std::vector<size_t>{});
-        leading_dimensions.push_back(0);
+        const auto& brgemm_copy = brgemm_node->get_brgemm_copy();
+        const auto& allocated_shape = brgemm_copy->get_data_repacking_shape(input_1_desc->get_shape());
+        leading_dimensions.push_back(*allocated_shape.rbegin());
     } else {
-        init_in_scheduling_params(expr->get_input_port_descriptor(1));
+        init_in_scheduling_params(input_1_desc);
     }
-    init_out_scheduling_params(expr->get_output_port_descriptor(0));
+    init_out_scheduling_params(output_desc);
 
-    const auto& A_shape = expr->get_input_port_descriptor(0)->get_shape();
-    const auto& A_layout = io_layouts[0];
-    const auto& C_shape = expr->get_output_port_descriptor(0)->get_shape();
-    const auto& C_layout = io_layouts[2];
-
-    // We need find original M,N,K having layouts and ordered shapes
-    // Layout:  0, 1, 2, 3   =>   New layout: 0, 2, 1, 3
-    // Shape:   1, 3, 5, 9   =>   New Shape:  1, 5, 3, 9
-    // To find original 2nd dimension, we should find index of position value `2` in new layout
-    // and get dimension from new shape by this index
-    auto get_ordered_idx = [](const std::vector<size_t>& layout, size_t idx) {
-        return std::distance(layout.begin(), std::find(layout.begin(), layout.end(), idx));
-    };
-
-    m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
-    m_M = brgemm_node->get_input_count(0);
-    m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
-
-    if (brgemm_node->is_with_data_repacking())
-        leading_dimensions[1] = rnd_up(m_N, brgemm_copy->get_n_block_size());
-
-    auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
-    auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
-    m_brg0VnniFactor = 4 / brg0Prc.size();
+    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     bool brgWithAMX = brgemm_node->is_amx();
 
     io_data_size = {brg0Prc.size(), brg1Prc.size()};
@@ -819,59 +805,28 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    m_N_blk = brgemm_node->get_n_block_size();
-    m_K_blk = brgemm_node->get_k_block_size();
-    m_N_tail = m_N % m_N_blk;
-    m_K_tail = m_K % m_K_blk;
+    const auto& output_subtensor = output_desc->get_subtensor();
+    const auto& input_0_subtensor = input_0_desc->get_subtensor();
+    const auto& input_1_subtensor = input_1_desc->get_subtensor();
 
-    m_N_blk_loop = m_N >= 2 * m_N_blk;
-    m_K_blk_loop = m_K >= 3 * m_K_blk;
-    OPENVINO_ASSERT((!brgemm_node->is_with_data_repacking()) || (!m_N_blk_loop && !m_K_blk_loop),
-                    "BrgemmEmitter doesn't support blocking by K, N dimensions when data repacking is needed!");
+    OPENVINO_ASSERT(*(output_subtensor.rbegin() + 1) == *(input_0_subtensor.rbegin() + 1),
+                    "Brgemm has different M dimension subtensors on input0 and output");
+    OPENVINO_ASSERT(*output_subtensor.rbegin() == *input_1_subtensor.rbegin(),
+                    "Brgemm has different N dimension subtensors on input1 and output");
+    OPENVINO_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
+                    "Brgemm has different K dimension subtensors on input0 and input1");
 
-    auto N = [&](size_t n) {
-        switch (n) {
-            case 0: return m_N_blk;
-            case 1: return m_N_tail;
-            default: OPENVINO_THROW("BrgemmEmitter detected unsupported N value");
-        }
-    };
-    auto K = [&](size_t k) {
-        switch (k) {
-            case 0: return m_K_blk;
-            case 1: return m_K >= 2 * m_K_blk ? m_K_blk : 0;
-            case 2: return m_K_tail;
-            default:  IE_THROW() << "BrgemmEmitter detected unsupported K value";
-        }
-    };
+    m_brgCtx.M = *(output_subtensor.rbegin() + 1);
+    m_brgCtx.N = *output_subtensor.rbegin();
+    m_brgCtx.K = *input_0_subtensor.rbegin();
+    m_brgCtx.LDA = leading_dimensions[0];
+    m_brgCtx.LDB = leading_dimensions[1];
+    m_brgCtx.LDC = leading_dimensions[2];
+    m_brgCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
+    m_brgCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
+    m_brgCtx.beta = brgemm_node->get_beta();
 
-    bool has_K_kernel = false;
-    for (size_t k = 0; k < BRGEMM_K_KERNEL_NUM; k++) {
-        bool has_N_kernel = false;
-        for (size_t n = 0; n < BRGEMM_N_KERNEL_NUM; n++) {
-            const size_t kernel_idx = getBrgIdx(k, n);
-            auto& brgemmCtx = m_brgCtxs[kernel_idx];
-
-            brgemmCtx.M = m_M;
-            brgemmCtx.N = N(n);
-            brgemmCtx.K = K(k);
-            brgemmCtx.LDA = leading_dimensions[0];
-            brgemmCtx.LDB = leading_dimensions[1];
-            brgemmCtx.LDC = leading_dimensions[2];
-            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
-            brgemmCtx.beta = has_K_kernel ? 1 : 0;
-
-            if (brgemmCtx.N == 0 || brgemmCtx.N > m_N ||
-                brgemmCtx.K == 0 || brgemmCtx.K > m_K)
-                continue;
-
-            initBrgemm(brgemmCtx, m_brgKernels[kernel_idx], brgWithAMX);
-            has_N_kernel = true;
-        }
-        if (has_N_kernel)
-            has_K_kernel = true;
-    }
+    initBrgemm(m_brgCtx, m_brgKernel, brgWithAMX);
 
     m_load_offset_a = brgemm_node->get_offset_a();
     m_load_offset_b = brgemm_node->get_offset_b();
@@ -880,7 +835,7 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
         m_load_offset_scratch = brgemm_node->get_offset_scratch();
 }
 
-std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OPENVINO_ASSERT(brgemm, "BrgemmEmitter::get_supported_precisions() expects BrgemmCPU node");
     switch (brgemm->get_type()) {
@@ -901,28 +856,8 @@ std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(con
 }
 
 void BrgemmEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    std::set<size_t> unique_ids{in[0], in[1], out[0]};
-    size_t unique_ids_count = 3;
-    auto add_reg_to_unique_ids = [&](const size_t reg_number) {
-        unique_ids.insert(reg_number);
-        unique_ids_count++;
-    };
-
-    if (m_N_blk_loop || m_K_blk_loop) {
-        if (aux_gpr_idxs.size() < static_cast<size_t>(m_N_blk_loop) + static_cast<size_t>(m_K_blk_loop))
-            IE_THROW() << "BRGEMM Emitter requires extra gpr which was not allocated";
-        if (m_N_blk_loop)
-            add_reg_to_unique_ids(aux_gpr_idxs[0]);
-        if (m_K_blk_loop)
-            add_reg_to_unique_ids(aux_gpr_idxs[m_N_blk_loop]);
-    }
-    if (m_with_scratch) {
-        if (in.size() != 3)
-            IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
-        add_reg_to_unique_ids(in[2]);
-    }
-    if (unique_ids.size() != unique_ids_count) {
-        IE_THROW() << "BRGEMM Emitter expects that all input/output registers are unique";
+    if (m_with_scratch && in.size() != 3) {
+        IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
     }
 }
 
@@ -934,7 +869,7 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
     auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
                                    false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, nullptr);
     if (status != dnnl_success)
-        IE_THROW() << "BrgemmEmitter cannot initialize brgemm descriptor due to invalid params";
+        OPENVINO_THROW("BrgemmEmitter cannot initialize brgemm descriptor due to invalid params");
 
     ctx.is_with_amx = use_amx;
     status = brgemm_init_tiles(brgDesc, ctx.palette);
@@ -946,54 +881,8 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success)
-        IE_THROW() << "BrgemmEmitter cannot create brgemm kernel due to invalid params";
+        OPENVINO_THROW("BrgemmEmitter cannot create brgemm kernel due to invalid params");
     brgKernel.reset(brgKernel_);
-}
-
-size_t BrgemmEmitter::aux_gprs_count() const {
-    return m_N_blk_loop + m_K_blk_loop;
-}
-
-void BrgemmEmitter::emit_N_blocking_loops(size_t k_kernel_id,
-                                          const Xbyak::Reg64& input_0, const Xbyak::Reg64& input_1,
-                                          const Xbyak::Reg64& input_2, const Xbyak::Reg64& output_0,
-                                          const Xbyak::Reg64& work_amount_N) const {
-    // Blocked N loop
-    size_t kernel_idx = getBrgIdx(k_kernel_id, 0);
-    if (m_brgKernels[kernel_idx]) {
-        const auto& brgemmCtx = m_brgCtxs[kernel_idx];
-        Label N_loop_begin;
-        if (m_N_blk_loop) {
-            h->mov(work_amount_N, m_N);
-            h->L(N_loop_begin);
-        }
-
-        emit_brgemm_kernel_call(m_brgKernels[kernel_idx].get(), brgemmCtx, input_0, input_1, input_2, output_0);
-        // We don't need to increment pointers if we cover full N dimension in one kernel call
-        if (m_N_blk_loop || m_N_tail != 0) {
-            h->add(output_0, brgemmCtx.N * io_data_size.back());
-            h->add(input_1, brgemmCtx.N * io_data_size[1]);
-            if (m_with_scratch && m_with_comp)
-                h->add(input_2, brgemmCtx.N * io_data_size[2]);
-        }
-
-        if (m_N_blk_loop) {
-            h->sub(work_amount_N, brgemmCtx.N);
-            h->cmp(work_amount_N, brgemmCtx.N);
-            h->jge(N_loop_begin);
-        }
-    }
-    // N loop tail
-    kernel_idx = getBrgIdx(k_kernel_id, 1);
-    if (m_brgKernels[kernel_idx])
-        emit_brgemm_kernel_call(m_brgKernels[kernel_idx].get(), m_brgCtxs[kernel_idx], input_0, input_1, input_2, output_0);
-
-    if (m_N_blk_loop || m_N_tail != 0) {
-        h->sub(input_1, (m_N - m_N_tail) * io_data_size[1]);
-        h->sub(output_0, (m_N - m_N_tail) * io_data_size.back());
-        if (m_with_scratch && m_with_comp)
-            h->sub(input_2, (m_N - m_N_tail) * io_data_size[2]);
-    }
 }
 
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
@@ -1002,68 +891,20 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 input_0(static_cast<int>(in[0]));
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));
-        Xbyak::Reg64 input_2(static_cast<int>(0));  // scratch. Default reg index is 0 if there isn't scratch
+        Xbyak::Reg64 input_2(static_cast<int>(m_with_scratch ? in[2] : 0));  // scratch. Default reg index is 0 if there isn't scratch
         Xbyak::Reg64 output_0(static_cast<int>(out[0]));
-        Xbyak::Reg64 work_amount_N(m_N_blk_loop ? static_cast<int>(aux_gpr_idxs[0]) : 0);
-        Xbyak::Reg64 work_amount_K(m_K_blk_loop ? static_cast<int>(aux_gpr_idxs[m_N_blk_loop]) : 0);
-        h->add(input_0, m_load_offset_a);
-        h->add(input_1, m_load_offset_b);
-        h->add(output_0, m_store_offset_c);
-        if (m_with_scratch) {
-            input_2 = Xbyak::Reg64(static_cast<int>(in[2]));
-            h->add(input_2, m_load_offset_scratch);
-        }
-
-        // fills kernel_idx with the first idx of non-empty K kernel or returns false
-        auto get_K_kernel_idx = [&](size_t k_kernel_id, size_t& kernel_idx) {
-            for (size_t n = 0; n < BRGEMM_N_KERNEL_NUM; n++) {
-                const auto idx = getBrgIdx(k_kernel_id, n);
-                if (m_brgKernels[idx]) {
-                    kernel_idx = idx;
-                    return true;
-                }
-            }
-            return false;
-        };
-        // Blocked K loop
-        const auto k_tail_id = BRGEMM_K_KERNEL_NUM - 1;
-        size_t total_K_work_amount = m_K;
-        size_t kernel_idx = SIZE_MAX;
-        for (size_t k_blocked_id = 0; k_blocked_id < k_tail_id; k_blocked_id++) {
-            if (get_K_kernel_idx(k_blocked_id, kernel_idx)) {
-                const auto& brgemmCtx = m_brgCtxs[kernel_idx];
-                Label K_loop_begin;
-                // Note: we never emit loop for the first blocked kernel, since it always executed only once.
-                // The purpose of the first blocked K kernel is to initializes output, because it has beta = 0
-                if (k_blocked_id == 0) {
-                    total_K_work_amount -= brgemmCtx.K;
-                } else if (m_K_blk_loop) {
-                    h->mov(work_amount_K, total_K_work_amount);
-                    h->L(K_loop_begin);
-                }
-
-                emit_N_blocking_loops(k_blocked_id, input_0, input_1, input_2, output_0, work_amount_N);
-                h->add(input_0, brgemmCtx.K * io_data_size[0]);
-                h->add(input_1, (brgemmCtx.K * brgemmCtx.LDB) * io_data_size[1]);
-                if (m_K_blk_loop && k_blocked_id) {
-                    h->sub(work_amount_K, brgemmCtx.K);
-                    h->cmp(work_amount_K, brgemmCtx.K);
-                    h->jge(K_loop_begin);
-                }
-            }
-        }
-        // K loop tail
-        if (get_K_kernel_idx(k_tail_id, kernel_idx)) {
-            emit_N_blocking_loops(k_tail_id, input_0, input_1, input_2, output_0, work_amount_N);
-        }
-
-        h->sub(input_0, m_load_offset_a + (m_K - m_K_tail) * io_data_size[0]);
-        h->sub(input_1, m_load_offset_b + (m_K - m_K_tail) * m_brgCtxs[0].LDB * io_data_size[1]);
-        if (m_with_scratch)
-            h->sub(input_2, m_load_offset_scratch);
-        h->sub(output_0, m_store_offset_c);
+        emit_brgemm_kernel_call(m_brgKernel.get(),
+                                m_brgCtx,
+                                input_0,
+                                input_1,
+                                input_2,
+                                output_0,
+                                m_load_offset_a,
+                                m_load_offset_b,
+                                m_load_offset_scratch,
+                                m_store_offset_c);
     } else {
-        IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
+        OPENVINO_THROW("BrgemmEmitter requires at least avx512_core instruction set");
     }
 }
 
@@ -1100,32 +941,7 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
         h->add(h->rsp, n_gprs_to_save * gpr_size);
     }
 
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-
-    h->sub(h->rsp, n_gprs_to_save * gpr_size);
-    for (size_t i = 0; i < n_gprs_to_save; ++i)
-        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-
-    // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
-    h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
-    for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-        else
-            h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-    }
-
-    // 1. Caller obligation to save vector registers as callee may use them.
-    // 2. There is an implicit assumption that the host code uses the same
-    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
-    // `vlen` should be replaced with `host_isa::vlen` and
-    // `host_isa::vecs_count`.
-    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
-    for (size_t i = 0; i < get_max_vecs_count(); ++i)
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
+    internal_call_preamble();
 
     // save function address in gpr to pass in call instruction
     const auto& brgemm_kernel_overload = static_cast<void (*)(const brgemm_kernel_t*,
@@ -1179,38 +995,15 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
     h->mov(abi_param6, static_cast<int>(m_with_comp));
 #endif
 
-    // align stack on 16-byte as ABI requires
-    // note that RBX must not be changed by the callee
-    h->mov(h->rbx, h->rsp);
-    h->and_(h->rbx, 0xf);
-    h->sub(h->rsp, h->rbx);
-
+    internal_call_rsp_align();
     h->call(h->rbp);
-
-    h->add(h->rsp, h->rbx);
+    internal_call_rsp_restore();
 
 #ifdef _WIN32
     h->add(h->rsp, num_args_passed_on_stack * gpr_size);
 #endif
-    // restore vector registers
-    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
-        h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
-    }
-    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
 
-    // restore k registers
-    for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-        else
-            h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-    }
-    h->add(h->rsp, n_k_regs_to_save * k_mask_size);
-
-    // restore gpr registers
-    for (int i = n_gprs_to_save - 1; i >= 0; --i)
-        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-    h->add(h->rsp, n_gprs_to_save * gpr_size);
+    internal_call_postamble();
 }
 
 void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
@@ -1237,7 +1030,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     if (!brgemm_repack)
-        IE_THROW() << "BrgemmCopyBEmitters expects BrgemmCopyB node";
+        OPENVINO_THROW("BrgemmCopyBEmitters expects BrgemmCopyB node");
 
     m_brgemm_prc_in0 = brgemm_repack->get_src_element_type();
     m_brgemm_prc_in1 = brgemm_repack->get_input_element_type(0);
@@ -1268,8 +1061,8 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     m_K_tail = m_K % m_K_blk;
     m_LDB = m_brgemm_prc_in1 == ov::element::f32 ? leading_dimension : rnd_up(m_N, m_N_blk);
 
-    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in0)));
-    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in1)));
+    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc_in0));
+    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc_in1));
 
     const bool isAMXSupported = mayiuse(avx512_core_amx);
     const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
@@ -1310,7 +1103,7 @@ void BrgemmCopyBEmitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_mat
 
     auto status = matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf);
     if (status != dnnl_success)
-        IE_THROW() << "BrgemmRepackEmitter cannot create kernel due to invalid params";
+        OPENVINO_THROW("BrgemmRepackEmitter cannot create kernel due to invalid params");
 }
 
 void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
@@ -1321,7 +1114,7 @@ void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
         Xbyak::Reg64 comp(static_cast<int>(0));  // Compensations. Default reg idx is 0 if there aren't the compensations
         if (m_with_comp) {
             if (out.size() != 2) {
-                IE_THROW() << "BrgemmCopyBEmitter with compensations requires separate register for them";
+                OPENVINO_THROW("BrgemmCopyBEmitter with compensations requires separate register for them");
             }
             comp = Xbyak::Reg64(static_cast<int>(out[1]));
         }
@@ -1338,38 +1131,13 @@ void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
             emit_kernel_call(m_kernel.get(), src, dst, comp, current_N_blk, m_K, offset_in, offset_out, offset_comp);
         }
     } else {
-        IE_THROW() << "BrgemmCopyBEmitter requires at least avx512_core instruction set";
+        OPENVINO_THROW("BrgemmCopyBEmitter requires at least avx512_core instruction set");
     }
 }
 
 void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, Reg64 src, Reg64 dst, Reg64 comp,
                                           size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) const {
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-
-    h->sub(h->rsp, n_gprs_to_save * gpr_size);
-    for (size_t i = 0; i < n_gprs_to_save; ++i)
-        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-
-    // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
-    h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
-    for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-        else
-            h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-    }
-
-    // 1. Caller obligation to save vector registers as callee may use them.
-    // 2. There is an implicit assumption that the host code uses the same
-    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
-    // `vlen` should be replaced with `host_isa::vlen` and
-    // `host_isa::vecs_count`.
-    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
-    for (size_t i = 0; i < get_max_vecs_count(); ++i)
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
+    internal_call_preamble();
 
     const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
@@ -1423,44 +1191,22 @@ void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b
     h->mov(abi_param5, N);
     h->mov(abi_param6, K);
 #endif
-    // align stack on 16-byte as ABI requires
-    // note that RBX must not be changed by the callee
-    h->mov(h->rbx, h->rsp);
-    h->and_(h->rbx, 0xf);
-    h->sub(h->rsp, h->rbx);
 
+    internal_call_rsp_align();
     h->call(h->rbp);
-
-    h->add(h->rsp, h->rbx);
+    internal_call_rsp_restore();
 
 #ifdef _WIN32
         h->add(h->rsp, gpr_size * num_args_passed_on_stack);
 #endif
-    // restore vector registers
-    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
-        h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
-    }
-    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
 
-    // restore k registers
-    for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-        if (mayiuse(avx512_core))
-            h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-        else
-            h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-    }
-    h->add(h->rsp, n_k_regs_to_save * k_mask_size);
-
-    // restore gpr registers
-    for (int i = n_gprs_to_save - 1; i >= 0; --i)
-        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-    h->add(h->rsp, n_gprs_to_save * gpr_size);
+    internal_call_postamble();
 }
 
 void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, const void *src,
                                  const void *dst, const void *comp, size_t N, size_t K) {
     if (!kernel)
-        IE_THROW() << "Kernel for `brgemm_copy_b` hasn't been created";
+        OPENVINO_THROW("Kernel for `brgemm_copy_b` hasn't been created");
 
     auto ctx = dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
     ctx.current_N_blk = N;
@@ -1476,7 +1222,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 }
 
 HorizonEmitter::HorizonEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
         m_op_type = OpType::max;
     } else if (ov::is_type<const snippets::op::HorizonSum>(expr->get_node())) {
@@ -1495,7 +1241,7 @@ void HorizonEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "HorizonMax emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("HorizonMax emitter doesn't support ", host_isa_);
     }
 }
 
@@ -1544,10 +1290,10 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
 }
 
 FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
-        IE_THROW() << "Fill emitter supports only 4 Byte element types but gets: " << fill->get_element_type();
+        OPENVINO_THROW("Fill emitter supports only 4 Byte element types but gets: ", fill->get_element_type());
     }
 
     offset = fill->get_offset();
@@ -1577,7 +1323,7 @@ void FillEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Fill emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Fill emitter doesn't support ", host_isa_);
     }
 }
 

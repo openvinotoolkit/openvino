@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <utility>
-
 #include "matchers/subgraph/subgraph.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace tools {
@@ -19,7 +18,7 @@ private:
 
 public:
     using PatternBorders = std::pair<InputVector, OutputVector>;
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
 
     std::vector<std::vector<PatternBorders>>
     get_repeat_pattern_borders(const std::shared_ptr<ov::Model> &model);
@@ -31,7 +30,7 @@ public:
 
 protected:
     // {subgraph, node_vector, input_info}
-    using ExtractedRepeatPattern = std::tuple<std::shared_ptr<ov::Model>, ov::NodeVector, std::map<std::string, InputInfo>>;
+    using ExtractedRepeatPattern = std::tuple<std::shared_ptr<ov::Model>, ov::NodeVector, std::map<std::string, ov::conformance::InputInfo>>;
     bool is_recursive_extraction = true;
 
     std::list<std::vector<ExtractedRepeatPattern>>
@@ -42,7 +41,7 @@ protected:
     void update_extractor_cache(std::list<std::vector<ExtractedRepeatPattern>>& extracted_patterns,
                                 const std::shared_ptr<ov::Model>& pattern,
                                 const ov::NodeVector& pattern_node_vector,
-                                const std::map<std::string, InputInfo>& in_info);
+                                const std::map<std::string, ov::conformance::InputInfo>& in_info);
 
 };
 

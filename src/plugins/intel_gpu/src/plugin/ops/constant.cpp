@@ -8,7 +8,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/concat.hpp"
@@ -219,6 +218,12 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             // (outer constant is [1, N, 1, 1] but inner parameter is [N, 1, 1, 1]).
             // To pass check_memory_to_set in input_layout::set_data for this case, Set constDims to [N, 1, 1, 1]
             // when constDims is one dim and user op is Loop or TensorIterator.
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+        } else if (ov::is_type<ov::op::v0::Result>(outOp) && !p.use_new_shape_infer() && p.is_inner_program()) {
+            // When IF-operation generates branch-true and branch-false,
+            // simple nodes for both can be created such as Parameter->Result, Constant->Result
+            // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces layout mismatch error.
+            // For that case, Constant->Result needs to be [N, 1, 1, 1]
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         }
     }

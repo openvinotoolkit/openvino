@@ -9,7 +9,7 @@
 
 #include "non_max_suppression.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "openvino/op/nms_rotated.hpp"
@@ -133,14 +133,14 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputs_num);
     for (size_t i = 0; i < inputs_num; ++i) {
-        Precision inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? Precision::I32 : Precision::FP32;
+        ov::element::Type inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? ov::element::i32 : ov::element::f32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(outputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); ++i) {
-        Precision outPrecision = i == NMS_SELECTED_SCORES ? Precision::FP32 : Precision::I32;
+        ov::element::Type outPrecision = i == NMS_SELECTED_SCORES ? ov::element::f32 : ov::element::i32;
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
 
@@ -285,13 +285,13 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
 
     const size_t valid_outputs = std::min(start_offset, max_number_of_boxes);
 
+    const size_t stride = 3lu;
+    if (!m_out_static_shape) {
+        VectorDims new_dims{valid_outputs, stride};
+        redefineOutputMemory({new_dims, new_dims, {1}});
+    }
+
     if (m_defined_outputs[NMS_SELECTED_INDICES]) {
-        const size_t stride = 3lu;
-
-        if (!m_out_static_shape) {
-            redefineOutputMemory(NMS_SELECTED_INDICES, { valid_outputs, stride });
-        }
-
         auto out_ptr = reinterpret_cast<int32_t *>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->getData());
         int32_t* boxes_ptr = &(m_filtered_boxes[0].batch_index);
 
@@ -308,12 +308,6 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (m_defined_outputs[NMS_SELECTED_SCORES]) {
-        const size_t stride = 3lu;
-
-        if (!m_out_static_shape) {
-            redefineOutputMemory(NMS_SELECTED_SCORES, { valid_outputs, stride });
-        }
-
         auto out_ptr = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTED_SCORES)[0]->getMemoryPtr()->getData());
 
         size_t idx = 0lu;

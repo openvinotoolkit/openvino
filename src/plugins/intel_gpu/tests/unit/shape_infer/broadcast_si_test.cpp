@@ -25,7 +25,7 @@ struct broadcast_test_params {
     layout data_layout;
     layout target_shape_layout;
     ov::Shape target_shape_data;
-    ngraph::AxisSet axes_mapping_data;
+    ov::AxisSet axes_mapping_data;
     ov::op::BroadcastModeSpec mode;
     layout expected_layout;
 };

@@ -88,13 +88,6 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-        // WA: check data when input shape is dynamic and pad is exist.
-        //     If 1d conv, 1d pad should be applied to y axis. But there was a bug what it applied to x axis.
-        if (inputShape.first.is_dynamic() && padBegin.size() == 1 && padBegin[0] == 1 && padEnd.size() == 1 && padEnd[0] == 1) {
-            abs_threshold = 9;
-            rel_threshold = 0.002;
-        }
-
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
