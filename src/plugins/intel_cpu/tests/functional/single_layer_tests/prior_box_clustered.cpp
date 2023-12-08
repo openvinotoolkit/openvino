@@ -2,21 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <sstream>
-#include <vector>
-
-#include <openvino/core/partial_shape.hpp>
-#include "ov_models/builders.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 typedef std::tuple<
     std::vector<float>,  // widths
@@ -28,16 +22,14 @@ typedef std::tuple<
     float,               // offset
     std::vector<float>> priorBoxClusteredSpecificParams;
 
-typedef std::tuple<
-    priorBoxClusteredSpecificParams,
-    ov::test::ElementType,        // net precision
-    ov::test::ElementType,        // Input precision
-    ov::test::ElementType,        // Output precision
-    InferenceEngine::Layout,      // Input layout
-    InferenceEngine::Layout,      // Output layout
-    ov::test::InputShape,         // input shape
-    ov::test::InputShape,         // image shape
-    std::string> priorBoxClusteredLayerParams;
+typedef std::tuple<priorBoxClusteredSpecificParams,
+                   ov::test::ElementType,  // net precision
+                   ov::test::ElementType,  // Input precision
+                   ov::test::ElementType,  // Output precision
+                   ov::test::InputShape,   // input shape
+                   ov::test::InputShape,   // image shape
+                   std::string>
+    priorBoxClusteredLayerParams;
 
 class PriorBoxClusteredLayerCPUTest : public testing::WithParamInterface<priorBoxClusteredLayerParams>,
         virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -45,18 +37,12 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
         ov::test::ElementType netPrecision;
         ov::test::ElementType inPrc, outPrc;
-        InferenceEngine::Layout inLayout, outLayout;
         ov::test::InputShape inputShapes, imageShapes;
         std::string targetDevice;
         priorBoxClusteredSpecificParams specParams;
-        std::tie(specParams,
-                 netPrecision,
-                 inPrc, outPrc, inLayout, outLayout,
-                 inputShapes,
-                 imageShapes,
-                 targetDevice) = obj.param;
+        std::tie(specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, targetDevice) = obj.param;
 
-        ngraph::op::PriorBoxClusteredAttrs attributes;
+        ov::op::v0::PriorBoxClustered::Attributes attributes;
         std::tie(
             attributes.widths,
             attributes.heights,
@@ -75,8 +61,6 @@ public:
         result << "netPRC="  << netPrecision << separator;
         result << "inPRC="   << inPrc << separator;
         result << "outPRC="  << outPrc << separator;
-        result << "inL="     << inLayout << separator;
-        result << "outL="    << outLayout << separator;
         result << "widths="  << ov::test::utils::vec2str(attributes.widths)  << separator;
         result << "heights=" << ov::test::utils::vec2str(attributes.heights) << separator;
         result << "variances=";
@@ -96,24 +80,19 @@ public:
 protected:
     void SetUp() override {
         priorBoxClusteredSpecificParams specParams;
-
-        InferenceEngine::Layout inLayout;
-        InferenceEngine::Layout outLayout;
         ov::test::ElementType netPrecision;
         ov::test::ElementType inPrc;
         ov::test::ElementType outPrc;
         ov::test::InputShape inputShapes;
         ov::test::InputShape imageShapes;
-        std::tie(specParams, netPrecision,
-                 inPrc, outPrc, inLayout, outLayout,
-                 inputShapes, imageShapes, targetDevice) = GetParam();
+        std::tie(specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, targetDevice) = GetParam();
 
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
 
-        ngraph::op::PriorBoxClusteredAttrs attributes;
+        ov::op::v0::PriorBoxClustered::Attributes attributes;
         std::tie(
             attributes.widths,
             attributes.heights,
@@ -128,15 +107,15 @@ protected:
         for (auto&& shape : { inputShapes.first, imageShapes.first }) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
         }
-        auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-        auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-        auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClustered>(
+        auto shape_of_1 = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
+        auto shape_of_2 = std::make_shared<ov::op::v3::ShapeOf>(params[1]);
+        auto priorBoxClustered = std::make_shared<ov::op::v0::PriorBoxClustered>(
                 shape_of_1,
                 shape_of_2,
                 attributes);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(priorBoxClustered) };
-        function = std::make_shared<ngraph::Function>(results, params, "priorBoxClustered");
+        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(priorBoxClustered) };
+        function = std::make_shared<ov::Model>(results, params, "priorBoxClustered");
     }
 };
 
@@ -217,8 +196,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerCPUTest,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::ElementType::undefined),
         ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(imageShapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -226,4 +203,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerCPUTest,
 );
 
 }  // namespace
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

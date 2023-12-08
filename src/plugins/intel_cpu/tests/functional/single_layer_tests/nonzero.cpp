@@ -2,18 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 typedef std::tuple<
         InputShape,     // Input shape definition
@@ -87,7 +83,7 @@ protected:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
         }
 
-        auto nonZero = std::make_shared<ngraph::opset3::NonZero>(inputParams[0]);
+        auto nonZero = std::make_shared<ov::op::v3::NonZero>(inputParams[0]);
         // I8 was used as a special placeholder during calculating of primitive type if input was U8,
         // real runtime precision is still U8
         selectedType = makeSelectedTypeStr("ref", netType == ElementType::u8 ? ElementType::i8 : netType);
@@ -199,7 +195,7 @@ std::vector<InputShape> inShapesDynamic = {
             }
         }
 };
-std::vector<ngraph::Shape> inShapesStatic = {
+std::vector<ov::Shape> inShapesStatic = {
         { 100 },
         { 4, 100 },
         { 4, 2, 100 },
@@ -227,4 +223,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_NonZeroDynamicCPUTest, NonZeroLayerCPUTest,
 
 } // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
