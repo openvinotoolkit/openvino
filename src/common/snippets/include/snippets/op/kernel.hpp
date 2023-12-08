@@ -19,16 +19,27 @@ namespace op {
 class Kernel : public ov::op::Op {
 public:
     OPENVINO_OP("Kernel", "SnippetsOpset");
-
-    Kernel(lowered::LinearIR region);
     Kernel() = default;
+    Kernel(lowered::LinearIR region);
 
     lowered::LinearIR region;
-
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<Kernel>(region);
-    }
     const void *compile_params = nullptr;
+};
+
+class KernelStatic : public Kernel {
+public:
+    OPENVINO_OP("KernelStatic", "SnippetsOpset", Kernel);
+    KernelStatic() = default;
+    KernelStatic(lowered::LinearIR region);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+};
+
+class KernelDynamic : public Kernel {
+public:
+    OPENVINO_OP("KernelDynamic", "SnippetsOpset", Kernel);
+    KernelDynamic() = default;
+    KernelDynamic(lowered::LinearIR region);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
 } // namespace op

@@ -88,14 +88,13 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     init_params(loop_entries);
     init_params(loop_exits);
 
-    const auto& loop_begin = std::make_shared<op::LoopBegin>();
+    const auto& loop_begin = std::make_shared<op::LoopBeginStatic>();
     const auto& loop_begin_expr = linear_ir.create_expression(loop_begin, std::vector<PortConnectorPtr>{});
     linear_ir.insert(loop_begin_pos, loop_begin_expr);
 
-    const auto& loop_end = std::make_shared<op::LoopEnd>(
+    const auto& loop_end = std::make_shared<op::LoopEndStatic>(
             loop_begin->output(0), work_amount, work_amount_increment, is_incremented, ptr_increments,
             finalization_offsets, io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
-    loop_end->has_outer_loop = has_outer_loop;
 
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
