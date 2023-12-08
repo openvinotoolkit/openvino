@@ -137,10 +137,6 @@ VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_po
     return get_preordered_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
 }
 
-bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return v == IShapeInferSnippets::DYNAMIC_DIMENSION; });
-}
-
 VectorDims pshape_to_vdims(const PartialShape& pshape) {
     VectorDims result;
     result.reserve(pshape.size());

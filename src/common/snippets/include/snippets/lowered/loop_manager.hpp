@@ -20,6 +20,9 @@ public:
     LoopManager() = default;
 
     struct LoopPort {
+        // It's needed as separate value because data ptr shift params have int64_t type while shape dimensions - size_t
+        static constexpr int64_t DYNAMIC_VALUE = std::numeric_limits<int64_t>::max();
+
         LoopPort() = default;
         LoopPort(const ExpressionPort& port, bool is_incremented = true, size_t dim_idx = 0);
         std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
@@ -27,6 +30,8 @@ public:
         friend bool operator==(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator!=(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator<(const LoopPort& lhs, const LoopPort& rhs);
+
+        static bool is_dynamic_value(int64_t value) { return value == DYNAMIC_VALUE; }
 
         std::shared_ptr<ExpressionPort> expr_port = {};
         // True if after each Loop iteration the corresponding data pointer should be incremented.
@@ -45,13 +50,13 @@ public:
         LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<LoopPort>& entries,
                  const std::vector<LoopPort>& exits,
-                 bool outer_splited_loop = false)
+                 bool is_dynamic = false, bool outer_splited_loop = false)
             : m_work_amount(work_amount), m_increment(increment),
-              m_entry_points(entries), m_exit_points(exits), m_outer_splited_loop(outer_splited_loop) {}
+              m_entry_points(entries), m_exit_points(exits), m_is_dynamic(is_dynamic),  m_outer_splited_loop(outer_splited_loop) {}
         LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits,
-                 bool outer_splited_loop = false);
+                 bool is_dynamic = false, bool outer_splited_loop = false);
 
         std::shared_ptr<LoopInfo> clone_with_new_expr(const ExressionMap& expr_map) const;
 
@@ -62,6 +67,9 @@ public:
         const std::vector<LoopPort>& get_entry_points() const;
         const std::vector<LoopPort>& get_exit_points() const;
         bool get_outer_splited_loop() const;
+        bool is_dynamic() const;
+
+        std::vector<LoopPort> get_all_ports() const;
 
         /**
          * \brief Inserts a separate body for first loop iteration processing if needed.
@@ -84,6 +92,7 @@ public:
         void set_exit_points(std::vector<LoopPort> exit_points);
         void set_outer_splited_loop(bool outer_splited_loop);
         void set_first_iter_handler(FirstIterHandler handler);
+        void set_is_dynamic(bool value);
 
     private:
         size_t m_work_amount = 0;
@@ -94,6 +103,8 @@ public:
         // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
         std::vector<LoopPort> m_entry_points = {};
         std::vector<LoopPort> m_exit_points = {};
+        // True if original Loop is dynamic (contain expressions with dynamic shapes)
+        bool m_is_dynamic = false;
         // True if this Loop is outer Loop for nested Loops that splits the same dimension
         bool m_outer_splited_loop = false;
         FirstIterHandler m_first_iter_handler = nullptr;
@@ -121,8 +132,9 @@ public:
                      size_t work_amount_increment,
                      size_t dim_idx,
                      const std::vector<T>& entries,
-                     const std::vector<T>& exits) {
-        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
+                     const std::vector<T>& exits,
+                     bool is_dynamic = false) {
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits, is_dynamic);
         loop_info->set_dim_idx(dim_idx);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {

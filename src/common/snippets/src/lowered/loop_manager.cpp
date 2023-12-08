@@ -41,9 +41,10 @@ LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount,
                                           size_t increment,
                                           const std::vector<ExpressionPort>& entries,
                                           const std::vector<ExpressionPort>& exits,
-                                          bool outer_splited_loop)
+                                          bool is_dynamic, bool outer_splited_loop)
     : m_work_amount(work_amount),
       m_increment(increment),
+      m_is_dynamic(is_dynamic),
       m_outer_splited_loop(outer_splited_loop) {
     m_entry_points.reserve(entries.size());
     m_exit_points.reserve(exits.size());
@@ -68,7 +69,7 @@ std::shared_ptr<LoopInfo> LoopInfo::clone_with_new_expr(const ExressionMap& expr
     const auto& new_entry_points = clone_loop_ports(m_entry_points);
     const auto& new_exit_points = clone_loop_ports(m_exit_points);
 
-    return std::make_shared<LoopInfo>(m_work_amount, m_increment, new_entry_points, new_exit_points, m_outer_splited_loop);
+    return std::make_shared<LoopInfo>(m_work_amount, m_increment, new_entry_points, new_exit_points, m_is_dynamic, m_outer_splited_loop);
 }
 
 size_t LoopInfo::get_work_amount() const {
@@ -93,6 +94,16 @@ bool LoopInfo::get_outer_splited_loop() const {
 
 const LoopInfo::FirstIterHandler& LoopInfo::get_first_iter_handler() const {
     return m_first_iter_handler;
+}
+
+bool LoopInfo::is_dynamic() const {
+    return m_is_dynamic;
+}
+
+std::vector<LoopPort> LoopInfo::get_all_ports() const {
+    auto loop_ports = m_entry_points;
+    loop_ports.insert(loop_ports.end(), m_exit_points.cbegin(), m_exit_points.cend());
+    return loop_ports;
 }
 
 size_t LinearIR::LoopManager::LoopInfo::get_dim_idx() const {
@@ -139,6 +150,10 @@ void LoopInfo::set_outer_splited_loop(bool outer_splited_loop) {
 
 void LoopInfo::set_first_iter_handler(LoopInfo::FirstIterHandler first_iter_handler) {
     m_first_iter_handler = std::move(first_iter_handler);
+}
+
+void LoopInfo::set_is_dynamic(bool value) {
+    m_is_dynamic = value;
 }
 
 bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
@@ -281,6 +296,8 @@ void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_p
 void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       LinearIR::constExprIt loop_end_pos,
                                       size_t loop_depth, size_t vector_size) {
+    const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
+
     std::vector<ExpressionPort> loop_entry_points, loop_exit_points;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_entry_points, loop_exit_points);
 
@@ -294,13 +311,17 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(index < size, "Incorrect index for broadcasting");
         const auto lhs_value = index < lhs_size ? *(lhs.crbegin() + index) : 1;
         const auto rhs_value = index < rhs_size ? *(rhs.crbegin() + index) : 1;
-        OPENVINO_ASSERT(lhs_value == rhs_value || lhs_value == 1 || rhs_value == 1,
-                        "Output shapes of Loop must be broadcastable!");
-        *(lhs.rbegin() + index) = std::max(lhs_value, rhs_value);
+        if (lhs_value == rhs_value || rhs_value == 1) {
+            *(lhs.rbegin() + index) = lhs_value;
+        } else if (lhs_value == 1) {
+            *(lhs.rbegin() + index) = rhs_value;
+        } else {
+            OPENVINO_THROW("Output shapes of Loop must be broadcastable!");
+        }
     };
 
-    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
-        return std::all_of(subtensor.begin(), subtensor.end(), [](size_t lhs) { return lhs == PortDescriptor::ServiceDimensions::FULL_DIM; });
+    auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
+        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) { return lhs == FULL_DIM; });
     };
 
     std::vector<size_t> loop_subtensor;
@@ -313,7 +334,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
             subtensor[subtensor.size() - 1] = vector_size;
         }
 
-        const size_t resizing_value = is_outside_loop(subtensor) ? PortDescriptor::ServiceDimensions::FULL_DIM : 1;
+        const size_t resizing_value = is_outside_loop(subtensor) ? FULL_DIM : 1;
         while (subtensor.size() < loop_depth)
             subtensor.insert(subtensor.begin(), resizing_value);
         if (loop_subtensor.empty())
@@ -323,14 +344,15 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Incorrect scheduling parameters for loop");
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-            if (*(subtensor.rbegin() + dim_idx) != PortDescriptor::ServiceDimensions::FULL_DIM) {
+            if (*(subtensor.rbegin() + dim_idx) != FULL_DIM) {
                 broadcast(loop_tensor, shape, dim_idx);
             }
         }
     }
 
+    const bool is_dynamic = utils::is_dynamic_vdims(loop_tensor);
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-        if (*(loop_subtensor.rbegin() + dim_idx) == PortDescriptor::ServiceDimensions::FULL_DIM) {
+        if (*(loop_subtensor.rbegin() + dim_idx) == FULL_DIM) {
             continue;
         }
 
@@ -341,7 +363,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         const auto work_amount_increment =
                 loop_subtensor.size() > dim_idx ? *(loop_subtensor.rbegin() + dim_idx)
                                                 : (dim_idx == 0 ? vector_size : 1);
-        mark_loop(loop_begin_pos, loop_end_pos, work_amount, work_amount_increment, dim_idx, loop_entry_points, loop_exit_points);
+        mark_loop(loop_begin_pos, loop_end_pos, work_amount, work_amount_increment, dim_idx, loop_entry_points, loop_exit_points, is_dynamic);
     }
 }
 
@@ -398,6 +420,7 @@ void LinearIR::LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, 
     auto& loop_info = fuse_into_upper ? loop_info_upper : loop_info_lower;
     loop_info->set_entry_points(new_entries);
     loop_info->set_exit_points(new_exits);
+    loop_info->set_is_dynamic(loop_info_upper->is_dynamic() || loop_info_lower->is_dynamic());
 
     const auto& from = fuse_into_upper ? loop_id_lower : loop_id_upper;
     const auto& to = fuse_into_upper ? loop_id_upper : loop_id_lower;

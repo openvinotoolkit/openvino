@@ -25,8 +25,8 @@ bool MarkLoops::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     auto loop_depth = lowering_config.m_loop_depth;
 
-    // Parameters Results or Constants are ignored. They can't be used as a loop starting point
-    auto is_not_start_point = [](const std::shared_ptr<ov::Node>& node) {
+    // Parameters, Results or Constants are ignored. They can't be in Loops
+    auto is_loop_outside_op = [](const std::shared_ptr<ov::Node>& node) {
         return ov::is_type<ov::op::v0::Result>(node) ||
                ov::is_type<ov::op::v0::Constant>(node) ||
                ov::is_type<ov::op::v0::Parameter>(node) ||
@@ -37,14 +37,13 @@ bool MarkLoops::run(LinearIR& linear_ir) {
         const auto& lhs_desc = lhs.get_descriptor_ptr();
         const auto& rhs_desc = rhs.get_descriptor_ptr();
         return lhs_desc->get_subtensor() != rhs_desc->get_subtensor() ||
-               lhs_desc->get_layout() != rhs_desc->get_layout() ||
-               lhs_desc->get_shape() != rhs_desc->get_shape();
+               lhs_desc->get_layout() != rhs_desc->get_layout();
     };
 
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (is_not_start_point(node))
+        if (is_loop_outside_op(node))
             continue;
 
         auto loop_begin_pos = expr_it;
@@ -60,9 +59,7 @@ bool MarkLoops::run(LinearIR& linear_ir) {
 
             // If iterator is the last, we should finish Loop
             const auto& current_expr = *loop_end_pos;
-            const auto& current_node = current_expr->get_node();
-            if (ov::is_type<ov::op::v0::Result>(current_node) ||
-                ov::is_type<ov::op::v0::Constant>(current_node))
+            if (is_loop_outside_op(current_expr->get_node()))
                 break;
 
             // We finish Loop if
@@ -70,18 +67,15 @@ bool MarkLoops::run(LinearIR& linear_ir) {
             //  - the is conflict between the corresponding ports
             bool is_connected = false;
             bool is_conflicted = false;
-            for (size_t i = 0; i < prev_expr->get_output_count(); ++i) {
-                const auto& connector = prev_expr->get_output_port_connector(i);
-                const auto consumers = connector->get_consumers();
-                const auto found = std::find_if(consumers.begin(), consumers.end(), [&loop_end_pos](const ExpressionPort& consumer) {
-                    return consumer.get_expr() == *loop_end_pos;
-                });
-                if (found != consumers.end()) {
-                    if (are_conflicted(*found, connector->get_source())) {
+            for (size_t i = 0; i < current_expr->get_input_count(); ++i) {
+                const auto current_port = current_expr->get_input_port(i);
+                const auto source_port = current_expr->get_input_port_connector(i)->get_source();
+                if (source_port.get_expr() == prev_expr) {
+                    if (are_conflicted(current_port, source_port)) {
                         is_conflicted = true;
                         break;
                     }
-                   is_connected = true;
+                    is_connected = true;
                 }
             }
             collapse = is_connected && !is_conflicted;

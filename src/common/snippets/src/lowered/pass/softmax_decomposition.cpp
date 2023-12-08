@@ -8,6 +8,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -52,7 +53,6 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                     expr->get()->updateShapes();
                 return std::make_pair(expr, n);
             };
-            const ov::Dimension broadcasted_dim(*(softmax_expr->get_input_port_descriptor(0)->get_shape().rbegin()));
             // Note: VectorBuffer is a special case, since it should go before the initial Load. So we handle it separately
             const auto& vector_buffer_max = push_node(std::make_shared<op::VectorBuffer>());
             // Init value of vector buffer for ReduceMax is -FLOAT_MIN.
@@ -66,14 +66,14 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             loop_manager->mark_loop(max.first, horizon_max.first, inner_work_amount, m_vector_size, 0,
                                     std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
                                                                 (*max.first)->get_input_port(1)},
-                                    std::vector<ExpressionPort>{(*max.first)->get_output_port(0)});
-            const auto broadcast_horizon_max = push_node(std::make_shared<op::BroadcastMove>(horizon_max.second, broadcasted_dim));
+                                    std::vector<ExpressionPort>{(*max.first)->get_output_port(0)},
+                                    utils::is_dynamic_vdim(inner_work_amount));
             const auto vector_buffer_sum = push_node(std::make_shared<op::VectorBuffer>());
             // Init value of vector buffer for ReduceSum is zero.
             const auto fill_sum = push_node(std::make_shared<op::Fill>(vector_buffer_sum.second, 0, zero_constant));
 
             // Sub + Exp + ReduceSum Loop
-            const auto sub = push_node(std::make_shared<ov::op::v1::Subtract>(softmax->get_input_source_output(0), broadcast_horizon_max.second));
+            const auto sub = push_node(std::make_shared<ov::op::v1::Subtract>(softmax->get_input_source_output(0), horizon_max.second));
             const auto exp = push_node(std::make_shared<ov::op::v0::Exp>(sub.second));
             const auto sum = push_node(std::make_shared<ov::op::v1::Add>(exp.second, fill_sum.second));
 
@@ -85,14 +85,14 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                                                 (*sub.first)->get_input_port(1),
                                                                 (*sum.first)->get_input_port(1)},
                                     std::vector<ExpressionPort>{(*exp.first)->get_output_port(0),
-                                                                (*sum.first)->get_output_port(0)});
+                                                                (*sum.first)->get_output_port(0)},
+                                    utils::is_dynamic_vdim(inner_work_amount));
 
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
             const auto pow = push_node(std::make_shared<op::PowerStatic>(horizon_sum.second, -1.f));
-            const auto broadcast_pow = push_node(std::make_shared<op::BroadcastMove>(pow.second, broadcasted_dim));
 
             // Mul (pseudo-Divide loop)
-            const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));
+            const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, pow.second));
 
             // Transfer original ExpressionPorts
             linear_ir.replace_input((*max.first)->get_input_port(0), input_connector);
@@ -103,7 +103,8 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             loop_manager->mark_loop(mul.first, expr_it, inner_work_amount, m_vector_size, 0,
                                     std::vector<ExpressionPort>{(*mul.first)->get_input_port(0),
                                                                 (*mul.first)->get_input_port(1)},
-                                    std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)});
+                                    std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)},
+                                    utils::is_dynamic_vdim(inner_work_amount));
 
             // Update Loop info for outer loops
             const auto entry_points = std::vector<ExpressionPort>{(*max.first)->get_input_port(0),

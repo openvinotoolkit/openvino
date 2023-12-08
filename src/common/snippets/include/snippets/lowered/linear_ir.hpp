@@ -70,6 +70,8 @@ public:
                                                LinearIR::container::const_iterator end,
                                                ExressionMap& expression_map);
 
+    bool is_dynamic() const;
+
     const container& get_ops() const {return m_expressions; }
     const io_container& get_IO_ops() const {return m_io_expressions; }
     Config get_config() {return m_config; }

@@ -7,6 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -26,7 +27,7 @@ size_t InsertLoadStore::get_count(const PortDescriptorPtr& port_desc) const {
     const auto last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
     OPENVINO_ASSERT(last_dim_idx != layout.end() && *last_dim_idx < shape.size(), "Load/Store expression have incorrect layout");
     const auto dim = shape[*last_dim_idx];
-    return dim == 1 ? 1 : m_vector_size;
+    return !utils::is_dynamic_vdim(dim) && dim == 1 ? 1 : m_vector_size;
 }
 
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
