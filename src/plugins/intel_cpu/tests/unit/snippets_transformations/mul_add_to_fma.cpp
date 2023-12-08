@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <subgraph_simple.hpp>
 #include <transformations/snippets/x64/pass/mul_add_to_fma.hpp>
+#include <transformations/snippets/x64/shape_inference.hpp>
 #include <transformations/snippets/x64/op/fused_mul_add.hpp>
 #include <transformations/snippets/x64/shape_inference.hpp>
 #include "snippets/op/scalar.hpp"

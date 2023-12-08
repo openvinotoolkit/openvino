@@ -39,7 +39,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::ConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::Buffer, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::IntermediateMemoryBuffer, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
         // Note: We should remove Softmax shape infers after the decomposition activity,
@@ -68,6 +68,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
+        SHAPE_INFER_OP_SPECIFIC(op::NewMemoryBuffer),
 };
 #undef SHAPE_INFER_OP_SPECIFIC_EXTERNAL
 #undef SHAPE_INFER_OP_SPECIFIC

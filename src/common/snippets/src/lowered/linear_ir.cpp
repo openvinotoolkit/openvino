@@ -67,7 +67,7 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
     return ExpressionFactory::build(n, *this, model);
 }
 
-ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) {
+ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const {
     return ExpressionFactory::build(n, inputs, *this);
 }
 
@@ -124,8 +124,9 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
-    for (auto it = begin; it != end; it++)
+    for (auto it = begin; it != end; it++) {
         original_nodes.push_back((*it)->get_node());
+    }
 
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
     ngraph::NodeMap node_map;

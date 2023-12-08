@@ -23,7 +23,7 @@ SerializationNode::SerializationNode(const ov::OutputVector& args, const std::sh
 }
 
 void SerializationNode::validate_and_infer_types() {
-    set_output_type(0, element::f32, {});
+    set_output_type(0, element::f32, ov::PartialShape{});
 }
 
 std::shared_ptr<Node> SerializationNode::clone_with_new_inputs(const OutputVector &new_args) const {

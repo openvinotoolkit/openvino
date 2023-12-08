@@ -11,23 +11,27 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-BroadcastMove::BroadcastMove(const Output<Node>& x, ov::PartialShape shape) : Op({x}), output_shape(std::move(shape)) {
+BroadcastMove::BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension) : Op({x}), bcast_dimension(std::move(bcast_dimension)) {
     constructor_validate_and_infer_types();
 }
 
 bool BroadcastMove::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("output_shape", output_shape);
+    visitor.on_attribute("bcast_dimension", bcast_dimension);
     return true;
 }
 
 std::shared_ptr<Node> BroadcastMove::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BroadcastMove);
     check_new_args_count(this, new_args);
-    return std::make_shared<BroadcastMove>(new_args.at(0), output_shape);
+    return std::make_shared<BroadcastMove>(new_args.at(0), bcast_dimension);
 }
 
 void BroadcastMove::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), this->output_shape);
+    auto broadcasted_shape = get_input_partial_shape(0);
+    if (broadcasted_shape.size() == 0)
+        broadcasted_shape.resize(1);
+    *broadcasted_shape.rbegin() = bcast_dimension;
+    set_output_type(0, get_input_element_type(0), broadcasted_shape);
 }
 
 } // namespace op

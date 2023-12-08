@@ -25,14 +25,9 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    static void init_ptr_increments(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
-                                    std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
-                                    size_t work_amount, size_t dim_idx);
-    static void init_finalization_offsets(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
-                                          std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
-                                          size_t work_amount);
-    static void init_element_type_sizes(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
-                                        std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs);
+    static void init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
+    static void init_finalization_offsets(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
+    static void init_element_type_sizes(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
 };
 
 } // namespace pass

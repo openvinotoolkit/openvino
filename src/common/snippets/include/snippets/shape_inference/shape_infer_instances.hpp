@@ -21,7 +21,7 @@ public:
 
 template<class BroadcastOP>
 class BroadcastShapeInfer : public IShapeInferSnippets {
-    VectorDims::value_type m_broadcasted_dim;
+    std::shared_ptr<BroadcastOP> broadcast_op;
 public:
     explicit BroadcastShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;

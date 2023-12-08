@@ -44,7 +44,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
                 continue;
 
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
-            const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), outshape, load->get_offset());
+            const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), *outshape.rbegin(), load->get_offset());
             const auto move_consumers = expr->get_output_port_connector(0)->get_consumers();
             PortDescriptorUtils::set_port_descriptor_ptr(broadcastload->output(0), expr->get_output_port(0).get_descriptor_ptr()->clone());
             const auto broadcastload_expr = linear_ir.create_expression(broadcastload, { parent_expr->get_input_port_connector(0) });

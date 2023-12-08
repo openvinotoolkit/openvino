@@ -57,32 +57,31 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t
     // During ctor call, BrgemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
-    const auto& pshape = get_input_partial_shape(0);
+    validate_element_type(element_type);
     // The data always store in planar shape after repacking
-    const auto planar_pshape = snippets::utils::get_planar_pshape(pshape, layout_input);
+    const auto planar_pshape = snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_input);
     // data repacking output
     set_output_type(0, element_type, planar_pshape);
     // If compensations are needed, they are provided in 2nd output (which is used in BrgemmCPU)
     if (is_with_compensations()) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
-    validate(planar_pshape, element_type);
 }
 
 void BrgemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
+    const auto& element_type = get_input_element_type(0);
+    validate_element_type(element_type);
     const auto port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0));
     const auto shape = ov::Shape(port->get_shape());
-    const auto& element_type = get_input_element_type(0);
     const auto& planar_pshape = snippets::utils::get_planar_pshape(shape, port->get_layout());
     set_output_type(0, element_type, planar_pshape);
     if (is_with_compensations()) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
-    validate(planar_pshape, element_type);
 }
 
-void BrgemmCopyB::validate(const ov::PartialShape& planar_pshape, const ov::element::Type& element_type) {
+void BrgemmCopyB::validate_element_type(const ov::element::Type& element_type) {
     OPENVINO_ASSERT(one_of(element_type, element::bf16, element::i8),
                     "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
 }
