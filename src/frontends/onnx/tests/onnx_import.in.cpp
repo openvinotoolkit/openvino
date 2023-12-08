@@ -31,20 +31,13 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "default_opset.hpp"
+#include "conversion_extension.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/pass/constant_folding.hpp"
-#include "ngraph/pass/manager.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/onnx.hpp"
-#include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-using namespace ngraph;
+using namespace ov;
 using namespace ov::frontend::onnx::tests;
 
 static std::string s_manifest = onnx_backend_manifest(MANIFEST);
@@ -177,29 +170,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_add_abc_initializers) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_override_op) {
-    onnx_import::register_operator("FalseAdd", 1, "", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    onnx_import::register_operator("FalseAdd", 1, "", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Subtract>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    auto model = convert_model("override_op.onnx");
-
-    Inputs inputs;
-    inputs.emplace_back(std::vector<float>{0.f, 1.f, 2.f, 3.f});
-    inputs.emplace_back(std::vector<float>{3.f, 2.f, 1.f, 0.f});
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output<float>({-3.f, -1.f, 1.f, 3.f});
-    test_case.run();
-}
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_import_non_existing_file) {
     try {
         convert_model("i.dont.exist");
@@ -213,127 +183,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_import_non_existing_file) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
     try {
         convert_model("unsupported_op.onnx");
-        FAIL() << "Expected ngraph::ngraph_error";
-    } catch (ngraph::ngraph_error const& err) {
+        FAIL() << "Expected ov::Exception";
+    } catch (ov::Exception const& err) {
         std::string what{err.what()};
         EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);
         EXPECT_NE(what.find("AnotherFakeOpName"), std::string::npos);
     } catch (...) {
-        FAIL() << "Expected ngraph::ngraph_error";
+        FAIL() << "Expected ov::Exception";
     }
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_custom_op) {
-    onnx_import::register_operator("AddQ", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    auto model = convert_model("custom_operator.onnx");
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
-    test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
-    test_case.run();
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister) {
-    onnx_import::register_operator("AddQ", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    auto model = convert_model("custom_operator.onnx");
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
-    test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
-    test_case.run();
-
-    onnx_import::unregister_operator("AddQ", 1, "com.intel.ai");
-    try {
-        auto model = convert_model("custom_operator.onnx");
-        FAIL() << "Expected ngraph::ngraph_error";
-    } catch (ngraph::ngraph_error const& err) {
-        std::string what{err.what()};
-        EXPECT_NE(what.find("OpenVINO does not support the following ONNX operations:"), std::string::npos);
-    } catch (...) {
-        FAIL() << "Expected ngraph::ngraph_error";
-    }
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_custom_op_default_domain) {
-    onnx_import::register_operator("AddQ", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    auto model = convert_model("custom_operator_default_domain.onnx");
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
-    test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
-    test_case.run();
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_is_op_supported) {
-    // Simple case
-    EXPECT_TRUE(onnx_import::is_operator_supported("Sum", 1, "ai.onnx"));
-    // With fallback
-    EXPECT_TRUE(onnx_import::is_operator_supported("Sum", 100, "ai.onnx"));
-
-    // Different opset versions
-    EXPECT_TRUE(onnx_import::is_operator_supported("Add", 1, "ai.onnx"));
-    EXPECT_TRUE(onnx_import::is_operator_supported("Add", 7, "ai.onnx"));
-
-    // Default domain name
-    EXPECT_TRUE(onnx_import::is_operator_supported("Sum", 1));
-
-    // Unregistered operator
-    EXPECT_FALSE(onnx_import::is_operator_supported("DummyOp", 1));
-    EXPECT_FALSE(onnx_import::is_operator_supported("DummyOp", 1, "ai.onnx"));
-    EXPECT_FALSE(onnx_import::is_operator_supported("DummyOp", 10, "ai.onnx"));
-
-    // Operator with bad domain name
-    EXPECT_FALSE(onnx_import::is_operator_supported("Sum", 1, "bad.domain"));
-
-    // Registered custom operator
-    onnx_import::register_operator("AddQ", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-    EXPECT_TRUE(onnx_import::is_operator_supported("AddQ", 1, "com.intel.ai"));
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_missing_op_domain) {
-    onnx_import::register_operator("CustomAdd", 1, "custom.op", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    EXPECT_TRUE(onnx_import::is_operator_supported("CustomAdd", 1, "custom.op"));
-
-    auto model = convert_model("missing_op_domain.onnx");
-
-    Inputs inputs;
-    inputs.emplace_back(std::vector<float>{0.f, 1.f, 2.f, 3.f});
-    inputs.emplace_back(std::vector<float>{0.f, 1.f, 2.f, 3.f});
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output<float>({0.f, 2.f, 4.f, 6.f});
-    test_case.run();
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_custom_op_in_supported_operators) {
-    onnx_import::register_operator("CustomAdd", 1, "custom.op", [](const onnx_import::Node& node) -> OutputVector {
-        OutputVector ng_inputs{node.get_ng_inputs()};
-        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
-    });
-
-    const auto& supported_ops = onnx_import::get_supported_operators(1, "custom.op");
-    EXPECT_NE(std::find(std::begin(supported_ops), std::end(supported_ops), "CustomAdd"), std::end(supported_ops));
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unknown_domain) {
@@ -346,60 +204,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_op_in_unknown_domain) {
         convert_model("unknown_domain_add.onnx");
 
         FAIL() << "The onnx_importer did not throw for unknown domain and op";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         const std::string msg = e.what();
 
         EXPECT_NE(msg.find("unknown.domain.Add"), std::string::npos)
             << "The error message should contain domain and op name: unknown.domain.Add";
     }
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_missing_input) {
-    onnx_import::register_operator("TestMissingInOut",
-                                   1,
-                                   "com.intel.ai",
-                                   [](const onnx_import::Node& node) -> OutputVector {
-                                       OutputVector ng_inputs{node.get_ng_inputs()};
-                                       Output<ngraph::Node> A = ng_inputs.at(0);
-                                       Output<ngraph::Node> B = ng_inputs.at(1);
-                                       Output<ngraph::Node> C = ng_inputs.at(2);
-
-                                       A = std::make_shared<op::v1::Multiply>(A, C);
-                                       if (!ngraph::op::is_null(B)) {
-                                           B = std::make_shared<op::v1::Divide>(B, C);
-                                       }
-
-                                       C = std::make_shared<ngraph::op::v1::Add>(C, C);
-                                       return {A, B, C};
-                                   });
-
-    onnx_import::register_operator("TestMissingIn",
-                                   1,
-                                   "com.intel.ai",
-                                   [](const onnx_import::Node& node) -> OutputVector {
-                                       OutputVector ng_inputs{node.get_ng_inputs()};
-                                       std::shared_ptr<ngraph::Node> result =
-                                           std::make_shared<ngraph::op::Constant>(element::f32,
-                                                                                  ngraph::Shape{2, 2},
-                                                                                  std::vector<float>{1, 1, 1, 1});
-
-                                       for (const auto& ng_input : ng_inputs) {
-                                           if (!ngraph::op::is_null(ng_input)) {
-                                               result = std::make_shared<op::v1::Multiply>(ng_input, result);
-                                           }
-                                       }
-
-                                       return {result};
-                                   });
-
-    auto model = convert_model("missing_input.onnx");
-
-    Inputs inputs{{1, 2, 3, 4}, {5, 6, 7, 8}};
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output<float>({50, 144, 294, 512});
-    test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
@@ -1163,7 +973,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes) {
-    EXPECT_THROW(convert_model("reduce_max_invalid_axes.onnx"), ngraph::ngraph_error);
+    EXPECT_THROW(convert_model("reduce_max_invalid_axes.onnx"), ov::Exception);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean) {
@@ -2849,19 +2659,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_1_batch_0) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_batch_axis) {
-    EXPECT_THROW(convert_model("reverse_sequence_incorrect_batch_axis.onnx"), ngraph_error)
+    EXPECT_THROW(convert_model("reverse_sequence_incorrect_batch_axis.onnx"), ov::Exception)
         << "ReverseSequence batch_axis attribute can only equal 0 or 1. Value of '2' is not "
            "accepted.";
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_time_axis) {
-    EXPECT_THROW(convert_model("reverse_sequence_incorrect_time_axis.onnx"), ngraph_error)
+    EXPECT_THROW(convert_model("reverse_sequence_incorrect_time_axis.onnx"), ov::Exception)
         << "ReverseSequence time_axis attribute can only equal 0 or 1. Value of '2' is not "
            "accepted.";
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_time_and_batch_axis_equal) {
-    EXPECT_THROW(convert_model("reverse_sequence_time_and_batch_axis_equal.onnx"), ngraph_error)
+    EXPECT_THROW(convert_model("reverse_sequence_time_and_batch_axis_equal.onnx"), ov::Exception)
         << "ReverseSequence 'time_axis' and 'batch_axis' can't be equal.";
 }
 
@@ -2913,12 +2723,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32) {
     try {
         const auto model = convert_model("mod_sign_f32.onnx");
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expected ov::Exception was not thrown";
     }
 }
 
@@ -2959,10 +2769,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod) {
     try {
         const auto model = convert_model("mod_incorrect_fmod.onnx");
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expected ov::Exception was not thrown";
     }
 }
 
@@ -3002,7 +2812,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
-    EXPECT_THROW(convert_model("scatter_nd_opset16_reduction_add.onnx"), ngraph_error)
+    EXPECT_THROW(convert_model("scatter_nd_opset16_reduction_add.onnx"), ov::Exception)
         << "Unsupported type of attribute: `reduction`. Only `none` is supported";
 }
 
@@ -3300,7 +3110,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatter10) {
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 
     auto test_case = ov::test::TestCase(scatter_fn, s_device);
@@ -3315,7 +3125,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset11) {
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 
     auto test_case = ov::test::TestCase(scatter_fn, s_device);
@@ -3330,7 +3140,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_non
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 
     auto test_case = ov::test::TestCase(scatter_fn, s_device);
@@ -4333,10 +4143,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode) {
     try {
         auto model = convert_model("dropout12_training_mode.onnx");
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Training mode is not supported for Dropout op"));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expected ov::Exception was not thrown";
     }
 }
 
@@ -4344,10 +4154,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode) {
     try {
         auto model = convert_model("dropout12_not_const_training_mode.onnx");
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Non-constant training_mode input is not supported."));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expected ov::Exception was not thrown";
     }
 }
 
@@ -4884,7 +4694,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
     try {
         const auto model = convert_model("aten_unsupported_embedding_mode.onnx");
         FAIL() << "Expected exception was not thrown.";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string(
@@ -4898,7 +4708,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
     try {
         const auto model = convert_model("aten_unsupported_operator.onnx");
         FAIL() << "Expected exception was not thrown.";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string(
@@ -5156,7 +4966,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_scan15_dyn_rank_vals_neg_axes) {
     // Negative indices for scan_input_axes and scan_output_axes attributes
     try {
         const auto model = convert_model("scan15_dyn_rank_neg_axes.onnx");
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Rank must be static in order to normalize negative axis"));
     } catch (...) {
         FAIL() << "Expected exception was not thrown.";
@@ -5285,7 +5095,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_seq_lens) {
     // ONNX Scan-8 can has optional `sequence_lens` input, the input was removed since ONNX Scan-9
     try {
         const auto model = convert_model("scan8_ND_b4_seq_lens.onnx");
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string(" ONNX Scan-8 `sequence_lens` input is not supported. "));
     } catch (...) {
         FAIL() << "Expected exception was not thrown.";
