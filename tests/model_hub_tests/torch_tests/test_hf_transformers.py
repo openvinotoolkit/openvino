@@ -200,18 +200,12 @@ class TestTransformersModel(TestTorchConvertModel):
             model = Decorator(model)
         elif 'blip' in mi.tags and 'text2text-generation' in mi.tags:
             import requests
-            from PIL import Image
             from transformers import BlipProcessor, BlipForConditionalGeneration
 
             processor = BlipProcessor.from_pretrained(name)
             model = BlipForConditionalGeneration.from_pretrained(name)
-
-            img_url = 'https://storage.googleapis.com/sfr-vision-language-research/BLIP/demo.jpg' 
-            raw_image = Image.open(requests.get(img_url, stream=True).raw).convert('RGB')
-
-            # conditional image captioning
             text = "a photography of"
-            inputs = processor(raw_image, text, return_tensors="pt")
+            inputs = processor(self.image, text, return_tensors="pt")
 
             class DecoratorForBlipForConditional(torch.nn.Module):
                 def __init__(self, model):
@@ -246,16 +240,11 @@ class TestTransformersModel(TestTorchConvertModel):
             model = DecoratorModelForSeq2SeqLM(model)
         elif 'layoutlmv2' in mi.tags:
             from transformers import LayoutLMv2Processor
-            from PIL import Image
             import requests
             processor = LayoutLMv2Processor.from_pretrained(name)
-            # image_url = "https://upload.wikimedia.org/wikipedia/commons/b/be/Screenshot_of_English_Wikipedia_article_on_Earth_on_30_March_2021_%28cropped%29.png"
-            image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
-            image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
 
             question = "What's the content of this image?"
-            encoding = processor(image, question, max_length=512, truncation=True, return_tensors="pt")
-            print(encoding.keys())
+            encoding = processor(self.image, question, max_length=512, truncation=True, return_tensors="pt")
             example = dict(encoding)
         elif 'pix2struct' in mi.tags:
             from transformers import AutoProcessor, Pix2StructForConditionalGeneration
