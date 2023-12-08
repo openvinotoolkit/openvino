@@ -238,7 +238,6 @@ class TestTransformersModel(TestTorchConvertModel):
             model = DecoratorModelForSeq2SeqLM(model)
         elif 'layoutlmv2' in mi.tags:
             from transformers import LayoutLMv2Processor
-            import requests
             processor = LayoutLMv2Processor.from_pretrained(name)
 
             question = "What's the content of this image?"
