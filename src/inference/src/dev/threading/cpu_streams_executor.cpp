@@ -144,7 +144,7 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_numa_id(_numaNodeId)
+                                                            .set_numa_id(get_org_numa_id(_numaNodeId))
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {

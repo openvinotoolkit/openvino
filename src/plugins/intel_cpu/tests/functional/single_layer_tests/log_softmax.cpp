@@ -3,20 +3,16 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-using logSoftmaxLayerTestParams = std::tuple<
-        std::vector<InputShape>,               // inputShape
-        Precision,                             // netPrecision
-        int64_t>;                              // axis
+using logSoftmaxLayerTestParams = std::tuple<std::vector<InputShape>,  // inputShape
+                                             ov::element::Type,        // netPrecision
+                                             int64_t>;                 // axis
 
 class LogSoftmaxLayerCPUTest
         : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
@@ -25,7 +21,7 @@ class LogSoftmaxLayerCPUTest
 public:
     static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
         std::vector<InputShape> inputShapes;
-        Precision netPrecision;
+        ov::element::Type netPrecision;
         int64_t axis;
         std::tie(inputShapes, netPrecision, axis) = obj.param;
 
@@ -44,7 +40,7 @@ public:
                 result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "netPRC=" << netPrecision.name();
+        result << "netPRC=" << netPrecision.to_string();
         result << "Axis=" << axis;
         return result.str();
     }
@@ -54,20 +50,20 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
-        Precision netPrecision;
+        ov::element::Type netPrecision;
         int64_t axis;
         std::tie(inputShapes, netPrecision, axis) = this->GetParam();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = netPrecision;
         inType = outType = ngPrc;
 
-        selectedType = std::string("unknown_") + netPrecision.name();
+        selectedType = std::string("unknown_") + netPrecision.to_string();
         init_input_shapes(inputShapes);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
-        const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(params[0], axis);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(logSoftmax)};
-        function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
+        const auto logSoftmax = std::make_shared<ov::op::v5::LogSoftmax>(params[0], axis);
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(logSoftmax)};
+        function = std::make_shared<ov::Model>(results, params, "logSoftmax");
     }
 };
 
@@ -77,8 +73,8 @@ TEST_P(LogSoftmaxLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        Precision::FP32
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<std::vector<InputShape>> inputShapes2D = {
@@ -120,4 +116,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D_dynamic, LogSoftmaxLayerCPUTest, par
                          LogSoftmaxLayerCPUTest::getTestCaseName);
 
 } // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
