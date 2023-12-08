@@ -259,6 +259,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         std::string device_name;
         try {
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
             if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
                 device_name = m_scheduler->m_compile_context[FALLBACKDEVICE].m_device_info.device_name;
                 return m_scheduler->m_compile_context[FALLBACKDEVICE].m_compiled_model->get_property(name).as<bool>();
@@ -267,7 +268,6 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 device_name = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info.device_name;
                 return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<bool>();
             } else {
-                std::lock_guard<std::mutex> lock(m_context->m_mutex);
                 OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
                                 m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
                 device_name = m_scheduler->m_compile_context[CPU].m_device_info.device_name;
