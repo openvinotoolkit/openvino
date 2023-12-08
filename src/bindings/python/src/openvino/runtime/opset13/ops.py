@@ -296,7 +296,9 @@ def constant(
         _value, _shared_memory = value, shared_memory
     else:
         _value, _shared_memory = np.array(value), False
-        log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default.")
+        if shared_memory:
+            log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default. "
+                        "Set shared_memory=False to hide this warning.")
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
