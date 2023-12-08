@@ -29,7 +29,6 @@ std::shared_ptr<v8::Slice> compute_complex_shape(const ov::Output<ov::Node>& inp
     return make_shared<v8::Slice>(shapeof, start, stop, step, axes);
 }
 
-
 OutputVector translate_shape_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Shape", "ShapeN", "SHAPE"}, true);
     auto input_size = static_cast<int>(node.get_input_size());
@@ -64,7 +63,6 @@ OutputVector translate_shape_op(const NodeContext& node) {
             slice->set_friendly_name(node_name + "_" + to_string(input_ind));
             auto shapeof_output = slice->output(0);
             set_out_name({node_name + ":" + to_string(input_ind)}, shapeof_output);
-            // auto shapeof_output_complex = make_shared<ComplexTypeMark>(shapeof_output, complex_part_type)->output(0);
             outputs.push_back(shapeof_output);
         } else {
             auto shapeof = make_shared<v3::ShapeOf>(input, out_type);

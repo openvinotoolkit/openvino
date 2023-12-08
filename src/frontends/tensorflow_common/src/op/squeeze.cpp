@@ -6,11 +6,11 @@
 
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
-#include "openvino/op/constant.hpp"
 
 using namespace std;
 using namespace ov::op;

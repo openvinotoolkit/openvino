@@ -4,11 +4,11 @@
 
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
@@ -31,7 +31,7 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/concat.hpp"
+#include "openvino/opsets/opset13.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -65,7 +65,6 @@ OutputVector translate_binary_op(const NodeContext& node) {
     });
 }
 
-
 OutputVector translate_mul_op(const NodeContext& node) {
     default_op_checks(node, 2, {}, true);
     auto lhs = node.get_input(0);
@@ -97,12 +96,12 @@ OutputVector translate_mul_op(const NodeContext& node) {
         auto rhs_imag = make_shared<v8::Gather>(rhs, gather_index_imag, minus_one)->output(0);
 
         // result_real = lhs_real * rhs_real - lhs_imag * rhs_imag
-        auto result_real =
-            make_shared<v1::Subtract>(make_shared<v1::Multiply>(lhs_real, rhs_real), make_shared<v1::Multiply>(lhs_imag, rhs_imag));
+        auto result_real = make_shared<v1::Subtract>(make_shared<v1::Multiply>(lhs_real, rhs_real),
+                                                     make_shared<v1::Multiply>(lhs_imag, rhs_imag));
 
         // result_imag = lhs_real * rhs_imag + lhs_imag * rhs_real
-        auto result_imag =
-            make_shared<v1::Add>(make_shared<v1::Multiply>(lhs_real, rhs_imag), make_shared<v1::Multiply>(lhs_imag, rhs_real));
+        auto result_imag = make_shared<v1::Add>(make_shared<v1::Multiply>(lhs_real, rhs_imag),
+                                                make_shared<v1::Multiply>(lhs_imag, rhs_real));
 
         auto real_unsqueeze = make_shared<v0::Unsqueeze>(result_real, minus_one);
         auto imag_unsqueeze = make_shared<v0::Unsqueeze>(result_imag, minus_one);

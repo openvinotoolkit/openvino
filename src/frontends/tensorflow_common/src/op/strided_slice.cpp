@@ -3,13 +3,13 @@
 //
 
 #include "openvino/op/strided_slice.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/concat.hpp"
 
 #include <climits>
 
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -89,14 +89,14 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     }
 
     auto strided_slice = make_shared<v1::StridedSlice>(input,
-                                                   begin,
-                                                   end,
-                                                   strides,
-                                                   begin_mask,
-                                                   end_mask,
-                                                   new_axis_mask,
-                                                   shrink_axis_mask,
-                                                   ellipsis_mask);
+                                                       begin,
+                                                       end,
+                                                       strides,
+                                                       begin_mask,
+                                                       end_mask,
+                                                       new_axis_mask,
+                                                       shrink_axis_mask,
+                                                       ellipsis_mask);
     set_node_name(node.get_name(), strided_slice);
 
     if (complex_type_mark) {
