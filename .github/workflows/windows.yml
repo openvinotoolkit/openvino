@@ -820,7 +820,7 @@ jobs:
           if-no-files-found: 'error'
 
   Overall_Status:
-    name: ci/gha_overall_status
+    name: ci/gha_overall_status_windows
     needs: [Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
