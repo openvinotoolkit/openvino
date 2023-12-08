@@ -278,6 +278,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             return false;
         }
     }
+    OPENVINO_THROW(get_log_tag(), ": not supported property ", name);
 }
 
 void AutoCompiledModel::export_model(std::ostream& model_stream) const {
