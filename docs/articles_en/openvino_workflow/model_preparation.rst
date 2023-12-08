@@ -116,27 +116,6 @@ Also note that even though files from frameworks such as TensorFlow can be used 
    with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
    For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
-IR Conversion Benefits
-################################################
-
-There are several ways of getting a framework model into OpenVINO. However, having to convert the model each time impacts performance. Thus, for most use cases it is usually better to convert the model once and then use OpenVINO's own format, OpenVINO IR, directly. Some of the reasons to use OpenVINO IR are listed below.
-
-Saving to IR to improve first inference latency
--------------------------------------------------
-
-When first inference latency matters, rather than convert the framework model each time it is loaded, which may take some time depending on its size, it is better to do it once, save the model as an OpenVINO IR with ``save_model`` and then load it with ``read_model`` as needed. This should improve the time it takes the model to make the first inference as it avoids the conversion step.
-
-Saving to IR in FP16 to save space
--------------------------------------------------
-
-Another reason to save in OpenVINO IR may be to save storage space, even more so if FP16 is used as it may cut the size by about 50%, especially useful for large models like Llama2-7B.
-
-Saving to IR to avoid large dependencies in inference code
---------------------------------------------------------------------------
-
-One more consideration is that to convert Python objects the original framework is required in the environment. Frameworks such as TensorFlow and PyTorch tend to be large dependencies (multiple gigabytes), and not all inference environments have enough space to hold them. Converting models to OpenVINO IR allows them to be used in an environment where OpenVINO is the only dependency, so much less disk space is needed. Another benefit is that loading and compiling with OpenVINO directly usually takes less runtime memory than loading the model in the source framework and then converting and compiling it.
-
-
 
 Convert a Model with Python: ``convert_model``
 ##############################################
@@ -326,25 +305,26 @@ and run by the final inference application.
 .. note::
    PyTorch models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
 
+IR Conversion Benefits
+################################################
 
+There are several ways of getting a framework model into OpenVINO. However, having to convert the model each time impacts performance. Thus, for most use cases it is usually better to convert the model once and then use OpenVINO's own format, OpenVINO IR, directly. Some of the reasons to use OpenVINO IR are listed below.
 
-Additional Resources
-####################
+Saving to IR to improve first inference latency
+-------------------------------------------------
 
-The following articles describe in detail how to obtain and prepare your model depending on the source model type:
+When first inference latency matters, rather than convert the framework model each time it is loaded, which may take some time depending on its size, it is better to do it once, save the model as an OpenVINO IR with ``save_model`` and then load it with ``read_model`` as needed. This should improve the time it takes the model to make the first inference as it avoids the conversion step.
 
-* :doc:`Convert different model formats to the ov.Model format <Supported_Model_Formats>`.
-* :doc:`Review all available conversion parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
+Saving to IR in FP16 to save space
+-------------------------------------------------
 
-To achieve the best model inference performance and more compact OpenVINO IR representation follow:
+Another reason to save in OpenVINO IR may be to save storage space, even more so if FP16 is used as it may cut the size by about 50%, especially useful for large models like Llama2-7B.
 
-* :doc:`Post-training optimization <ptq_introduction>`
-* :doc:`Model inference in OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+Saving to IR to avoid large dependencies in inference code
+--------------------------------------------------------------------------
 
-If you are still using the legacy conversion API (``mo`` or ``openvino.tools.mo.convert_model``), please refer to the following materials:
+One more consideration is that to convert Python objects the original framework is required in the environment. Frameworks such as TensorFlow and PyTorch tend to be large dependencies (multiple gigabytes), and not all inference environments have enough space to hold them. Converting models to OpenVINO IR allows them to be used in an environment where OpenVINO is the only dependency, so much less disk space is needed. Another benefit is that loading and compiling with OpenVINO directly usually takes less runtime memory than loading the model in the source framework and then converting and compiling it.
 
-* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
-* :doc:`Legacy Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 An example showing how to take advantage of OpenVINO IR, saving a model in OpenVINO IR once, using it many times, is shown below:
 
@@ -372,6 +352,25 @@ An example showing how to take advantage of OpenVINO IR, saving a model in OpenV
 
    # 4. Compile model from memory
    compiled_model = core.compile_model(ov_model)
+
+Additional Resources
+####################
+
+The following articles describe in detail how to obtain and prepare your model depending on the source model type:
+
+* :doc:`Convert different model formats to the ov.Model format <Supported_Model_Formats>`.
+* :doc:`Review all available conversion parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
+
+To achieve the best model inference performance and more compact OpenVINO IR representation follow:
+
+* :doc:`Post-training optimization <ptq_introduction>`
+* :doc:`Model inference in OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+
+If you are still using the legacy conversion API (``mo`` or ``openvino.tools.mo.convert_model``), please refer to the following materials:
+
+* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+* :doc:`Legacy Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+
 
 
 
