@@ -492,7 +492,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     auto updated_layout = actual_layout;
     for (auto user : get_user_insts()) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
-        // to prevemt reading beyound the allocated memory bounds
+        // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>()) {
             user->update_shape();
             user->update_shape_done_by_other = true;
