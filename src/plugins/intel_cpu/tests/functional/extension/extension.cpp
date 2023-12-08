@@ -205,7 +205,7 @@ static std::string get_extension_path() {
 }
 
 
-TEST(Extension, XmlModelWithExtensionFromDSO) {
+TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -260,6 +260,7 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
+    ie.SetConfig({ { ov::hint::inference_precision.name(), ov::element::f32.get_type_name() } }, "CPU");
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
     InferenceEngine::Blob::CPtr weights;
     auto network = ie.ReadNetwork(model, weights);

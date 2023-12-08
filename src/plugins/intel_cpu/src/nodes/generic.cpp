@@ -195,6 +195,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
     }
     for (auto &outConf : rightConfig.outConfs) {
         if (outConf.inPlace() < static_cast<int>(getParentEdges().size()) &&
+            outConf.inPlace() >= 0 &&
             getParentEdgeAt(static_cast<size_t>(outConf.inPlace()))->getParent()->getChildEdges().size() > 1) {
             outConf.inPlace(-1);
         }
