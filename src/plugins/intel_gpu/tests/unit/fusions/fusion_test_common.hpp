@@ -117,6 +117,9 @@ public:
         if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i4 || l.data_type == data_types::u4) {
+            VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(l.bytes_count(), min_random, max_random);
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
             VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
