@@ -191,7 +191,7 @@ jobs:
           pushd ${SELECTIVE_BUILD_STAT_DIR}
             tar -czvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
           popd
-          
+
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz \
               install_dependencies/install_openvino_dependencies.sh
@@ -200,6 +200,7 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
               tests/ov_cpu_func_tests \
+              tests/libtemplate_extension.so \
               tests/functional_test_utils/layer_tests_summary/*
           popd
 
