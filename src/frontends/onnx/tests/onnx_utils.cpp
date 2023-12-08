@@ -23,20 +23,6 @@ namespace tests {
 
 const std::string ONNX_FE = ::ONNX_FE;
 
-shared_ptr<Model> read_ir(const string& xml_path, const string& bin_path) {
-    ov::Core ov_core;
-    auto xml_full_path = FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + "../" + xml_path);
-    auto bin_full_path = bin_path.empty()
-                             ? bin_path
-                             : FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + "../" + bin_path);
-
-    auto model = ov_core.read_model(xml_full_path, bin_full_path);
-    if (!model) {
-        throw "Model is not read";
-    }
-    return model;
-}
-
 shared_ptr<Model> convert_model(const string& model_path, const ov::frontend::ConversionExtensionBase::Ptr& conv_ext) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr front_end = fem.load_by_framework(ONNX_FE);
