@@ -24,14 +24,14 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    auto data = env.GetInstanceData<AddonData>();
-    data->core_prototype = constructor;
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->core_prototype = ref;
 
-    exports.Set("Core", func);
+    exports.Set("Core", prototype);
     return exports;
 }
 
