@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <225-stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <235-controlnet-stable-diffusion/235-controlnet-stable-diffusion-with-output.html>`__.
+ControlNet <./235-controlnet-stable-diffusion/235-controlnet-stable-diffusion.ipynb>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -86,17 +86,17 @@ Notebook contains the following steps:
       library <#stable-diffusion-in-diffusers-library>`__
    -  `Convert models to OpenVINO Intermediate representation (IR)
       format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-   -  `Prepare Inference
-      pipeline <#prepare-inference-pipeline>`__
+   -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
    -  `Zoom Video Generation <#zoom-video-generation>`__
-   -  `Configure Inference
-      Pipeline <#configure-inference-pipeline>`__
+   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
    -  `Select inference device <#select-inference-device>`__
    -  `Run Infinite Zoom video
       generation <#run-infinite-zoom-video-generation>`__
 
-Stable Diffusion v2 Infinite Zoom Showcase 
-------------------------------------------------------------------------------------
+Stable Diffusion v2 Infinite Zoom Showcase
+------------------------------------------
+
+
 
 In this tutorial we consider how to use Stable Diffusion v2 model for
 generation sequence of images for infinite zoom video effect. To do
@@ -104,8 +104,10 @@ this, we will need
 `stabilityai/stable-diffusion-2-inpainting <https://huggingface.co/stabilityai/stable-diffusion-2-inpainting>`__
 model.
 
-Stable Diffusion Text guided Inpainting 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Stable Diffusion Text guided Inpainting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 In image editing, inpainting is a process of restoring missing parts of
 pictures. Most commonly applied to reconstructing old deteriorated
@@ -138,17 +140,21 @@ Using this inpainting feature, decreasing image by certain margin and
 masking this border for every new frame we can create interesting Zoom
 Out video based on our prompt.
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 install required packages
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.14.0" "transformers >= 4.25.1" gradio "openvino>=2023.1.0"
+    %pip install -q "diffusers>=0.14.0" "transformers>=4.25.1" gradio "openvino>=2023.1.0" --extra-index-url https://download.pytorch.org/whl/cpu
 
-Stable Diffusion in Diffusers library 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Stable Diffusion in Diffusers library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To work with Stable Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
@@ -199,11 +205,13 @@ The code below demonstrates how to create
     del pipe_inpaint
     gc.collect();
 
-Convert models to OpenVINO Intermediate representation (IR) format 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert models to OpenVINO Intermediate representation (IR) format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Conversion part of model stayed remain as in `Text-to-Image generation
-notebook <236-stable-diffusion-v2-text-to-image-with-output.html>`__. Except
+notebook <./236-stable-diffusion-v2-text-to-image.ipynb>`__. Except
 U-Net now has 9 channels, which now calculated like 4 for U-Net
 generated latents channels + 4 for latent representation of masked image
 + 1 channel resized mask.
@@ -428,8 +436,10 @@ generated latents channels + 4 for latent representation of masked image
     VAE decoder will be loaded from sd2_inpainting/vae_decoder.xml
 
 
-Prepare Inference pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare Inference pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 As it was discussed previously, Inpainting inference pipeline is based
 on Text-to-Image inference pipeline with addition mask processing step.
@@ -445,7 +455,7 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
     import cv2
     
     from transformers import CLIPTokenizer
-    from diffusers.pipeline_utils import DiffusionPipeline
+    from diffusers import DiffusionPipeline
     from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
     
     
@@ -500,8 +510,8 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
 
 .. parsed-literal::
 
-    /tmp/ipykernel_1292073/2055396221.py:8: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers.pipeline_utils is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
-      from diffusers.pipeline_utils import DiffusionPipeline
+    /tmp/ipykernel_1292073/2055396221.py:8: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
+      from diffusers import DiffusionPipeline
 
 
 .. code:: ipython3
@@ -860,8 +870,10 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
     
             return timesteps, num_inference_steps - t_start 
 
-Zoom Video Generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Zoom Video Generation
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For achieving zoom effect, we will use inpainting to expand images
 beyond their original borders. We run our
@@ -1095,8 +1107,10 @@ generation is finished, we record frames in reversed order.
                 loop=0,
             )
 
-Configure Inference Pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure Inference Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Configuration steps: 1. Load models on device 2. Configure tokenizer and
 scheduler 3. Create instance of ``OVStableDiffusionInpaintingPipeline``
@@ -1108,8 +1122,10 @@ class
     
     tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -1154,8 +1170,10 @@ select device from dropdown list for running inference using OpenVINO
         scheduler=scheduler_inpaint,
     )
 
-Run Infinite Zoom video generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Infinite Zoom video generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1218,3 +1236,5 @@ Run Infinite Zoom video generation
 .. .. raw:: html
 
 ..    <div><iframe src="https://372deef95f8b1d0168.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
