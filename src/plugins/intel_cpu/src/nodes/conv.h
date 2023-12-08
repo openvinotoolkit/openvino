@@ -116,7 +116,6 @@ private:
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
     bool isNspcAvailable() const;
-    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
     MemoryDescPtr getSumMemDesc(const dnnl::primitive_desc &primitive_desc_it);
