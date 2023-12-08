@@ -380,7 +380,7 @@ struct PlainTensor {
             }
             off += m_strides[i] * coordinate;
         }
-        return reinterpret_cast<DT*>(m_ptr)[off];
+        return (reinterpret_cast<DT*>(reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size))[0];
     }
 
     template <typename DT>

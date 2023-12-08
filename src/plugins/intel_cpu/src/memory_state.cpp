@@ -8,6 +8,9 @@
 #include "dnnl_extension_utils.h"
 #include "blob_factory.hpp"
 #include "cpu_tensor.h"
+#include "utils/plain_tensor.hpp"
+#include "openvino/core/parallel.hpp"
+#include "nodes/common/cpu_convert.h"
 
 using namespace InferenceEngine;
 
@@ -228,6 +231,26 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     //TBD very naive implementation
     // 1. map m_internal_mem to the intermed_external_mem (the same precision)
     // 2. perform precision conversion from intermed_external_mem to external_mem
+    if (m_hidden_state) {
+        PlainTensor output, pastkv, beam_table;
+        output.reset(external_mem);
+        beam_table.reset(m_hidden_state);
+        pastkv.reset(m_internal_mem);
+        output = output.permute(actual_internal_order);
+        pastkv = pastkv.permute(actual_internal_order);
+        auto B = pastkv.size(0);
+        auto H = pastkv.size(1);
+        auto L0 = pastkv.size(2);
+        auto S = pastkv.size(3);
+        parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+            auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
+            cpu_convert(&pastkv.at<char>({b_kv, h, m}),
+                        &output.at<char>({b, h, m}),
+                        pastkv.m_dt,
+                        output.m_dt,
+                        S);
+        });
+    }
     return std::make_shared<Tensor>(external_mem);
 }
 

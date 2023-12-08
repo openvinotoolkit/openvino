@@ -640,17 +640,20 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
         const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
         m_config.config = node->get_config();
     }
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
+        rtPrecision = ov::element::f32;
+    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
+    m_kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 }
 
 void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
+        rtPrecision = ov::element::f32;
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
-
-    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
-
-    m_kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -680,25 +683,20 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     }
 
     if (m_config.config.fuse_concat) {
-        VectorDims order = {0, 1, 2, 3};
-        if (!m_config.config.permute_axes.empty())
-            order = m_config.config.permute_axes;
-        ArbitraryOrderDescCreator descCreator(order);
-
         // beam_idx
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             ov::element::i32, getInputShapeAtPort(orginSDPInputNumber + 0)));
         // pastk
-        config.inConfs[orginSDPInputNumber + 1].setMemDesc(descCreator.createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             m_kvcache_precision, getInputShapeAtPort(orginSDPInputNumber + 1)));
         // pastv
-        config.inConfs[orginSDPInputNumber + 2].setMemDesc(descCreator.createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             m_kvcache_precision, getInputShapeAtPort(orginSDPInputNumber + 2)));
 
-        config.outConfs[1].setMemDesc(descCreator.createSharedDesc(
+        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             m_kvcache_precision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(-1);
-        config.outConfs[2].setMemDesc(descCreator.createSharedDesc(
+        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             m_kvcache_precision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(-1);
     }
@@ -730,11 +728,6 @@ void ScaledDotProductAttention::createPrimitive() {
     }
 }
 
-static void  gather_concat_pastkv(const MemoryPtr&, const MemoryPtr&, const MemoryPtr&, const MemoryPtr&) {
-    //TBD
-    OPENVINO_THROW("Not implemenated");
-}
-
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
@@ -745,25 +738,8 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
     }
 
     if (m_config.config.fuse_concat) {
-        if (k_state && k_state->is_reset_state()) {
-            //1. allocate k_state memory with extra size and strides using the input shape
-            // auto k_new_mem = std::make_shared<Memory>()
-            //2. fill the memory with init data
-            // k_state->assign_internal_state(k_new_mem);
-        }
-        auto k_mem = k_state->internal_state_mem();
-        //check whether the memory reallocation is required
-        // if so, reallocate more memory
-        // auto k_new_mem = std::make_shared<Memory>()
-        // and copy data k_mem -> k_new_mem
-        // assign new memory to the state
-        // k_state->assign_internal_state(k_new_mem);
-        // switch pointers
-        // k_mem = k_new_mem;
-        auto k_beam_table = k_state->hidden_state_mem();
-        gather_concat_pastkv(inputs[1], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr(), k_mem, k_beam_table);
-
-        //repeat for V tensor as well
+        // initialization will be also completed in this func
+        gatherConcatPastkv(inputs[1], inputs[2], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr());
 
         presentk_input = k_state->internal_state_mem();
         presentv_input = v_state->internal_state_mem();
@@ -823,6 +799,184 @@ void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateK
         OPENVINO_THROW(
             "Unexpected idx ", idx , " for a state in a node with type: ", getTypeStr(), " and name ", getName());
     }
+}
+
+void ScaledDotProductAttention::gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx) {
+    PlainTensor cur_k;
+    cur_k.reset(mem_cur_k);
+    if (!m_config.config.permute_axes.empty())
+        cur_k = cur_k.permute(m_config.config.permute_axes);
+
+    updateBeamTable(k_state, mem_beam_idx, cur_k.size(2));
+    updateBeamTable(v_state, mem_beam_idx, cur_k.size(2));
+    updatePastkv(mem_cur_k, mem_cur_v);
+}
+
+void ScaledDotProductAttention::updateBeamTable(const std::shared_ptr<VariableStateKVcache>& state, const MemoryPtr& mem_beam_idx, size_t L1) {
+    PlainTensor beam_idx, beam_table;
+    auto hidden_state = state->hidden_state_mem();
+    beam_idx.reset(mem_beam_idx);
+
+    auto B = beam_idx.size(0);
+    size_t L0 = 0;
+    // TODO(BS): better way to get max size
+    auto get_max_size = [] (const CpuBlockedMemoryDesc* desc) {
+        const auto& dims = desc->getBlockDims();
+        const auto& strides = desc->getStrides();
+        return dims[0] * strides[0];
+    };
+
+    CpuBlockedMemoryDesc* block_desc = nullptr;
+    if (hidden_state) {
+        beam_table.reset(hidden_state);
+        L0 = beam_table.size(1);
+        block_desc = hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>();
+    }
+    // resize buffer
+    if (!block_desc || B * (L0 + L1) > get_max_size(block_desc)) {
+        auto mem_desc =
+            std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
+
+        auto new_hidden_state = std::make_shared<Memory>(getEngine(), mem_desc);
+        PlainTensor new_beam_table;
+        new_beam_table.reset(new_hidden_state);
+        if (L0 > 0) {
+            for (size_t b = 0; b < B; b++) {
+                memcpy(&new_beam_table.at<int32_t>({b}), &beam_table.at<int32_t>({b}), sizeof(int32_t) * L0);
+            }
+        }
+        state->assign_hidden_state(new_hidden_state);
+        hidden_state = new_hidden_state;
+        beam_table = new_beam_table;
+    }
+    std::vector<size_t> new_shape{B, (L0 + L1)};
+    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
+        Shape(new_shape),
+        new_shape,
+        VectorDims{0, 1},
+        0,
+        VectorDims{},
+        hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
+    hidden_state->redefineDesc(mem_desc);
+
+    // first token
+    if (L0 == 0) {
+        for (size_t b = 0; b < B; b++) {
+            for (size_t l = 0; l < L1; l++) {
+                beam_table.at<int32_t>({b, l}) = b;
+            }
+        }
+        return;
+    }
+
+    // beam order is like [0, 1, 2,...]
+    bool no_reorder = true;
+    for (size_t i = 0; i < B; i++) {
+        if (beam_idx.data<int32_t>()[i] != i) {
+            no_reorder = false;
+            break;
+        }
+    }
+
+    // reorder
+    if (!no_reorder) {
+        PlainTensor tmp;
+        tmp.resize({B, L0}, beam_idx.data<int32_t>());
+        std::memcpy(tmp.data<int32_t>(), beam_idx.data<int32_t>(), B * L0 * sizeof(int32_t));
+        auto *table = beam_idx.data<int32_t>();
+        for (size_t i = 0; i < B; i++) {
+            memcpy(&beam_table.at<int32_t>({i}),
+                   &tmp.at<int32_t>({static_cast<size_t>(table[i])}),
+                   sizeof(int32_t) * L0);
+        }
+    }
+    // second token itself
+    for (size_t i = 0; i < B; i++) {
+        beam_table.at<int32_t>({i, L0}) = i;
+    }
+}
+
+void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v) {
+    std::vector<size_t> order = {0, 1, 2, 3};
+    if (!m_config.config.permute_axes.empty()) {
+        order = m_config.config.permute_axes;
+    }
+    PlainTensor cur_k, past_k;
+    PlainTensor cur_v, past_v;
+    cur_k.reset(mem_cur_k);
+    cur_v.reset(mem_cur_v);
+    cur_k = cur_k.permute(order);
+    cur_v = cur_v.permute(order);
+    auto B = cur_k.size(0);
+    auto H = cur_k.size(1);
+    auto L1 = cur_k.size(2);
+    auto S = cur_k.size(3);
+    size_t L0 = 0;
+    std::vector<size_t> reverse_order(order.size());
+    for (size_t i = 0; i < order.size(); i++) {
+        reverse_order[order[i]] = i;
+    }
+    auto reverse = [&reverse_order] (const std::vector<size_t>& cur) {
+        std::vector<size_t> result(cur.size());
+        for (size_t i = 0; i < cur.size(); i++) {
+            result[reverse_order[i]] = cur[i];
+        }
+        return result;
+    };
+    auto get_max_size = [] (const CpuBlockedMemoryDesc* desc) {
+        const auto& dims = desc->getBlockDims();
+        const auto& strides = desc->getStrides();
+        return dims[0] * strides[0];
+    };
+    auto internal_mem_k = k_state->internal_state_mem();
+    auto internal_mem_v = v_state->internal_state_mem();
+    CpuBlockedMemoryDesc* block_desc = nullptr;
+    if (internal_mem_k) {
+        past_k.reset(internal_mem_k);
+        past_v.reset(internal_mem_v);
+        past_k = past_k.permute(order);
+        past_v = past_v.permute(order);
+        L0 = past_k.size(2);
+        block_desc = internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>();
+    }
+
+    // resize buffer
+    if (!block_desc || B * H * (L0 + L1) * S > get_max_size(block_desc)) {
+        auto new_shape = reverse({B, H, (L0 + L1) * 2, S});
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
+            Shape(new_shape),
+            new_shape,
+            order);
+
+        auto new_internal_mem_k = std::make_shared<Memory>(getEngine(), mem_desc);
+        auto new_internal_mem_v = std::make_shared<Memory>(getEngine(), mem_desc);
+
+        PlainTensor new_pastk, new_pastv;
+        new_pastk.reset(new_internal_mem_k);
+        new_pastv.reset(new_internal_mem_v);
+        new_pastk = new_pastk.permute(order);
+        new_pastv = new_pastv.permute(order);
+        if (L0 > 0) {
+            attn_memcpy(past_k, past_v, new_pastk, new_pastv);
+        }
+        internal_mem_k = new_internal_mem_k;
+        internal_mem_v = new_internal_mem_v;
+        past_k = new_pastk;
+        past_v = new_pastv;
+        k_state->assign_internal_state(new_internal_mem_k);
+        v_state->assign_internal_state(new_internal_mem_v);
+    }
+    auto new_shape = reverse({B, H, (L0 + L1), S});
+    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
+        Shape(new_shape),
+        new_shape,
+        order,
+        0,
+        VectorDims{},
+        internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
+    internal_mem_k->redefineDesc(mem_desc);
+    internal_mem_v->redefineDesc(mem_desc);
+    attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
 }
 
 }  // namespace node

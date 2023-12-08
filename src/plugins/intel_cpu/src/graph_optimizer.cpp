@@ -2890,7 +2890,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
 
         auto memOutputEdge = memOutput.getParentEdgeAt(0);
         auto newEdge =
-            std::make_shared<Edge>(memInputSdpa, memOutputStub, memOutputEdge->getInputNum(), 0);
+            std::make_shared<Edge>(sdpa, memOutputStub, memOutputEdge->getInputNum(), 0);
         memOutputStub->addEdge(newEdge);
         graph.GetEdges().push_back(newEdge);
         graph.RemoveEdge(memOutputEdge);

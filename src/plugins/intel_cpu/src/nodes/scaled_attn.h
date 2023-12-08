@@ -53,6 +53,10 @@ public:
     }
 
 private:
+    void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
+    void updateBeamTable(const std::shared_ptr<VariableStateKVcache>& state, const MemoryPtr& mem_beam_idx, size_t new_q_len);
+    void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
+
     struct Executor {
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const MemoryPtr output, const MemoryPtr presentk_input,
                              const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;

@@ -103,7 +103,7 @@ public:
             pastk_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastk);
             pastv_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastv);
         }
-        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1, -1});
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
         auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
@@ -170,7 +170,7 @@ public:
         create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
         create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
         create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
-        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0], targetInputStaticShapes[0][2]}, idx + 0.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
     }
     void prepare() {
         compile_model();
