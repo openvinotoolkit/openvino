@@ -421,12 +421,6 @@ ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
 
 bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-
-    ov::pass::Manager manager(get_pass_config());
-    using namespace ov::pass;
-    REGISTER_PASS(manager, SliceToStridedSlice, m_use_shapes)
-    manager.run_passes(f);
-
     bool rewritten = false;
     if (m_use_shapes) {
         rewritten = UselessSliceEraser().run_on_model(f);

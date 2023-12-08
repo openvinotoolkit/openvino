@@ -134,6 +134,7 @@
 #include "low_precision/recurrent_cell.hpp"
 
 #include "intel_gpu/runtime/itt.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 namespace {
 template<typename T>
@@ -507,6 +508,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
         pass_config->disable<ov::pass::GroupNormalizationDecomposition>();
+        pass_config->disable<ov::pass::SliceToStridedSlice>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
