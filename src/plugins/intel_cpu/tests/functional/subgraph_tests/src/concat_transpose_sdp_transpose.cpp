@@ -5,12 +5,12 @@
 #include <openvino/opsets/opset13.hpp>
 #include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 
+#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
 using namespace ngraph;
@@ -21,9 +21,9 @@ namespace SubgraphTestsDefinitions {
 
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatSDPTransposeTestParams = std::tuple<ElementType,
-                                       InputShapeAndTransposeOrder,
-                                       bool                         // has ShapeOf
-                                       >;
+                                                InputShapeAndTransposeOrder,
+                                                bool  // has ShapeOf
+                                                >;
 // Subgraph:
 /*                              Parameter
  *                                  |
@@ -46,7 +46,9 @@ using ConcatSDPTransposeTestParams = std::tuple<ElementType,
  *                                Result
  */
 
-class ConcatSDPTransposeTest : public testing::WithParamInterface<ConcatSDPTransposeTestParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+class ConcatSDPTransposeTest : public testing::WithParamInterface<ConcatSDPTransposeTestParams>,
+                               virtual public ov::test::SubgraphBaseTest,
+                               public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTransposeTestParams>& obj) {
         ElementType inType;
@@ -134,20 +136,21 @@ public:
         sdp->set_friendly_name("mha");
 
         // post SDPA transpose + reshape
-        auto get_reshape_order = [] (const ov::PartialShape& qkv_shape, const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
-            assert(transposeOrder.size()==4);
+        auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
+                                    const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
+            assert(transposeOrder.size() == 4);
             auto H = qkv_shape[transposeOrder[1]].get_length();
             auto S = qkv_shape[transposeOrder[3]].get_length();
-            return std::vector<size_t>{0, 0, static_cast<size_t>(H*S)};
+            return std::vector<size_t>{0, 0, static_cast<size_t>(H * S)};
         };
         const auto reshapeOrder = get_reshape_order(inputDynamicShapes[0], transposeOrder);
-        std::cout << "============ qkv_shape " << inputDynamicShapes[0] << " transpose " << ov::Shape(transposeOrder) << " -> reshape " << ov::Shape(reshapeOrder) << std::endl;
 
-        auto postOrder = op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{0, 2, 1, 3});  // BHLS -> BLHS
+        auto postOrder =
+            op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{0, 2, 1, 3});  // BHLS -> BLHS
         auto transposeSDP = std::make_shared<ov::op::v1::Transpose>(sdp, postOrder);
 
         auto constReshape = op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
-        auto reshapeSDP = std::make_shared<ov::op::v1::Reshape>(transposeSDP, constReshape, true); // BLHS -> B,L,HxS        
+        auto reshapeSDP = std::make_shared<ov::op::v1::Reshape>(transposeSDP, constReshape, true);  // BLHS -> B,L,HxS
 
         auto add = std::make_shared<op::v1::Add>(reshapeSDP, op::v0::Constant::create(inType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<op::v6::Assign>(concatK, var_k);
@@ -187,7 +190,7 @@ public:
         shapes[3] = targetInputStaticShapes[1];
         SubgraphBaseTest::generate_inputs(shapes);
     }
-    template<typename IT, typename T>
+    template <typename IT, typename T>
     void strided_iota(IT first, size_t n, T value, T stride) {
         for (size_t i = 0; i < n; i++) {
             *first++ = value;
@@ -196,7 +199,7 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
-        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
+        auto create_input = [this](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
@@ -260,39 +263,34 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {
-    {   // TODO: dynamic batch
-        // inputShapes LLama
-        {
-            // B, H, L1, S
-            {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
-            // B, H, L0, S
-            {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
-        },
-        // transposeOrder
-        {0, 1, 2, 3}
-    },
-    {
-        // inputShapes QWen
-        {
-            // B, L1, H, S
-            {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
-            // B, L0, H, S
-            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
-        },
-        // transposeOrder
-        {0, 2, 1, 3}
-    },
-    {
-        // inputShapes ChatGLM
-        {
-            // L1, B, H, S
-            {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
-            // L0, B, H, S
-            {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}, {11, 1, 8, 64}, {12, 1, 8, 64}, {32, 1, 8, 64}}},
-        },
-        // transposeOrder
-        {1, 2, 0, 3}
-    },
+    {// TODO: dynamic batch
+     // inputShapes LLama
+     {
+         // B, H, L1, S
+         {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
+         // B, H, L0, S
+         {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
+     },
+     // transposeOrder
+     {0, 1, 2, 3}},
+    {// inputShapes QWen
+     {
+         // B, L1, H, S
+         {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
+         // B, L0, H, S
+         {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
+     },
+     // transposeOrder
+     {0, 2, 1, 3}},
+    {// inputShapes ChatGLM
+     {
+         // L1, B, H, S
+         {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
+         // L0, B, H, S
+         {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}, {11, 1, 8, 64}, {12, 1, 8, 64}, {32, 1, 8, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,

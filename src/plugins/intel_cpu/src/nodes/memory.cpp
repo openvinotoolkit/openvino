@@ -574,7 +574,6 @@ void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
         "failed initOptimalPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     const auto& childConfig = childPd->getConfig();
-    auto childPrecision = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc()->getPrecision();
 
     auto selectedPd = getSelectedPrimitiveDescriptor();
     OPENVINO_ASSERT(selectedPd,
@@ -584,8 +583,8 @@ void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
 
     auto config = selectedPd->getConfig();
     // The pyscial layout varies from models, e.g. [LBHS]chatglm, [BHLS]Llama
-    // The SDPA knows details info, so should trust the layout config provided by SPDA
-    auto newMemDesc = childPd->getConfig().outConfs.back().getMemDesc();
+    // The SDPA knows details, so should trust the layout config provided by SPDA
+    auto newMemDesc = childConfig.outConfs.back().getMemDesc();
     config.outConfs.front().setMemDesc(newMemDesc);
     //bypass any checks, we enforce the child descriptor precision
     selectedPd->setConfig(config);
