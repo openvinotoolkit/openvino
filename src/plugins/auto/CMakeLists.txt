@@ -35,9 +35,8 @@ elseif(ENABLE_MULTI)
                   VERSION_DEFINES_FOR src/plugin.cpp)
 endif()
 
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()
+find_package(Threads REQUIRED)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
@@ -45,3 +44,7 @@ ov_set_threading_interface_for(${TARGET_NAME})
 ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
