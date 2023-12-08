@@ -8,6 +8,7 @@ import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
 import openvino.properties.streams as streams
+import openvino.properties.intel_auto as intel_auto
 #! [py_ov_property_import_header]
 import openvino.properties.log as log
 
@@ -96,11 +97,13 @@ def part3():
         },
     )
     # To use the “CUMULATIVE_THROUGHPUT” mode:
+    # To use the ROUND_ROBIN schedule policy:
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
         config={
-            hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT
+            hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT,
+            intel_auto.schedule_policy: intel_auto.SchedulePolicy.ROUND_ROBIN
         },
     )
     #! [part3]

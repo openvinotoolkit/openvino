@@ -102,6 +102,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", CreatorFunction(translate_binary_op<opset8::Add>)},
         {"AddV2", CreatorFunction(translate_binary_op<opset8::Add>)},
+        {"Atan2", CreatorFunction(translate_atan2_op)},
         {"BitwiseAnd", CreatorFunction(translate_binary_op<opset13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<opset13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<opset13::BitwiseXor>)},
@@ -231,6 +232,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_with_argmax)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
+        {"MulNoNan", CreatorFunction(translate_mul_no_nan_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
         {"MutableHashTableV2", CreatorFunction(translate_hash_table_op)},
         {"NonMaxSuppression", CreatorFunction(translate_non_max_suppression_op)},

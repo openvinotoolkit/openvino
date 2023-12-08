@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "stateful_sdp_fusion.hpp"
+#include "stateful_sdpa_fusion.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -17,13 +17,13 @@
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/common/op/sdp.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-StatefulSDPFusion::StatefulSDPFusion() {
-    MATCHER_SCOPE(StatefulSDPFusion);
+StatefulSDPAFusion::StatefulSDPAFusion() {
+    MATCHER_SCOPE(StatefulSDPAFusion);
     using namespace ov::pass::pattern;
 
     auto past_k = wrap_type<opset6::ReadValue>();
@@ -91,13 +91,13 @@ StatefulSDPFusion::StatefulSDPFusion() {
         args[2] = concat_v_node->input_value(1);
         args.push_back(read_cvt_k_node ? read_cvt_k_node->output(0) : past_k_node->output(0));
         args.push_back(read_cvt_v_node ? read_cvt_v_node->output(0) : past_v_node->output(0));
-        ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
+        ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
 
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
 
         auto old_node = sdp_node;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(args, config);
+        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::replace_node(old_node, {new_node->output(0)});
         if (assign_cvt_k_node)
