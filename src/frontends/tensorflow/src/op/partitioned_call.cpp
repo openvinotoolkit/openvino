@@ -15,7 +15,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_partitioned_call_op(const NodeContext& node) {
-    default_op_checks(node, 0, {"PartitionedCall", "StatefulPartitionedCall"}, true);
+    default_op_checks(node, 0, {"PartitionedCall", "StatefulPartitionedCall"});
     auto node_name = node.get_name();
     auto translate_session = node.get_translate_session();
     FRONT_END_GENERAL_CHECK(translate_session, "[TensorFlow Frontend] Internal error: Translate session is nullptr.");

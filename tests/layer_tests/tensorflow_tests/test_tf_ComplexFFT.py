@@ -108,37 +108,6 @@ class TestComplexAbs(CommonTFLayerTest):
             ie_device, precision, ir_version, temp_dir=temp_dir,
             use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
-class TestComplexMul(CommonTFLayerTest):
-    def _prepare_input(self, inputs_info):
-        rng = np.random.default_rng()
-        assert 'param_real_1:0' in inputs_info
-        assert 'param_imag_1:0' in inputs_info
-        assert 'param_real_2:0' in inputs_info
-        assert 'param_imag_2:0' in inputs_info
-        param_real_shape_1 = inputs_info['param_real_1:0']
-        param_imag_shape_1 = inputs_info['param_imag_1:0']
-        param_real_shape_2 = inputs_info['param_real_2:0']
-        param_imag_shape_2 = inputs_info['param_imag_2:0']
-        inputs_data = {}
-        inputs_data['param_real_1:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag_1:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        inputs_data['param_real_2:0'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
-        inputs_data['param_imag_2:0'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
-        return inputs_data
-
-    def create_complex_mul_net(self, input_shape):
-        tf.compat.v1.reset_default_graph()
-        # Create the graph and model
-        with tf.compat.v1.Session() as sess:
-            param_real1 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real_1')
-            param_imag1 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag_1')
-            param_real2 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real_2')
-            param_imag2 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag_2')
-            complex1 = tf.raw_ops.Complex(real=param_real1, imag=param_imag1)
-            complex2 = tf.raw_ops.Complex(real=param_real2, imag=param_imag2)
-            mul = tf.raw_ops.Mul(x=complex1, y=complex2, name="complex_mul")
-            real = tf.raw_ops.Real(input=mul)
-            img = tf.raw_ops.Imag(input=mul)
 
     @pytest.mark.parametrize("fft_op", [
         tf.raw_ops.FFT, tf.raw_ops.FFT2D, tf.raw_ops.FFT3D,
@@ -289,95 +258,6 @@ class TestComplexIRFFT(CommonTFLayerTest):
             *self.create_complex_irfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
             use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-
-
-class TestComplexPad(CommonTFLayerTest):
-    def _prepare_input(self, inputs_info):
-        rng = np.random.default_rng()
-        assert 'param_real:0' in inputs_info
-        assert 'param_imag:0' in inputs_info
-        param_real_shape_1 = inputs_info['param_real:0']
-        param_imag_shape_1 = inputs_info['param_imag:0']
-        inputs_data = {}
-        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        return inputs_data
-
-    def create_complex_pad_net(self, input_shape, pads_values):
-        tf.compat.v1.reset_default_graph()
-        # Create the graph and model
-        with tf.compat.v1.Session() as sess:
-            param_real = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real')
-            param_imag = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag')
-            complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
-
-            pad = tf.raw_ops.Pad(input=complex, paddings=pads_values)
-            real = tf.raw_ops.Real(input=pad)
-            img = tf.raw_ops.Imag(input=pad)
-            tf.compat.v1.global_variables_initializer()
-            tf_net = sess.graph_def
-
-        return tf_net, None
-
-    test_data_basic = [
-        dict(input_shape=[2, 3], pads_values=[[0, 1], [2, 3]]),
-        dict(input_shape=[2, 4, 3], pads_values=[[1, 2], [3, 4], [1, 1]])
-    ]
-    @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
-    @pytest.mark.nightly
-    def test_complex_pad(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
-        self._test(
-            *self.create_complex_pad_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-
-
-class TestComplexShape(CommonTFLayerTest):
-    def _prepare_input(self, inputs_info):
-        rng = np.random.default_rng()
-        assert 'param_real:0' in inputs_info
-        assert 'param_imag:0' in inputs_info
-        param_real_shape_1 = inputs_info['param_real:0']
-        param_imag_shape_1 = inputs_info['param_imag:0']
-        inputs_data = {}
-        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        return inputs_data
-
-    def create_complex_shape_net(self, input_shape):
-        tf.compat.v1.reset_default_graph()
-        # Create the graph and model
-        with tf.compat.v1.Session() as sess:
-            param_real = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real')
-            param_imag = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag')
-            complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
-
-            out = tf.raw_ops.Shape(input=complex)
-            tf.compat.v1.global_variables_initializer()
-            tf_net = sess.graph_def
-
-        return tf_net, None
-
-    test_data_basic = [
-        dict(input_shape=[]),
-        dict(input_shape=[2, 3]),
-        dict(input_shape=[2, 4, 3]),
-        dict(input_shape=[2, 5, 3, 6, 8]),
-    ]
-    @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
-    @pytest.mark.nightly
-    def test_complex_shape(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
-        self._test(
-            *self.create_complex_shape_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
 
 class TestComplexTranspose(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):

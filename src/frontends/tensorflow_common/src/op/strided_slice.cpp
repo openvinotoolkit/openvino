@@ -57,16 +57,16 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     element::Type complex_part_type = element::dynamic;
     std::vector<int64_t> begin_axes;
-    // if (complex_type_mark) {
-    //     complex_part_type = complex_type_mark->get_complex_part_type();
-    //     input = complex_type_mark->input_value(0);
+    if (complex_type_mark) {
+        complex_part_type = complex_type_mark->get_complex_part_type();
+        input = complex_type_mark->input_value(0);
 
-    //     TENSORFLOW_OP_VALIDATION(node,
-    //                              as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
-    //                              "StridedSlice for complex values is not supported with non-constant begin");
-    //     get_const_input(node, 1, &begin_axes);
-    //     max_length = std::max(begin_axes.size() + 1, max_length);
-    // }
+        TENSORFLOW_OP_VALIDATION(node,
+                                 as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
+                                 "StridedSlice for complex values is not supported with non-constant begin");
+        get_const_input(node, 1, &begin_axes);
+        max_length = std::max(begin_axes.size() + 1, max_length);
+    }
 
     begin_mask.resize(max_length, 0);
     end_mask.resize(max_length, 0);

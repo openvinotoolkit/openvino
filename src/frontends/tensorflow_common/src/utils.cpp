@@ -276,9 +276,6 @@ void default_op_checks(const frontend::NodeContext& node,
         auto node_input = node.get_input(input_ind);
         if (as_type_ptr<ComplexTypeMark>(node_input.get_node_shared_ptr())) {
             has_input_complex_type = true;
-            // std::cout << node.get_name() << "<-"
-            //           << node_input.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_friendly_name()
-            //           << std::endl;
             break;
         }
     }
