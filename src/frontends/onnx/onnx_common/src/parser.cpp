@@ -8,11 +8,11 @@
 #include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 
-#include <ngraph/file_util.hpp>
+#include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
 
-#include "ngraph/except.hpp"
-
-namespace ngraph {
+namespace ov {
+namespace frontend {
 namespace onnx_common {
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
@@ -31,9 +31,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        OPENVINO_THROW("Could not open the file: " + file_util::wstring_to_string(file_path));
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_THROW("Could not open the file: " + ov::util::wstring_to_string(file_path));
     };
 
     auto model_proto = parse_from_istream(file_stream);
@@ -60,4 +58,5 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
     return model_proto;
 }
 }  // namespace onnx_common
-}  // namespace ngraph
+}  // namespace frontend
+}  // namespace ov
