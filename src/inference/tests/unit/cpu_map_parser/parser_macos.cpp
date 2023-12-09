@@ -52,7 +52,7 @@ public:
     }
 };
 
-MacOSCpuMapTestCase test_case_arm = {
+MacOSCpuMapTestCase test_case_arm_1 = {
     8,                     // param[expected out]: total 8 logcial processors on this simulated platform
     1,                     // param[expected out]: total 1 numa nodes on this simulated platform
     1,                     // param[expected out]: total 1 sockets on this simulated platform
@@ -67,7 +67,32 @@ MacOSCpuMapTestCase test_case_arm = {
     },  // param[in]: The system information table of this simulated platform
 };
 
-MacOSCpuMapTestCase test_case_x86 = {
+MacOSCpuMapTestCase test_case_arm_2 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 4, 4, 0, 0, 0}},
+    {
+        {"hw.ncpu", 8},
+        {"hw.physicalcpu", 8},
+        {"hw.optional.arm64", 1},
+    },
+};
+
+MacOSCpuMapTestCase test_case_arm_3 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 4, 4, 0, 0, 0}},
+    {
+        {"hw.ncpu", 8},
+        {"hw.optional.arm64", 1},
+    },
+};
+
+MacOSCpuMapTestCase test_case_x86_1 = {
     12,
     1,
     1,
@@ -76,9 +101,21 @@ MacOSCpuMapTestCase test_case_x86 = {
     {{"hw.ncpu", 12}, {"hw.physicalcpu", 6}},
 };
 
+MacOSCpuMapTestCase test_case_x86_2 = {
+    12,
+    1,
+    1,
+    12,
+    {{12, 12, 0, 0, 0, 0}},
+    {{"hw.ncpu", 12}},
+};
+
 TEST_P(MacOSCpuMapParserTests, MacOS) {}
 
-INSTANTIATE_TEST_SUITE_P(CPUMap, MacOSCpuMapParserTests, testing::Values(test_case_arm, test_case_x86));
+INSTANTIATE_TEST_SUITE_P(
+    CPUMap,
+    MacOSCpuMapParserTests,
+    testing::Values(test_case_arm_1, test_case_arm_2, test_case_arm_3, test_case_x86_1, test_case_x86_2));
 
 #endif
 }  // namespace

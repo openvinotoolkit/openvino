@@ -157,14 +157,13 @@ void parse_processor_info_win(const char* base_ptr,
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
- * @return
  */
-int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t>>& system_info_table,
-                               int& _processors,
-                               int& _numa_nodes,
-                               int& _sockets,
-                               int& _cores,
-                               std::vector<std::vector<int>>& _proc_type_table);
+void parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t>>& system_info_table,
+                                int& _processors,
+                                int& _numa_nodes,
+                                int& _sockets,
+                                int& _cores,
+                                std::vector<std::vector<int>>& _proc_type_table);
 #endif
 
 }  // namespace ov
