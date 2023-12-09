@@ -3,7 +3,5 @@
 #
 
 ov_add_frontend(NAME pytorch
-                LINKABLE_FRONTEND
-                SHUTDOWN_PROTOBUF
-                FILEDESCRIPTION "FrontEnd to load and convert TorchScript models from PyTorch"
+                FILEDESCRIPTION "FrontEnd to load and convert TorchScript, TorchFX models from PyTorch"
                 LINK_LIBRARIES openvino::util openvino::core::dev)

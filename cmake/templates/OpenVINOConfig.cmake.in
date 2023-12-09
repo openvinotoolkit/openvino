@@ -43,9 +43,6 @@
 #   `openvino::frontend::paddle`
 #   Paddle FrontEnd target (optional)
 #
-#   `openvino::frontend::pytorch`
-#   PyTorch FrontEnd target (optional)
-#
 #   `openvino::frontend::tensorflow`
 #   TensorFlow FrontEnd target (optional)
 #
