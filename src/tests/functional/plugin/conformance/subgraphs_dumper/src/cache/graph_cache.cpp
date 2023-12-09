@@ -147,7 +147,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                             cached_model.first->get_results().size();
                         auto extracted_model_op_cnt =
                             extracted_model->get_ops().size() - input_info.size() - extracted_model->get_results().size();
-                        if (matched_ops.size() > 0.5 * extracted_model_op_cnt) {
+                        if (matched_ops.size() > 0.75 * extracted_model_op_cnt) {
                             if (cached_model_op_cnt > extracted_model_op_cnt) {
                                 return;
                             }

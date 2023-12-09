@@ -78,11 +78,6 @@ TEST_F(RepeatPatternExtractorFuncTest, extract_0) {
 
 TEST_F(RepeatPatternExtractorFuncTest, extract_1) {
     auto test_model = Model_1();
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(
-    "/Users/iefode/repo/openvino/src/tests/functional/plugin/conformance/subgraphs_dumper/tests/test_models/test.xml",
-    "/Users/iefode/repo/openvino/src/tests/functional/plugin/conformance/subgraphs_dumper/tests/test_models/test.bin");
-    manager.run_passes(test_model.get());
     auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));

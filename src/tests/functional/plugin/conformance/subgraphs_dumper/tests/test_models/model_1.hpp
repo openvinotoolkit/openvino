@@ -134,9 +134,12 @@ public:
                            ref_pattern_0_1_0 = {test_abs_0_1->inputs(), test_clamp_0_1->outputs()},
                            test_pattern_0_1_1 = {test_multiply_0_1->inputs(), test_relu_0_1->outputs()},
                            test_pattern_1_1 = {test_multiply_1_1->inputs(), test_relu_1_1->outputs()};
-            std::vector<std::vector<PatternBorders>> ref_res = {{ref_pattern_0, ref_pattern_0_0},
-                                                                {ref_pattern_1, ref_pattern_0_1_0},
-                                                                {test_pattern_0_1_1, test_pattern_1_1}};
+            // std::vector<std::vector<PatternBorders>> ref_res = {{ref_pattern_0, ref_pattern_0_0},
+            //                                                     {ref_pattern_1, ref_pattern_0_1_0},
+            //                                                     {test_pattern_0_1_1, test_pattern_1_1}};
+            std::vector<std::vector<PatternBorders>> ref_res = {{ref_pattern_1, ref_pattern_0_1_0},
+                                                                {test_pattern_0_1_1, test_pattern_1_1},
+                                                                {ref_pattern_0, ref_pattern_0_0}};
             ref_borders = std::move(ref_res);
         }
         start_ops = {test_abs_0, test_abs_0_0, test_abs_0_1, test_abs_1};
