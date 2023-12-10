@@ -29,6 +29,19 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         , ctc_merge_repeated(ctc_merge_repeated)
         , output_tensor(output_tensor) {}
 
+    /// @brief Constructs ctc_greedy_decoder primitive.
+    /// @param id This primitive id.
+    /// @param input Input primitive id (input, sequence_indicators, second_output(optional)).
+    /// @param ctc_merge_repeated Flag for merging repeated labels during the CTC calculation
+    ctc_greedy_decoder(const primitive_id& id,
+                       const std::vector<input_info>& inputs,
+                       const bool ctc_merge_repeated,
+                       const padding& output_padding = padding(),
+                       data_types output_data_type = data_types::i32,
+                       const size_t num_outputs = 1)
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}, num_outputs)
+        , ctc_merge_repeated(ctc_merge_repeated) {}
+
     uint32_t blank_index;
     bool ctc_merge_repeated = false;
     tensor output_tensor;
