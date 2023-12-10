@@ -854,17 +854,10 @@ bool fuse_type_to_multinomial_v13(const std::shared_ptr<ov::Node>& node, const p
         return false;
     }
 
-    auto it_output_type = precisions.find(node->get_output_element_type(0));
-    if (it_output_type == precisions.end())
-        return false;
-
-    const auto& output_type = it_output_type->second;
-    if (output_type.is_integral_number() || output_type.is_real()) {
+    return update_type(0, node, precisions, [&](const element::Type& type) {
         multinomial->set_convert_type(ov::element::i32);
-        multinomial->set_output_type(0, output_type, multinomial->get_output_partial_shape(0));
-        return true;
-    }
-    return false;
+        multinomial->set_output_type(0, type, multinomial->get_output_partial_shape(0));
+    });
 }
 
 bool fuse_type_to_generate_proposals(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
