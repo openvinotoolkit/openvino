@@ -11,7 +11,7 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class RepeatPatternExtractor : public SubgraphExtractor {
+class RepeatPatternExtractor final : public SubgraphExtractor {
 private:
     using InputVector = std::vector<ov::Input<ov::Node>>;
     using OutputVector = std::vector<ov::Output<ov::Node>>;
