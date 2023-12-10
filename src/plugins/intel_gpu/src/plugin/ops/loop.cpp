@@ -268,6 +268,16 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
         auto result = std::make_shared<ov::op::v0::Result>(update_current_iter_op);
         ov_model->add_results({result});
+
+        const cldnn::primitive_id first_iter_id = layerName + "_firstIter";
+        cldnn::mutable_data first_iter_data = CreateScalarData<cldnn::mutable_data>(p, first_iter_id, shape, prec, 0,
+                                static_cast<int64_t>(current_iteration_input_op->get_output_partial_shape(0).rank().get_length()));
+
+        p.add_primitive(*op, std::move(first_iter_data));
+        inputs.insert(inputs.begin(), cldnn::input_info(first_iter_id, 0));
+
+        input_primitive_maps.emplace_back(cldnn::input_info(first_iter_id), cldnn::input_info(body_current_iteration_id));
+        back_edges.emplace_back(updated_current_iteration_id, body_current_iteration_id);
     }
 
     // set trip count, num iteration primitives
@@ -278,12 +288,6 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     p.add_primitive(*op, std::move(num_iteration_data));
     inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
-
-    if (!body_current_iteration_id.empty()) {
-        // update input_primitive_maps and back_edges for current_iteration nodes
-        input_primitive_maps.emplace_back(cldnn::input_info(num_iteration_id), cldnn::input_info(body_current_iteration_id));
-        back_edges.emplace_back(updated_current_iteration_id, body_current_iteration_id);
-    }
 
     auto output_names_vec = GetOutputNames(layerName, body_execution_condition_id, output_primitive_maps, back_edges);
 

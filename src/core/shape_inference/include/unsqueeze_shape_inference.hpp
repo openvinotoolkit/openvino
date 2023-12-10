@@ -12,12 +12,10 @@ namespace v0 {
 
 template <class TOp>
 void check_unsqueeze_axes_rank(const TOp* op, const Rank& rank) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(rank, {0, 1}),
+                          ov::util::is_rank_compatible_any_of(rank, {0, 1}),
                           "Second input (axes) should not be of rank higher than 1. Got: ",
                           rank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 template <class TShape, class TRShape = result_shape_t<TShape>>
