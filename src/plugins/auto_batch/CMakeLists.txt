@@ -9,7 +9,6 @@ endif()
 set(TARGET_NAME "openvino_auto_batch_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
@@ -17,6 +16,9 @@ ov_add_plugin(NAME ${TARGET_NAME}
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR src/plugin.cpp ADD_CLANG_FORMAT)
+
+find_package(Threads REQUIRED)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

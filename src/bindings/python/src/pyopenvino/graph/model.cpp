@@ -111,7 +111,7 @@ void regclass_graph_Model(py::module m) {
                     Create user-defined Model which is a representation of a model.
 
                     :param results: List of results.
-                    :type results: List[openvino.runtime.Node]
+                    :type results: List[op.Result]
                     :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
                     :type sinks: List[openvino.runtime.Node]
                     :param parameters: List of parameters.
@@ -221,7 +221,7 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[openvino.runtime.Node]
+            :type results: List[op.Result]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
             :type sinks: List[openvino.runtime.Node]
             :param parameters: List of parameters.
@@ -274,7 +274,7 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[openvino.runtime.Node]
+            :type results: List[op.Result]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param variables: List of variables.
@@ -538,7 +538,7 @@ void regclass_graph_Model(py::module m) {
                     Return a list of model outputs.
 
                     :return: a list of model's result nodes.
-                    :rtype: List[openvino.runtime.Node]
+                    :rtype: List[op.Result]
                 )");
     model.def_property_readonly("results",
                                 &ov::Model::get_results,
@@ -546,7 +546,7 @@ void regclass_graph_Model(py::module m) {
                                     Return a list of model outputs.
 
                                     :return: a list of model's result nodes.
-                                    :rtype: List[openvino.runtime.Node]
+                                    :rtype: List[op.Result]
                                 )");
     model.def("get_result",
               &ov::Model::get_result,
@@ -554,7 +554,7 @@ void regclass_graph_Model(py::module m) {
                     Return single result.
 
                     :return: Node object representing result.
-                    :rtype: openvino.runtime.Node
+                    :rtype: op.Result
                 )");
     model.def_property_readonly("result",
                                 &ov::Model::get_result,
@@ -562,7 +562,7 @@ void regclass_graph_Model(py::module m) {
                                         Return single result.
 
                                         :return: Node object representing result.
-                                        :rtype: openvino.runtime.Node
+                                        :rtype: op.Result
                                     )");
     model.def("get_result_index",
               (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
@@ -747,7 +747,7 @@ void regclass_graph_Model(py::module m) {
                 Delete Result node from the list of results. Method will not delete node from graph.
 
                 :param result: Result node to delete.
-                :type result: openvino.runtime.Node
+                :type result: op.Result
             )");
 
     model.def("remove_parameter",
@@ -827,7 +827,7 @@ void regclass_graph_Model(py::module m) {
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param results: new Result nodes.
-                    :type results: List[openvino.runtime.Node]
+                    :type results: List[op.Result]
                 )");
 
     model.def(
