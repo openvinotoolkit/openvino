@@ -5,8 +5,9 @@
 #include "single_op_tests/nms_rotated.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ov::test;
 
+namespace ov {
+namespace test {
 
 static const std::vector<std::vector<InputShape>> input_shapes = {
     {
@@ -93,3 +94,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedOpTest,
                 ::testing::Values(empty_plugin_config),
                 ::testing::Values(utils::DEVICE_CPU)),
         NmsRotatedOpTest::getTestCaseName);
+
+}  // namespace test
+}  // namespace ov
