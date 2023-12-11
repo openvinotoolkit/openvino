@@ -40,16 +40,15 @@ public:
         cpu._cpu_mapping_table = test_data._cpu_mapping_table;
         cpu._numa_nodes = 1;
 
-        ov::threading::IStreamsExecutor::Config config{
-            "config test",
-            test_data._num_streams,
-            test_data._threads_per_stream,
-            ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
-            1,
-            0,
-            0,
-            test_data._core_type,
-            test_data._cpu_pinning};
+        ov::threading::IStreamsExecutor::Config config{"config test",
+                                                       test_data._num_streams,
+                                                       test_data._threads_per_stream,
+                                                       ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
+                                                       1,
+                                                       0,
+                                                       0,
+                                                       test_data._core_type,
+                                                       test_data._cpu_pinning};
 
         ASSERT_EQ(test_data._cpu_pinning, config._cpu_reservation);
         ASSERT_EQ(test_data._streams_info_table, config._streams_info_table);
@@ -289,7 +288,7 @@ UpdateExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _2sockets_streams_4_threads_4 = {
+UpdateExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -787,7 +786,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_UpdateExecutorConfig,
                                          _1sockets_streams_6_threads_1_core_e,
                                          _1sockets_streams_5_threads_1_binding,
                                          _2sockets_streams_36_threads_1,
-                                         _2sockets_streams_4_threads_4,
+                                         _2sockets_streams_4_threads_5,
                                          _2sockets_streams_1_threads_36,
                                          _pecore_streams_5_threads_2,
                                          _pecore_streams_5_threads_5,
