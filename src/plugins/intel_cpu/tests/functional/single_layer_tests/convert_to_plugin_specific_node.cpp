@@ -8,7 +8,6 @@
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test::utils;
 
 namespace ov {
 namespace test {

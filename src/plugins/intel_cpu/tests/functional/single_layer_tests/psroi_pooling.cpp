@@ -101,7 +101,7 @@ protected:
         selectedType = getPrimitiveType() + "_" + result.str();
 
         rel_threshold = 1e-2f;
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroi)};
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(psroi)};
         function = std::make_shared<ov::Model>(results, params, "PSROIPooling");
     }
 
