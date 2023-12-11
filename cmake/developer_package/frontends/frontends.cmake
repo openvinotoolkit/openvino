@@ -343,6 +343,7 @@ macro(ov_add_frontend)
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
+                    ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
                     FILES_MATCHING PATTERN "*.hpp")
 
             # public target name
