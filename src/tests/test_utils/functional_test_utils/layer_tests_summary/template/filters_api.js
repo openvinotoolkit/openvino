@@ -5,7 +5,6 @@ FILTERS = {
 
 DATA_ATTRIBUTES = {
     FILTER: "data-filter",
-    SW_PLUGIN: 'data-sw_plugin',
     DEVICE: 'data-device',
     PASSED: 'data-passed_tests',
     FAILED: 'data-failed',
@@ -25,18 +24,10 @@ SCOPE_TYPE = {
 }
 
 allDevices = []
-swPlugins = []
 
 $(document).ready(function () {
     $("#devices").chosen({max_selected_options: 6});
     Array.from($("#devices")[0].options).map((element) => allDevices.push(element.value))
-
-    $("#report #statistic td").filter(function () {
-        sw_plugin = $(this).attr(DATA_ATTRIBUTES.SW_PLUGIN)
-        if (sw_plugin && !swPlugins.includes(sw_plugin)) {
-            swPlugins.push(sw_plugin)
-        }
-    });
 
     update_statistic();
 });
@@ -62,40 +53,38 @@ function get_background_color(float_passrate) {
 
 function update_statistic() {
     for (device of allDevices) {
-        for (sw_plugin of swPlugins) {
-            let passed = 0
-            let amount = 0
-            let scope = $('#scope_toggle').text()
+        let passed = 0
+        let amount = 0
+        let scope = $('#scope_toggle').text()
 
-            $("#report #data td:not(:hidden)").filter(function () {
-                if ($(this).attr(DATA_ATTRIBUTES.DEVICE) === device && $(this).attr(DATA_ATTRIBUTES.SW_PLUGIN) === sw_plugin) {
-                    if ($(this).attr(DATA_ATTRIBUTES.PASSED) && $(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT) &&
-                        scope == SCOPE_TYPE.OPTIONAL) {
-                        passed += parseInt($(this).attr(DATA_ATTRIBUTES.PASSED))
-                        amount += parseInt($(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT))
-                    }
-                    if ($(this).attr(DATA_ATTRIBUTES.REL_PASSED) && $(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT) &&
-                        scope == SCOPE_TYPE.MANDATORY) {
-                        passed += parseInt($(this).attr(DATA_ATTRIBUTES.REL_PASSED))
-                        amount += parseInt($(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT))
-                    }
+        $("#report #data td:not(:hidden)").filter(function () {
+            if ($(this).attr(DATA_ATTRIBUTES.DEVICE) === device) {
+                if ($(this).attr(DATA_ATTRIBUTES.PASSED) && $(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT) &&
+                    scope == SCOPE_TYPE.OPTIONAL) {
+                    passed += parseInt($(this).attr(DATA_ATTRIBUTES.PASSED))
+                    amount += parseInt($(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT))
                 }
-            });
+                if ($(this).attr(DATA_ATTRIBUTES.REL_PASSED) && $(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT) &&
+                    scope == SCOPE_TYPE.MANDATORY) {
+                    passed += parseInt($(this).attr(DATA_ATTRIBUTES.REL_PASSED))
+                    amount += parseInt($(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT))
+                }
+            }
+        });
 
-            let passrate = ''
-            let background_color = "rgba(255, 255, 255, 0.2)"
-            if (!amount) {
-                passrate = "---";
-            } else {
-                let float_passrate = passed * 100 / amount
-                passrate = (float_passrate).toFixed(2) + ' %';
-                background_color = get_background_color(float_passrate)
-            }
-            let id_general = '#' + device + '_' + sw_plugin + '_statistic'
-            if ($(id_general).length) {
-                $(id_general).text(passrate)
-                $(id_general).css("background-color", background_color)
-            }
+        let passrate = ''
+        let background_color = "rgba(255, 255, 255, 0.2)"
+        if (!amount) {
+            passrate = "---";
+        } else {
+            let float_passrate = passed * 100 / amount
+            passrate = (float_passrate).toFixed(2) + ' %';
+            background_color = get_background_color(float_passrate)
+        }
+        let id_general = '#' + device + '_statistic'
+        if ($(id_general).length) {
+            $(id_general).text(passrate)
+            $(id_general).css("background-color", background_color)
         }
     }
 }

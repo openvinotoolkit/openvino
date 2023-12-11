@@ -8,13 +8,13 @@
 #include <vector>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
 #include <partitioned_mem_mgr.h>
 
-#define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
+#define THROW_ERROR(...) OPENVINO_THROW("Split layer with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -23,13 +23,13 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ngraph::op::v1::Split::get_type_info_static(), ngraph::op::v1::VariadicSplit::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v1::Split::get_type_info_static(), ov::op::v1::VariadicSplit::get_type_info_static())) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
-        auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (!axisOp) {
             errorMessage = "Constant expected as the axis input.";
             return false;
@@ -44,31 +44,31 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (ngraph::as_type_ptr<const ngraph::op::v1::Split>(op)) {
+    if (ov::as_type_ptr<const ov::op::v1::Split>(op)) {
         INPUTS_NUM = 2;
-    } else if (ngraph::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
+    } else if (ov::as_type_ptr<const ov::op::v1::VariadicSplit>(op)) {
         INPUTS_NUM = 3;
-        if (!ngraph::is_type<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
+        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
             this->splitLengths.resize(op->get_input_shape(2)[0]);
             this->constSplitLengths = false;
         }
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto axis = axisOp->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank)) {
-        THROW_ERROR << "Split node with name '" << op->get_friendly_name() << "' has invalid value of axis parameter: " << axis;
+        THROW_ERROR("Split node with name '", op->get_friendly_name(), "' has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
 }
@@ -87,19 +87,19 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto &o_Dims = outputShapes[i].getDims();
         if (dstFirstDims.size() != o_Dims.size()) {
-            THROW_ERROR << "only supports output blobs with equal number of dimensions";
+            THROW_ERROR("only supports output blobs with equal number of dimensions");
         }
 
         for (size_t j = 0; j < dstFirstDims.size(); j++) {
             if (j == axis)
                 continue;
             if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j]))
-                THROW_ERROR << "has incorrect output dimensions";
+                THROW_ERROR("has incorrect output dimensions");
         }
     }
 
-    InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto axisPrecision = Precision::I32;
+    ov::element::Type inpPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto axisPrecision = ov::element::i32;
 
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
@@ -233,7 +233,7 @@ bool Split::needPrepareParams() const {
 void Split::prepareParams() {
     const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated()) {
-        THROW_ERROR << "has not allocated input memory";
+        THROW_ERROR("has not allocated input memory");
     }
 
     if (!constSplitLengths) {
@@ -248,7 +248,7 @@ void Split::prepareParams() {
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto &outMemPtr = this->getChildEdgesAtPort(port)[0]->getMemoryPtr();
         if (!outMemPtr || !outMemPtr->isAllocated()) {
-            THROW_ERROR << "has not allocated destination memory";
+            THROW_ERROR("has not allocated destination memory");
         }
 
         if (outMemPtr->getShape().hasZeroDims()) {
@@ -278,7 +278,7 @@ void Split::execute(dnnl::stream strm) {
     }
 
     if (dstMemPtrs.empty())
-        THROW_ERROR << "Output data pointers have not been initialized.";
+        THROW_ERROR("Output data pointers have not been initialized.");
 
     const auto &srcMem = getParentEdgesAtPort(0)[0]->getMemory();
 
@@ -288,7 +288,7 @@ void Split::execute(dnnl::stream strm) {
     }
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.getData());
-    IE_ASSERT(execPtr != nullptr);
+    OPENVINO_ASSERT(execPtr != nullptr);
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
@@ -300,11 +300,11 @@ void Split::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_ERROR << "Preferable primitive descriptor is not set.";
+        THROW_ERROR("Preferable primitive descriptor is not set.");
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
-    IE_ASSERT(config.inConfs.size() > 0);
+    OPENVINO_ASSERT(config.inConfs.size() > 0);
     const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
@@ -462,7 +462,7 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
         result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->getData());
         if (!result[i]) {
-            THROW_ERROR << "can't get child edge indx " << dstMemPtrs[i].first << " data.";
+            THROW_ERROR("can't get child edge indx ", dstMemPtrs[i].first, " data.");
         }
     }
     return result;
@@ -480,7 +480,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
         }
     }
     if (std::numeric_limits<unsigned>::max() == axisOrderPos) {
-        IE_THROW() << "Can't create split executor, because can't find the axis in the input tensor order list";
+        OPENVINO_THROW("Can't create split executor, because can't find the axis in the input tensor order list");
     }
 
     const auto outputPortsCount = outDescs.size();
@@ -530,21 +530,30 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     }
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
     auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
     auto baseDim = inputShapes.front().getDims()[axis];
-    IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
+    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+                    " Split node: ",
+                    getName(),
+                    " can not use inPlace memory with splitting on dynamic dimension");
     auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
-        IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
+        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
+                        " Split node: ",
+                        getName(),
+                        " can not use inPlace memory with splitting on dynamic dimension");
         const auto& childEdges = getChildEdgesAtPort(i);
         for (auto& childEdge : childEdges) {
-            IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
-                getName() << " with type " << getTypeStr();
+            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
+                            " Unexpected edge status in node: ",
+                            getName(),
+                            " with type ",
+                            getTypeStr());
 
             auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
             MemoryPtr newMem;

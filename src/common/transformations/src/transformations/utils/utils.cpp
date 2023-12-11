@@ -21,6 +21,34 @@ namespace ov {
 namespace op {
 namespace util {
 
+namespace {
+void visit_path_impl(ov::Node* node,
+                     std::unordered_set<ov::Node*>& visited,
+                     std::function<void(ov::Node*)> func,
+                     std::function<bool(ov::Node*)> skip_node_predicate) {
+    if (!node)
+        return;
+    visited.insert(node);
+    std::deque<ov::Node*> nodes{node};
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        if (skip_node_predicate(curr_node))
+            continue;
+
+        func(curr_node);
+        for (auto& input_value : curr_node->input_values()) {
+            // continue searching
+            const auto& input_node = input_value.get_node();
+            if (visited.count(input_node))
+                continue;
+            nodes.push_front(input_node);
+            visited.insert(input_node);
+        }
+    }
+}
+}  // namespace
+
 bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
@@ -242,28 +270,18 @@ bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected
 }
 
 void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
-    if (!node)
-        return;
-    visited.insert(node);
-    std::deque<ov::Node*> nodes{node};
-    while (!nodes.empty()) {
-        auto curr_node = nodes.front();
-        nodes.pop_front();
-        // Do not check if already visited
-        if (ov::is_type<opset1::ShapeOf>(curr_node) || ov::is_type<opset3::ShapeOf>(curr_node)) {
-            continue;
-        }
+    auto is_shapeof = [](ov::Node* node) {
+        return ov::is_type<opset1::ShapeOf>(node) || ov::is_type<opset3::ShapeOf>(node);
+    };
+    visit_path_impl(node, visited, func, is_shapeof);
+}
 
-        func(curr_node);
-        for (auto& input_value : curr_node->input_values()) {
-            // continue searching
-            const auto& input_node = input_value.get_node();
-            if (visited.count(input_node))
-                continue;
-            nodes.push_front(input_node);
-            visited.insert(input_node);
-        }
-    }
+void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
+    auto check_parameter = [](ov::Node* node) {
+        OPENVINO_ASSERT(!ov::is_type<opset1::Parameter>(node), "visit_constant_path is called for non-constant path.");
+        return false;
+    };
+    visit_path_impl(node, visited, func, check_parameter);
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {

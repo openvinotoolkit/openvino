@@ -40,10 +40,10 @@ Notebook contains the following steps:
 
 **Table of contents:**
 
-
 -  `Prerequisites <#prerequisites>`__
--  `Create PyTorch Models
-   pipeline <#create-pytorch-models-pipeline>`__
+-  `login to huggingfacehub to get access to pretrained
+   model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
+-  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
    format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
@@ -52,16 +52,17 @@ Notebook contains the following steps:
    -  `VAE <#vae>`__
 
 -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
--  `Configure Inference
-   Pipeline <#configure-inference-pipeline>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
    -  `Text-to-Image generation <#text-to-image-generation>`__
    -  `Image-to-Image generation <#image-to-image-generation>`__
 
 -  `Interactive demo <#interactive-demo>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -79,9 +80,10 @@ not, you do not have to do anything. Just run the notebook.**
    following code:
 
 .. code:: python
-
+   :force:
 
    ## login to huggingfacehub to get access to pretrained model
+
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -105,8 +107,10 @@ solutions based on Stable Diffusion.
     %pip install -q gradio
     %pip install -q transformers
 
-Create PyTorch Models pipeline 
-------------------------------------------------------------------------
+Create PyTorch Models pipeline
+------------------------------
+
+
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -261,8 +265,10 @@ First, load the pre-trained weights of all components of the model.
 
 
 
-Convert models to OpenVINO Intermediate representation (IR) format 
-------------------------------------------------------------------------------------------------------------
+Convert models to OpenVINO Intermediate representation (IR) format
+------------------------------------------------------------------
+
+
 
 Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
 models to OpenVINO IR format. You need to provide a model object and
@@ -283,8 +289,10 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -379,8 +387,10 @@ hidden states.
 
 
 
-U-net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+U-net
+~~~~~
+
+
 
 Unet model has three inputs:
 
@@ -470,8 +480,10 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-VAE 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VAE
+~~~
+
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -599,8 +611,10 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 
-Prepare Inference Pipeline 
---------------------------------------------------------------------
+Prepare Inference Pipeline
+--------------------------
+
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -1001,8 +1015,10 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline 
-----------------------------------------------------------------------
+Configure Inference Pipeline
+----------------------------
+
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -1074,8 +1090,10 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-Text-to-Image generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text-to-Image generation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
@@ -1176,8 +1194,10 @@ Now is show time!
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Image-to-Image generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image-to-Image generation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -1287,8 +1307,10 @@ semantically consistent with the input.
 .. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_40_1.png
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
@@ -1355,5 +1377,5 @@ Interactive demo
 
 .. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import re
 import sys
+import tempfile
+import unittest
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +14,7 @@ from openvino.runtime import PartialShape, Model
 from openvino.test_utils import compare_functions
 from openvino.tools.ovc import ovc
 
-from common.mo_convert_test_class import CommonMOConvertTest
+from common import constants
 from common.tf_layer_test_class import save_to_pb
 from common.utils.common_utils import shell
 
@@ -37,6 +40,8 @@ def generate_ir_ovc(coverage=False, **kwargs):
         # if we omit this argument for FP32, it will be set implicitly to True as the default
         elif key == 'compress_to_fp16':
             params.append("--{}={}".format(key, value))
+        elif key == 'verbose':
+            params.append("--{}".format(key))
         elif isinstance(value, bool) and value:
             params.append("--{}".format(key))
         elif isinstance(value, bool) and not value:
@@ -58,7 +63,12 @@ def create_ref_graph():
 
     return Model([sigm], [param], "test")
 
-class TestOVCTool(CommonMOConvertTest):
+class TestOVCTool(unittest.TestCase):
+    def setUp(self):
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        test_name = re.sub(r"[^\w_]", "_", unittest.TestCase.id(self))
+        self.tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path, prefix=f"{test_name}").name
+
     def create_tf_model(self, tmp_dir):
         import tensorflow as tf
 
@@ -100,58 +110,85 @@ class TestOVCTool(CommonMOConvertTest):
         return temp_dir + "/test_model", model_ref
 
 
-    def test_ovc_tool(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+    def test_ovc_tool(self):
         from openvino.runtime import Core
 
-        model_path = self.create_tf_model(temp_dir)
+        model_path = self.create_tf_model(self.tmp_dir)
 
         core = Core()
 
         # tests for MO cli tool
-        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir + os.sep + "model1"})
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": self.tmp_dir + os.sep + "model1"})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "model1.xml"))
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "model1.xml"))
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
 
-    def test_ovc_tool_output_dir(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+    def test_ovc_tool_output_dir(self):
         from openvino.runtime import Core
 
-        model_path = self.create_tf_model(temp_dir)
+        model_path = self.create_tf_model(self.tmp_dir)
 
         core = Core()
 
         # tests for MO cli tool
-        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir})
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": self.tmp_dir})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "model2.xml"))
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "model2.xml"))
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
 
-    def test_ovc_tool_saved_model_dir(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+    def test_ovc_tool_saved_model_dir(self):
         from openvino.runtime import Core
         core = Core()
 
-        model_dir, ref_model = self.create_tf_saved_model_dir(temp_dir)
+        model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
 
-        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir, "output_model": temp_dir})
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir, "output_model": self.tmp_dir})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "test_model.xml"))
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "test_model.xml"))
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
-    def test_ovc_tool_saved_model_dir_with_sep_at_path_end(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+    def test_ovc_tool_saved_model_dir_with_sep_at_path_end(self):
         from openvino.runtime import Core
         core = Core()
 
-        model_dir, ref_model = self.create_tf_saved_model_dir(temp_dir)
+        model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
 
-        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir + os.sep, "output_model": temp_dir})
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir + os.sep, "output_model": self.tmp_dir})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "test_model.xml"))
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "test_model.xml"))
+        flag, msg = compare_functions(ov_model, ref_model, False)
+        assert flag, msg
+
+    def test_ovc_tool_non_existng_output_dir(self):
+        from openvino.runtime import Core
+        core = Core()
+
+        model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
+
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir + os.sep, "output_model": self.tmp_dir + os.sep + "dir" + os.sep})
+        assert not exit_code
+
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "dir", "test_model.xml"))
+        flag, msg = compare_functions(ov_model, ref_model, False)
+        assert flag, msg
+
+
+    def test_ovc_tool_verbose(self):
+        from openvino.runtime import Core
+        core = Core()
+
+        model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
+
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir, "output_model": self.tmp_dir, "verbose": ""})
+        assert not exit_code
+
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "test_model.xml"))
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg

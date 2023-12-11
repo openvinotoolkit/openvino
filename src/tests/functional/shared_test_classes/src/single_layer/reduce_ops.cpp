@@ -42,8 +42,6 @@ void ReduceOpsLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
@@ -62,7 +60,7 @@ void ReduceOpsLayerTest::SetUp() {
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                              std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
+    const auto reduce = ngraph::builder::makeReduce(params[0], reductionAxesNode, keepDims, reductionType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
 }

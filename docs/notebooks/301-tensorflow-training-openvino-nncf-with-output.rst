@@ -3,7 +3,7 @@ Post-Training Quantization with TensorFlow Classification Model
 
 This example demonstrates how to quantize the OpenVINO model that was
 created in `301-tensorflow-training-openvino
-notebook <301-tensorflow-training-openvino.ipynb>`__, to improve
+notebook <301-tensorflow-training-openvino-with-output.html>`__, to improve
 inference speed. Quantization is performed with `Post-training
 Quantization with
 NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__.
@@ -12,18 +12,25 @@ performance will be computed for the original IR model and the quantized
 model.
 
 **Table of contents:**
----
 
-- `Preparation <#preparation>`__
-- `Imports <#imports>`__
-- `Post-training Quantization with NNCF <#post-training-quantization-with-nncf>`__
-- `Select inference device <#select-inference-device>`__
-- `Compare Metrics <#compare-metrics>`__
-- `Run Inference on Quantized Model <#run-inference-on-quantized-model>`__
-- `Compare Inference Speed <#compare-inference-speed>`__
+-  `Preparation <#preparation>`__
 
-Preparation 
------------------------------------------------------
+   -  `Imports <#imports>`__
+
+-  `Post-training Quantization with
+   NNCF <#post-training-quantization-with-nncf>`__
+
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Compare Metrics <#compare-metrics>`__
+-  `Run Inference on Quantized
+   Model <#run-inference-on-quantized-model>`__
+-  `Compare Inference Speed <#compare-inference-speed>`__
+
+Preparation
+-----------
+
+
 
 The notebook requires that the training notebook has been run and that
 the Intermediate Representation (IR) models are created. If the IR
@@ -49,10 +56,10 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-10-31 00:10:31.765486: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-31 00:10:31.799656: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-11-15 00:16:49.889319: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-11-15 00:16:49.923536: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-31 00:10:32.415064: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-11-15 00:16:50.514602: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -67,8 +74,12 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-10-31 00:10:36.524645: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1960] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
-    Skipping registering GPU devices...
+    2023-11-15 00:16:57.452170: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2023-11-15 00:16:57.452208: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2023-11-15 00:16:57.452212: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2023-11-15 00:16:57.452343: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2023-11-15 00:16:57.452357: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2023-11-15 00:16:57.452361: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -78,19 +89,47 @@ notebook. This will take a while.
     ['daisy', 'dandelion', 'roses', 'sunflowers', 'tulips']
 
 
+.. parsed-literal::
 
-.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_4.png
+    2023-11-15 00:16:57.742287: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2023-11-15 00:16:57.742572: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+
+
+
+.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_5.png
+
+
+.. parsed-literal::
+
+    2023-11-15 00:16:58.318525: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2023-11-15 00:16:58.318753: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
+    2023-11-15 00:16:58.449065: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
+    2023-11-15 00:16:58.449324: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
 
 
 .. parsed-literal::
 
     (32, 180, 180, 3)
     (32,)
-    0.0 0.99167764
+    0.02886732 1.0
+
+
+.. parsed-literal::
+
+    2023-11-15 00:16:59.254592: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2023-11-15 00:16:59.254957: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
 
 
 
-.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_6.png
+.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_9.png
 
 
 .. parsed-literal::
@@ -105,18 +144,18 @@ notebook. This will take a while.
                                                                      
      conv2d_3 (Conv2D)           (None, 180, 180, 16)      448       
                                                                      
-     max_pooling2d_3 (MaxPoolin  (None, 90, 90, 16)        0         
-     g2D)                                                            
+     max_pooling2d_3 (MaxPooling  (None, 90, 90, 16)       0         
+     2D)                                                             
                                                                      
      conv2d_4 (Conv2D)           (None, 90, 90, 32)        4640      
                                                                      
-     max_pooling2d_4 (MaxPoolin  (None, 45, 45, 32)        0         
-     g2D)                                                            
+     max_pooling2d_4 (MaxPooling  (None, 45, 45, 32)       0         
+     2D)                                                             
                                                                      
      conv2d_5 (Conv2D)           (None, 45, 45, 64)        18496     
                                                                      
-     max_pooling2d_5 (MaxPoolin  (None, 22, 22, 64)        0         
-     g2D)                                                            
+     max_pooling2d_5 (MaxPooling  (None, 22, 22, 64)       0         
+     2D)                                                             
                                                                      
      dropout (Dropout)           (None, 22, 22, 64)        0         
                                                                      
@@ -127,50 +166,119 @@ notebook. This will take a while.
      outputs (Dense)             (None, 5)                 645       
                                                                      
     =================================================================
-    Total params: 3989285 (15.22 MB)
-    Trainable params: 3989285 (15.22 MB)
-    Non-trainable params: 0 (0.00 Byte)
+    Total params: 3,989,285
+    Trainable params: 3,989,285
+    Non-trainable params: 0
     _________________________________________________________________
     Epoch 1/15
-    92/92 [==============================] - 6s 60ms/step - loss: 1.2926 - accuracy: 0.4435 - val_loss: 1.0857 - val_accuracy: 0.5327
+
+
+.. parsed-literal::
+
+    2023-11-15 00:17:00.168317: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2023-11-15 00:17:00.168869: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
+
+
+.. parsed-literal::
+
+    92/92 [==============================] - ETA: 0s - loss: 1.3326 - accuracy: 0.4384
+
+.. parsed-literal::
+
+    2023-11-15 00:17:06.452362: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
+    	 [[{{node Placeholder/_4}}]]
+    2023-11-15 00:17:06.452638: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
+    	 [[{{node Placeholder/_0}}]]
+
+
+.. parsed-literal::
+
+    92/92 [==============================] - 7s 66ms/step - loss: 1.3326 - accuracy: 0.4384 - val_loss: 1.0733 - val_accuracy: 0.5463
     Epoch 2/15
-    92/92 [==============================] - 5s 57ms/step - loss: 1.0228 - accuracy: 0.5991 - val_loss: 0.9881 - val_accuracy: 0.6226
+    92/92 [==============================] - 6s 63ms/step - loss: 1.0268 - accuracy: 0.5923 - val_loss: 0.9584 - val_accuracy: 0.6294
     Epoch 3/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.9082 - accuracy: 0.6519 - val_loss: 0.8962 - val_accuracy: 0.6526
+    92/92 [==============================] - 6s 63ms/step - loss: 0.9440 - accuracy: 0.6301 - val_loss: 0.9253 - val_accuracy: 0.6526
     Epoch 4/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.8277 - accuracy: 0.6832 - val_loss: 0.9586 - val_accuracy: 0.6540
+    92/92 [==============================] - 6s 63ms/step - loss: 0.8713 - accuracy: 0.6635 - val_loss: 0.8400 - val_accuracy: 0.6730
     Epoch 5/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.7965 - accuracy: 0.6853 - val_loss: 0.8849 - val_accuracy: 0.6689
+    92/92 [==============================] - 6s 63ms/step - loss: 0.8136 - accuracy: 0.6880 - val_loss: 0.8348 - val_accuracy: 0.6921
     Epoch 6/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.7680 - accuracy: 0.7044 - val_loss: 0.7855 - val_accuracy: 0.6962
+    92/92 [==============================] - 6s 64ms/step - loss: 0.7706 - accuracy: 0.7067 - val_loss: 0.8327 - val_accuracy: 0.6662
     Epoch 7/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.7319 - accuracy: 0.7292 - val_loss: 0.7772 - val_accuracy: 0.7016
+    92/92 [==============================] - 6s 63ms/step - loss: 0.7178 - accuracy: 0.7292 - val_loss: 0.8413 - val_accuracy: 0.6635
     Epoch 8/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.6945 - accuracy: 0.7415 - val_loss: 0.7605 - val_accuracy: 0.7071
+    92/92 [==============================] - 6s 63ms/step - loss: 0.6965 - accuracy: 0.7302 - val_loss: 0.8255 - val_accuracy: 0.6689
     Epoch 9/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.6561 - accuracy: 0.7490 - val_loss: 0.7764 - val_accuracy: 0.6948
+    92/92 [==============================] - 6s 64ms/step - loss: 0.6646 - accuracy: 0.7405 - val_loss: 0.7556 - val_accuracy: 0.7057
     Epoch 10/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.6333 - accuracy: 0.7568 - val_loss: 0.7509 - val_accuracy: 0.7207
+    92/92 [==============================] - 6s 63ms/step - loss: 0.6365 - accuracy: 0.7619 - val_loss: 0.8055 - val_accuracy: 0.7030
     Epoch 11/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.5991 - accuracy: 0.7766 - val_loss: 0.7724 - val_accuracy: 0.7153
+    92/92 [==============================] - 6s 63ms/step - loss: 0.6238 - accuracy: 0.7626 - val_loss: 0.7584 - val_accuracy: 0.7057
     Epoch 12/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.5786 - accuracy: 0.7810 - val_loss: 0.7096 - val_accuracy: 0.7275
+    92/92 [==============================] - 6s 64ms/step - loss: 0.5788 - accuracy: 0.7888 - val_loss: 0.6973 - val_accuracy: 0.7425
     Epoch 13/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.5741 - accuracy: 0.7858 - val_loss: 0.6902 - val_accuracy: 0.7384
+    92/92 [==============================] - 6s 63ms/step - loss: 0.5555 - accuracy: 0.7933 - val_loss: 0.7188 - val_accuracy: 0.7221
     Epoch 14/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.5555 - accuracy: 0.7892 - val_loss: 0.7097 - val_accuracy: 0.7193
+    92/92 [==============================] - 6s 63ms/step - loss: 0.5301 - accuracy: 0.8031 - val_loss: 0.6915 - val_accuracy: 0.7262
     Epoch 15/15
-    92/92 [==============================] - 5s 57ms/step - loss: 0.5330 - accuracy: 0.8038 - val_loss: 0.7023 - val_accuracy: 0.7289
+    92/92 [==============================] - 6s 64ms/step - loss: 0.5229 - accuracy: 0.8062 - val_loss: 0.6774 - val_accuracy: 0.7234
 
 
 
-.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_8.png
+.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_15.png
 
 
 .. parsed-literal::
 
     1/1 [==============================] - 0s 71ms/step
-    This image most likely belongs to sunflowers with a 97.82 percent confidence.
+    This image most likely belongs to sunflowers with a 61.26 percent confidence.
+
+
+.. parsed-literal::
+
+    2023-11-15 00:18:29.410210: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
+    	 [[{{node random_flip_input}}]]
+    2023-11-15 00:18:29.495685: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.505970: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
+    	 [[{{node random_flip_input}}]]
+    2023-11-15 00:18:29.516900: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.523761: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.530546: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.541270: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.580534: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
+    	 [[{{node sequential_1_input}}]]
+    2023-11-15 00:18:29.646973: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.667227: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
+    	 [[{{node sequential_1_input}}]]
+    2023-11-15 00:18:29.706480: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.731467: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.804461: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:29.947172: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:30.084990: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:30.118837: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:30.147404: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2023-11-15 00:18:30.195961: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _update_step_xla while saving (showing 4 of 4). These functions will not be directly callable after loading.
+
+
+.. parsed-literal::
+
     INFO:tensorflow:Assets written to: model/flower/saved_model/assets
 
 
@@ -189,15 +297,17 @@ notebook. This will take a while.
 
     (1, 180, 180, 3)
     [1,180,180,3]
-    This image most likely belongs to dandelion with a 99.80 percent confidence.
+    This image most likely belongs to dandelion with a 98.99 percent confidence.
 
 
 
-.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_13.png
+.. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_2_22.png
 
 
-Imports 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Imports
+~~~~~~~
+
+
 
 The Post Training Quantization API is implemented in the ``nncf``
 library.
@@ -223,8 +333,10 @@ library.
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Post-training Quantization with NNCF 
-------------------------------------------------------------------------------
+Post-training Quantization with NNCF
+------------------------------------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -262,6 +374,14 @@ The validation dataset already defined in the training notebook.
     Found 3670 files belonging to 5 classes.
     Using 734 files for validation.
     <class 'tensorflow.python.framework.ops.EagerTensor'> <class 'tensorflow.python.framework.ops.EagerTensor'>
+
+
+.. parsed-literal::
+
+    2023-11-15 00:18:32.258873: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
+    	 [[{{node Placeholder/_4}}]]
+    2023-11-15 00:18:32.259150: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
+    	 [[{{node Placeholder/_0}}]]
 
 
 The validation dataset can be reused in quantization process. But it
@@ -307,8 +427,8 @@ control <https://docs.openvino.ai/2023.0/quantization_w_accuracy_control.html#>`
 
 .. parsed-literal::
 
-    Statistics collection:  73%|███████▎  | 734/1000 [00:04<00:01, 166.59it/s]
-    Applying Fast Bias correction: 100%|██████████| 5/5 [00:01<00:00,  3.92it/s]
+    Statistics collection:  73%|███████▎  | 734/1000 [00:04<00:01, 168.06it/s]
+    Applying Fast Bias correction: 100%|██████████| 5/5 [00:01<00:00,  3.98it/s]
 
 
 Save quantized model to benchmark.
@@ -320,8 +440,10 @@ Save quantized model to benchmark.
     compressed_model_xml = compressed_model_dir / "flower_ir.xml"
     serialize(quantized_model, str(compressed_model_xml))
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -347,8 +469,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Compare Metrics 
----------------------------------------------------------
+Compare Metrics
+---------------
+
+
 
 Define a metric to determine the performance of the model.
 
@@ -398,8 +522,8 @@ Calculate accuracy for the original model and the quantized model.
 
 .. parsed-literal::
 
-    Accuracy of the original model: 0.729
-    Accuracy of the quantized model: 0.730
+    Accuracy of the original model: 0.723
+    Accuracy of the quantized model: 0.729
 
 
 Compare file size of the models.
@@ -422,8 +546,10 @@ Compare file size of the models.
 So, we can see that the original and quantized models have similar
 accuracy with a much smaller size of the quantized model.
 
-Run Inference on Quantized Model 
---------------------------------------------------------------------------
+Run Inference on Quantized Model
+--------------------------------
+
+
 
 Copy the preprocess function from the training notebook and run
 inference on the quantized model with Inference Engine. See the
@@ -491,15 +617,17 @@ Python API.
     'output/A_Close_Up_Photo_of_a_Dandelion.jpg' already exists.
     input image shape: (1, 180, 180, 3)
     input layer shape: [1,180,180,3]
-    This image most likely belongs to dandelion with a 99.79 percent confidence.
+    This image most likely belongs to dandelion with a 98.94 percent confidence.
 
 
 
 .. image:: 301-tensorflow-training-openvino-nncf-with-output_files/301-tensorflow-training-openvino-nncf-with-output_26_1.png
 
 
-Compare Inference Speed 
------------------------------------------------------------------
+Compare Inference Speed
+-----------------------
+
+
 
 Measure inference speed with the `OpenVINO Benchmark
 App <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
@@ -565,7 +693,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 12.32 ms
+    [ INFO ] Read model took 13.80 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     sequential_1_input (node: sequential_1_input) : f32 / [...] / [1,180,180,3]
@@ -579,7 +707,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Model outputs:
     [ INFO ]     outputs (node: sequential_2/outputs/BiasAdd) : f32 / [...] / [1,5]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 61.75 ms
+    [ INFO ] Compile model took 63.65 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
@@ -603,17 +731,17 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Fill input 'sequential_1_input' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 10.01 ms
+    [ INFO ] First inference took 7.17 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            58152 iterations
-    [ INFO ] Duration:         15004.57 ms
+    [ INFO ] Count:            57636 iterations
+    [ INFO ] Duration:         15005.09 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        2.90 ms
-    [ INFO ]    Average:       2.91 ms
-    [ INFO ]    Min:           2.15 ms
-    [ INFO ]    Max:           11.75 ms
-    [ INFO ] Throughput:   3875.62 FPS
+    [ INFO ]    Median:        2.92 ms
+    [ INFO ]    Average:       2.93 ms
+    [ INFO ]    Min:           1.86 ms
+    [ INFO ]    Max:           11.74 ms
+    [ INFO ] Throughput:   3841.10 FPS
 
 
 .. code:: ipython3
@@ -639,7 +767,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.50 ms
+    [ INFO ] Read model took 13.40 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     sequential_1_input (node: sequential_1_input) : f32 / [...] / [1,180,180,3]
@@ -653,7 +781,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Model outputs:
     [ INFO ]     outputs (node: sequential_2/outputs/BiasAdd) : f32 / [...] / [1,5]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 57.59 ms
+    [ INFO ] Compile model took 67.51 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
@@ -677,17 +805,17 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Fill input 'sequential_1_input' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.99 ms
+    [ INFO ] First inference took 2.16 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            178968 iterations
-    [ INFO ] Duration:         15001.10 ms
+    [ INFO ] Count:            179388 iterations
+    [ INFO ] Duration:         15001.74 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        0.92 ms
     [ INFO ]    Average:       0.92 ms
-    [ INFO ]    Min:           0.58 ms
-    [ INFO ]    Max:           6.18 ms
-    [ INFO ] Throughput:   11930.32 FPS
+    [ INFO ]    Min:           0.57 ms
+    [ INFO ]    Max:           6.92 ms
+    [ INFO ] Throughput:   11957.81 FPS
 
 
 **Benchmark on MULTI:CPU,GPU**
@@ -757,14 +885,14 @@ cached to the ``model_cache`` directory.
 
 .. parsed-literal::
 
-    [ INFO ] Count:            58680 iterations
-    [ INFO ] Duration:         15004.60 ms
+    [ INFO ] Count:            57144 iterations
+    [ INFO ] Duration:         15003.56 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        2.88 ms
-    [ INFO ]    Average:       2.87 ms
-    [ INFO ]    Min:           2.00 ms
-    [ INFO ]    Max:           11.71 ms
-    [ INFO ] Throughput:   3910.80 FPS
+    [ INFO ]    Median:        2.94 ms
+    [ INFO ]    Average:       2.95 ms
+    [ INFO ]    Min:           1.48 ms
+    [ INFO ]    Max:           11.21 ms
+    [ INFO ] Throughput:   3808.70 FPS
 
 
 **Quantized IR model - CPU**
@@ -779,14 +907,14 @@ cached to the ``model_cache`` directory.
 
 .. parsed-literal::
 
-    [ INFO ] Count:            179220 iterations
-    [ INFO ] Duration:         15000.72 ms
+    [ INFO ] Count:            178968 iterations
+    [ INFO ] Duration:         15001.62 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        0.92 ms
     [ INFO ]    Average:       0.92 ms
-    [ INFO ]    Min:           0.56 ms
-    [ INFO ]    Max:           6.53 ms
-    [ INFO ] Throughput:   11947.42 FPS
+    [ INFO ]    Min:           0.57 ms
+    [ INFO ]    Max:           6.34 ms
+    [ INFO ] Throughput:   11929.91 FPS
 
 
 **Original IR model - MULTI:CPU,GPU**

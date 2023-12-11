@@ -17,6 +17,7 @@
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "eltwise_inst.h"
+#include "loop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
@@ -263,11 +264,27 @@ void primitive_inst::update_shape() {
         }
     }
 
+    if (get_node().is_type<read_value>()) {
+        const auto& variable_id = get_node().as<read_value>().get_primitive()->variable_id;
+        auto new_layout = get_network().get_variable(variable_id).get_layout();
+        if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
+            _impl_params->state_layout = new_layout;
+            input_shape_changed = true;
+        }
+    }
+
     if (input_shape_changed)
         set_shape_change();
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
     if (_node->is_type<shape_of>() && !input_shape_changed) {
+        reset_shape_change();
+        return;
+    }
+
+    // if input shape is not changed, loop doesn't need to update anything.
+    // because actual output layout will be calculated after the end of body network execution.
+    if (_node->is_type<loop>() && !input_shape_changed) {
         reset_shape_change();
         return;
     }
@@ -379,6 +396,26 @@ void primitive_inst::update_shape() {
     for (auto& fused_prim : _impl_params->fused_desc) {
         fused_prim.output_layout.set_partial_shape(_impl_params->get_output_layout().get_partial_shape());
     }
+
+    if (get_node().is_type<assign>()) {
+        auto desc = get_node().as<assign>().get_primitive();
+        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
+        _impl_params->state_layout = _impl_params->get_output_layout();
+    }
+
+    if (get_node().is_type<read_value>()) {
+        auto desc = get_node().as<read_value>().get_primitive();
+        if (_impl_params->output_layouts[0].is_dynamic()) {
+            auto pshape = _impl_params->output_layouts[0].get_partial_shape();
+            for (auto& d : pshape) {
+                if (d.is_dynamic()) {
+                    d = 0;
+                }
+            }
+            _impl_params->output_layouts[0].set_partial_shape(pshape);
+        }
+        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
+    }
 }
 
 event::ptr primitive_inst::realloc_if_needed() {
@@ -408,17 +445,32 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
-    if (_node->is_type<assign>() || _node->is_type<read_value>()) {
-        std::string variable_id = "";
-        if (_node->is_type<assign>())
-            variable_id = _node->as<assign>().get_primitive()->variable_id;
-        else
-            variable_id = _node->as<read_value>().get_primitive()->variable_id;
-        get_network().update_variable_memory(variable_id, actual_layout);
-        return ev;
+    if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
+        std::string variable_id = stateful_prim->variable_id();
+        auto variable = get_network().get_variable(variable_id);
+        variable.set_layout(actual_layout);
     }
 
-    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
+    // Update output layout with respect to FC's fake alignment
+    auto updated_layout = actual_layout;
+    for (auto user : get_user_insts()) {
+        // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
+        // to prevemt reading beyound the allocated memory bounds
+        if (user->get_node().is_type<fully_connected>()) {
+            user->update_shape();
+            user->update_shape_done_by_other = true;
+
+            auto fc_impl_params = *user->_impl_params;
+            auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+            if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
+                GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
+                                       << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
+                updated_layout = fc_input_layout;
+            }
+        }
+    }
+
+    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -427,7 +479,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     auto current_shape = actual_layout.get_shape();
-    auto& sp = get_network().get_shape_predictor();
+    auto& sp = *get_network().get_shape_predictor();
     auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     auto prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer);
     if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
@@ -435,6 +487,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;
     }
+
+    if (updated_params.output_layouts[0].count() < updated_layout.count())
+        updated_params.output_layouts[0] = updated_layout;
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
@@ -1011,6 +1066,17 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         allocate_memory = false;
     }
     _mem_allocated = allocate_memory;
+    if (!_mem_allocated && (node.is_dynamic() && _outputs_memory_count > 1)) {
+        auto avaiable_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
+            for (auto& l : layouts) {
+                if (l.is_static())
+                    return true;
+            }
+            return false;
+        };
+        allocate_memory = _mem_allocated = avaiable_allocate_memory(_impl_params->output_layouts);
+    }
+
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
@@ -1377,23 +1443,28 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
 std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc) {
     std::vector<memory::ptr> outputs;
+    auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
+    auto& out_layouts = impl_params.output_layouts;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
-        auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
-        auto is_output = is_output_buffer(this, runtime_alloc);
+        if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
+            outputs.push_back(memory::ptr());
+        } else {
+            auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
+            auto is_output = is_output_buffer(this, runtime_alloc);
 
-        outputs.push_back(allocate_output(_network.get_engine(),
-                                          _network.get_memory_pool(),
-                                          *_node,
-                                          impl_params,
-                                          _runtime_memory_dependencies,
-                                          get_network_id(),
-                                          _network.is_internal(),
-                                          i,
-                                          reset_mem,
-                                          is_output,
-                                          current_memory_ptr,
-                                          runtime_alloc));
+            outputs.push_back(allocate_output(_network.get_engine(),
+                                            _network.get_memory_pool(),
+                                            *_node,
+                                            impl_params,
+                                            _runtime_memory_dependencies,
+                                            get_network_id(),
+                                            _network.is_internal(),
+                                            i,
+                                            reset_mem,
+                                            is_output,
+                                            current_memory_ptr,
+                                            runtime_alloc));
+        }
     }
     return outputs;
 }
@@ -1615,247 +1686,6 @@ std::string primitive_inst::get_implementation_name() const {
     } catch (...) { }
 
     return "undef";
-}
-
-static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory& mem_ptr, int max_dist = 5) {
-    std::vector<std::pair<primitive_id, int>> queue;
-    size_t head = 0;
-
-    for (auto& p_inst : p_inst->dependencies())
-        queue.emplace_back(std::make_pair(p_inst.first->id(), 0));
-
-    const network& const_network = p_inst->get_network();
-    while (head < queue.size()) {
-        auto curr_item = queue.at(head);
-        auto curr_prim = const_network.get_primitive(curr_item.first);
-
-        if (p_inst->get_network().get_engine().is_the_same_buffer(mem_ptr, curr_prim->output_memory()))
-            return curr_prim->id();
-
-        if (max_dist > curr_item.second)
-            for (auto& p_inst : curr_prim->dependencies())
-                queue.emplace_back(std::make_pair(p_inst.first->id(), curr_item.second+1));
-
-        head += 1;
-    }
-
-    return "NOT_FOUND";
-}
-
-// Cache blob format:
-//     [ kernel_impl_params ]
-//     [ primitive_impl ]
-//     [ member variables of primitive_inst ]
-//     [ output memory information ]
-//     [ memory dependency information ]
-//     [ execution dependency information ]
-//     [ intermediate memory information ]
-void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    _impl_params->save(ob);
-    ob.setKernelImplParams(_impl_params.get());
-
-    ob << _node_output_layout;
-    ob << has_mutable_input();
-    ob << mem_allocated();
-    ob << is_dynamic();
-    ob << _node->get_primitive()->type_string();
-    ob << id();
-    ob << org_id();
-    ob << is_input();
-    ob << is_output();
-    ob << inputs_memory_count();
-    ob << outputs_memory_count();
-    ob << get_fused_mem_count();
-    ob << get_fused_mem_offset();
-    ob << can_be_optimized();
-    ob << can_share_buffer();
-    ob << is_constant();
-    ob << needs_completion_event();
-
-    if (type() == cldnn::data::type_id()) {
-        return;
-    }
-
-    ob << _outputs.size();
-    for (size_t i = 0; i < _outputs.size(); ++i) {
-        if (_outputs[i] == nullptr) {
-            ob << true;
-        } else {
-            ob << false;
-            ob << _outputs[i]->get_layout();
-            const auto _allocation_type = _outputs[i]->get_allocation_type();
-            ob << make_data(&_allocation_type, sizeof(_allocation_type));
-        }
-    }
-
-    bool can_reuse_memory = true;
-    if (user_requesting_mem_reuse_false(*_node)) {
-        can_reuse_memory = false;
-    }
-    ob << can_reuse_memory;
-
-    ob << _node->get_memory_dependencies();
-
-    ob << _deps.size();
-    for (const auto& dep : _deps) {
-        ob << dep.first->id();
-        ob << dep.second;
-    }
-
-    ob << _exec_deps.size();
-    for (const auto& dep : _exec_deps) {
-        ob << dep->id();
-    }
-
-    for (size_t i = 0; i < _outputs.size(); ++i) {
-        if (_outputs[i] != nullptr) {
-            if (!mem_allocated())
-                ob << find_dep_by_mem(this, output_memory(i));
-        }
-    }
-
-    ob << _intermediates_memory.size();
-    for (const auto& ibuf : _intermediates_memory) {
-        ob << ibuf->get_layout();
-        const auto _allocation_type = ibuf->get_allocation_type();
-        ob << make_data(&_allocation_type, sizeof(_allocation_type));
-    }
-
-    if (_impl != nullptr) {
-        ob << true;
-        _impl->set_cached_kernel_ids(_network.get_program()->get_kernels_cache());
-        ob << _impl;
-    } else {
-        ob << false;
-    }
-}
-
-int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
-    for (uint32_t idx = 0; idx < _deps.size(); ++idx) {
-        if (arg == dep_memory_ptr(idx))
-            return idx;
-    }
-
-    OPENVINO_THROW("[get_index_in_deps]: not found in _deps");
-}
-
-void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
-    _impl_params->load(ib);
-    ib.setKernelImplParams(_impl_params.get());
-
-    ib >> _node_output_layout;
-    ib >> _has_mutable_input;
-    ib >> _mem_allocated;
-    ib >> _is_dynamic;
-    std::string type_str;
-    ib >> type_str;
-    _type = cldnn::prim_map_storage::instance().get_type_id(type_str);
-    ib >> _id;
-    ib >> _org_id;
-    ib >> _is_input;
-    ib >> _is_output;
-    ib >> _inputs_memory_count;
-    ib >> _outputs_memory_count;
-    ib >> _fused_mem_count;
-    ib >> _fused_mem_offset;
-    ib >> _can_be_optimized;
-    ib >> _can_share_buffer;
-    ib >> _is_constant;
-    ib >> _needs_completion_event;
-
-    if (type() == cldnn::data::type_id()) {
-        return;
-    }
-
-    // mem_allocated : it is true if the output memory is allocated by this layer, and
-    //                 false if this layer reuses output memory that is allocated by other layer.
-    // is_output_null : it is true if the output memory is not allocated yet and false otherwise.
-    size_t num_outputs;
-    std::vector<bool> is_output_null;
-    std::vector<layout> output_layouts;
-    std::vector<allocation_type> allocation_types;
-
-    ib >> num_outputs;
-    is_output_null.resize(num_outputs);
-    for (size_t i = 0; i < num_outputs; ++i) {
-        bool is_null;
-        ib >> is_null;
-        is_output_null[i] = is_null;
-        if (!is_null) {
-            layout output_layout = layout();
-            ib >> output_layout;
-            output_layouts.emplace_back(output_layout);
-
-            allocation_type _allocation_type = allocation_type::unknown;
-            ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-            allocation_types.emplace_back(_allocation_type);
-        }
-    }
-
-    bool can_reuse_memory;
-    ib >> can_reuse_memory;
-
-    std::set<primitive_id> _node_mem_deps;
-    ib >> _node_mem_deps;
-    _runtime_memory_dependencies = _node_mem_deps;
-
-    size_t vector_size = 0UL;
-    ib >> vector_size;
-    for (size_t i = 0; i < vector_size; ++i) {
-        primitive_id dep_id;
-        int32_t dep_idx;
-        ib >> dep_id >> dep_idx;
-        _dep_ids.emplace_back(std::pair<primitive_id, int32_t>(dep_id, dep_idx));
-    }
-
-    ib >> vector_size;
-    _exec_dep_ids.resize(vector_size);
-    for (auto& el : _exec_dep_ids) {
-        ib >> el;
-    }
-
-    _outputs.resize(num_outputs);
-    for (size_t i = 0; i < num_outputs; ++i) {
-        _outputs[i] = nullptr;
-        if (!is_output_null[i]) {
-            if (!_mem_allocated) {
-                std::string dep_id;
-                ib >> dep_id;
-                if (dep_id.compare("NOT_FOUND") != 0 && get_network().get_primitive(dep_id)->output_memory_ptr() != nullptr) {
-                    _outputs[i] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layouts[i]);
-                } else if (type() == cldnn::mutable_data::type_id()) {
-                    _outputs[i] = get_network().get_engine().allocate_memory(output_layouts[i], allocation_types[i]);
-                }
-            } else {
-                if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
-                    _outputs[i] = get_network().get_engine().allocate_memory(output_layouts[i], allocation_types[i]);
-                } else {
-                    _outputs[i] = get_network().get_memory_pool().get_memory(output_layouts[i], id(), get_network_id(), _node_mem_deps,
-                                                                            allocation_types[i], can_reuse_memory);
-                }
-            }
-        }
-    }
-    _output_changed = false;
-
-    ib >> vector_size;
-    _intermediates_memory.resize(vector_size);
-    for (size_t i = 0; i < vector_size; i++) {
-        layout ibuf_layout = layout();
-        ib >> ibuf_layout;
-        allocation_type _allocation_type;
-        ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-
-        _intermediates_memory[i] = get_network().get_memory_pool().get_memory(ibuf_layout, id(), get_network_id(),
-                                                                            _node_mem_deps, _allocation_type, true, true);
-    }
-
-    bool has_impl;
-    ib >> has_impl;
-    if (has_impl) {
-        _impl.reset();
-        ib >> _impl;
-    }
 }
 
 }  // namespace cldnn

@@ -1697,13 +1697,16 @@ JitConstants FusedOpsCodeGenerator::MakeInputDeclsJitConstants(const FusedOpsCon
     JitConstants jit = {};
 
     std::string input_decls = "";
+    std::string input_args = "";
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string ptr_name = GetInputPtrName(op_input_id);
         input_decls += "\\\n\tconst __global " + toCLType(desc.tensors[op_input_id].GetDType()) +
                        "* " + ptr_name + (op_input_id == desc.tensors.size() - 1 ? "" : ",");
+        input_args += "\\\n\t" + ptr_name + (op_input_id == desc.tensors.size() - 1 ? "" : ",");
     }
 
     jit.AddConstant(MakeJitConstant("FUSED_OP" + toCodeString(desc.op_id) + "_DECLS", input_decls));
+    jit.AddConstant(MakeJitConstant("FUSED_OP" + toCodeString(desc.op_id) + "_ARGS", input_args));
     return jit;
 }
 

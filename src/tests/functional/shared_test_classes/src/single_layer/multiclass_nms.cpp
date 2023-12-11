@@ -378,8 +378,6 @@ void MulticlassNmsLayerTest::SetUp() {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
         }
     }
-    const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     m_attrs.iou_threshold = iouThr;
     m_attrs.score_threshold = scoreThr;
@@ -392,7 +390,12 @@ void MulticlassNmsLayerTest::SetUp() {
     m_attrs.background_class = backgroundClass;
     m_attrs.normalized = normalized;
 
-    const auto nms = CreateNmsOp(paramOuts);
+    std::shared_ptr<ov::Node> nms;
+    if (params.size() > 2) {
+        nms = std::make_shared<ov::op::v9::MulticlassNms>(params[0], params[1], params[2], m_attrs);
+    } else {
+        nms = std::make_shared<ov::op::v9::MulticlassNms>(params[0], params[1], m_attrs);
+    }
 
     function = std::make_shared<Function>(nms, params, "MulticlassNMS");
 }

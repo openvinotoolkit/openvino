@@ -463,7 +463,9 @@ void ExecGraphUniqueNodeNames::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
+
     auto concat = std::make_shared<ngraph::opset1::Concat>(split->outputs(), 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};

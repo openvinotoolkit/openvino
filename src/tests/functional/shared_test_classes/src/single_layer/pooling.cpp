@@ -145,10 +145,9 @@ void PoolingLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(paramOuts[0],
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(params[0],
                                                                          stride,
                                                                          padBegin,
                                                                          padEnd,
@@ -157,6 +156,7 @@ void PoolingLayerTest::SetUp() {
                                                                          padType,
                                                                          excludePad,
                                                                          poolType);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
@@ -179,10 +179,9 @@ void GlobalPoolingLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(paramOuts[0],
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(params[0],
                                                                          stride,
                                                                          padBegin,
                                                                          padEnd,
@@ -191,6 +190,7 @@ void GlobalPoolingLayerTest::SetUp() {
                                                                          padType,
                                                                          excludePad,
                                                                          poolType);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
@@ -211,12 +211,10 @@ void MaxPoolingV8LayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> maxPool = ngraph::builder::makeMaxPoolingV8(paramOuts[0], stride, dilation, padBegin, padEnd,
-                                                                              kernel, roundingType, padType,
-                                                                              indexElementType, axis);
+    auto maxPool = std::make_shared<ov::op::v8::MaxPool>(params[0], stride, dilation, padBegin, padEnd,
+                                                         kernel, roundingType, padType,
+                                                         indexElementType, axis);
 
     const auto maxPoolV8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
     ngraph::ResultVector results;

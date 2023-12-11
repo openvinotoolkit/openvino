@@ -7,12 +7,10 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Pooling {
 
 static CPUSpecificParams expectedCpuConfig() {
@@ -24,9 +22,9 @@ static CPUSpecificParams expectedCpuConfig() {
 }
 const std::vector<CPUSpecificParams> vecCpuConfigs = {expectedCpuConfig()};
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg3D_RefOnly = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2}, {2}, {2}, {2},
-                            expectedAvgRoundingType(), ngraph::op::PadType::EXPLICIT, false },
+const std::vector<poolSpecificParams> paramsAvg3D_RefOnly = {
+        poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2}, {2}, {2}, {2},
+                            expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
@@ -59,9 +57,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_NotOptimized, PoolingLayerCPUTest,
                                  ::testing::Values(emptyFusingSpec)),
                          PoolingLayerCPUTest::getTestCaseName);
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_RefOnly = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {2, 2}, {2, 2},
-                            expectedAvgRoundingType(), ngraph::op::PadType::EXPLICIT, false },
+const std::vector<poolSpecificParams> paramsAvg4D_RefOnly = {
+        poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {2, 2}, {2, 2},
+                            expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
@@ -112,21 +110,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV85D_ref = {
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
-                                                        ngraph::element::Type_t::i32, 0,
-                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
-                                                        ngraph::element::Type_t::i32, 0,
-                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
-                                                        ngraph::element::Type_t::i32, 0,
-                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+const std::vector<maxPoolV8SpecificParams> paramsMaxV85D_ref = {
+        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+                                                        ov::element::Type_t::i32, 0,
+                                                        ov::op::RoundingType::CEIL, ov::op::PadType::SAME_UPPER },
+        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+                                                        ov::element::Type_t::i32, 0,
+                                                        ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
+        maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
+                                                        ov::element::Type_t::i32, 0,
+                                                        ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
 };
 
-const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg5D_RefOnly = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
-                            expectedAvgRoundingType(), ngraph::op::PadType::EXPLICIT, false },
+const std::vector<poolSpecificParams> paramsAvg5D_RefOnly = {
+        poolSpecificParams{ ov::test::utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
+                            expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, false },
 };
 
 //FIXME: 5D cases are temporarly disabled on ARM because ACL support check in Pooling::getSupportedDescriptors() can't check layout
@@ -177,5 +175,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
                               ::testing::Values(emptyFusingSpec)),
                           PoolingLayerCPUTest::getTestCaseName);
 #endif
-} // namespace Pooling
-} // namespace CPULayerTestsDefinitions
+}  // namespace Pooling
+}  // namespace test
+}  // namespace ov

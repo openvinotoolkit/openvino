@@ -191,6 +191,13 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
     return input;
 }
 
+bool is_empty_list(const Output<Node>& input) {
+    if (const auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
+        return list_construct->get_input_size() == 0;
+    }
+    return false;
+}
+
 namespace {
 std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
                                                                const ov::OutputVector& inputs,

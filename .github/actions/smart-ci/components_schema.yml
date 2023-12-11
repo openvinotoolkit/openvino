@@ -16,16 +16,22 @@ definitions:
           '$ref': '#/definitions/component_name'
 
       revalidate:
-        type: array
-        uniqueItems: true
-        items:
-          '$ref': '#/definitions/component_name'
+        oneOf:
+          - type: array
+            uniqueItems: true
+            items:
+              '$ref': '#/definitions/component_name'
+          - type: string
+            enum: ['all']
 
       build:
-        type: array
-        uniqueItems: true
-        items:
-          '$ref': '#/definitions/component_name'
+        oneOf:
+          - type: array
+            uniqueItems: true
+            items:
+              '$ref': '#/definitions/component_name'
+          - type: string
+            enum: ['all']
 
 propertyNames:  # Validates component names
   '$ref': '#/definitions/component_name'

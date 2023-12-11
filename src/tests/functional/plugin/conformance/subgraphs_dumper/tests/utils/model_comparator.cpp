@@ -10,6 +10,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/core/model.hpp"
 
 namespace {
 
@@ -55,7 +56,7 @@ protected:
     }
 
     void TearDown() override {
-        ModelComparator::Ptr model_comparator = ModelComparator::get();
+        ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
         model_comparator->set_shape_strict_match(false);
         model_comparator->set_match_coefficient(0.9f);
     }
@@ -64,13 +65,13 @@ protected:
 };
 
 TEST_F(ModelComparatorTest, get) {
-    ModelComparator::Ptr model_comparator = nullptr;
-    ASSERT_NO_THROW(model_comparator = ModelComparator::get());
-    ASSERT_EQ(model_comparator, ModelComparator::get());
+    ov::util::ModelComparator::Ptr model_comparator = nullptr;
+    ASSERT_NO_THROW(model_comparator = ov::util::ModelComparator::get());
+    ASSERT_EQ(model_comparator, ov::util::ModelComparator::get());
 }
 
 TEST_F(ModelComparatorTest, match) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_TRUE(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_1));
@@ -80,7 +81,7 @@ TEST_F(ModelComparatorTest, match) {
 }
 
 TEST_F(ModelComparatorTest, match_strict_shape) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     ASSERT_NO_THROW(model_comparator->set_shape_strict_match(true));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_FALSE(model_comparator->match(test_model_0_0, test_model_0_1));
@@ -101,7 +102,7 @@ TEST_F(ModelComparatorTest, match_strict_shape) {
 }
 
 TEST_F(ModelComparatorTest, match_with_low_coeff) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     model_comparator->set_match_coefficient(0.5f);
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_TRUE(model_comparator->match(test_model_0_0, test_model_0_1));
@@ -112,9 +113,10 @@ TEST_F(ModelComparatorTest, match_with_low_coeff) {
 }
 
 TEST_F(ModelComparatorTest, match_with_in_info) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
-    std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}),
-                                     test_in_info_1({{"test_parameter_1", InputInfo({}, 1, 2, true)}});
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
+    std::map<std::string, ov::conformance::InputInfo>
+        test_in_info({{"test_parameter_0", ov::conformance::InputInfo()}}),
+        test_in_info_1({{"test_parameter_1", ov::conformance::InputInfo({}, 1, 2, true)}});
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info));
     ASSERT_TRUE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info)));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1));
@@ -124,7 +126,7 @@ TEST_F(ModelComparatorTest, match_with_in_info) {
 }
 
 TEST_F(ModelComparatorTest, is_subgraph) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
+    ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_0_1));
     auto is_subgraph = model_comparator->is_subgraph(test_model_0_0, test_model_0_1);
     ASSERT_TRUE(std::get<0>(is_subgraph));

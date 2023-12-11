@@ -1,20 +1,20 @@
-vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed
-movenet/singlepose/lightning,https://tfhub.dev/google/movenet/singlepose/lightning/4?tf-hub-format=compressed
-imagenet/resnet_v2_50/feature_vector,https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/5?tf-hub-format=compressed
-movenet/singlepose/thunder,https://tfhub.dev/google/movenet/singlepose/thunder/4?tf-hub-format=compressed
-imagenet/mobilenet_v2_100_224/feature_vector,https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/5?tf-hub-format=compressed
-efficientnet/lite0/classification,https://tfhub.dev/tensorflow/efficientnet/lite0/classification/2?tf-hub-format=compressed
-movenet/multipose/lightning,https://tfhub.dev/google/movenet/multipose/lightning/1?tf-hub-format=compressed
-imagenet/efficientnet_v2_imagenet1k_b0/feature_vector,https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet1k_b0/feature_vector/2?tf-hub-format=compressed
-imagenet/mobilenet_v1_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5?tf-hub-format=compressed
-magenta/arbitrary-image-stylization-v1-256,https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2?tf-hub-format=compressed
-small_bert/bert_en_uncased_L-4_H-256_A-4,https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-256_A-4/2?tf-hub-format=compressed
-movinet/a5/base/kinetics-600/classification,https://tfhub.dev/tensorflow/movinet/a5/base/kinetics-600/classification/3?tf-hub-format=compressed
+vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed,skip,Model is not available
+movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
+imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-feature-vector/versions/2
+movenet/singlepose/thunder,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-thunder/versions/4
+imagenet/mobilenet_v2_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-feature-vector/versions/2
+efficientnet/lite0/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite0-classification/versions/2
+movenet/multipose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/multipose-lightning/versions/1
+imagenet/efficientnet_v2_imagenet1k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b0-feature-vector/versions/2
+imagenet/mobilenet_v1_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-classification/versions/2
+magenta/arbitrary-image-stylization-v1-256,https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2
+small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-256-a-4/versions/2
+movinet/a5/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-base-kinetics-600-classification/versions/3
 # model with complex tensors and FFT ops
-yamnet,https://tfhub.dev/google/yamnet/1?tf-hub-format=compressed,skip,124451
+yamnet,https://www.kaggle.com/models/google/yamnet/frameworks/tensorFlow2/variations/yamnet/versions/1
 # secure notebook models
-unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1?tf-hub-format=compressed
-movenet/singlepose/thunder,https://tfhub.dev/google/movenet/singlepose/thunder/4?tf-hub-format=compressed
-esrgan-tf2,https://tfhub.dev/captain-pool/esrgan-tf2/1?tf-hub-format=compressed
-film,https://tfhub.dev/google/film/1?tf-hub-format=compressed
-planet/vision/classifier/planet_v2,https://tfhub.dev/google/planet/vision/classifier/planet_v2/1?tf-hub-format=compressed
+unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1?tf-hub-format=compressed,skip,Model is not available
+movenet/singlepose/thunder,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-thunder/versions/4
+esrgan-tf2,https://www.kaggle.com/models/kaggle/esrgan-tf2/frameworks/tensorFlow2/variations/esrgan-tf2/versions/1
+film,https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1
+planet/vision/classifier/planet_v2,https://www.kaggle.com/models/google/planet-v2/frameworks/tensorFlow1/variations/planet-vision-classifier-planet-v2/versions/1

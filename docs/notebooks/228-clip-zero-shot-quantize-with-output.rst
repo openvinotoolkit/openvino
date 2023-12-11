@@ -8,16 +8,16 @@ Compression Framework) and infer quantized model via OpenVINO™ Toolkit.
 The optimization process contains the following steps:
 
 1. Quantize the converted OpenVINO model from
-   `notebook <228-clip-zero-shot-convert.ipynb>`__ with NNCF.
+   `notebook <228-clip-zero-shot-convert-with-output.html>`__ with NNCF.
 2. Check the model result using the same input data from the
-   `notebook <228-clip-zero-shot-convert.ipynb>`__.
+   `notebook <228-clip-zero-shot-convert-with-output.html>`__.
 3. Compare model size of converted and quantized models.
 4. Compare performance of converted and quantized models.
 
 ..
 
    **NOTE**: you should run
-   `228-clip-zero-shot-convert <228-clip-zero-shot-convert.ipynb>`__
+   `228-clip-zero-shot-convert <228-clip-zero-shot-convert-with-output.html>`__
    notebook first to generate OpenVINO IR model that is used for
    quantization.
 
@@ -260,7 +260,7 @@ Run quantized OpenVINO model
 The steps for making predictions with the quantized OpenVINO CLIP model
 are similar to the PyTorch model. Let us check the model result using
 the same input data from the `1st
-notebook <228-clip-zero-shot-image-classification.ipynb>`__.
+notebook <228-clip-zero-shot-image-classification-with-output.html>`__.
 
 .. code:: ipython3
 

@@ -340,6 +340,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto maxpool = ngraph::builder::makePooling(conv,
                                                 {1, 1},
                                                 {0, 0},
@@ -349,6 +350,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
                                                 ngraph::op::PadType::VALID,
                                                 false,
                                                 ngraph::helpers::PoolingTypes::MAX);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
@@ -371,6 +373,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
     auto activation =
         ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto maxpool = ngraph::builder::makePooling(activation,
                                                 {1, 1},
                                                 {0, 0},
@@ -380,6 +383,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
                                                 ngraph::op::PadType::VALID,
                                                 false,
                                                 ngraph::helpers::PoolingTypes::MAX);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
