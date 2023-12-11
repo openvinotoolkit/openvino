@@ -52,7 +52,7 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
     EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    const auto& rtInfo = LayerTestsCommon::getRuntimeInfo();
+    const auto& rtInfo = LayerTransformation::getRuntimeInfo();
 
     auto exist = testValues.expected.exist;
     auto absent = testValues.expected.absent;

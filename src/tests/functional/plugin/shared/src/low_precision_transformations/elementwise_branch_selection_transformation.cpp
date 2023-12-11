@@ -78,7 +78,7 @@ void ElementwiseBranchSelectionTransformation::run() {
 
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
     if (!expectedReorders.empty()) {
-        auto rtInfo = LayerTestsCommon::getRuntimeInfo();
+        auto rtInfo = LayerTransformation::getRuntimeInfo();
         for (auto it : rtInfo) {
             const auto& typeIt = it.second.find("layerType");
             const auto type = typeIt->second.as<std::string>();
