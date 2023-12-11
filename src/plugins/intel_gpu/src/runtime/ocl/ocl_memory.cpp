@@ -405,7 +405,7 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemo
     , _host_buffer(engine->get_usm_helper()) {
 }
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type, void* ptr)
     : lockable_gpu_mem()
     , memory(engine, layout, type, false)
     , _buffer(engine->get_usm_helper())
@@ -418,7 +418,11 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
         _buffer.allocateShared(_bytes_count);
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(_bytes_count);
+        if (ptr != nullptr) {
+            _buffer.assignDevice(ptr);
+        } else {
+            _buffer.allocateDevice(_bytes_count);
+        }
         break;
     default:
         CLDNN_ERROR_MESSAGE("gpu_usm allocation type",

@@ -731,7 +731,7 @@ public:
     }
 };
 
-class UsmHelper {
+class  UsmHelper {
 public:
     explicit UsmHelper(const cl::Context& ctx, const cl::Device device, bool use_usm) : _ctx(ctx), _device(device) {
         if (use_usm) {
@@ -925,23 +925,30 @@ public:
 
     void allocateHost(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_host(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
+        _allocate(_usmHelper.allocate_host(nullptr, size, 0, &error));
+        // _allocate(_usmHelper.allocate_host(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmHost in cl extensions constructor failed");
     }
 
     void allocateShared(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_shared(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
+        _allocate(_usmHelper.allocate_shared(nullptr, size, 0, &error));
+        // _allocate(_usmHelper.allocate_shared(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmShared in cl extensions constructor failed");
     }
 
     void allocateDevice(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_device(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
+        _allocate(_usmHelper.allocate_device(nullptr, size, 0, &error));
+        // _allocate(_usmHelper.allocate_device(nullptr, ((size-1)/65536 + 1)*65536, 65536, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
+    }
+
+    void assignDevice(void* ptr) {
+        _allocate(ptr, true);
     }
 
     void freeMem() {
@@ -957,10 +964,10 @@ protected:
     std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
 
 private:
-    void _allocate(void* ptr) {
+    void _allocate(void* ptr, bool shared_memory = false) {
         if (!ptr)
             throw std::runtime_error("[CL ext] Can not allocate nullptr for USM type.");
-        _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr);
+        _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr, shared_memory);
     }
 };
 

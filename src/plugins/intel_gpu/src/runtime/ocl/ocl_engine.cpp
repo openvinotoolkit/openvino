@@ -126,7 +126,7 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
 }
 
 bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
-    OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem, "[GPU] Unsupported allocation type: ", type);
+    // OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem, "[GPU] Unsupported allocation type: ", type);
     auto alloc_mem_size = layout.bytes_count();
     auto max_mem_size = get_device_info().max_alloc_mem_size;
     if (alloc_mem_size > max_mem_size) {
@@ -140,7 +140,7 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     return true;
 }
 
-memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
+memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset, void* ptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
     bool allocatable = check_allocatable(layout, type);
@@ -159,7 +159,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         } else if (type == allocation_type::cl_mem) {
             res = std::make_shared<ocl::gpu_buffer>(this, layout);
         } else {
-            res = std::make_shared<ocl::gpu_usm>(this, layout, type);
+            res = std::make_shared<ocl::gpu_usm>(this, layout, type, ptr);
         }
 
         if (reset || res->is_memory_reset_needed(layout)) {

@@ -107,7 +107,7 @@ private:
 struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, allocation_type type);
     gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer);
-    gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type);
+    gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type, void* ptr = nullptr);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;

@@ -8,6 +8,7 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory_pool.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -25,10 +26,77 @@ memory_record::memory_record(memory_set users,
     : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
 memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
-    return _engine->allocate_memory(layout, type, reset);
+    size_t alloc_size = layout.bytes_count();
+
+    size_t offset = 0;
+    if (alloc_size <= SIZE_4KB) {
+        offset = SIZE_4KB;
+    } else if (alloc_size <= SIZE_16KB) {
+        offset = SIZE_16KB;
+    } else if (alloc_size <= SIZE_256KB) {
+        offset = SIZE_256KB;
+    } else if (alloc_size <= SIZE_2MB) {
+        offset = SIZE_2MB;
+    }
+
+
+    if (type == allocation_type::usm_device && alloc_size <= SIZE_2MB) {
+        std::lock_guard<std::mutex> locker(_engine->_mem_mutex);
+        size_t max_idx = ALIGNED_SIZE / offset;
+        auto matched_mem = get_matching_aligned_memory(alloc_size);
+        auto pre_allocated_ptr = static_cast<char *>(matched_mem.first->buffer_ptr());
+        auto ptr = pre_allocated_ptr + (*matched_mem.second * offset);
+        // std::cout << "  -- find matching_aligned_memory : " << matched_mem.first->buffer_ptr() << ", index : " << *matched_mem.second << std::endl;
+        // std::cout << "    -- offset : " << (*matched_mem.second * offset) << std::endl;
+        (*matched_mem.second)++;
+
+        if (*matched_mem.second >= max_idx) {
+            // No release for checking alloc time only
+            _engine->_aligned_mem_buffer.push_back(matched_mem.first);
+            auto aligned_layout = cldnn::layout{{ALIGNED_SIZE}, data_types::i8, format::bfyx};
+            if (alloc_size <= SIZE_4KB) {
+                _engine->_aligned_mem_4KB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+                _engine->_idx_4KB_aligned = 0;
+                // std::cout << "    -- Re allocate _aligned_mem_4KB : " << _engine->_aligned_mem_4KB->buffer_ptr() << std::endl;
+            } else if (alloc_size <= SIZE_16KB) {
+                _engine->_aligned_mem_16KB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+                _engine->_idx_16KB_aligned = 0;
+                // std::cout << "    -- Re allocate _aligned_mem_16KB : " << _engine->_aligned_mem_4KB->buffer_ptr() << std::endl;
+            } else if (alloc_size <= SIZE_256KB) {
+                _engine->_aligned_mem_256KB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+                _engine->_idx_256KB_aligned = 0;
+                // std::cout << "    -- Re allocate _aligned_mem_256KB : " << _engine->_aligned_mem_4KB->buffer_ptr() << std::endl;
+            } else if (alloc_size <= SIZE_2MB) {
+                _engine->_aligned_mem_2MB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+                _engine->_idx_2MB_aligned = 0;
+                // std::cout << "    -- Re allocate _aligned_mem_2MB : " << _engine->_aligned_mem_4KB->buffer_ptr() << std::endl;
+            }
+        }
+
+        auto ret = _engine->allocate_memory(layout, type, reset, static_cast<void *>(ptr));
+        // std::cout << "    -- alloc new device mem using pre-allocated memory ptr : " << ret->buffer_ptr() << std::endl;
+
+        return ret;
+    } else {
+        return _engine->allocate_memory(layout, type, reset);
+    }
 }
 
 memory_pool::~memory_pool() {}
+
+std::pair<memory_ptr, size_t *> memory_pool::get_matching_aligned_memory(size_t alloc_size) {
+    if (alloc_size <= SIZE_4KB) {
+        return std::make_pair(_engine->_aligned_mem_4KB, &_engine->_idx_4KB_aligned);
+    } else if (alloc_size <= SIZE_16KB) {
+        return std::make_pair(_engine->_aligned_mem_16KB, &_engine->_idx_16KB_aligned);
+    } else if (alloc_size <= SIZE_256KB) {
+        return std::make_pair(_engine->_aligned_mem_256KB, &_engine->_idx_256KB_aligned);
+    } else if (alloc_size <= SIZE_2MB) {
+        return std::make_pair(_engine->_aligned_mem_2MB, &_engine->_idx_2MB_aligned);
+    }
+
+    return std::make_pair(_engine->_aligned_mem_2MB, &_engine->_idx_2MB_aligned);
+}
 
 bool memory_pool::has_conflict(const memory_set& a,
                                const std::set<primitive_id>& b,
@@ -53,6 +121,9 @@ void memory_pool::release_memory(memory* mem, const primitive_id& id, uint32_t n
     // check nonpadded pool first
     auto _layout = mem->get_layout();
     auto type = mem->get_allocation_type();
+
+    if (_layout.bytes_count() <= SIZE_2MB)
+        return;
 
     {
         auto it = _non_padded_pool.lower_bound(_layout.bytes_count());
@@ -212,7 +283,38 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
     return mem;
 }
 
+void memory_pool::init_aligned_memory() {
+    auto aligned_layout = cldnn::layout{{ALIGNED_SIZE}, data_types::i8, format::bfyx};
+    if (_engine->_aligned_mem_4KB == nullptr) {
+        _engine->_aligned_mem_4KB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+        _engine->_idx_4KB_aligned = 0;
+        // std::cout << ">> _aligned_mem_4KB : " << _engine->_aligned_mem_4KB->buffer_ptr() << std::endl;
+    }
+    if (_engine->_aligned_mem_16KB == nullptr) {
+        _engine->_aligned_mem_16KB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+        // std::cout << ">> _aligned_mem_16KB : " << _engine->_aligned_mem_16KB->buffer_ptr() << std::endl;
+        _engine->_idx_16KB_aligned = 0;
+    }
+    if (_engine->_aligned_mem_256KB == nullptr) {
+        _engine->_aligned_mem_256KB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+        // std::cout << ">> _aligned_mem_256KB : " << _engine->_aligned_mem_256KB->buffer_ptr() << std::endl;
+        _engine->_idx_256KB_aligned = 0;
+    }
+    if (_engine->_aligned_mem_2MB == nullptr) {
+        _engine->_aligned_mem_2MB = alloc_memory(aligned_layout, allocation_type::usm_device, true);
+        // std::cout << ">> _aligned_mem_2MB : " << _engine->_aligned_mem_2MB->buffer_ptr() << std::endl;
+        _engine->_idx_2MB_aligned = 0;
+    }
+
+
+
+    return;
+}
+
 memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type, bool reset) {
+    if (type == allocation_type::usm_device)
+        init_aligned_memory();
+
     return alloc_memory(layout, type, reset);
 }
 
@@ -223,6 +325,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     allocation_type type,
                                     bool reusable_across_network,
                                     bool reset) {
+    if (type == allocation_type::usm_device)
+        init_aligned_memory();
+
     bool do_reuse = reusable_across_network;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
@@ -301,7 +406,8 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 }
 
-memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
+memory_pool::memory_pool(engine& engine) : _engine(&engine) {
+}
 
 void memory_pool::dump(uint32_t net_id) {
     GPU_DEBUG_COUT << "Dump memory pool of network " << net_id << std::endl;

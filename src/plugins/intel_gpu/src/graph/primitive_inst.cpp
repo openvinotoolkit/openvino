@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "data_inst.h"
@@ -136,6 +137,14 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     return false;
 }
 
+const size_t aligned_size = (2*1024*1024);
+
+static memory::ptr get_aligned_memory(memory_pool& pool) {
+    auto aligned_layout = cldnn::layout{{aligned_size}, data_types::i8, format::bfyx};
+
+    return pool.get_memory(aligned_layout, allocation_type::usm_device, true);
+}
+
 static memory::ptr get_memory_from_pool(engine& _engine,
                                 uint32_t net_id,
                                 memory_pool& pool,
@@ -154,6 +163,10 @@ static memory::ptr get_memory_from_pool(engine& _engine,
             pool.release_memory(curr_memory, _node.id(), net_id);
         return pool.get_memory(layout, _node.id(), net_id, memory_dependencies, type, reusable_across_network, reset);
     }
+
+    if (false)
+        return get_aligned_memory(pool);
+
     return pool.get_memory(layout, type, reset);
 }
 

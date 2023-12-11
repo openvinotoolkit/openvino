@@ -13,6 +13,7 @@
 #include <list>
 #include <string>
 #include <atomic>
+#include <mutex>
 
 namespace cldnn {
 
@@ -25,6 +26,16 @@ using memory_set = std::set<memory_user, memory_user_comparer>;
 using primitive_id = std::string;
 
 using memory_ptr = std::shared_ptr<memory>;
+using memory_ptr_vector = std::vector<memory_ptr>;
+const size_t ALIGNED_SIZE = (10*1024*1024);
+const size_t SIZE_4KB = (4*1024);
+const size_t SIZE_16KB = (16*1024);
+const size_t SIZE_256KB = (256*1024);
+const size_t SIZE_2MB = (2*1024*1024);
+const size_t NUM_4KB = ALIGNED_SIZE / SIZE_4KB;
+const size_t NUM_16KB = ALIGNED_SIZE / SIZE_16KB;
+const size_t NUM_256KB = ALIGNED_SIZE / SIZE_256KB;
+const size_t NUM_2MB = ALIGNED_SIZE / SIZE_2MB;
 
 struct memory_user {
     primitive_id _id;
@@ -97,6 +108,19 @@ class memory_pool {
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
     engine* _engine;
+
+    // Allocted Aligned device memory 2MB size ahead
+    // std::vector<memory_ptr> _aligned_mem_buffer;
+    // memory_ptr _aligned_mem_4KB;        // Handle memalloc smaller than 4KB
+    // memory_ptr _aligned_mem_16KB;       // Handle memalloc smaller than 4KB
+    // memory_ptr _aligned_mem_256KB;      // Handle memalloc smaller than 4KB
+    // size_t _idx_4KB_aligned;
+    // size_t _idx_16KB_aligned;
+    // size_t _idx_256KB_aligned;
+
+
+    void init_aligned_memory();
+    std::pair<memory_ptr, size_t *> get_matching_aligned_memory(size_t alloc_size);
 
 public:
     explicit memory_pool(engine& engine);

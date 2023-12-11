@@ -48,7 +48,7 @@ public:
     memory_ptr attach_memory(const layout& layout, void* ptr);
 
     /// Allocate gpu memory using specified @p layout and alloation @p type
-    virtual memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) = 0;
+    virtual memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true, void *ptr = nullptr) = 0;
 
     /// Allocate gpu memory using specified @p layout. Allocation type is selected automatically based on engine/device configuration
     memory_ptr allocate_memory(const layout& layout, bool reset = true);
@@ -162,6 +162,18 @@ public:
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);
+
+    // Allocted Aligned device memory 2MB size ahead
+    std::vector<memory_ptr> _aligned_mem_buffer;
+    memory_ptr _aligned_mem_4KB = nullptr;
+    memory_ptr _aligned_mem_16KB = nullptr;
+    memory_ptr _aligned_mem_256KB = nullptr;
+    memory_ptr _aligned_mem_2MB = nullptr;
+    size_t _idx_4KB_aligned = 0;
+    size_t _idx_16KB_aligned = 0;
+    size_t _idx_256KB_aligned = 0;
+    size_t _idx_2MB_aligned = 0;
+    mutable std::mutex _mem_mutex;
 
 protected:
     /// Create engine for given @p device and @p configuration
