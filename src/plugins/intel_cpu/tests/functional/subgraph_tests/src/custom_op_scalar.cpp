@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/op/op.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/op.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using CustomOpScalarCPUTestParams = std::tuple<ElementType, InputShape>;
 
@@ -149,4 +149,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          ::testing::Combine(::testing::Values(ElementType::u8), ::testing::ValuesIn(inputShapes)),
                          CustomOpScalarCPUTest::getTestCaseName);
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

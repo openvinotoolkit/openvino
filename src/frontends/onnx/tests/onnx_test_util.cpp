@@ -191,8 +191,10 @@ ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
     return compare_nodes(graph, ref_graph, comp);
 }
 }  // namespace
-namespace ngraph {
-namespace test {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace tests {
 
 bool default_name_comparator(std::string lhs, std::string rhs) {
     return lhs == rhs;
@@ -220,5 +222,7 @@ std::string change_opset_version(const std::string& model,
     return model_proto.SerializeAsString();
 }
 
-}  // namespace test
-}  // namespace ngraph
+}  // namespace tests
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
