@@ -385,7 +385,7 @@ selecsls60.in1k,None
 selecsls60b.in1k,None
 semnasnet_075.rmsp_in1k,None
 senet154.gluon_in1k,None
-sequencer2d_l.in1k,None,xfail,Unsupported aten::lstm
+sequencer2d_l.in1k,None
 seresnet152d.ra2_in1k,None
 seresnet33ts.ra2_in1k,None
 seresnet50.a1_in1k,None
