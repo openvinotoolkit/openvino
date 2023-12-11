@@ -42,9 +42,6 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<LoopEnd> get_loop_end() const;
 
-    // begin_address are needed to communicate information between LoopBegin and LoopEnd emitters
-    const uint8_t* begin_address;
-
 protected:
     void validate_and_infer_types_except_LoopEnd();
 };
