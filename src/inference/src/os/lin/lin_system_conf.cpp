@@ -608,6 +608,16 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
 
     std::vector<int> line_value_0(PROC_TYPE_TABLE_SIZE, 0);
 
+    auto clean_up_output = [&]() {
+        _processors = 0;
+        _cores = 0;
+        _numa_nodes = 0;
+        _sockets = 0;
+        _cpu_mapping_table.clear();
+        _proc_type_table.clear();
+        return;
+    };
+
     for (int n = 0; n < _processors; n++) {
         if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
             std::string::size_type pos = 0;
@@ -625,6 +635,10 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                 core_1 = std::stoi(sub_str);
                 sub_str = system_info_table[n][0].substr(endpos1 + 1);
                 core_2 = std::stoi(sub_str);
+                if ((core_1 != n) && (core_2 != n)) {
+                    clean_up_output();
+                    return;
+                }
 
                 _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
                 _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = std::stoi(system_info_table[core_1][1]);
