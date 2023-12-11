@@ -34,8 +34,12 @@ Napi::Object CompiledModelWrap::Init(Napi::Env env, Napi::Object exports) {
 
 Napi::Object CompiledModelWrap::Wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     Napi::HandleScope scope(env);
-    Napi::Object obj = GetClassConstructor(env).New({});
-    CompiledModelWrap* cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+    const auto prototype = env.GetInstanceData<AddonData>()->compiled_model_prototype;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+    }
+    auto obj = prototype->New({});
+    const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->_compiled_model = compiled_model;
     return obj;
 }
