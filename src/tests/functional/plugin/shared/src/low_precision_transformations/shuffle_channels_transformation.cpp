@@ -47,8 +47,8 @@ void ShuffleChannelsTransformation::SetUp() {
         param.group);
 }
 
-void ShuffleChannelsTransformation::Run() {
-    LayerTestsCommon::Run();
+void ShuffleChannelsTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -57,7 +57,7 @@ void ShuffleChannelsTransformation::Run() {
 
 TEST_P(ShuffleChannelsTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -34,6 +34,6 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 }  // namespace LayerTestsDefinitions

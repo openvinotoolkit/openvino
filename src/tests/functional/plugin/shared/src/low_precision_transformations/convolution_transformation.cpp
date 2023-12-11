@@ -53,8 +53,8 @@ void ConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnWeights);
 }
 
-void ConvolutionTransformation::Run() {
-    LayerTestsCommon::Run();
+void ConvolutionTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -67,7 +67,7 @@ void ConvolutionTransformation::Run() {
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

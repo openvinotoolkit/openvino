@@ -52,8 +52,8 @@ void ReduceMinTransformation::SetUp() {
         dequantizationAfter);
 }
 
-void ReduceMinTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceMinTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -62,7 +62,7 @@ void ReduceMinTransformation::Run() {
 
 TEST_P(ReduceMinTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

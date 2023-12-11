@@ -73,8 +73,8 @@ void MatMulWithConstantTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MatMulWithConstantTransformation::Run() {
-    LayerTestsCommon::Run();
+void MatMulWithConstantTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<2>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -87,7 +87,7 @@ void MatMulWithConstantTransformation::Run() {
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

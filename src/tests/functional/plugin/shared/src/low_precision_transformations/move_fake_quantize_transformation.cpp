@@ -61,8 +61,8 @@ void MoveFakeQuantizeTransformation::SetUp() {
         oneInputWithSplit);
 }
 
-void MoveFakeQuantizeTransformation::Run() {
-    LayerTestsCommon::Run();
+void MoveFakeQuantizeTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -75,7 +75,7 @@ void MoveFakeQuantizeTransformation::Run() {
 
 TEST_P(MoveFakeQuantizeTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

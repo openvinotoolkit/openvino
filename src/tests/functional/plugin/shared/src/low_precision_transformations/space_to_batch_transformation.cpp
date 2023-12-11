@@ -38,8 +38,8 @@ void SpaceToBatchTransformation::SetUp() {
         param.pads_end);
 }
 
-void SpaceToBatchTransformation::Run() {
-    LayerTestsCommon::Run();
+void SpaceToBatchTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<2>(GetParam());
     auto expected_type = params.expected_kernel_type;
@@ -54,7 +54,7 @@ void SpaceToBatchTransformation::Run() {
 
 TEST_P(SpaceToBatchTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

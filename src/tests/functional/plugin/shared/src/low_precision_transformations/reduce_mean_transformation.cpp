@@ -60,8 +60,8 @@ void ReduceMeanTransformation::SetUp() {
         param.dequantizationAfter);
 }
 
-void ReduceMeanTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceMeanTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -70,7 +70,7 @@ void ReduceMeanTransformation::Run() {
 
 TEST_P(ReduceMeanTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

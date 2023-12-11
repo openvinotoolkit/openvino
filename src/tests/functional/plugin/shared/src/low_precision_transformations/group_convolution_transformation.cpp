@@ -68,8 +68,8 @@ void GroupConvolutionTransformation::SetUp() {
         addPrecisionPreserved);
 }
 
-void GroupConvolutionTransformation::Run() {
-    LayerTestsCommon::Run();
+void GroupConvolutionTransformation::run() {
+    LayerTransformation::run();
 
     const auto param = std::get<4>(GetParam());
     if (!param.layerName.empty()) {
@@ -84,7 +84,7 @@ void GroupConvolutionTransformation::Run() {
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
