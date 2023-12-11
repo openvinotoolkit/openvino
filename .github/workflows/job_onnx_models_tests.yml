@@ -107,5 +107,5 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
-      - name: TensorFlow Hub Tests - TF FE
-        run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -n 4 --forked -k 'not _cuda' --model_zoo_xfail
+      - name: ONNX Models Tests
+        run: python3 -m pytest --backend="CPU" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
