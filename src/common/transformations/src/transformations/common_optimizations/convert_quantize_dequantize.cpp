@@ -22,8 +22,9 @@
 // Since Quantize is decomposed to FakeQuantize and Dequantize is decomposed to Subtract->Multiply,
 // the full pattern to match is presented on the left hand side of the graph below.
 // On the right hand side is the graph after transformation.
-// Currently transformation supports only i8 and u8 quantized data type.
-// That implies 'levels' attribute to be 256, as well as (output_low, output_high) be (-128, 127) or (0, 255) (depends
+// Currently transformation supports only i8, u8, i16, u16 quantized data type.
+// That implies 'levels' attribute to be 256 or 65536, as well as (output_low, output_high)
+// be (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535) (depends on type and depends
 // on sign of the quantized data type). Another limitation is that 'zero_point' and 'scale' have to be broadcastable to
 // the output of FakeQuantize.
 //
@@ -69,9 +70,9 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto output_high_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto convert1_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern},
-                                                          pattern::type_matches_any({element::i8, element::u8}));
+    auto convert1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(
+        {fq_pattern},
+        pattern::type_matches_any({element::i8, element::u8, element::i16, element::u16}));
     auto convert2_pattern =
         ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = pass::pattern::any_input();
@@ -113,12 +114,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (convert2.get_target_inputs().size() != 1)
             return false;
 
-        // we support only i8 or u8 so 'levels' attribute must be 256
+        // we support:
+        // i8 or u8: 'levels' attribute must be 256
+        // i16 or u16: 'levels' attribute must be 65536
         size_t levels = fq->get_levels();
-        if (levels != 256)
+        if (levels != 256 && levels != 65536)
             return false;
 
-        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255)
+        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535)
         float out_low_val;
         if (!op::util::get_single_value(output_low, out_low_val))
             return false;
@@ -133,6 +136,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             break;
         case element::Type_t::u8:
             if (out_low_val != 0 || out_high_val != 255)
+                return false;
+            break;
+        case element::Type_t::i16:
+            if (out_low_val != -32768 || out_high_val != 32767)
+                return false;
+            break;
+        case element::Type_t::u16:
+            if (out_low_val != 0 || out_high_val != 65535)
                 return false;
             break;
         default:
