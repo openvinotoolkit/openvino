@@ -140,6 +140,21 @@ public:
     MemoryPtr hidden_state_mem() const;
     void assign_hidden_state(const MemoryPtr& mem);
 
+    // size in elements count
+    size_t internal_state_max_size() const {
+        return m_internal_mem_max_size;
+    }
+    void assign_internal_state_max_size(size_t max_size) {
+        m_internal_mem_max_size = max_size;
+    }
+
+    size_t hidden_state_max_size() const {
+        return m_hidden_state_max_size;
+    }
+    void assign_hidden_state_max_size(size_t max_size) {
+        m_hidden_state_max_size = max_size;
+    }
+
 private:
     //ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
@@ -149,6 +164,8 @@ private:
 private:
     MemoryPtr m_internal_mem; // kv cache
     MemoryPtr m_hidden_state; // beam access table
+    size_t m_internal_mem_max_size = 0;
+    size_t m_hidden_state_max_size = 0;
 
     // this desc stores the internal prc and axis permutation
     BlockedMemoryDescPtr m_dense_internal_desc;

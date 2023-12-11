@@ -153,7 +153,12 @@ public:
         auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == element::i32) {
                 ov::Tensor t{ov::element::i32, shape};
-                std::iota(static_cast<int*>(t.data()), static_cast<int*>(t.data()) + t.get_size(), 0);
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size;
+                }
                 inputs.insert({param, t});
             } else if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
@@ -219,12 +224,19 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
 
 namespace {
 const std::vector<std::vector<InputShape>> inputShapes = {
-    // dynamic batch
+    // greedy search
     {
         // B, H, L1, S
         {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
         // B, H, L0, S
         {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
+    },
+    // beam search
+    {
+        // B, H, L1, S
+        {{-1, 8, -1, 64}, {{4, 8, 10, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}}},
+        // B, H, L0, S
+        {{-1, 8, -1, 64}, {{4, 8, 0, 64}, {4, 8, 10, 64}, {4, 8, 11, 64}, {4, 8, 12, 64}, {4, 8, 13, 64}}},
     },
 };
 

@@ -18,7 +18,6 @@
 #include "openvino/core/parallel.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/plain_tensor.hpp"
 #include <openvino/op/scaled_dot_product_attention.hpp>
 #include "common/arbitrary_order_desc_creator.h"
 
@@ -501,32 +500,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             attn_buf.data<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
-    void concat_pastkv(const std::vector<MemoryPtr>& inputs,
-                       const std::vector<MemoryPtr>& outputs,
-                       const PlainTensor& k_input,
-                       const PlainTensor& v_input,
-                       PlainTensor& past_k_output,
-                       PlainTensor& past_v_output) {
-        if (config.config.fuse_concat) {
-            k_input.assert_dims({B, 0, L1, S}, true);
-            v_input.assert_dims({B, 0, L1, S}, true);
-            auto past_k_idx = inputs.size() - 2;
-            auto past_k_mem = inputs[past_k_idx + 0];
-            L0 = past_k_mem->getStaticDims()[2];
-            // [B, H, L0, S]
-            past_k_output.reset(outputs[1]);
-            past_v_output.reset(outputs[2]);
-            attn_memcpy(k_input, v_input, past_k_output.slice(2, L0, L0 + L1), past_v_output.slice(2, L0, L0 + L1));
-        } else {
-            // k,v inputs are already concatenated
-            L0 = k_input.size(2) - L1;
-            k_input.assert_dims({B, 0, L0 + L1, S}, true);
-            v_input.assert_dims({B, 0, L0 + L1, S}, true);
-            past_k_output = k_input;
-            past_v_output = v_input;
-        }
-    }
-
     void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const MemoryPtr output, const MemoryPtr presentk_input,
                  const MemoryPtr presentv_input, const MemoryPtr beam_input) override {
         bool has_out_transpose = config.config.output_BLHxS;
@@ -540,7 +513,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         v_input.reset(inputs[2]);
         present_key.reset(presentk_input);
         present_value.reset(presentv_input);
-        beam_table.reset(beam_input);
+        if (beam_input)
+            beam_table.reset(beam_input);
         PlainTensor attn_mask;
         if (input_num > 3) {
             // attn_mask
@@ -577,7 +551,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         v_input.assert_dims({B, Hk, L1, S});
         present_key.assert_dims({B, Hk, L0 + L1, S});
         present_value.assert_dims({B, Hk, L0 + L1, S});
-        beam_table.assert_dims({B, L0 + L1});
+        if (beam_table)
+            beam_table.assert_dims({B, L0 + L1});
 
         ov::intel_cpu::PlainTensor output_emb(output);
 
@@ -627,7 +602,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 };
 
 ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), m_tmp_reorder(true) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
@@ -640,11 +615,6 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
         const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
         m_config.config = node->get_config();
     }
-    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
-    if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
-        rtPrecision = ov::element::f32;
-    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
-    m_kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 }
 
 void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
@@ -653,6 +623,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
         rtPrecision = ov::element::f32;
+    auto kvCachePrecision = getKVCachePrecision();
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
 
     NodeConfig config;
@@ -688,16 +659,16 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
             ov::element::i32, getInputShapeAtPort(orginSDPInputNumber + 0)));
         // pastk
         config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            m_kvcache_precision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
         // pastv
         config.inConfs[orginSDPInputNumber + 2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            m_kvcache_precision, getInputShapeAtPort(orginSDPInputNumber + 2)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 2)));
 
         config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            m_kvcache_precision, getOutputShapeAtPort(1)));
+            kvCachePrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(-1);
         config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            m_kvcache_precision, getOutputShapeAtPort(2)));
+            kvCachePrecision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(-1);
     }
 
@@ -741,9 +712,9 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
         // initialization will be also completed in this func
         gatherConcatPastkv(inputs[1], inputs[2], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr());
 
-        presentk_input = k_state->internal_state_mem();
-        presentv_input = v_state->internal_state_mem();
-        beam_input = k_state->hidden_state_mem();
+        presentk_input = m_k_state->internal_state_mem();
+        presentv_input = m_v_state->internal_state_mem();
+        beam_input = m_k_state->hidden_state_mem();
     } else {
         presentk_input = inputs[1];
         presentv_input = inputs[2];
@@ -792,9 +763,9 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
 void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx) {
     auto inputNumber = getOriginalInputsNumber();
     if (inputNumber - 2 == static_cast<size_t>(idx)) {
-        k_state = state;
+        m_k_state = state;
     } else if (inputNumber - 1 == static_cast<size_t>(idx)) {
-        v_state = state;
+        m_v_state = state;
     } else {
         OPENVINO_THROW(
             "Unexpected idx ", idx , " for a state in a node with type: ", getTypeStr(), " and name ", getName());
@@ -807,47 +778,48 @@ void ScaledDotProductAttention::gatherConcatPastkv(const MemoryPtr& mem_cur_k, c
     if (!m_config.config.permute_axes.empty())
         cur_k = cur_k.permute(m_config.config.permute_axes);
 
-    updateBeamTable(k_state, mem_beam_idx, cur_k.size(2));
-    updateBeamTable(v_state, mem_beam_idx, cur_k.size(2));
+    updateBeamTable(mem_beam_idx, cur_k.size(2));
     updatePastkv(mem_cur_k, mem_cur_v);
 }
 
-void ScaledDotProductAttention::updateBeamTable(const std::shared_ptr<VariableStateKVcache>& state, const MemoryPtr& mem_beam_idx, size_t L1) {
-    PlainTensor beam_idx, beam_table;
-    auto hidden_state = state->hidden_state_mem();
+void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, size_t L1) {
+    PlainTensor beam_idx, beam_table_k, beam_table_v;
+    auto hidden_state_k = m_k_state->hidden_state_mem();
+    auto hidden_state_v = m_v_state->hidden_state_mem();
     beam_idx.reset(mem_beam_idx);
 
     auto B = beam_idx.size(0);
     size_t L0 = 0;
-    // TODO(BS): better way to get max size
-    auto get_max_size = [] (const CpuBlockedMemoryDesc* desc) {
-        const auto& dims = desc->getBlockDims();
-        const auto& strides = desc->getStrides();
-        return dims[0] * strides[0];
-    };
 
-    CpuBlockedMemoryDesc* block_desc = nullptr;
-    if (hidden_state) {
-        beam_table.reset(hidden_state);
-        L0 = beam_table.size(1);
-        block_desc = hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>();
+    if (hidden_state_k) {
+        auto block_desc = hidden_state_k->getDescPtr()->as<CpuBlockedMemoryDesc>();
+        L0 = block_desc->getShape().getStaticDims()[1];
     }
     // resize buffer
-    if (!block_desc || B * (L0 + L1) > get_max_size(block_desc)) {
-        auto mem_desc =
-            std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
+    if (B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
 
-        auto new_hidden_state = std::make_shared<Memory>(getEngine(), mem_desc);
-        PlainTensor new_beam_table;
-        new_beam_table.reset(new_hidden_state);
+        auto new_hidden_state_k = std::make_shared<Memory>(getEngine(), mem_desc);
+        auto new_hidden_state_v = std::make_shared<Memory>(getEngine(), mem_desc);
+        PlainTensor new_beam_table_k, new_beam_table_v;
+        new_beam_table_k.reset(new_hidden_state_k);
+        new_beam_table_v.reset(new_hidden_state_v);
         if (L0 > 0) {
+            beam_table_k.reset(hidden_state_k);
+            beam_table_v.reset(hidden_state_v);
             for (size_t b = 0; b < B; b++) {
-                memcpy(&new_beam_table.at<int32_t>({b}), &beam_table.at<int32_t>({b}), sizeof(int32_t) * L0);
+                memcpy(&new_beam_table_k.at<int32_t>({b}), &beam_table_k.at<int32_t>({b}), sizeof(int32_t) * L0);
+                memcpy(&new_beam_table_v.at<int32_t>({b}), &beam_table_v.at<int32_t>({b}), sizeof(int32_t) * L0);
             }
         }
-        state->assign_hidden_state(new_hidden_state);
-        hidden_state = new_hidden_state;
-        beam_table = new_beam_table;
+        m_k_state->assign_hidden_state(new_hidden_state_k);
+        m_v_state->assign_hidden_state(new_hidden_state_v);
+        m_k_state->assign_hidden_state_max_size(B * (L0 + L1) * 2);
+        m_v_state->assign_hidden_state_max_size(B * (L0 + L1) * 2);
+        hidden_state_k = new_hidden_state_k;
+        hidden_state_v = new_hidden_state_v;
+        beam_table_k = new_beam_table_k;
+        beam_table_v = new_beam_table_v;
     }
     std::vector<size_t> new_shape{B, (L0 + L1)};
     auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
@@ -856,14 +828,20 @@ void ScaledDotProductAttention::updateBeamTable(const std::shared_ptr<VariableSt
         VectorDims{0, 1},
         0,
         VectorDims{},
-        hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
-    hidden_state->redefineDesc(mem_desc);
+        hidden_state_k->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
+    hidden_state_k->redefineDesc(mem_desc);
+    hidden_state_v->redefineDesc(mem_desc);
 
+    if (!beam_table_k) {
+        beam_table_k.reset(hidden_state_k);
+        beam_table_v.reset(hidden_state_v);
+    }
     // first token
     if (L0 == 0) {
         for (size_t b = 0; b < B; b++) {
             for (size_t l = 0; l < L1; l++) {
-                beam_table.at<int32_t>({b, l}) = b;
+                beam_table_k.at<int32_t>({b, l}) = b;
+                beam_table_v.at<int32_t>({b, l}) = b;
             }
         }
         return;
@@ -872,7 +850,7 @@ void ScaledDotProductAttention::updateBeamTable(const std::shared_ptr<VariableSt
     // beam order is like [0, 1, 2,...]
     bool no_reorder = true;
     for (size_t i = 0; i < B; i++) {
-        if (beam_idx.data<int32_t>()[i] != i) {
+        if (beam_idx.data<int32_t>()[i] != static_cast<int32_t>(i)) {
             no_reorder = false;
             break;
         }
@@ -880,19 +858,27 @@ void ScaledDotProductAttention::updateBeamTable(const std::shared_ptr<VariableSt
 
     // reorder
     if (!no_reorder) {
-        PlainTensor tmp;
-        tmp.resize({B, L0}, beam_idx.data<int32_t>());
-        std::memcpy(tmp.data<int32_t>(), beam_idx.data<int32_t>(), B * L0 * sizeof(int32_t));
-        auto *table = beam_idx.data<int32_t>();
+        m_tmp_reorder.resize<int32_t>({B, L0});
         for (size_t i = 0; i < B; i++) {
-            memcpy(&beam_table.at<int32_t>({i}),
-                   &tmp.at<int32_t>({static_cast<size_t>(table[i])}),
+            memcpy(&m_tmp_reorder.at<int32_t>({i}),
+                   &beam_table_k.at<int32_t>({i}),
+                   sizeof(int32_t) * L0);
+        }
+        auto* table = beam_idx.data<int32_t>();
+        // beam table is same for both k,v state
+        for (size_t i = 0; i < B; i++) {
+            memcpy(&beam_table_k.at<int32_t>({i}),
+                   &m_tmp_reorder.at<int32_t>({static_cast<size_t>(table[i])}),
+                   sizeof(int32_t) * L0);
+            memcpy(&beam_table_v.at<int32_t>({i}),
+                   &m_tmp_reorder.at<int32_t>({static_cast<size_t>(table[i])}),
                    sizeof(int32_t) * L0);
         }
     }
     // second token itself
     for (size_t i = 0; i < B; i++) {
-        beam_table.at<int32_t>({i, L0}) = i;
+        beam_table_k.at<int32_t>({i, L0}) = i;
+        beam_table_v.at<int32_t>({i, L0}) = i;
     }
 }
 
@@ -923,25 +909,15 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         }
         return result;
     };
-    auto get_max_size = [] (const CpuBlockedMemoryDesc* desc) {
-        const auto& dims = desc->getBlockDims();
-        const auto& strides = desc->getStrides();
-        return dims[0] * strides[0];
-    };
-    auto internal_mem_k = k_state->internal_state_mem();
-    auto internal_mem_v = v_state->internal_state_mem();
-    CpuBlockedMemoryDesc* block_desc = nullptr;
+    auto internal_mem_k = m_k_state->internal_state_mem();
+    auto internal_mem_v = m_v_state->internal_state_mem();
     if (internal_mem_k) {
-        past_k.reset(internal_mem_k);
-        past_v.reset(internal_mem_v);
-        past_k = past_k.permute(order);
-        past_v = past_v.permute(order);
-        L0 = past_k.size(2);
-        block_desc = internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>();
+        auto block_desc = internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>();
+        L0 = block_desc->getShape().getStaticDims()[reverse_order[2]];
     }
 
     // resize buffer
-    if (!block_desc || B * H * (L0 + L1) * S > get_max_size(block_desc)) {
+    if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
         auto new_shape = reverse({B, H, (L0 + L1) * 2, S});
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
             Shape(new_shape),
@@ -957,14 +933,20 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         new_pastk = new_pastk.permute(order);
         new_pastv = new_pastv.permute(order);
         if (L0 > 0) {
+            past_k.reset(internal_mem_k);
+            past_v.reset(internal_mem_v);
+            past_k = past_k.permute(order);
+            past_v = past_v.permute(order);
             attn_memcpy(past_k, past_v, new_pastk, new_pastv);
         }
         internal_mem_k = new_internal_mem_k;
         internal_mem_v = new_internal_mem_v;
         past_k = new_pastk;
         past_v = new_pastv;
-        k_state->assign_internal_state(new_internal_mem_k);
-        v_state->assign_internal_state(new_internal_mem_v);
+        m_k_state->assign_internal_state(new_internal_mem_k);
+        m_v_state->assign_internal_state(new_internal_mem_v);
+        m_k_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
+        m_v_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
     }
     auto new_shape = reverse({B, H, (L0 + L1), S});
     auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
@@ -976,7 +958,25 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
     internal_mem_k->redefineDesc(mem_desc);
     internal_mem_v->redefineDesc(mem_desc);
+    if (!past_k) {
+        past_k.reset(internal_mem_k);
+        past_v.reset(internal_mem_v);
+        past_k = past_k.permute(order);
+        past_v = past_v.permute(order);
+    }
     attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
+}
+
+ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
+    if (m_kvcache_precision != ov::element::undefined)
+        return m_kvcache_precision;
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
+        rtPrecision = ov::element::f32;
+    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
+    m_kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
+
+    return m_kvcache_precision;
 }
 
 }  // namespace node

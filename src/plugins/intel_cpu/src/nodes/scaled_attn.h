@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "utils/plain_tensor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -48,13 +49,11 @@ public:
         return m_config.config.permute_axes;
     }
 
-    ov::element::Type getKVCachePrecision() const {
-        return m_kvcache_precision;
-    }
+    ov::element::Type getKVCachePrecision();
 
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
-    void updateBeamTable(const std::shared_ptr<VariableStateKVcache>& state, const MemoryPtr& mem_beam_idx, size_t new_q_len);
+    void updateBeamTable(const MemoryPtr& mem_beam_idx, size_t new_q_len);
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
 
     struct Executor {
@@ -70,10 +69,11 @@ private:
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
 
-    std::shared_ptr<VariableStateKVcache> k_state;
-    std::shared_ptr<VariableStateKVcache> v_state;
+    std::shared_ptr<VariableStateKVcache> m_k_state;
+    std::shared_ptr<VariableStateKVcache> m_v_state;
 
-    ov::element::Type m_kvcache_precision;
+    ov::element::Type m_kvcache_precision = ov::element::undefined;
+    PlainTensor m_tmp_reorder;
 };
 
 }  // namespace node
