@@ -7,7 +7,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
-#include "remote_blob_tests/helpers.hpp"
+#include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"

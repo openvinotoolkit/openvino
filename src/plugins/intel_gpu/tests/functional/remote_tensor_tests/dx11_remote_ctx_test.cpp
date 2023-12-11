@@ -201,29 +201,26 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-    using namespace InferenceEngine;
-    using namespace InferenceEngine::gpu;
-    auto ie = InferenceEngine::Core();
+    auto core = ov::Core();
 
     CComPtr<ID3D11Device> device_ptr;
     CComPtr<ID3D11DeviceContext> ctx_ptr;
 
     ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
         create_device_with_ctx(intel_adapters[0]));
-    auto remote_context = make_shared_context(ie,
-        ov::test::utils::DEVICE_GPU,
-        device_ptr);
-    ASSERT_TRUE(remote_context);
+
+    auto gpu_context = core.get_default_context("GPU").as<ov::intel_gpu::ocl::ClContext>();
+    auto context_handle = gpu_context.get();
+    ASSERT_TRUE(context_handle);
 
     for (auto adapter : other_adapters) {
         CComPtr<ID3D11Device> device_ptr;
         CComPtr<ID3D11DeviceContext> ctx_ptr;
 
         ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
-                        create_device_with_ctx(adapter));
-        ASSERT_THROW(make_shared_context(ie, ov::test::utils::DEVICE_GPU,
-                                         device_ptr),
-                     std::runtime_error);
+            create_device_with_ctx(adapter));
+        ASSERT_THROW(ov::intel_gpu::ocl::D3DContext gpu_context(core, device_ptr),
+            std::runtime_error);
     }
 }
 
