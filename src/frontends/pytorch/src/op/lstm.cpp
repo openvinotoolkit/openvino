@@ -31,33 +31,20 @@ namespace {
 enum RnnVariant { LSTM, GRU, RNN, RNN_RELU, RNN_TANH };
 
 Output<Node> convert_data_format(ov::pass::NodeRegistry& rg, RnnVariant variant, const Output<Node>& node) {
-    std::vector<size_t> from;
-    std::vector<size_t> to;
-    size_t num_gates;
-    const auto axis_const = rg.make<v0::Constant>(element::i64, ov::Shape{}, 0);
+    Output<Node> res;
     switch (variant) {
     case RnnVariant::LSTM:
-        from = {1, 0, 2, 3};
-        to = {0, 1, 2, 3};
-        num_gates = 4;
+        res = ov::op::util::convert_lstm_node_format(node, ov::op::util::LSTMWeightsFormat::IFCO);
         break;
     case RnnVariant::GRU:
-        from = {1, 0, 2};
-        to = {0, 1, 2};
-        num_gates = 3;
+        res = ov::op::util::convert_lstm_peepholes_format(node, ov::op::util::LSTMPeepholesFormat::IFO);
         break;
     default:
-        return rg.make<v0::Unsqueeze>(node, axis_const);
+        res = node;
         break;
     }
-
-    OutputVector splitted_node = rg.make<v1::Split>(node, axis_const, num_gates)->outputs();
-    OutputVector nodes_in_new_format(num_gates);
-    for (size_t i = 0; i < num_gates; ++i) {
-        nodes_in_new_format[to[from[i]]] = splitted_node[i];
-    }
-    const auto concat = rg.make<v0::Concat>(nodes_in_new_format, 0);
-    return rg.make<v0::Unsqueeze>(concat, axis_const);
+    const auto axis_const = rg.make<v0::Constant>(element::i32, ov::Shape{}, 0);
+    return rg.make<v0::Unsqueeze>(res, axis_const);
 }
 
 Output<Node> format_bias(ov::pass::NodeRegistry& rg,
@@ -104,7 +91,7 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         rnn_activation = "tanh";
     }
     const auto direction =
-        bidirectional ? v5::LSTMSequence::direction::BIDIRECTIONAL : v5::LSTMSequence::direction::FORWARD;
+        bidirectional ? RecurrentSequenceDirection::BIDIRECTIONAL : RecurrentSequenceDirection::FORWARD;
     int64_t weights_per_layer = has_biases ? 4 : 2;
     int64_t mult = bidirectional ? 2 : 1;
     FRONT_END_OP_CONVERSION_CHECK(static_cast<int64_t>(all_weights.size()) == num_layers * weights_per_layer * mult,
@@ -119,7 +106,6 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
     const auto zero_1d = v0::Constant::create(element::i32, Shape{1}, {0});
     const auto one = v0::Constant::create(element::i32, Shape{}, {1});
     const auto one_1d = v0::Constant::create(element::i32, Shape{1}, {1});
-    const auto two_1d = v0::Constant::create(element::i32, Shape{1}, {2});
     const auto order_102 = v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
 
     OutputVector h_outs;
