@@ -30,13 +30,11 @@ using namespace ov::op;
 namespace {
 enum RnnVariant { LSTM, GRU, RNN, RNN_RELU, RNN_TANH };
 
-Output<Node> convert_data_format(ov::pass::NodeRegistry& rg,
-                                 RnnVariant variant,
-                                 const Output<Node>& node,
-                                 int64_t axis = 1) {
+Output<Node> convert_data_format(ov::pass::NodeRegistry& rg, RnnVariant variant, const Output<Node>& node) {
     std::vector<size_t> from;
     std::vector<size_t> to;
     size_t num_gates;
+    const auto axis_const = rg.make<v0::Constant>(element::i64, ov::Shape{}, 0);
     switch (variant) {
     case RnnVariant::LSTM:
         from = {1, 0, 2, 3};
@@ -49,17 +47,17 @@ Output<Node> convert_data_format(ov::pass::NodeRegistry& rg,
         num_gates = 3;
         break;
     default:
-        return node;
+        return rg.make<v0::Unsqueeze>(node, axis_const);
         break;
     }
 
-    const auto axis_const = rg.make<v0::Constant>(element::i64, ov::Shape{}, axis);
     OutputVector splitted_node = rg.make<v1::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
     for (size_t i = 0; i < num_gates; ++i) {
         nodes_in_new_format[to[from[i]]] = splitted_node[i];
     }
-    return rg.make<v0::Concat>(nodes_in_new_format, axis);
+    const auto concat = rg.make<v0::Concat>(nodes_in_new_format, 0);
+    return rg.make<v0::Unsqueeze>(concat, axis_const);
 }
 
 Output<Node> format_bias(ov::pass::NodeRegistry& rg,
@@ -67,24 +65,23 @@ Output<Node> format_bias(ov::pass::NodeRegistry& rg,
                          const Output<Node>& b_ih,
                          const Output<Node>& b_hh) {
     Output<Node> res;
-    const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
     if (variant == RnnVariant::GRU) {
-        const auto bias_ih = convert_data_format(rg, variant, b_ih, 0);
-        const auto bias_hh = convert_data_format(rg, variant, b_hh, 0);
-        const auto split_bias_ih = rg.make<v1::Split>(bias_ih, zero, 3);
-        const auto split_bias_hh = rg.make<v1::Split>(bias_hh, zero, 3);
+        const auto one = v0::Constant::create(element::i32, Shape{}, {1});
+        const auto bias_ih = convert_data_format(rg, variant, b_ih);
+        const auto bias_hh = convert_data_format(rg, variant, b_hh);
+        const auto split_bias_ih = rg.make<v1::Split>(bias_ih, one, 3);
+        const auto split_bias_hh = rg.make<v1::Split>(bias_hh, one, 3);
         const auto wr_z_bias = rg.make<v1::Add>(split_bias_ih->output(0), split_bias_hh->output(0));
         const auto wr_r_bias = rg.make<v1::Add>(split_bias_ih->output(1), split_bias_hh->output(1));
         // The result has shape: [num_directions, 4 * hidden_size]
         // and data layout: [ [Wb_z + Rb_z], [Wb_r + Rb_r], [Wb_h], [Rb_h], ]
         res =
             rg.make<v0::Concat>(OutputVector{wr_z_bias, wr_r_bias, split_bias_ih->output(2), split_bias_hh->output(2)},
-                                0);
+                                1);
     } else {
         res = rg.make<v1::Add>(b_ih, b_hh);
-        res = convert_data_format(rg, variant, res, 0);
+        res = convert_data_format(rg, variant, res);
     }
-    res = rg.make<v0::Unsqueeze>(res, zero);
     return res;
 }
 
@@ -95,8 +92,6 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
                          const std::deque<Output<Node>>& all_weights,
                          bool has_biases,
                          int64_t num_layers,
-                         // float dropout,
-                         // bool train,
                          bool bidirectional,
                          bool batch_first,
                          const Output<Node>& batch_sizes = {}) {
@@ -166,12 +161,8 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
 
         int64_t idx = i * weights_per_layer;
         if (!bidirectional) {
-            weight_ih = all_weights[idx];
-            weight_hh = all_weights[idx + 1];
-            weight_ih = rg.make<v0::Unsqueeze>(weight_ih, zero);
-            weight_hh = rg.make<v0::Unsqueeze>(weight_hh, zero);
-            weight_ih = convert_data_format(rg, variant, weight_ih);
-            weight_hh = convert_data_format(rg, variant, weight_hh);
+            weight_ih = convert_data_format(rg, variant, all_weights[idx]);
+            weight_hh = convert_data_format(rg, variant, all_weights[idx + 1]);
             if (has_biases) {
                 const auto bias_ih = all_weights[idx + 2];
                 const auto bias_hh = all_weights[idx + 3];
@@ -200,10 +191,6 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
                 weight_ih_b = all_weights[2 * idx + 2];
                 weight_hh_b = all_weights[2 * idx + 3];
             }
-            weight_ih_f = rg.make<v0::Unsqueeze>(weight_ih_f, zero);
-            weight_hh_f = rg.make<v0::Unsqueeze>(weight_hh_f, zero);
-            weight_ih_b = rg.make<v0::Unsqueeze>(weight_ih_b, zero);
-            weight_hh_b = rg.make<v0::Unsqueeze>(weight_hh_b, zero);
             weight_ih_f = convert_data_format(rg, variant, weight_ih_f);
             weight_hh_f = convert_data_format(rg, variant, weight_hh_f);
             weight_ih_b = convert_data_format(rg, variant, weight_ih_b);
