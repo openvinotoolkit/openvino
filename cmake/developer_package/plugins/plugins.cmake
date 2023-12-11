@@ -164,11 +164,6 @@ function(ov_add_plugin)
     endif()
 endfunction()
 
-function(ie_add_plugin)
-    message(WARNING "'ie_add_plugin' is deprecated. Please, use 'ov_add_plugin'")
-    ov_add_plugin(${ARGN})
-endfunction()
-
 #
 # ov_register_in_plugins_xml(MAIN_TARGET <main target name>)
 #
@@ -258,14 +253,6 @@ macro(ov_register_plugins)
     if(BUILD_SHARED_LIBS AND ENABLE_PLUGINS_XML)
         ov_register_in_plugins_xml(${ARGN})
     endif()
-endmacro()
-
-#
-# ie_register_plugins()
-#
-macro(ie_register_plugins)
-    message(WARNING "'ie_register_plugins' is deprecated. Please, use 'ov_register_plugins'")
-    ov_register_plugins(${ARGN})
 endmacro()
 
 #
