@@ -4,8 +4,8 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/power.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/power.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -16,6 +16,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_square(const NodeContext& context) {
+    // aten::square(Tensor self) -> Tensor
     num_inputs_check(context, 1, 1);
     auto input_0 = context.get_input(0);
     auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
