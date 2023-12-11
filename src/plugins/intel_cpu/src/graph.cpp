@@ -1709,7 +1709,7 @@ void Graph::EnforceInferencePrecision() {
         // precision of input & output of the subgraph will be unchanged, so the input and output of "If" node itself
         // should be also remained unchanged. since "If" node only copies I/O data from it's parent edges into
         // subgraph's input or verse versa, it can not handle precision conversion.
-        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput, Type::If))
+        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
 
 #ifdef CPU_DEBUG_CAPS

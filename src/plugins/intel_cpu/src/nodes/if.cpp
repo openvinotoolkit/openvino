@@ -9,6 +9,7 @@
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "nodes/common/cpu_convert.h"
 
 #include <string>
 #include <vector>
@@ -29,16 +30,26 @@ void If::PortMapHelper::execute(dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
+    // cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
+    auto srcDims = srcMemPtr->getStaticDims();
+    auto srcDimsSize = std::accumulate(srcDims.begin(), srcDims.end(), (size_t)1, std::multiplies<size_t>());
+
+    cpu_convert(srcMemPtr->getData(),
+                dstMemPtrs.front()->getData(),
+                srcMemPtr->getDesc().getPrecision(),
+                dstMemPtrs.front()->getDesc().getPrecision(),
+                srcDimsSize);
 }
 
 void If::PortMapHelper::redefineTo() {
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-        auto memDesc = srcMemPtr->getDescPtr();
+        auto newShape = srcMemPtr->getDesc().getShape().getDims();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
-            dstMemPtrs[j]->redefineDesc(memDesc);
+            // Only the shape is updated, the memory type remains unchanged
+            auto memDesc = dstMemPtrs[j]->getDescPtr();
+            dstMemPtrs[j]->redefineDesc(memDesc->cloneWithNewDims(newShape));
         }
 
         size = srcMemPtr->getSize();
