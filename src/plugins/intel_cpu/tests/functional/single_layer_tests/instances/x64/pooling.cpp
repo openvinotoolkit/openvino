@@ -7,16 +7,11 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include <ov_models/builders.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Pooling {
 namespace {
 
@@ -68,16 +63,16 @@ const std::vector<InputShape> inputShapes4D_FP16 = {
 };
 
 
-const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV84D_ref = {
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
-                                                        ngraph::element::Type_t::i32, 0,
-                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
-                                                        ngraph::element::Type_t::i32, 0,
-                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
-        LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
-                                                        ngraph::element::Type_t::i32, 0,
-                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_ref = {
+        maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                                                        ov::element::Type_t::i32, 0,
+                                                        ov::op::RoundingType::CEIL, ov::op::PadType::SAME_UPPER },
+        maxPoolV8SpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
+                                                        ov::element::Type_t::i32, 0,
+                                                        ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
+        maxPoolV8SpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
+                                                        ov::element::Type_t::i32, 0,
+                                                        ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_ref, MaxPoolingV8LayerCPUTest,
@@ -188,7 +183,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
                               ::testing::ValuesIn(fusingParamsSet),
                               ::testing::Values(cpuEmptyPluginConfig)),
                           PoolingLayerCPUTest::getTestCaseName);
-} // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D_FP16, PoolingLayerCPUTest,
                          ::testing::Combine(
@@ -299,7 +293,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8_FP16, PoolingLayerCPUTest,
                               ::testing::Values(cpuFP16PluginConfig)),
                           PoolingLayerCPUTest::getTestCaseName);
 
-
-
-} // namespace Pooling
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace Pooling
+}  // namespace test
+}  // namespace ov

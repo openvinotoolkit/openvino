@@ -218,13 +218,14 @@ void SubgraphBaseTest::import_export() {
             std::stringstream strm;
             compiledModel.export_model(strm);
             ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
-            auto importedFunction = importedModel.get_runtime_model()->clone();
+            const auto importedFunction = importedModel.get_runtime_model()->clone();
+            const auto runtimeModel = compiledModel.get_runtime_model()->clone();
 
             auto comparator = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
                         .enable(FunctionsComparator::NAMES)
                         .enable(FunctionsComparator::CONST_VALUES);
-            auto res = comparator.compare(importedFunction, function);
+            auto res = comparator.compare(importedFunction, runtimeModel);
             if (!res.valid) {
                 throw std::runtime_error(res.message);
             }
@@ -542,11 +543,11 @@ ElementType SubgraphBaseTest::get_default_imp_precision_type(ElementType type) {
 
     // configure stage
     if (type == ElementType::f32) {
-        if (configuration.count(key) && configuration[key] == "bf16") {
+        if (configuration.count(key) && configuration[key].as<ov::element::Type>() == ov::element::bf16) {
             type = ov::with_cpu_x86_avx512_core() ? ElementType::bf16 : ElementType::f32;
         } else if (configuration.count(KEY_ENFORCE_BF16) && configuration[KEY_ENFORCE_BF16] == "YES") {
             type = ov::with_cpu_x86_avx512_core() ? ElementType::bf16 : ElementType::f32;
-        } else if (configuration.count(key) && configuration[key] == "f16") {
+        } else if (configuration.count(key) && configuration[key].as<ov::element::Type>() == ov::element::f16) {
             type = ov::with_cpu_x86_avx512_core_fp16() ? ElementType::f16 : ElementType::f32;
         }
     }

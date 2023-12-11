@@ -173,14 +173,12 @@ protected:
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const ov::AnyMap empty_plugin_config{};
-const std::map<std::string, std::string> cpuFP32PluginConfig =
-        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 const std::map<std::string, std::string> cpuFP16PluginConfig =
-        { {ov::hint::inference_precision.name(), "f16" } };
-
-
+        {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}};
+const ov::AnyMap cpu_f16_plugin_config = {{ov::hint::inference_precision(ov::element::f16)}};
+const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);

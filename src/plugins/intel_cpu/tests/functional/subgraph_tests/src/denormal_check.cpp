@@ -9,9 +9,8 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 template<typename T>
 class AlignedBufferWrapper {
@@ -68,13 +67,13 @@ void SetUp() override {
     pConstStorage.reset(new AlignedBufferWrapper<float>(elemsCount, alignment));
 
     auto constTensor = std::make_shared<ngraph::HostTensor>(rtPrc, inpShape, pConstStorage->get_ptr());
-    auto constNode = std::make_shared<ngraph::opset1::Constant>(constTensor);
+    auto constNode = std::make_shared<ov::op::v0::Constant>(constTensor);
     ov::NodeVector input = {params[0], constNode};
-    auto concat = std::make_shared<ngraph::opset1::Concat>(input, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(input, 1);
 
-    ov::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat->output(0))};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat->output(0))};
 
-    function = std::make_shared<ngraph::Function>(results, params, "denormal_check");
+    function = std::make_shared<ov::Model>(results, params, "denormal_check");
 }
 };
 
@@ -149,4 +148,5 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check_FP16) {
     }
 }
 
-}// namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
