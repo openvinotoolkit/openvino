@@ -29,25 +29,31 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-Output<Node> reform_weights(const Output<Node>& w,
-                            int64_t n,
-                            const std::vector<std::pair<int64_t, int64_t>>& intervals,
-                            ov::pass::NodeRegistry& rg) {
-    OutputVector slices;
-    const auto step = v0::Constant::create(element::i32, Shape{1}, {1});
-    for (const auto& interval : intervals) {
-        const auto start = v0::Constant::create(element::i32, Shape{1}, {interval.first * n});
-        const auto stop = v0::Constant::create(element::i32, Shape{1}, {interval.second * n});
-        slices.push_back(rg.make<v8::Slice>(w, start, stop, step));
-    }
-    return rg.make<v0::Concat>(slices, 0);
-}
+enum RnnVariant { LSTM, GRU, RNN, RNN_RELU, RNN_TANH };
 
-Output<Node> convert_lstm_node_format(const Output<Node>& node, ov::pass::NodeRegistry& rg) {
-    const std::vector<size_t> from = {1, 3, 0, 2};
-    const std::vector<size_t> to = {0, 1, 2, 3};
-    size_t num_gates = 4;
-    int64_t axis = 1;
+Output<Node> convert_data_format(ov::pass::NodeRegistry& rg,
+                                 RnnVariant variant,
+                                 const Output<Node>& node,
+                                 int64_t axis = 1) {
+    std::vector<size_t> from;
+    std::vector<size_t> to;
+    size_t num_gates;
+    switch (variant) {
+    case RnnVariant::LSTM:
+        from = {1, 0, 2, 3};
+        to = {0, 1, 2, 3};
+        num_gates = 4;
+        break;
+    case RnnVariant::GRU:
+        from = {1, 0, 2};
+        to = {0, 1, 2};
+        num_gates = 3;
+        break;
+
+    default:
+        return node;
+        break;
+    }
 
     const auto axis_const = rg.make<v0::Constant>(element::i64, ov::Shape{}, axis);
     OutputVector splitted_node = rg.make<v1::Split>(node, axis_const, num_gates)->outputs();
@@ -58,19 +64,15 @@ Output<Node> convert_lstm_node_format(const Output<Node>& node, ov::pass::NodeRe
     return rg.make<v0::Concat>(nodes_in_new_format, axis);
 }
 
-enum RnnVariant { LSTM, GRU, RNN, RNN_RELU, RNN_TANH };
-
-Output<Node> format_bias(RnnVariant variant,
+Output<Node> format_bias(ov::pass::NodeRegistry& rg,
+                         RnnVariant variant,
                          const Output<Node>& b_ih,
-                         const Output<Node>& b_hh,
-                         int64_t n,
-                         const std::vector<std::pair<int64_t, int64_t>>& intervals,
-                         ov::pass::NodeRegistry& rg) {
+                         const Output<Node>& b_hh) {
     Output<Node> res;
     const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
     if (variant == RnnVariant::GRU) {
-        const auto bias_ih = reform_weights(b_ih, n, intervals, rg);
-        const auto bias_hh = reform_weights(b_hh, n, intervals, rg);
+        const auto bias_ih = convert_data_format(rg, variant, b_ih, 0);
+        const auto bias_hh = convert_data_format(rg, variant, b_hh, 0);
         const auto split_bias_ih = rg.make<v1::Split>(bias_ih, zero, 3);
         const auto split_bias_hh = rg.make<v1::Split>(bias_hh, zero, 3);
         const auto wr_z_bias = rg.make<v1::Add>(split_bias_ih->output(0), split_bias_hh->output(0));
@@ -83,7 +85,7 @@ Output<Node> format_bias(RnnVariant variant,
     } else {
         res = rg.make<v1::Add>(b_ih, b_hh);
         if (variant == RnnVariant::LSTM) {
-            res = reform_weights(res, n, intervals, rg);
+            res = convert_data_format(rg, variant, res, 0);
         }
     }
     res = rg.make<v0::Unsqueeze>(res, zero);
@@ -147,27 +149,13 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         prev_output = rg.make<v1::Transpose>(prev_output, order_102);
     Output<Node> sequence_lens = batch_sizes;
 
-    std::vector<std::pair<int64_t, int64_t>> reform_permutation;
-    if (variant == RnnVariant::GRU) {
-        // pytorch is reset, input, hidden
-        // ov is      input, reset, hidden
-        reform_permutation = {{1, 2}, {0, 1}, {2, 3}};
-    } else if (variant == RnnVariant::LSTM) {
-        // pytorch is input, forget, cell, output.
-        // ov is      input, output, forget, cell.
-        reform_permutation = {{0, 1}, {3, 4}, {1, 3}};
-    }
-
     const auto h_states = rg.make<v1::Split>(h0, zero, num_layers)->outputs();
     OutputVector c_states;
     if (variant == RnnVariant::LSTM) {
         c_states = rg.make<v1::Split>(c0, zero, num_layers)->outputs();
     }
 
-    const auto zero_cl = rg.make<v1::ConvertLike>(zero, input);
-    const auto hidden_size_node = v0::Constant::create(element::i32, Shape{1}, {hidden_size});
     Output<Node> bias_concat;
-    const auto num_directions_node = bidirectional ? two_1d : one_1d;
     Shape::value_type num_directions = bidirectional ? 2 : 1;
     if (!has_biases) {
         Shape::value_type gates_count = variant == RnnVariant::RNN ? 1 : 4;
@@ -184,16 +172,16 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         if (!bidirectional) {
             weight_ih = all_weights[idx];
             weight_hh = all_weights[idx + 1];
-            if (variant == RnnVariant::GRU || variant == RnnVariant::LSTM) {
-                weight_ih = reform_weights(weight_ih, hidden_size, reform_permutation, rg);
-                weight_hh = reform_weights(weight_hh, hidden_size, reform_permutation, rg);
-            }
             weight_ih = rg.make<v0::Unsqueeze>(weight_ih, zero);
             weight_hh = rg.make<v0::Unsqueeze>(weight_hh, zero);
+            if (variant == RnnVariant::GRU || variant == RnnVariant::LSTM) {
+                weight_ih = convert_data_format(rg, variant, weight_ih);
+                weight_hh = convert_data_format(rg, variant, weight_hh);
+            }
             if (has_biases) {
                 const auto bias_ih = all_weights[idx + 2];
                 const auto bias_hh = all_weights[idx + 3];
-                bias_concat = format_bias(variant, bias_ih, bias_hh, hidden_size, reform_permutation, rg);
+                bias_concat = format_bias(rg, variant, bias_ih, bias_hh);
             }
         } else {
             Output<Node> weight_ih_f;
@@ -209,8 +197,8 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
                 weight_hh_b = all_weights[2 * idx + 5];
                 const auto bias_ih_b = all_weights[2 * idx + 6];
                 const auto bias_hh_b = all_weights[2 * idx + 7];
-                const auto bias_f = format_bias(variant, bias_ih_f, bias_hh_f, hidden_size, reform_permutation, rg);
-                const auto bias_b = format_bias(variant, bias_ih_b, bias_hh_b, hidden_size, reform_permutation, rg);
+                const auto bias_f = format_bias(rg, variant, bias_ih_f, bias_hh_f);
+                const auto bias_b = format_bias(rg, variant, bias_ih_b, bias_hh_b);
                 bias_concat = rg.make<v0::Concat>(OutputVector{bias_f, bias_b}, 0);
             } else {
                 weight_ih_f = all_weights[2 * idx];
@@ -218,16 +206,16 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
                 weight_ih_b = all_weights[2 * idx + 2];
                 weight_hh_b = all_weights[2 * idx + 3];
             }
-            if (variant == RnnVariant::GRU || variant == RnnVariant::LSTM) {
-                weight_ih_f = reform_weights(weight_ih_f, hidden_size, reform_permutation, rg);
-                weight_hh_f = reform_weights(weight_hh_f, hidden_size, reform_permutation, rg);
-                weight_ih_b = reform_weights(weight_ih_b, hidden_size, reform_permutation, rg);
-                weight_hh_b = reform_weights(weight_hh_b, hidden_size, reform_permutation, rg);
-            }
             weight_ih_f = rg.make<v0::Unsqueeze>(weight_ih_f, zero);
             weight_hh_f = rg.make<v0::Unsqueeze>(weight_hh_f, zero);
             weight_ih_b = rg.make<v0::Unsqueeze>(weight_ih_b, zero);
             weight_hh_b = rg.make<v0::Unsqueeze>(weight_hh_b, zero);
+            if (variant == RnnVariant::GRU || variant == RnnVariant::LSTM) {
+                weight_ih_f = convert_data_format(rg, variant, weight_ih_f);
+                weight_hh_f = convert_data_format(rg, variant, weight_hh_f);
+                weight_ih_b = convert_data_format(rg, variant, weight_ih_b);
+                weight_hh_b = convert_data_format(rg, variant, weight_hh_b);
+            }
             weight_ih = rg.make<v0::Concat>(OutputVector{weight_ih_f, weight_ih_b}, 0);
             weight_hh = rg.make<v0::Concat>(OutputVector{weight_hh_f, weight_hh_b}, 0);
         }
@@ -241,14 +229,6 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         }
 
         const auto h_state = rg.make<v1::Transpose>(h_states[i], order_102);
-        Output<Node> c_state;
-        if (variant == RnnVariant::LSTM) {
-            c_state = rg.make<v1::Transpose>(c_states[i], order_102);
-        } else {
-            const auto init_c_shape =
-                rg.make<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
-            c_state = rg.make<v3::Broadcast>(zero_cl, init_c_shape);
-        }
         std::shared_ptr<Node> rnn_node;
         if (variant == RnnVariant::GRU) {
             rnn_node = rg.make<v5::GRUSequence>(prev_output,
@@ -265,13 +245,14 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
                                                 0.f,
                                                 true);
         } else if (variant == RnnVariant::LSTM) {
+            Output<Node> c_state = rg.make<v1::Transpose>(c_states[i], order_102);
             rnn_node = rg.make<v5::LSTMSequence>(prev_output,
                                                  h_state,
                                                  c_state,
                                                  sequence_lens,
-                                                 convert_lstm_node_format(weight_ih, rg),
-                                                 convert_lstm_node_format(weight_hh, rg),
-                                                 convert_lstm_node_format(bias_concat, rg),
+                                                 weight_ih,
+                                                 weight_hh,
+                                                 bias_concat,
                                                  hidden_size,
                                                  direction);
         } else if (variant == RnnVariant::RNN) {
