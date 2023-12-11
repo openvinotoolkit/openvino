@@ -837,7 +837,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 return compile_model_and_cache(model, plugin, parsed._config, {}, cacheContent);
             });
     } else if (cacheManager) {
-        // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
+        // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {

@@ -22,6 +22,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#ifdef PROXY_PLUGIN_ENABLED
+#    include "openvino/proxy/properties.hpp"
+#endif
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
@@ -2341,3 +2344,58 @@ INSTANTIATE_TEST_SUITE_P(CachingTest,
                          ::testing::Combine(::testing::ValuesIn(loadVariants), ::testing::ValuesIn(cacheFolders)),
                          getTestCaseName);
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
+
+class CacheTestWithProxyEnabled : public CachingTest {
+protected:
+    void testLoadProxy(const std::function<void(ov::Core& core)>& func) {
+        ov::Core core;
+        injectPlugin(mockPlugin.get());
+        core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
+                             deviceName,
+                             {{ov::proxy::configuration::alias.name(), "mock"},
+                              {ov::proxy::configuration::internal_name.name(), "internal_mock"}});
+        ON_CALL(*mockPlugin, get_default_context(_)).WillByDefault(Invoke([&](const ov::AnyMap&) {
+            return std::make_shared<MockRemoteContext>("internal_mock");
+        }));
+        func(core);
+        core.unload_plugin(deviceName);
+    }
+};
+
+#ifdef PROXY_PLUGIN_ENABLED
+TEST_P(CacheTestWithProxyEnabled, TestLoad) {
+    ON_CALL(*mockPlugin, get_property(ov::available_devices.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            std::vector<std::string> available_devices = {};
+            available_devices.push_back("mock");
+            return decltype(ov::available_devices)::value_type(available_devices);
+        }));
+    EXPECT_CALL(*mockPlugin, get_default_context(_)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::available_devices.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
+    // proxy should direct the compile from file to hardware plugin
+    EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        testLoadProxy([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            m_testFunction(core);
+        });
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(CacheTestWithProxyEnabled,
+                         CacheTestWithProxyEnabled,
+                         ::testing::Combine(::testing::ValuesIn(loadVariants), ::testing::ValuesIn(cacheFolders)),
+                         getTestCaseName);
+#endif
