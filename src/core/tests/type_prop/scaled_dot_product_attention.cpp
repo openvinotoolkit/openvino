@@ -296,6 +296,32 @@ TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs_bool_attention)
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
 
+TEST(type_prop, scaled_dot_product_attention_static_5_inputs_broadcast) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 1, 3, 1});
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1, 7, 1, 4});
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 7, 5, 1});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1, 1, 1, 5});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 1}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_static_4_inputs_broadcast) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1, 7, 1, 4});
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 1, 5, 1});
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1, 1, 1, 6});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1, 1, 3, 1});
+    auto causal = false;
+
+    const auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
+}
+
 TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 5, 4});
