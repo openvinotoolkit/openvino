@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conj_transpose_op(const NodeContext& node){
-	default_op_checks(node, 1, {"conj_transpose"});
+	default_op_checks(node, 2, {"conj_transpose"});
 
 	auto op_type = node.get_op_type();
 	auto x = node.get_input(0);
