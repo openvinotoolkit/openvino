@@ -49,8 +49,8 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
         testValues.dequantizationAfter);
 }
 
-void FakeQuantizeWithNotOptimalTransformation::Run() {
-    LayerTestsCommon::Run();
+void FakeQuantizeWithNotOptimalTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecisionByType("Convolution");
@@ -58,7 +58,7 @@ void FakeQuantizeWithNotOptimalTransformation::Run() {
 }
 
 TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

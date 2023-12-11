@@ -52,8 +52,8 @@ void ReduceSumTransformation::SetUp() {
         dequantizationAfter);
 }
 
-void ReduceSumTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceSumTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -62,7 +62,7 @@ void ReduceSumTransformation::Run() {
 
 TEST_P(ReduceSumTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

@@ -47,8 +47,8 @@ void PadTransformation::SetUp() {
         param.padValue);
 }
 
-void PadTransformation::Run() {
-    LayerTestsCommon::Run();
+void PadTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -59,7 +59,7 @@ void PadTransformation::Run() {
 
 TEST_P(PadTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

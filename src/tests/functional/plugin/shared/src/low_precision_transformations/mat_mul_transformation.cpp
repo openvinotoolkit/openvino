@@ -74,10 +74,10 @@ void MatMulTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MatMulTransformation::Run() {
+void MatMulTransformation::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    LayerTestsCommon::Run();
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
     const auto actualType = getRuntimePrecision(params.expectedKernelName);
@@ -86,7 +86,7 @@ void MatMulTransformation::Run() {
 }
 
 TEST_P(MatMulTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

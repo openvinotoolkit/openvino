@@ -70,8 +70,8 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void ElementwiseBranchSelectionTransformation::Run() {
-    LayerTestsCommon::Run();
+void ElementwiseBranchSelectionTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
     const auto elementwiseType = std::get<4>(GetParam());
@@ -115,7 +115,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

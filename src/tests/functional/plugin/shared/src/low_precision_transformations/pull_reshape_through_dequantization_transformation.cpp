@@ -79,8 +79,8 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         "GroupConvolution");
 }
 
-void PullReshapeThroughDequantizationTransformation::Run() {
-    LayerTestsCommon::Run();
+void PullReshapeThroughDequantizationTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
     const auto actualType = getRuntimePrecision(params.operationName);
@@ -89,7 +89,7 @@ void PullReshapeThroughDequantizationTransformation::Run() {
 
 TEST_P(PullReshapeThroughDequantizationTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

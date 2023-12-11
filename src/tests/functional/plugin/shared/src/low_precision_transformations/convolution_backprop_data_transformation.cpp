@@ -67,8 +67,8 @@ void ConvolutionBackpropDataTransformation::SetUp() {
         weights);
 }
 
-void ConvolutionBackpropDataTransformation::Run() {
-    LayerTestsCommon::Run();
+void ConvolutionBackpropDataTransformation::run() {
+    LayerTransformation::run();
 
     const auto inputShape = std::get<1>(GetParam());
     if (inputShape.second) {
@@ -80,7 +80,7 @@ void ConvolutionBackpropDataTransformation::Run() {
 
 TEST_P(ConvolutionBackpropDataTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -57,8 +57,8 @@ void ConvolutionQDqTransformation::SetUp() {
     this->configuration[ov::hint::inference_precision.name()] = "f32";
 }
 
-void ConvolutionQDqTransformation::Run() {
-    LayerTestsCommon::Run();
+void ConvolutionQDqTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecisionByType(params.layerName);
@@ -67,7 +67,7 @@ void ConvolutionQDqTransformation::Run() {
 
 TEST_P(ConvolutionQDqTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

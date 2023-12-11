@@ -69,8 +69,8 @@ void MultiplyTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MultiplyTransformation::Run() {
-    LayerTestsCommon::Run();
+void MultiplyTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
 
@@ -98,7 +98,7 @@ void MultiplyTransformation::Run() {
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

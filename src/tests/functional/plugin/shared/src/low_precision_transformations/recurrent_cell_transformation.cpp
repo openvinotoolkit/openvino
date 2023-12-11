@@ -69,8 +69,8 @@ void RecurrentCellTransformation::SetUp() {
                                                                       });
 }
 
-void RecurrentCellTransformation::Run() {
-    LayerTestsCommon::Run();
+void RecurrentCellTransformation::run() {
+    LayerTransformation::run();
 
     if (!executableNetwork)
         return;
@@ -85,7 +85,7 @@ void RecurrentCellTransformation::Run() {
 }
 
 TEST_P(RecurrentCellTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

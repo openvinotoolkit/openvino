@@ -55,8 +55,8 @@ void GroupConvolutionQDqTransformation::SetUp() {
         {}, {}, {}, param.reshape, {}, "GroupConvolution", param.multiplyAfter);
 }
 
-void GroupConvolutionQDqTransformation::Run() {
-    LayerTestsCommon::Run();
+void GroupConvolutionQDqTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -65,7 +65,7 @@ void GroupConvolutionQDqTransformation::Run() {
 
 TEST_P(GroupConvolutionQDqTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
