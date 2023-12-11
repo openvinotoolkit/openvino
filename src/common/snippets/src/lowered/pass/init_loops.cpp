@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -22,6 +23,9 @@ int64_t get_input_stride(size_t dim, const std::vector<size_t>& layout, const Ve
         if (layout[i] == dim) {
             break;
         }
+        if (utils::is_dynamic_vdim(shape[layout[i]])) {
+            return LoopPort::DYNAMIC_VALUE;
+        }
         stride *= static_cast<int64_t>(shape[layout[i]]);
     }
     return stride;
@@ -29,83 +33,113 @@ int64_t get_input_stride(size_t dim, const std::vector<size_t>& layout, const Ve
 int64_t get_output_stride(size_t dim, const VectorDims& shape) {
     int64_t stride = 1;
     for (size_t i = dim + 1; i < shape.size(); ++i) {
+        if (utils::is_dynamic_vdim(shape[i])) {
+            return LoopPort::DYNAMIC_VALUE;
+        }
         stride *= static_cast<int64_t>(shape[i]);
     }
     return stride;
 }
 }  // namespace
 
-InitLoops::InitLoops() : Pass() {}
+void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args) {
+    init_work_amount(loop_info);
 
-void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
     const auto work_amount = loop_info->get_work_amount();
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
 
-    for (auto& loop_entry : loop_entries) {
-        loop_entry.ptr_increment = 0;
-        if (loop_entry.is_incremented) {
-            const auto& port = loop_entry.expr_port;
-            const auto source = *port->get_connected_ports().begin();
-            const auto loop_ids = port->get_expr()->get_loop_ids();
-            const auto& layout = port->get_descriptor_ptr()->get_layout();
-            const auto& shape = port->get_descriptor_ptr()->get_shape();
-            const auto& dim = *(layout.rbegin() + loop_entry.dim_idx);
-            // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-            if (!(shape[dim] == 1 && work_amount != 1)) {
-                // Input layout shows how we should read data by which order and strides
-                loop_entry.ptr_increment = get_input_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
-            }
+    auto init_args = [&](std::vector<LoopPort>& loop_ports) {
+        for (auto& loop_port : loop_ports) {
+            init_ptr_increment(loop_port, work_amount);
+            init_finalization_offset(loop_port, work_amount);
+            if (!only_runtime_args)
+                init_data_size(loop_port);
         }
-    }
+    };
 
-    for (auto& loop_exit : loop_exits) {
-        loop_exit.ptr_increment = 0;
-        if (loop_exit.is_incremented) {
-            const auto& port = loop_exit.expr_port;
-            const auto loop_ids = port->get_expr()->get_loop_ids();
-            const auto& layout = port->get_descriptor_ptr()->get_layout();
-            const auto& shape = port->get_descriptor_ptr()->get_shape();
-            const auto original_dim = layout.size() - 1 - loop_exit.dim_idx;
-            const auto& dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), original_dim));
-            // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-            if (!(shape[dim] == 1 && work_amount != 1)) {
-                // Output layout shows how we already written data by which order and strides
-                loop_exit.ptr_increment = get_output_stride(dim, shape);
-            }
-        }
-    }
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
+    auto entry_points = loop_info->get_entry_points();
+    auto exit_points = loop_info->get_exit_points();
+    init_args(entry_points);
+    init_args(exit_points);
+    loop_info->set_entry_points(entry_points);
+    loop_info->set_exit_points(exit_points);
 }
 
-void InitLoops::init_finalization_offsets(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-    const auto work_amount = loop_info->get_work_amount();
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
-    for (auto& loop_entry : loop_entries) {
-        loop_entry.finalization_offset = -1 * loop_entry.ptr_increment * work_amount;
+void InitLoops::init_ptr_increment(LinearIR::LoopManager::LoopPort& loop_port, size_t work_amount) {
+    loop_port.ptr_increment = 0;
+    if (!loop_port.is_incremented)
+        return;
+
+    const auto& expr_port = loop_port.expr_port;
+    if (expr_port->get_type() == ExpressionPort::Input) {
+        const auto source = *expr_port->get_connected_ports().begin();
+        const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
+        const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
+        const auto& dim = *(layout.rbegin() + loop_port.dim_idx);
+        // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
+        if (!(shape[dim] == 1 && work_amount != 1)) {
+            // Input layout shows how we should read data by which order and strides
+            loop_port.ptr_increment = get_input_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
+        }
+    } else if (expr_port->get_type() == ExpressionPort::Output) {
+        const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
+        const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
+        const auto original_dim = layout.size() - 1 - loop_port.dim_idx;
+        const auto& dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), original_dim));
+        // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
+        if (!(shape[dim] == 1 && work_amount != 1)) {
+            // Output layout shows how we already written data by which order and strides
+            loop_port.ptr_increment = get_output_stride(dim, shape);
+        }
+    } else {
+        OPENVINO_THROW("Unsupported expression port type!");
     }
-    for (auto& loop_exit : loop_exits) {
-        loop_exit.finalization_offset = -1 * loop_exit.ptr_increment * work_amount;
-    }
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
 }
 
-void InitLoops::init_element_type_sizes(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
-    for (auto& loop_entry : loop_entries) {
-        const auto& port = loop_entry.expr_port;
-        loop_entry.data_size = static_cast<int64_t>(port->get_expr()->get_node()->get_input_element_type(port->get_index()).size());
+void InitLoops::init_finalization_offset(LinearIR::LoopManager::LoopPort& loop_port, size_t work_amount) {
+    loop_port.finalization_offset =
+        utils::is_dynamic_vdim(work_amount) || LoopPort::is_dynamic_value(loop_port.ptr_increment) ? LoopPort::DYNAMIC_VALUE
+                                                                                                   : -1 * loop_port.ptr_increment * work_amount;
+}
+
+void InitLoops::init_data_size(LinearIR::LoopManager::LoopPort& loop_port) {
+    const auto& expr_port = loop_port.expr_port;
+    if (expr_port->get_type() == ExpressionPort::Input) {
+        loop_port.data_size = static_cast<int64_t>(expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
+    } else if (expr_port->get_type() == ExpressionPort::Output) {
+        loop_port.data_size = static_cast<int64_t>(expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
+    } else {
+        OPENVINO_THROW("Unsupported expression port type!");
     }
-    for (auto& loop_exit : loop_exits) {
-        const auto& port = loop_exit.expr_port;
-        loop_exit.data_size = static_cast<int64_t>(port->get_expr()->get_node()->get_output_element_type(port->get_index()).size());
+}
+
+void InitLoops::init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+    if (!utils::is_dynamic_vdim(loop_info->get_work_amount()))
+        return;
+
+    auto broadcast = [](size_t& lhs_value, const size_t& rhs_value) -> void {
+        if (lhs_value == rhs_value || lhs_value == 1 || utils::is_dynamic_vdim(rhs_value)) {
+            lhs_value = rhs_value;
+            return;
+        } else if (rhs_value == 1 || utils::is_dynamic_vdim(lhs_value)) {
+            return;
+        }
+        OPENVINO_THROW("Dimensions of shapes aren't broadcastable for work amount initialization!");
+    };
+
+    size_t work_amount = 1;
+    for (const auto& loop_port : loop_info->get_entry_points()) {
+        if (loop_port.is_incremented) {
+            const auto shape = utils::get_planar_vdims(*loop_port.expr_port);
+            broadcast(work_amount, *(shape.rbegin() + loop_port.dim_idx));
+        }
     }
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
+    for (const auto& loop_port : loop_info->get_exit_points()) {
+        if (loop_port.is_incremented) {
+            const auto shape = utils::get_preordered_vdims(*loop_port.expr_port);
+            broadcast(work_amount, *(shape.rbegin() + loop_port.dim_idx));
+        }
+    }
+    loop_info->set_work_amount(work_amount);
 }
 
 bool InitLoops::run(LinearIR& linear_ir) {
@@ -116,10 +150,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
-        const auto loop_info = loop.second;
-        init_ptr_increments(loop_info);
-        init_finalization_offsets(loop_info);
-        init_element_type_sizes(loop_info);
+        init_loop_info(loop.second);
     }
 
     return true;

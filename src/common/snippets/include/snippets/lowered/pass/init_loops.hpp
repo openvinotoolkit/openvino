@@ -15,19 +15,22 @@ namespace pass {
 
 /**
  * @interface InitLoops
- * @brief The pass initializes scheduling information in LoopInfo
+ * @brief The pass initialize scheduling information in LoopInfo
  * @ingroup snippets
  */
 class InitLoops : public Pass {
 public:
     OPENVINO_RTTI("InitLoops", "Pass")
-    InitLoops();
+    InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 
+    static void init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args = false);
+
 private:
-    static void init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
-    static void init_finalization_offsets(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
-    static void init_element_type_sizes(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
+    static void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
+    static void init_ptr_increment(LinearIR::LoopManager::LoopPort& loop_port, size_t work_amount);
+    static void init_finalization_offset(LinearIR::LoopManager::LoopPort& loop_port, size_t work_amount);
+    static void init_data_size(LinearIR::LoopManager::LoopPort& loop_port);
 };
 
 } // namespace pass
