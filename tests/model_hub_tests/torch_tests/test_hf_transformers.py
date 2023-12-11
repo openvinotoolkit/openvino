@@ -154,6 +154,94 @@ class TestTransformersModel(TestTorchConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif 'idefics' in mi.tags:
+            from transformers import IdeficsForVisionText2Text, AutoProcessor
+            model = IdeficsForVisionText2Text.from_pretrained(name)
+            processor = AutoProcessor.from_pretrained(name)
+            
+            prompts = [[
+                "User: What is in this image?",
+                "https://upload.wikimedia.org/wikipedia/commons/8/86/Id%C3%A9fix.JPG",
+                "<end_of_utterance>",
+
+                "\nAssistant: This picture depicts Idefix, the dog of Obelix in Asterix and Obelix. Idefix is running on the ground.<end_of_utterance>",
+
+                "\nUser:",
+                "https://static.wikia.nocookie.net/asterix/images/2/25/R22b.gif/revision/latest?cb=20110815073052",
+                "And who is that?<end_of_utterance>",
+
+                "\nAssistant:",
+            ]]
+
+            inputs = processor(prompts, add_end_of_utterance_token=False, return_tensors="pt")
+            exit_condition = processor.tokenizer("<end_of_utterance>", add_special_tokens=False).input_ids
+            bad_words_ids = processor.tokenizer(["<image>", "<fake_token_around_image>"], add_special_tokens=False).input_ids
+            
+            example = dict(inputs)
+            example.update({
+                'eos_token_id': exit_condition, 
+                'bad_words_ids': bad_words_ids,
+            })
+
+            class Decorator(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, input_ids, attention_mask, pixel_values, image_attention_mask, eos_token_id, bad_words_ids):
+                    return self.model.generate(
+                        input_ids=input_ids, 
+                        attention_mask=attention_mask, 
+                        pixel_values=pixel_values, 
+                        image_attention_mask=image_attention_mask, 
+                        eos_token_id=eos_token_id,
+                        bad_words_ids=bad_words_ids,
+                        max_length=100
+                    )
+            model = Decorator(model)
+        elif 'blip' in mi.tags and 'text2text-generation' in mi.tags:
+            from transformers import BlipProcessor, BlipForConditionalGeneration
+
+            processor = BlipProcessor.from_pretrained(name)
+            model = BlipForConditionalGeneration.from_pretrained(name)
+            text = "a photography of"
+            inputs = processor(self.image, text, return_tensors="pt")
+
+            class DecoratorForBlipForConditional(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+
+                def forward(self, pixel_values, input_ids, attention_mask):
+                    return self.model.generate(pixel_values, input_ids, attention_mask)
+
+            model = DecoratorForBlipForConditional(model)
+            example = dict(inputs)
+        elif 'speecht5' in mi.tags:
+            from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+            from datasets import load_dataset
+            processor = SpeechT5Processor.from_pretrained(name)
+            model = SpeechT5ForTextToSpeech.from_pretrained(name)
+
+            inputs = processor(text="Hello, my dog is cute.", return_tensors="pt")
+            # load xvector containing speaker's voice characteristics from a dataset
+            embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+            speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+            
+            example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
+            class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, input_ids, speaker_embeddings):
+                    return self.model.generate_speech(input_ids=input_ids, speaker_embeddings=speaker_embeddings) #, vocoder=vocoder)
+            model = DecoratorModelForSeq2SeqLM(model)
+        elif 'layoutlmv2' in mi.tags:
+            from transformers import LayoutLMv2Processor
+            processor = LayoutLMv2Processor.from_pretrained(name)
+
+            question = "What's the content of this image?"
+            encoding = processor(self.image, question, max_length=512, truncation=True, return_tensors="pt")
+            example = dict(encoding)
         elif 'pix2struct' in mi.tags:
             from transformers import AutoProcessor, Pix2StructForConditionalGeneration
             model = Pix2StructForConditionalGeneration.from_pretrained(name, **model_kwargs)
