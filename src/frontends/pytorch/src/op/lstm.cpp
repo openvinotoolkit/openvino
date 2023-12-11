@@ -49,7 +49,6 @@ Output<Node> convert_data_format(ov::pass::NodeRegistry& rg,
         to = {0, 1, 2};
         num_gates = 3;
         break;
-
     default:
         return node;
         break;
@@ -84,9 +83,7 @@ Output<Node> format_bias(ov::pass::NodeRegistry& rg,
                                 0);
     } else {
         res = rg.make<v1::Add>(b_ih, b_hh);
-        if (variant == RnnVariant::LSTM) {
-            res = convert_data_format(rg, variant, res, 0);
-        }
+        res = convert_data_format(rg, variant, res, 0);
     }
     res = rg.make<v0::Unsqueeze>(res, zero);
     return res;
@@ -174,10 +171,8 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
             weight_hh = all_weights[idx + 1];
             weight_ih = rg.make<v0::Unsqueeze>(weight_ih, zero);
             weight_hh = rg.make<v0::Unsqueeze>(weight_hh, zero);
-            if (variant == RnnVariant::GRU || variant == RnnVariant::LSTM) {
-                weight_ih = convert_data_format(rg, variant, weight_ih);
-                weight_hh = convert_data_format(rg, variant, weight_hh);
-            }
+            weight_ih = convert_data_format(rg, variant, weight_ih);
+            weight_hh = convert_data_format(rg, variant, weight_hh);
             if (has_biases) {
                 const auto bias_ih = all_weights[idx + 2];
                 const auto bias_hh = all_weights[idx + 3];
@@ -210,12 +205,10 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
             weight_hh_f = rg.make<v0::Unsqueeze>(weight_hh_f, zero);
             weight_ih_b = rg.make<v0::Unsqueeze>(weight_ih_b, zero);
             weight_hh_b = rg.make<v0::Unsqueeze>(weight_hh_b, zero);
-            if (variant == RnnVariant::GRU || variant == RnnVariant::LSTM) {
-                weight_ih_f = convert_data_format(rg, variant, weight_ih_f);
-                weight_hh_f = convert_data_format(rg, variant, weight_hh_f);
-                weight_ih_b = convert_data_format(rg, variant, weight_ih_b);
-                weight_hh_b = convert_data_format(rg, variant, weight_hh_b);
-            }
+            weight_ih_f = convert_data_format(rg, variant, weight_ih_f);
+            weight_hh_f = convert_data_format(rg, variant, weight_hh_f);
+            weight_ih_b = convert_data_format(rg, variant, weight_ih_b);
+            weight_hh_b = convert_data_format(rg, variant, weight_hh_b);
             weight_ih = rg.make<v0::Concat>(OutputVector{weight_ih_f, weight_ih_b}, 0);
             weight_hh = rg.make<v0::Concat>(OutputVector{weight_hh_f, weight_hh_b}, 0);
         }
