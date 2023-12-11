@@ -8,6 +8,9 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
+#include "openvino/core/constant_fold_utils.hpp"
+
+#include "openvino/op/constant.hpp"
 #include "openvino/op/range.hpp"
 
 namespace cldnn {
@@ -64,12 +67,13 @@ struct range_impl : public typed_primitive_impl<range> {
 
         if (!op) {
             const auto output_dt = params->get_output_layout().data_type;
-
-            op = std::make_shared<ov::op::v4::Range>();
-            op->set_output_type(output_dt);
+            auto start = std::make_shared<ov::op::v0::Constant>(input_host_tensors[0]);
+            auto stop = std::make_shared<ov::op::v0::Constant>(input_host_tensors[1]);
+            auto step = std::make_shared<ov::op::v0::Constant>(input_host_tensors[2]);
+            op = std::make_shared<ov::op::v4::Range>(start, stop, step, output_dt);
         }
 
-        OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+        OPENVINO_ASSERT(ov::util::evaluate_node(op, input_host_tensors, output_host_tensors),
                         "[GPU] Couldn't execute range primitive with id ", instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)

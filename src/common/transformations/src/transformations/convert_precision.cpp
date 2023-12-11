@@ -176,6 +176,11 @@ bool convert_node_input_precision(const std::shared_ptr<ov::Node>& node,
     return false;
 }
 
+static bool keep_convert_precision(const std::shared_ptr<Node>& convert) {
+    const auto& rt_info = convert->get_rt_info();
+    return rt_info.count("keep_convert_precision") > 0 && rt_info.at("keep_convert_precision") == true;
+}
+
 bool convert_function_precision(const std::shared_ptr<Model>& f,
                                 const type_to_fuse_map& type_to_fuse,
                                 const type_to_fuse_map& type_to_extend,
@@ -286,7 +291,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                     continue;
                 // WA for topK, dont remove fake convert
                 if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
-                    convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
+                    convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1 &&
+                    !keep_convert_precision(convert)) {
                     replace_output_update_name(convert->output(0), convert->input_value(0));
                 }
             }
@@ -615,6 +621,9 @@ bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precision
     auto it = precisions.find(node->get_output_element_type(0));
     if (it == precisions.end())
         return false;
+    if (keep_convert_precision(node)) {
+        return false;
+    }
     const auto& to = it->second;
     if (auto convert = ov::as_type_ptr<opset4::Convert>(node)) {
         convert->set_convert_element_type(to);

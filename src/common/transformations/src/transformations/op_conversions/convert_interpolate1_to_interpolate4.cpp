@@ -15,6 +15,7 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
@@ -34,9 +35,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
             element::f32);
 
         std::shared_ptr<Node> scales = std::make_shared<ov::op::v1::Divide>(out_dims, in_dims);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto& constant = ov::get_constant_from_source(scales)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const auto& constant = ov::util::constantfold_subgraph(scales)) {
             scales = constant;
         }
         auto axisConstant = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);

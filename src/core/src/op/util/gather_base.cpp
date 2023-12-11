@@ -86,60 +86,8 @@ bool cf_gather_with_subgraph(OutputVector& output_values,
 bool have_indices_and_axis_bound_set(const util::GatherBase* const gather) {
     return ov::have_node_inputs_bounds_set(gather, 1, 2);
 }
+
 }  // namespace
-
-struct Evaluate : element::NoAction<bool> {
-    using element::NoAction<bool>::visit;
-
-    template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
-    static result_type visit(const Tensor& data,
-                             const Tensor& indices,
-                             Tensor& out,
-                             const Shape& data_shape,
-                             const Shape& indices_shape,
-                             const Shape& out_shape,
-                             const int64_t axis,
-                             const int64_t batch_dims) {
-        using namespace ov::element;
-        return IF_TYPE_OF(util_GatherBase_indices_type,
-                          OV_PP_ET_LIST(i32, i64),
-                          EvaluateByIndicesType,
-                          indices.get_element_type(),
-                          data.data<const DT>(),
-                          indices,
-                          out.data<DT>(),
-                          data_shape,
-                          indices_shape,
-                          out_shape,
-                          axis,
-                          batch_dims);
-    }
-
-private:
-    struct EvaluateByIndicesType : element::NoAction<bool> {
-        using element::NoAction<bool>::visit;
-
-        template <element::Type_t INDICES_ET, class DT, class IT = fundamental_type_for<INDICES_ET>>
-        static result_type visit(const DT* const data,
-                                 const Tensor& indices,
-                                 DT* const output,
-                                 const Shape& data_shape,
-                                 const Shape& indices_shape,
-                                 const Shape& out_shape,
-                                 const int64_t axis,
-                                 const int64_t batch_dims) {
-            reference::gather(data,
-                              indices.data<const IT>(),
-                              output,
-                              data_shape,
-                              indices_shape,
-                              out_shape,
-                              axis,
-                              batch_dims);
-            return true;
-        }
-    };
-};
 }  // namespace gather
 
 namespace util {
@@ -192,8 +140,9 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
 
     const auto& data = inputs[0];
     const auto& data_shape = data.get_shape();
-    const auto& indices = inputs[1];
-    const auto& indices_shape = indices.get_shape();
+    const auto indices = get_tensor_data_as<int64_t>(inputs[1]);
+    const auto& indices_shape = inputs[1].get_shape();
+    const auto element_size = data.get_element_type().size();
 
     const auto axis = ov::util::normalize(get_tensor_data_as<int64_t>(inputs[2])[0], data_shape.size());
     const auto batch_dims = ov::util::normalize(m_batch_dims, indices_shape.size());
@@ -202,19 +151,21 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     auto& output = outputs[0];
     output.set_shape(out_shape);
 
-    using namespace ov::element;
-    return IF_TYPE_OF(util_GatherBase_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i8, i32, i64, u8, u32, u64),
-                      gather::Evaluate,
-                      data.get_element_type(),
-                      data,
-                      indices,
-                      output,
-                      data_shape,
-                      indices_shape,
-                      out_shape,
-                      axis,
-                      batch_dims);
+    ov::reference::gather(static_cast<const char*>(data.data()),
+                          indices.data(),
+                          static_cast<char*>(output.data()),
+                          data_shape,
+                          indices_shape,
+                          out_shape,
+                          axis,
+                          element_size,
+                          batch_dims);
+
+    return true;
+}
+
+bool GatherBase::has_evaluate() const {
+    return true;
 }
 
 bool GatherBase::evaluate_lower(TensorVector& output_values) const {

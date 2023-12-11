@@ -3,12 +3,15 @@
 //
 
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
+
 #include "register.hpp"
 #include "activation_inst.h"
 #include "implementation_map.hpp"
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/elu.hpp"
@@ -106,9 +109,16 @@ struct activation_impl : public typed_primitive_impl<activation> {
         for (size_t i = 0; i < instance.dependencies().size(); i++)
             input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
 
+        ov::OutputVector op_inputs;
+        op_inputs.reserve(input_mem_ptrs.size());
+
         // TODO: consider to re-implement lock/unlock in more exception-safetest way
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
+        for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            op_inputs.push_back(std::make_shared<ov::op::v0::Constant>(input_host_tensors.back()));
+        }
+
+        op->set_arguments(op_inputs);
 
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
         auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
@@ -131,7 +141,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
         cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
-        OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+        OPENVINO_ASSERT(ov::util::evaluate_node(op, input_host_tensors, output_host_tensors),
                         "[GPU] Couldn't execute activation primitive with id ", instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)

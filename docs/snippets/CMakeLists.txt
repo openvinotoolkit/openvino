@@ -59,6 +59,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new"
+                                                  "${OpenVINO_SOURCE_DIR}/src/core/dev_api"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/paddle/include")

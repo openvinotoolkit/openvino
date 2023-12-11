@@ -86,7 +86,7 @@ bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs
     output.set_shape(data_shape);
     using namespace ov::element;
     return IF_TYPE_OF(v3_ScatterNDUpdate_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i32, i64, u32, u64),
+                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
                       scatter_nd_update::Evaluate,
                       data.get_element_type(),
                       data,
@@ -103,7 +103,6 @@ bool ScatterNDUpdate::has_evaluate() const {
 
     switch (get_output_element_type(0)) {
     case element::boolean:
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

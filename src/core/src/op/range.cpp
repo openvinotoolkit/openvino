@@ -13,7 +13,7 @@ namespace ov {
 namespace op {
 namespace range {
 
-#define RANGE_ET_LIST bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64
+#define RANGE_ET_LIST f32, f64, i8, i16, i32, i64, u8, u16, u32, u64
 
 struct Evaluate : element::NoAction<bool> {
     using element::NoAction<bool>::visit;
@@ -32,10 +32,8 @@ struct Evaluate : element::NoAction<bool> {
 };
 
 namespace {
-bool is_input_valid_et(const element::Type& et) {
+bool is_type_supported(const element::Type& et) {
     switch (et) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::f64:
     case element::i8:
@@ -131,7 +129,7 @@ bool Range::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool Range::has_evaluate() const {
     OV_OP_SCOPE(v4_Range_has_evaluate);
-    return range::is_input_valid_et(get_input_element_type(0));
+    return range::is_type_supported(get_input_element_type(0)) && range::is_type_supported(get_output_element_type(0));
 }
 }  // namespace v4
 
@@ -214,7 +212,7 @@ bool Range::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool Range::has_evaluate() const {
     OV_OP_SCOPE(v0_Range_has_evaluate);
-    return range::is_input_valid_et(get_input_element_type(0));
+    return range::is_type_supported(get_input_element_type(0));
 }
 }  // namespace v0
 }  // namespace op

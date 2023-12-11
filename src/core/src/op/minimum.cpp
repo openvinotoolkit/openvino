@@ -50,7 +50,7 @@ bool Minimum::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
     return IF_TYPE_OF(v1_Minimum_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u8, u16, u32, u64),
+                      OV_PP_ET_LIST(f32, i32, i64, u8, u16, u32, u64),
                       minimum::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -64,7 +64,6 @@ bool Minimum::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 bool Minimum::has_evaluate() const {
     OV_OP_SCOPE(v1_Minimum_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

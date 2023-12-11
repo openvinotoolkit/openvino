@@ -99,12 +99,12 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
     return newReshape;
 }
 
-void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& constant) {
+void fuseConstant(const std::shared_ptr<Node>& reshape) {
     ov::OutputVector result(1);
-    reshape->constant_fold(result, { constant, reshape->input_value(1) });
+    OPENVINO_ASSERT(ov::util::constant_fold_node(reshape, result));
     const auto newConstant = result[0].get_node_shared_ptr();
     replace_node(reshape, newConstant);
-    copy_runtime_info({ constant, reshape }, newConstant);
+    copy_runtime_info({ reshape->get_input_node_shared_ptr(0), reshape }, newConstant);
 }
 
 }  // namespace
@@ -146,7 +146,7 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
             } else if (ov::is_type<opset1::Convert>(parent)) {
                 reshape = pull_reshape_through_dequantization::moveThroughConvert(reshape, parent);
             } else if (ov::is_type<opset1::Constant>(parent)) {
-                pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
+                pull_reshape_through_dequantization::fuseConstant(reshape);
                 reshape = nullptr;
             } else {
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";

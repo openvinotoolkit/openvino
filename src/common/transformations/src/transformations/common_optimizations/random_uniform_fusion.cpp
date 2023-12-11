@@ -8,7 +8,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
@@ -63,10 +63,8 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto new_mul_add1 = mul_add_ptr->clone_with_new_inputs({ru->input_value(1), new_const});
         const auto new_mul_add2 = mul_add_ptr->clone_with_new_inputs({ru->input_value(2), new_const});
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& folded_const1 = ov::get_constant_from_source(new_mul_add1);
-        const auto& folded_const2 = ov::get_constant_from_source(new_mul_add2);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& folded_const1 = ov::util::constantfold_subgraph(new_mul_add1);
+        const auto& folded_const2 = ov::util::constantfold_subgraph(new_mul_add2);
 
         const auto new_ru = ru->clone_with_new_inputs(
             {data, folded_const1 ? folded_const1 : new_mul_add1, folded_const2 ? folded_const2 : new_mul_add2});

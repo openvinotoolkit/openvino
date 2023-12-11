@@ -57,7 +57,7 @@ void Loop::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           ov::util::is_rank_compatible_any_of(loop_condition_rank, {0, 1}),
                           "Rank of ExecutionCondition input must be equal to 0 or 1");
-    if (const auto& cond_value = ov::util::get_constant_from_source(loop_execution_condition)) {
+    if (const auto& cond_value = ov::util::constantfold_subgraph(loop_execution_condition)) {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -79,7 +79,7 @@ void Loop::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           ov::util::is_rank_compatible_any_of(body_condition_rank, {0, 1}),
                           "Rank of BodyExecutionCondition output must be equal to 0 or 1");
-    if (const auto& cond_value = ov::util::get_constant_from_source(body_execution_condition)) {
+    if (const auto& cond_value = ov::util::constantfold_subgraph(body_execution_condition)) {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -95,7 +95,7 @@ void Loop::validate_and_infer_types() {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
-                if (const auto& cond_value = ov::util::get_constant_from_source(input_value(desc->m_input_index))) {
+                if (const auto& cond_value = ov::util::constantfold_subgraph(input_value(desc->m_input_index))) {
                     auto val = cond_value->cast_vector<bool>();
                     NODE_VALIDATION_CHECK(this,
                                           val.size() == 1,
@@ -116,7 +116,7 @@ void Loop::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           ov::util::is_rank_compatible_any_of(trip_count_rank, {0, 1}),
                           "Rank of TripCount input must be equal to 0 or 1");
-    if (const auto& trip_count_val = ov::util::get_constant_from_source(trip_count)) {
+    if (const auto& trip_count_val = ov::util::constantfold_subgraph(trip_count)) {
         auto val = trip_count_val->cast_vector<int64_t>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,

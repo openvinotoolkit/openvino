@@ -5,6 +5,7 @@
 #include "openvino/reference/convert.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace convert_like_v1 {
 template <ov::element::Type_t ti, ov::element::Type_t to>

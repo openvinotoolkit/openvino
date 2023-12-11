@@ -49,7 +49,7 @@ bool FloorMod::evaluate(TensorVector& outputs, const TensorVector& inputs) const
 
     using namespace ov::element;
     return IF_TYPE_OF(v1_FloorMod_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, i8, i32, i64, u8, u32, u64),
+                      OV_PP_ET_LIST(f32, i8, i32, i64, u8, u32, u64),
                       floor_mod::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -63,8 +63,6 @@ bool FloorMod::evaluate(TensorVector& outputs, const TensorVector& inputs) const
 bool FloorMod::has_evaluate() const {
     OV_OP_SCOPE(v1_FloorMod_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::i8:
     case element::i32:

@@ -47,7 +47,7 @@ bool Tanh::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     using namespace ov::element;
     return IF_TYPE_OF(v0_Tanh_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
+                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
                       tanh::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -62,7 +62,6 @@ bool Tanh::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         return true;
     default:

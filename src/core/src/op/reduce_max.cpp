@@ -48,7 +48,7 @@ bool ReduceMax::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
 
     using namespace ov::element;
     return IF_TYPE_OF(v1_ReduceMax_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i8, i32, i64, u8, u32, u64),
+                      OV_PP_ET_LIST(f32, i8, i32, i64, u8, u32, u64),
                       reduce_max::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -63,7 +63,6 @@ bool ReduceMax::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
     case element::i8:
     case element::u8:

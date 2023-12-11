@@ -45,7 +45,7 @@ bool Floor::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     using namespace ov::element;
     return IF_TYPE_OF(v0_Floor_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i8, i16, i32, i64, u8, u16, u32, u64),
+                      OV_PP_ET_LIST(f32, i8, i16, i32, i64, u8, u16, u32, u64),
                       floor::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -56,7 +56,6 @@ bool Floor::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 bool Floor::has_evaluate() const {
     OV_OP_SCOPE(v0_Floor_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::f16:
     case element::f32:
     case element::i8:
     case element::i16:

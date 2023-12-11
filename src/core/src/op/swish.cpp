@@ -89,7 +89,7 @@ bool Swish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     using namespace ov::element;
     return IF_TYPE_OF(v4_Swish_evaluate,
-                      OV_PP_ET_LIST(f16, f32),
+                      OV_PP_ET_LIST(f32),
                       swish::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -100,13 +100,7 @@ bool Swish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool Swish::has_evaluate() const {
     OV_OP_SCOPE(v4_Swish_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::f16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
+    return get_input_element_type(0) == element::f32;
 }
 }  // namespace v4
 }  // namespace op

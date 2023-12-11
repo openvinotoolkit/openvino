@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -32,13 +33,10 @@ OutputVector translate_list_construct(const NodeContext& context) {
         }
     }
     auto list_construct = context.mark_node(std::make_shared<v0::Concat>(consts, 0));
-    if (list_construct->has_evaluate()) {
-        OutputVector replacements(list_construct->get_output_size());
-
-        if (list_construct->constant_fold(replacements, list_construct->input_values())) {
-            return replacements;
-        }
-    }
+    OutputVector replacements(list_construct->get_output_size());
+    bool folded = ov::util::constant_fold_node(list_construct, replacements);
+    if (folded)
+        return replacements;
     return {list_construct};
 };
 

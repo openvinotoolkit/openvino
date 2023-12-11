@@ -89,7 +89,7 @@ bool Equal::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(ov::op::infer_broadcast_shape(this, inputs));
     using namespace ov::element;
     return IF_TYPE_OF(v1_Equal_evaluate,
-                      OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
+                      OV_PP_ET_LIST(boolean, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
                       equal::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -128,8 +128,6 @@ bool Equal::has_evaluate() const {
     OV_OP_SCOPE(v1_Equal_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::boolean:
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::f64:
     case element::i8:

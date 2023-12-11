@@ -49,7 +49,7 @@ bool Maximum::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
     return IF_TYPE_OF(v1_Maximum_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
+                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
                       maximum::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -67,7 +67,6 @@ bool Maximum::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         return true;
     default:

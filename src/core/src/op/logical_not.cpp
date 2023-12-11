@@ -64,7 +64,6 @@ bool LogicalNot::has_evaluate() const {
     OV_OP_SCOPE(v1_LogicalNot_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::boolean:
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

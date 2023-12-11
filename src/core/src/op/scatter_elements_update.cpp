@@ -162,7 +162,7 @@ bool evaluate(TensorVector& outputs,
 
     using namespace ov::element;
     return IF_TYPE_OF(scatter_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i16, i32, i64, u32, u64),
+                      OV_PP_ET_LIST(boolean, f32, i16, i32, i64, u32, u64),
                       scatter_elements_update::Evaluate,
                       data.get_element_type(),
                       data,

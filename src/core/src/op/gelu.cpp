@@ -105,7 +105,7 @@ bool Gelu::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
     return IF_TYPE_OF(v7_Gelu_evaluate,
-                      OV_PP_ET_LIST(f16, f32),
+                      OV_PP_ET_LIST(f32),
                       gelu::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -116,13 +116,7 @@ bool Gelu::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool Gelu::has_evaluate() const {
     OV_OP_SCOPE(v7_Gelu_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::f16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
+    return get_input_element_type(0) == element::f32;
 }
 }  // namespace v7
 }  // namespace op

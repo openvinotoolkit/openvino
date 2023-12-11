@@ -321,7 +321,7 @@ void unique(Data_t* out_unique_elements,
             out_counts[i] = descriptor.count;
         }
     } else {
-        std::vector<Index_t> indices;
+        std::vector<int64_t> indices;
         indices.reserve(descriptors.unique_tensor_elements.size());
 
         for (size_t i = 0; i < descriptors.unique_tensor_elements.size(); ++i) {
@@ -332,13 +332,14 @@ void unique(Data_t* out_unique_elements,
             indices.push_back(descriptor.idx);
         }
 
-        gather(data,
+        gather(reinterpret_cast<const char*>(data),
                indices.data(),
-               out_unique_elements,
+               reinterpret_cast<char*>(out_unique_elements),
                data_shape,
                Shape{descriptors.unique_tensor_elements.size()},
                out_shape,
-               descriptors.axis);
+               descriptors.axis,
+               sizeof(Data_t));
     }
 
     // filling out this output tensor requires a separate pass over all elements of the input tensor

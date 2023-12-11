@@ -49,7 +49,7 @@ bool Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) co
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
     return IF_TYPE_OF(v1_Add_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64),
+                      OV_PP_ET_LIST(f32, i8, i16, i32, i64, u8, u16, u32, u64),
                       add::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -71,8 +71,6 @@ bool Add::has_evaluate() const {
     case element::u16:
     case element::u32:
     case element::u64:
-    case element::bf16:
-    case element::f16:
     case element::f32:
         return true;
     default:

@@ -49,7 +49,7 @@ bool ReduceL1::evaluate(TensorVector& outputs, const TensorVector& inputs) const
 
     using namespace ov::element;
     return IF_TYPE_OF(v4_ReduceL1_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, i32, i64),
+                      OV_PP_ET_LIST(f32, i32, i64),
                       reduce_l1::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -62,8 +62,6 @@ bool ReduceL1::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case element::i32:
     case element::i64:
-    case element::bf16:
-    case element::f16:
     case element::f32:
         return true;
     default:

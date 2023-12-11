@@ -8,13 +8,17 @@
 #include <limits>
 
 #include "evaluates_map.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
+#include "openvino/pass/manager.hpp"
 #include "perf_counter.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/insert_nop_convert_on_multinomial.hpp"
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;
@@ -43,6 +47,17 @@ public:
 
 ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model) : m_is_compiled{true} {
     m_model = model->clone();
+
+    auto unsupported_types = util::unsupported_types();
+    precisions_map precisions_to_convert;
+    for (const auto& type : unsupported_types)
+        precisions_to_convert[type] = element::f32;
+
+    ov::pass::Manager manager;
+    manager.register_pass<pass::InsertNopConvertOnMultinomial>();
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_to_convert, type_to_fuse_map{}, true, false);
+    manager.run_passes(m_model);
+
     for (auto node : m_model->get_ordered_ops()) {
         m_nodes.push_back(node);
     }

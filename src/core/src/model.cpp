@@ -12,6 +12,7 @@
 #include "layout_utils.hpp"
 #include "ngraph/evaluator.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -590,7 +591,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                     output_tensors.push_back(it->second);
                 }
             }
-            if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
+            if (util::evaluate_node(node->shared_from_this(), input_tensors, output_tensors, evaluation_context)) {
                 for (size_t i = 0; i < node->outputs().size(); i++) {
                     const auto& v = node->output(i);
                     auto it = output_tensor_map.find(v);

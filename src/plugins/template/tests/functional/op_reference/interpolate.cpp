@@ -1344,7 +1344,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             {0, 1},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{214, 67, 28, 76, 106, 208, 115.5, 23.5},
-            std::vector<Data_t>{214, 140,   60.5,  34.5, 52,  76,  202, 142,  74,    44,  53.5, 70,  160, 148,  126,
+            std::vector<Data_t>{214, 140,   60.5,  34.5, 52,  76,  202, 142,  74,    44,  53.5, 71,  160, 148,  126,
                                 82,  60.75, 49.75, 116,  155, 178, 120, 67.5, 28.75, 106, 157,  192, 130, 69.5, 23.5},
         },
         {
@@ -1356,7 +1356,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             {0, 1},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
             std::vector<Data_t>{214, 67, 28, 76, 106, 208, 115.5, 23.5},
-            std::vector<Data_t>{214, 140,   60.5,  34.5, 52,  76,  202, 142,  74,    44,  53.5, 70,  160, 148,  126,
+            std::vector<Data_t>{214, 140,   60.5,  34.5, 52,  76,  202, 142,  74,    44,  53.5, 71,  160, 148,  126,
                                 82,  60.75, 49.75, 116,  155, 178, 120, 67.5, 28.75, 106, 157,  192, 130, 69.5, 23.5},
         }};
 }
@@ -1499,7 +1499,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
                 121, 131, 193, 243, 8.875,  37,  210, 242, 63.75, 80,  222, 108, 70,  212,   66,
                 105, 164, 140, 22,  7.0625, 222, 192, 214, 138,   209, 84,  116, 202, 31.75, 77.5,
             },
-            std::vector<Data_t>{162, 142, 137, 108.5, 91.5, 126, 163, 126.5},
+            std::vector<Data_t>{162, 142, 137, 108.5, 92.5, 126, 163, 126.5},
             -0.5,  // cube_coeff
         },
         {
@@ -1512,7 +1512,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
             std::vector<Data_t>{121, 131, 193, 243, 8.875,  37,  210, 242, 63.75, 80,  222, 108, 70,  212,   66,
                                 105, 164, 140, 22,  7.0625, 222, 192, 214, 138,   209, 84,  116, 202, 31.75, 77.5},
-            std::vector<Data_t>{162, 142, 137, 108.5, 91.5, 126, 163, 126.5},
+            std::vector<Data_t>{162, 142, 137, 108.5, 92.5, 126, 163, 126.5},
             -0.5,  // cube_coeff
         },
         {
@@ -1542,7 +1542,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
                 121, 131, 193, 243, 8.875,  37,  210, 242, 63.75, 80,  222, 108, 70,  212,   66,
                 105, 164, 140, 22,  7.0625, 222, 192, 214, 138,   209, 84,  116, 202, 31.75, 77.5,
             },
-            std::vector<Data_t>{160, 136, 118, 95, 150, 137},
+            std::vector<Data_t>{162, 136, 118, 96, 150, 137},
             -0.5,  // cube_coeff
         },
         {
@@ -1554,9 +1554,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             {0, 1},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{0.1875, 1.1875, 10.1875, 50.1875, 100.1875, 99.1875, 999.1875, 1000.1875},
-            std::vector<Data_t>{-9.75, -4.5,  -18.5, -80.5, -69, -41.5, 6.6875, 3.1875, 15.375, 64,
-                                98,    114.5, 50,    23.5,  105, 448,   536,    528,    93,     43.5,
-                                194,   828,   976,   936,   110, 51.5,  228,    976,    1152,   1088},
+            std::vector<Data_t>{-9.75, -4.4375, -18.5, -80.5, -69, -41.0, 6.6875, 3.1875, 15.375, 65,
+                                98,    114.5,   50,    23.25, 105, 448,   544,    528,    93,     43.5,
+                                194,   828,     976,   936,   110, 51.5,  228,    976,    1152,   1088},
             -0.5,  // cube_coeff
         },
         {
@@ -1568,8 +1568,8 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             {0, 1},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
-            std::vector<Data_t>{236, 144, 38, 18,  50,  85,  216, 146,   63,   35, 51.5, 75,  162, 152, 128,
-                                80,  56,  48, 107, 158, 193, 125, 60.25, 21.5, 87, 160,  218, 142, 62,  11.1875},
+            std::vector<Data_t>{236, 146, 38, 17.75, 50,  85,  216, 148,   63,   35, 51.5, 75,  162, 152, 128,
+                                80,  56,  48, 107,   158, 193, 125, 60.25, 21.5, 87, 160,  218, 144, 62,  11.3125},
             -0.5,  // cube_coeff
         },
         {
@@ -1581,8 +1581,8 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             {0, 1},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
             std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
-            std::vector<Data_t>{236, 144, 38, 18,  50,  85,  216, 146,   63,   35, 51.5, 75,  162, 152, 128,
-                                80,  56,  48, 107, 158, 193, 125, 60.25, 21.5, 87, 160,  218, 142, 62,  11.1875},
+            std::vector<Data_t>{236, 146, 38, 17.75, 50,  85,  216, 148,   63,   35, 51.5, 75,  162, 152, 128,
+                                80,  56,  48, 107,   158, 193, 125, 60.25, 21.5, 87, 160,  218, 144, 62,  11.3125},
             -0.5,  // cube_coeff
         }};
 }

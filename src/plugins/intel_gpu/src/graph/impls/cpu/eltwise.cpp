@@ -8,6 +8,9 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
+#include "openvino/core/constant_fold_utils.hpp"
+
+#include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/maximum.hpp"
@@ -179,12 +182,19 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
         cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
 
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
+        ov::OutputVector op_inputs;
+        op_inputs.reserve(input_mem_ptrs.size());
+
+        for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            op_inputs.push_back(std::make_shared<ov::op::v0::Constant>(input_host_tensors.back()));
+        }
+
+        op->set_arguments(op_inputs);
 
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
-        OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+        OPENVINO_ASSERT(ov::util::evaluate_node(op, input_host_tensors, output_host_tensors),
                         "[GPU] Couldn't execute eltwise primitive with id ", instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)

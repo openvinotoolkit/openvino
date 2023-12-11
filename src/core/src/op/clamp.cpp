@@ -69,7 +69,7 @@ bool Clamp::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     using namespace ov::element;
     return IF_TYPE_OF(v0_Clamp_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64),
+                      OV_PP_ET_LIST(f32, i8, i16, i32, i64, u8, u16, u32, u64),
                       clamp::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -82,8 +82,6 @@ bool Clamp::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 bool Clamp::has_evaluate() const {
     OV_OP_SCOPE(v0_Clamp_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::i8:
     case element::i16:

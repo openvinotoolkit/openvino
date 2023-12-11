@@ -9,7 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/batch_norm.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -23,6 +22,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -87,14 +87,12 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
             mean_aligned,
             ov::op::v0::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1}));
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto constant = ov::get_constant_from_source(beta_aligned))
+        if (auto constant = ov::util::constantfold_subgraph(beta_aligned))
             beta_aligned = constant;
-        if (auto constant = ov::get_constant_from_source(mean_negative))
+        if (auto constant = ov::util::constantfold_subgraph(mean_negative))
             mean_negative = constant;
-        if (auto constant = ov::get_constant_from_source(gamma_div_scale_aligned))
+        if (auto constant = ov::util::constantfold_subgraph(gamma_div_scale_aligned))
             gamma_div_scale_aligned = constant;
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         // input_sub_mean = input + mean * -1
         auto input_sub_mean = register_new_node<ov::op::v1::Add>(m_input, mean_negative);

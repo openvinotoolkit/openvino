@@ -62,6 +62,7 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
     ov::pass::Manager passManager;
+
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
