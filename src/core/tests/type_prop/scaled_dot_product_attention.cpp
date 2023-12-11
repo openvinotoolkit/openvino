@@ -17,7 +17,7 @@ TEST(type_prop, scaled_dot_product_attention_static_5_inputs) {
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 6});
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, Shape{1, 3, 5});
-    const auto scale = std::make_shared<opset13::Parameter>(element::f32, Shape{});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, Shape{1});
     auto causal = false;
 
     const auto op =
@@ -195,26 +195,26 @@ TEST(type_prop, scaled_dot_product_attention_dynamic_4d) {
 }
 
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
-    PartialShape query_shape{{1, 4}, 3, {1, 5}, 4};
+    PartialShape query_shape{{2, 4}, 3, {2, 5}, 4};
     set_shape_labels(query_shape, 10);
-    PartialShape key_shape{{4, 8}, {1, 4}, 5, 4};
+    PartialShape key_shape{{4, 8}, {2, 4}, 5, 4};
     set_shape_labels(key_shape, 20);
     PartialShape value_shape{{2, 4}, 3, 5, {3, 7}};
     set_shape_labels(value_shape, 40);
-    PartialShape attention_mask_shape{{1, 7}, 3, {4, 7}, 5};
+    PartialShape attention_mask_shape{{2, 7}, 3, {4, 7}, 5};
     set_shape_labels(attention_mask_shape, 50);
     const auto query = std::make_shared<opset13::Parameter>(element::dynamic, query_shape);
     const auto key = std::make_shared<opset13::Parameter>(element::f64, key_shape);
     const auto value = std::make_shared<opset13::Parameter>(element::dynamic, value_shape);
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f64, attention_mask_shape);
-    const auto scale = std::make_shared<opset13::Parameter>(element::f64, PartialShape{});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f64, PartialShape{1});
     auto causal = false;
 
     const auto op =
         std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {4, 5}, {3, 7}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), testing::ElementsAre(40, 51, 52, 43));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), testing::ElementsAre(50, 51, 52, 43));
 }
 
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs_ignore_attention) {
@@ -247,9 +247,9 @@ TEST(type_prop, scaled_dot_product_attention_infer_5_dynamic_attn_partial) {
 }
 
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_4_inputs) {
-    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{1, 4}, 4, {1, 5}, 4});
+    const auto query = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{1, 4}, 4, {2, 5}, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f64, PartialShape{{2, 8}, {1, 4}, 5, 4});
-    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{1, 4}, 4, 5, {3, 7}});
+    const auto value = std::make_shared<opset13::Parameter>(element::dynamic, PartialShape{{2, 4}, 4, 5, {3, 7}});
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f64, PartialShape{4, {4, 7}, 5});
     auto causal = false;
 
@@ -336,13 +336,13 @@ TEST(type_prop, scaled_dot_product_unsupported_scale_shape) {
     const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 5, 6});
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 5});
-    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2});
     auto causal = false;
 
     OV_EXPECT_THROW(
         std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
         AssertFailure,
-        testing::HasSubstr("Scale input accepts only scalar tensor."));
+        testing::HasSubstr("Scale input must be scalar or have 1 element."));
 }
 
 TEST(type_prop, scaled_dot_product_unsupported_dtype) {
