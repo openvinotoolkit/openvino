@@ -10,7 +10,7 @@ if(ENABLE_AUTO_BATCH)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4305)
+    ov_add_compiler_flags(/wd4305)
 endif()
 
 ov_add_test_target(
