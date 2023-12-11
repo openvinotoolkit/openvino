@@ -163,16 +163,21 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
         auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
             return x.length() < y.length();
         });
-        auto stride = max_element->length();
-        auto dtype = py::dtype("|S" + std::to_string(stride));
-        auto array = py::array(dtype, t.get_shape(), ov::Strides{stride});
+        auto max_stride = max_element->length();
+        auto dtype = py::dtype("|S" + std::to_string(max_stride));
+        // Adjusting strides to follow the numpy convention:
+        auto new_strides = t.get_shape();
+        for (size_t i = 0; i < new_strides.size(); ++i) {
+            new_strides[i] = max_stride;
+        }
+        auto array = py::array(dtype, t.get_shape(), new_strides);
         // Create an empty array and populate it with utf-8 encoded strings:
         auto ptr = array.data();
         for (size_t i = 0; i < t.get_size(); ++i) {
             auto start = &data[i][0];
             auto length = data[i].length();
-            auto end = std::copy(start, start + length, (char*)ptr + i * stride);
-            std::fill_n(end, stride - length, 0);
+            auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
+            std::fill_n(end, max_stride - length, 0);
         }
         return array;
     }
@@ -269,9 +274,7 @@ ov::Tensor create_copied(py::array& array) {
             auto data = tensor.data<std::string>();
             // TODO: check if array size is equal to tensor?
             for (size_t i = 0; i < tensor.get_size(); ++i) {
-                // // Equal to this but takes considers strides as well.
-                // char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
-                char* ptr = reinterpret_cast<char*>(buf.ptr) + array.offset_at(i);
+                char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
                 // TODO: check other unicode kinds? 2BYTE and 1BYTE?
                 PyObject* _unicode_obj =
                     PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);

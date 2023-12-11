@@ -271,8 +271,14 @@ void regclass_Tensor(py::module m) {
             Access to Tensor's data.
 
             Returns numpy array with corresponding shape and dtype.
-            For tensors with openvino specific element type, such as u1, u4 or i4
+
+            For tensors with OpenVINO specific element type, such as u1, u4 or i4
             it returns linear array, with uint8 / int8 numpy dtype.
+
+            For tensors with string element type, returns a numpy array of bytes
+            without any decoding.
+            To change the underlaying data use `copy_from` function.
+            Warning: Data is always a copy of underlaying memory!
 
             :rtype: numpy.array
         )");
@@ -302,15 +308,18 @@ void regclass_Tensor(py::module m) {
                     _list.append(_unicode_obj);
                     Py_XDECREF(_unicode_obj);
                 }
-                return py::array(_list);
+                // Adjusting shape to follow the numpy convention:
+                py::array array(_list);
+                array.resize(self.get_shape());
+                return array;
             }
             OPENVINO_THROW("Only applicable for string arrays!");
         },
         R"(
             Access to Tensor's data with string Type.
 
-            Returns decoded numpy array with corresponding shape and dtype.
-            Warning: Data is always a copy of underlaying memory!            
+            Returns a decoded numpy array with corresponding shape and dtype.
+            Warning: Data is always a copy of underlaying memory!
 
             :rtype: numpy.array
         )");
@@ -346,6 +355,31 @@ void regclass_Tensor(py::module m) {
         py::arg("target_tensor"),
         R"(
         Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+    )");
+
+    cls.def(
+        "copy_from",
+        [](ov::Tensor& self, ov::Tensor& source) {
+            return source.copy_to(self);
+        },
+        py::arg("source"),
+        R"(
+        Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+    )");
+
+    cls.def(
+        "copy_from",
+        [](ov::Tensor& self, py::array& source) {
+            auto _source = Common::object_from_data<ov::Tensor>(source, false);
+            if (self.get_shape() != _source.get_shape()) {
+                self.set_shape(_source.get_shape());
+            }
+            return _source.copy_to(self);
+        },
+        py::arg("source"),
+        R"(
+        Copy the source to this tensor. This tensor and the source should have the same element type.
+        Shape will be adjusted if there is a mismatch.
     )");
 
     cls.def("is_continuous",
