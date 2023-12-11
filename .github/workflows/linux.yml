@@ -390,8 +390,8 @@ jobs:
 
   ONNX_Models:
     name: ONNX Models Tests
-    # TODO: Uncomment before merge
-    # if: ${{ github.event_name == 'schedule' }}
+    if: fromJSON(inputs.affected-components).Python_API.test ||
+        fromJSON(inputs.affected-components).ONNX_FE.test
     needs: Build
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
