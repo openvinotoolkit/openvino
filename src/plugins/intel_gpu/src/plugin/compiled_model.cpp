@@ -37,21 +37,18 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         return plugin->get_executor_manager()->get_executor("GPU");
     } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor"}.update_executor_config(
-                config.get_property(ov::num_streams),
-                1,
-                ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
-                true,
-                true,
-                true));
+            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                    config.get_property(ov::num_streams),
+                                                    1,
+                                                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
+                                                    1,
+                                                    0,
+                                                    0,
+                                                    ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
+                                                    true});
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor"}.update_executor_config(
-                config.get_property(ov::num_streams),
-                1,
-                ov::threading::IStreamsExecutor::Config::PreferredCoreType::ANY,
-                true,
-                false));
+            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
     }
 }
 }  // namespace

@@ -99,11 +99,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
-    auto streamsExecutorConfig = ov::threading::IStreamsExecutor::Config{stream_executor_name}.update_executor_config(
-        fullConfig.streams_executor_config._streams,
-        0,  // Use mutiple threads according to the cores and numa nodes.
-        ov::threading::IStreamsExecutor::Config::PreferredCoreType::ANY,
-        false);
+    auto streamsExecutorConfig =
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
+    streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model = std::make_shared<CompiledModel>(
         model->clone(),
         shared_from_this(),
@@ -156,11 +154,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     }
 
     auto ov_model = get_core()->read_model(xmlString, weights);
-    auto streamsExecutorConfig = ov::threading::IStreamsExecutor::Config{stream_executor_name}.update_executor_config(
-        fullConfig.streams_executor_config._streams,
-        0,  // Use mutiple threads according to the cores and numa nodes.
-        ov::threading::IStreamsExecutor::Config::PreferredCoreType::ANY,
-        false);
+    auto streamsExecutorConfig =
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
+    streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),

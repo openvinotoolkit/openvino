@@ -181,8 +181,15 @@ void ExecutorManagerImpl::clear(const std::string& id) {
 void ExecutorManagerImpl::execute_task_by_streams_executor(
     ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
     ov::threading::Task task) {
-    ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor");
-    streamsConfig.update_executor_config(1, 1, core_type);
+    ov::threading::IStreamsExecutor::Config streamsConfig(
+        "StreamsExecutor",
+        1,
+        1,
+        ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
+        1,
+        0,
+        0,
+        core_type);
     if (!streamsConfig._streams_info_table.empty()) {
         auto taskExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
         std::vector<Task> tasks{std::move(task)};

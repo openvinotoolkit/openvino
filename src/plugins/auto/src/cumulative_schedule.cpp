@@ -124,12 +124,10 @@ void CumuSchedule::init() {
         }
     };
     m_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-        ov::threading::IStreamsExecutor::Config{"CTPUTDeviceAsyncLoad"}.update_executor_config(
+            ov::threading::IStreamsExecutor::Config{"CTPUTDeviceAsyncLoad",
             static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-            1,
-            ov::threading::IStreamsExecutor::Config::PreferredCoreType::ANY,
-            true,
-            false /*not use TBB, workaround for ticket 62376*/));
+            0 /*default threads per stream, workaround for ticket 62376*/,
+            ov::threading::IStreamsExecutor::ThreadBindingType::NONE});
     std::vector<ov::threading::Task> other_devices_loads;
     std::vector<ov::threading::Task> cpu_loads;
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {

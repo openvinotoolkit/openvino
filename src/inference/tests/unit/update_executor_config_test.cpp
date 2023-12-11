@@ -18,14 +18,11 @@ namespace {
 #if defined(__linux__) || defined(_WIN32)
 
 struct UpdateExecutorConfigTestCase {
-    ov::threading::IStreamsExecutor::Config _config;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     int _num_streams;
     int _threads_per_stream;
     ov::threading::IStreamsExecutor::Config::PreferredCoreType _core_type;
-    bool _enable_hyper_threading;
-    bool _use_tbb;
     bool _cpu_pinning;
     std::vector<std::vector<int>> _streams_info_table;
     std::vector<std::vector<int>> _stream_processors;
@@ -43,21 +40,24 @@ public:
         cpu._cpu_mapping_table = test_data._cpu_mapping_table;
         cpu._numa_nodes = 1;
 
-        test_data._config.update_executor_config(test_data._num_streams,
-                                                 test_data._threads_per_stream,
-                                                 test_data._core_type,
-                                                 test_data._enable_hyper_threading,
-                                                 test_data._use_tbb,
-                                                 test_data._cpu_pinning);
+        ov::threading::IStreamsExecutor::Config config{
+            "config test",
+            test_data._num_streams,
+            test_data._threads_per_stream,
+            ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
+            1,
+            0,
+            0,
+            test_data._core_type,
+            test_data._cpu_pinning};
 
-        ASSERT_EQ(test_data._cpu_pinning, test_data._config._cpu_reservation);
-        ASSERT_EQ(test_data._streams_info_table, test_data._config._streams_info_table);
-        ASSERT_EQ(test_data._stream_processors, test_data._config._stream_processor_ids);
+        ASSERT_EQ(test_data._cpu_pinning, config._cpu_reservation);
+        ASSERT_EQ(test_data._streams_info_table, config._streams_info_table);
+        ASSERT_EQ(test_data._stream_processors, config._stream_processor_ids);
     }
 };
 
-UpdateExecutorConfigTestCase _update_num_streams = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},  // param[in]: initial configuration
+UpdateExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
     // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
     // number of hyper threading processors}
     {
@@ -81,8 +81,6 @@ UpdateExecutorConfigTestCase _update_num_streams = {
     4,                                             // param[in]: the number of streams
     1,                                             // param[in]: the number of threads per stream
     ov::threading::IStreamsExecutor::Config::ANY,  // param[in]: specified cpu core type
-    true,                                          // param[in]: enable hyper threading
-    true,                                          // param[in]: use tbb
     false,                                         // param[in]: specified cpu pinning
     // param[out]: streams_info_table, {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM, STREAM_NUMA_NODE_ID,
     // STREAM_SOCKET_ID}
@@ -93,8 +91,7 @@ UpdateExecutorConfigTestCase _update_num_streams = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_4_threads_auto = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -116,16 +113,13 @@ UpdateExecutorConfigTestCase _update_num_streams_4_threads_auto = {
     0,
     ov::threading::IStreamsExecutor::Config::ANY,
     false,
-    true,
-    false,
     {
-        {4, MAIN_CORE_PROC, 1, 0, 0},
+        {4, MAIN_CORE_PROC, 0, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_3_threads_auto = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -143,51 +137,18 @@ UpdateExecutorConfigTestCase _update_num_streams_3_threads_auto = {
         {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},
         {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
     },
-    3,
-    0,
+    12,
+    1,
     ov::threading::IStreamsExecutor::Config::ANY,
-    false,
-    true,
-    false,
-    {
-        {3, MAIN_CORE_PROC, 2, 0, 0},
-    },
-    {},
-};
-
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
-    {
-        {12, 6, 0, 6, 0, 0},
-    },
-    {
-        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
-        {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
-        {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},
-        {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
-        {4, 0, 0, 2, MAIN_CORE_PROC, 4, -1},
-        {5, 0, 0, 2, HYPER_THREADING_PROC, 5, -1},
-        {6, 0, 0, 3, MAIN_CORE_PROC, 6, -1},
-        {7, 0, 0, 3, HYPER_THREADING_PROC, 7, -1},
-        {8, 0, 0, 4, MAIN_CORE_PROC, 8, -1},
-        {9, 0, 0, 4, HYPER_THREADING_PROC, 9, -1},
-        {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},
-        {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
-    },
-    0,
-    0,
-    ov::threading::IStreamsExecutor::Config::ANY,
-    false,
-    true,
     false,
     {
         {6, MAIN_CORE_PROC, 1, 0, 0},
+        {6, HYPER_THREADING_PROC, 1, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_0 = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -205,20 +166,18 @@ UpdateExecutorConfigTestCase _update_num_streams_0_threads_0 = {
         {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},
         {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
     },
-    0,
+    13,
     1,
     ov::threading::IStreamsExecutor::Config::ANY,
     false,
-    false,
-    false,
     {
-        {6, MAIN_CORE_PROC, 0, 0, 0},
+        {6, MAIN_CORE_PROC, 1, 0, 0},
+        {6, HYPER_THREADING_PROC, 1, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -236,20 +195,46 @@ UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto = {
         {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},
         {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
     },
+    7,
     1,
-    0,
-    ov::threading::IStreamsExecutor::Config::ANY,
-    false,
-    true,
+    ov::threading::IStreamsExecutor::Config::LITTLE,
     false,
     {
-        {1, MAIN_CORE_PROC, 6, 0, 0},
+        {6, MAIN_CORE_PROC, 1, 0, 0},
+        {1, HYPER_THREADING_PROC, 1, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_2sockets = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
+    {
+        {12, 6, 0, 6, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
+        {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
+        {4, 0, 0, 2, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 2, HYPER_THREADING_PROC, 5, -1},
+        {6, 0, 0, 3, MAIN_CORE_PROC, 6, -1},
+        {7, 0, 0, 3, HYPER_THREADING_PROC, 7, -1},
+        {8, 0, 0, 4, MAIN_CORE_PROC, 8, -1},
+        {9, 0, 0, 4, HYPER_THREADING_PROC, 9, -1},
+        {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},
+        {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
+    },
+    5,
+    1,
+    ov::threading::IStreamsExecutor::Config::ANY,
+    true,
+    {
+        {5, MAIN_CORE_PROC, 1, 0, 0},
+    },
+    {{0}, {2}, {4}, {6}, {8}},
+};
+
+UpdateExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -293,11 +278,9 @@ UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_2sockets = {
         {68, 1, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 1, 69, MAIN_CORE_PROC, 69, -1},
         {70, 1, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
-    0,
-    0,
+    36,
+    1,
     ov::threading::IStreamsExecutor::Config::ANY,
-    false,
-    true,
     false,
     {
         {18, MAIN_CORE_PROC, 1, 0, 0},
@@ -306,8 +289,7 @@ UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_2sockets = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_1_2sockets = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _2sockets_streams_4_threads_4 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -351,21 +333,18 @@ UpdateExecutorConfigTestCase _update_num_streams_0_threads_1_2sockets = {
         {68, 1, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 1, 69, MAIN_CORE_PROC, 69, -1},
         {70, 1, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
-    0,
-    1,
+    4,
+    5,
     ov::threading::IStreamsExecutor::Config::ANY,
     false,
-    true,
-    false,
     {
-        {18, MAIN_CORE_PROC, 1, 0, 0},
-        {18, MAIN_CORE_PROC, 1, 1, 1},
+        {3, MAIN_CORE_PROC, 5, 0, 0},
+        {1, MAIN_CORE_PROC, 5, 1, 1},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_2sockets = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -410,10 +389,8 @@ UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_2sockets = {
         {70, 1, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
     1,
-    0,
+    36,
     ov::threading::IStreamsExecutor::Config::ANY,
-    false,
-    true,
     false,
     {
         {1, ALL_PROC, 36, -1, -1},
@@ -423,8 +400,7 @@ UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_2sockets = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_5_threads_2_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_5_threads_2 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -445,8 +421,6 @@ UpdateExecutorConfigTestCase _update_num_streams_5_threads_2_pecore = {
     5,
     2,
     ov::threading::IStreamsExecutor::Config::ANY,
-    true,
-    true,
     false,
     {
         {4, MAIN_CORE_PROC, 2, 0, 0},
@@ -455,8 +429,7 @@ UpdateExecutorConfigTestCase _update_num_streams_5_threads_2_pecore = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_5_threads_5_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_5_threads_5 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -477,8 +450,6 @@ UpdateExecutorConfigTestCase _update_num_streams_5_threads_5_pecore = {
     5,
     5,
     ov::threading::IStreamsExecutor::Config::ANY,
-    true,
-    true,
     false,
     {
         {2, MAIN_CORE_PROC, 4, 0, 0},
@@ -488,8 +459,7 @@ UpdateExecutorConfigTestCase _update_num_streams_5_threads_5_pecore = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_4_threads_5_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_4_threads_5 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -510,8 +480,6 @@ UpdateExecutorConfigTestCase _update_num_streams_4_threads_5_pecore = {
     4,
     5,
     ov::threading::IStreamsExecutor::Config::ANY,
-    true,
-    true,
     false,
     {
         {1, MAIN_CORE_PROC, 5, 0, 0},
@@ -521,8 +489,7 @@ UpdateExecutorConfigTestCase _update_num_streams_4_threads_5_pecore = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_4_threads_1_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_4_threads_1 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -543,8 +510,6 @@ UpdateExecutorConfigTestCase _update_num_streams_4_threads_1_pecore = {
     4,
     1,
     ov::threading::IStreamsExecutor::Config::ANY,
-    true,
-    true,
     false,
     {
         {4, MAIN_CORE_PROC, 1, 0, 0},
@@ -552,8 +517,7 @@ UpdateExecutorConfigTestCase _update_num_streams_4_threads_1_pecore = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_5_threads_10_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_5_threads_10 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -574,8 +538,6 @@ UpdateExecutorConfigTestCase _update_num_streams_5_threads_10_pecore = {
     5,
     10,
     ov::threading::IStreamsExecutor::Config::ANY,
-    true,
-    true,
     false,
     {
         {2, MAIN_CORE_PROC, 4, 0, 0},
@@ -585,8 +547,7 @@ UpdateExecutorConfigTestCase _update_num_streams_5_threads_10_pecore = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_26_threads_1 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -607,8 +568,6 @@ UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore = {
     26,
     1,
     ov::threading::IStreamsExecutor::Config::ANY,
-    true,
-    true,
     false,
     {
         {8, MAIN_CORE_PROC, 1, 0, 0},
@@ -618,8 +577,7 @@ UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore_p = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -640,8 +598,6 @@ UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore_p = {
     26,
     1,
     ov::threading::IStreamsExecutor::Config::BIG,
-    true,
-    true,
     false,
     {
         {8, MAIN_CORE_PROC, 1, 0, 0},
@@ -650,8 +606,7 @@ UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore_p = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore_e = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -672,8 +627,6 @@ UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore_e = {
     26,
     1,
     ov::threading::IStreamsExecutor::Config::LITTLE,
-    true,
-    true,
     false,
     {
         {8, EFFICIENT_CORE_PROC, 1, 0, 0},
@@ -681,39 +634,7 @@ UpdateExecutorConfigTestCase _update_num_streams_26_threads_1_pecore_e = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
-    {
-        {24, 8, 8, 8, 0, 0},
-    },
-    {
-        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
-        {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},         {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
-        {4, 0, 0, 2, MAIN_CORE_PROC, 4, -1},         {5, 0, 0, 2, HYPER_THREADING_PROC, 5, -1},
-        {6, 0, 0, 3, MAIN_CORE_PROC, 6, -1},         {7, 0, 0, 3, HYPER_THREADING_PROC, 7, -1},
-        {8, 0, 0, 4, MAIN_CORE_PROC, 8, -1},         {9, 0, 0, 4, HYPER_THREADING_PROC, 9, -1},
-        {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},       {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
-        {12, 0, 0, 6, MAIN_CORE_PROC, 12, -1},       {13, 0, 0, 6, HYPER_THREADING_PROC, 13, -1},
-        {14, 0, 0, 7, MAIN_CORE_PROC, 14, -1},       {15, 0, 0, 7, HYPER_THREADING_PROC, 15, -1},
-        {16, 0, 0, 8, EFFICIENT_CORE_PROC, 16, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 17, -1},
-        {18, 0, 0, 10, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 19, -1},
-        {20, 0, 0, 12, EFFICIENT_CORE_PROC, 20, -1}, {21, 0, 0, 13, EFFICIENT_CORE_PROC, 21, -1},
-        {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
-    },
-    0,
-    0,
-    ov::threading::IStreamsExecutor::Config::ANY,
-    false,
-    true,
-    false,
-    {
-        {8, MAIN_CORE_PROC, 1, 0, 0},
-    },
-    {},
-};
-
-UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_pecore = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_1_threads_0 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -735,16 +656,13 @@ UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_pecore = {
     0,
     ov::threading::IStreamsExecutor::Config::ANY,
     false,
-    true,
-    false,
     {
-        {1, MAIN_CORE_PROC, 8, 0, 0},
+        {1, MAIN_CORE_PROC, 0, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_pecore_p = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -762,20 +680,17 @@ UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_pecore_p = {
         {20, 0, 0, 12, EFFICIENT_CORE_PROC, 20, -1}, {21, 0, 0, 13, EFFICIENT_CORE_PROC, 21, -1},
         {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
     },
-    0,
-    0,
+    1,
+    1,
     ov::threading::IStreamsExecutor::Config::BIG,
     false,
-    true,
-    false,
     {
-        {8, MAIN_CORE_PROC, 1, 0, 0},
+        {1, MAIN_CORE_PROC, 1, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_pecore_e = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -793,20 +708,17 @@ UpdateExecutorConfigTestCase _update_num_streams_0_threads_auto_pecore_e = {
         {20, 0, 0, 12, EFFICIENT_CORE_PROC, 20, -1}, {21, 0, 0, 13, EFFICIENT_CORE_PROC, 21, -1},
         {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
     },
-    0,
-    0,
+    1,
+    1,
     ov::threading::IStreamsExecutor::Config::LITTLE,
     false,
-    true,
-    false,
     {
-        {8, EFFICIENT_CORE_PROC, 1, 0, 0},
+        {1, EFFICIENT_CORE_PROC, 1, 0, 0},
     },
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_10_threads_auto_pecore_e = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -825,10 +737,8 @@ UpdateExecutorConfigTestCase _update_num_streams_10_threads_auto_pecore_e = {
         {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
     },
     10,
-    0,
+    1,
     ov::threading::IStreamsExecutor::Config::LITTLE,
-    false,
-    true,
     false,
     {
         {8, EFFICIENT_CORE_PROC, 1, 0, 0},
@@ -836,8 +746,7 @@ UpdateExecutorConfigTestCase _update_num_streams_10_threads_auto_pecore_e = {
     {},
 };
 
-UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_pecore_e = {
-    ov::threading::IStreamsExecutor::Config{"update num streams test"},
+UpdateExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -855,114 +764,43 @@ UpdateExecutorConfigTestCase _update_num_streams_1_threads_auto_pecore_e = {
         {20, 0, 0, 12, EFFICIENT_CORE_PROC, 20, -1}, {21, 0, 0, 13, EFFICIENT_CORE_PROC, 21, -1},
         {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
     },
-    1,
-    0,
-    ov::threading::IStreamsExecutor::Config::LITTLE,
-    false,
-    true,
-    false,
-    {
-        {1, EFFICIENT_CORE_PROC, 8, 0, 0},
-    },
-    {},
-};
-
-UpdateExecutorConfigTestCase _update_core_type = {
-    ov::threading::IStreamsExecutor::Config{"update core type test"},
-    {
-        {24, 8, 8, 8, 0, 0},
-    },
-    {
-        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
-        {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},         {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
-        {4, 0, 0, 2, MAIN_CORE_PROC, 4, -1},         {5, 0, 0, 2, HYPER_THREADING_PROC, 5, -1},
-        {6, 0, 0, 3, MAIN_CORE_PROC, 6, -1},         {7, 0, 0, 3, HYPER_THREADING_PROC, 7, -1},
-        {8, 0, 0, 4, MAIN_CORE_PROC, 8, -1},         {9, 0, 0, 4, HYPER_THREADING_PROC, 9, -1},
-        {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},       {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
-        {12, 0, 0, 6, MAIN_CORE_PROC, 12, -1},       {13, 0, 0, 6, HYPER_THREADING_PROC, 13, -1},
-        {14, 0, 0, 7, MAIN_CORE_PROC, 14, -1},       {15, 0, 0, 7, HYPER_THREADING_PROC, 15, -1},
-        {16, 0, 0, 8, EFFICIENT_CORE_PROC, 16, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 17, -1},
-        {18, 0, 0, 10, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 19, -1},
-        {20, 0, 0, 12, EFFICIENT_CORE_PROC, 20, -1}, {21, 0, 0, 13, EFFICIENT_CORE_PROC, 21, -1},
-        {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
-    },
-    8,
-    1,
-    ov::threading::IStreamsExecutor::Config::LITTLE,
-    true,
-    true,
-    false,
-    {
-        {8, EFFICIENT_CORE_PROC, 1, 0, 0},
-    },
-    {},
-};
-
-UpdateExecutorConfigTestCase _update_cpu_pinning = {
-    ov::threading::IStreamsExecutor::Config{"update cpu pinning test"},
-    {
-        {8, 4, 0, 4, 0, 0},
-    },
-    {
-        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
-        {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
-        {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},
-        {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
-        {4, 0, 0, 2, MAIN_CORE_PROC, 4, -1},
-        {5, 0, 0, 2, HYPER_THREADING_PROC, 5, -1},
-        {6, 0, 0, 3, MAIN_CORE_PROC, 6, -1},
-        {7, 0, 0, 3, HYPER_THREADING_PROC, 7, -1},
-    },
-    8,
-    1,
+    10,
+    2,
     ov::threading::IStreamsExecutor::Config::ANY,
     true,
-    true,
-    true,
     {
-        {4, MAIN_CORE_PROC, 1, 0, 0},
-        {4, HYPER_THREADING_PROC, 1, 0, 0},
+        {4, MAIN_CORE_PROC, 2, 0, 0},
+        {4, EFFICIENT_CORE_PROC, 2, 0, 0},
+        {2, HYPER_THREADING_PROC, 2, 0, 0},
     },
-    {
-        {0},
-        {2},
-        {4},
-        {6},
-        {1},
-        {3},
-        {5},
-        {7},
-    },
+    {{0, 2}, {4, 6}, {8, 10}, {12, 14}, {16, 17}, {18, 19}, {20, 21}, {22, 23}, {1, 3}, {5, 7}},
 };
 
 TEST_P(UpdateExecutorConfigTest, UpdateExecutorConfig) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_UpdateExecutorConfig,
                          UpdateExecutorConfigTest,
-                         testing::Values(_update_num_streams,
-                                         _update_num_streams_4_threads_auto,
-                                         _update_num_streams_3_threads_auto,
-                                         _update_num_streams_0_threads_auto,
-                                         _update_num_streams_0_threads_0,
-                                         _update_num_streams_1_threads_auto,
-                                         _update_num_streams_0_threads_auto_2sockets,
-                                         _update_num_streams_0_threads_1_2sockets,
-                                         _update_num_streams_1_threads_auto_2sockets,
-                                         _update_num_streams_5_threads_2_pecore,
-                                         _update_num_streams_5_threads_5_pecore,
-                                         _update_num_streams_4_threads_5_pecore,
-                                         _update_num_streams_4_threads_1_pecore,
-                                         _update_num_streams_5_threads_10_pecore,
-                                         _update_num_streams_26_threads_1_pecore,
-                                         _update_num_streams_26_threads_1_pecore_p,
-                                         _update_num_streams_26_threads_1_pecore_e,
-                                         _update_num_streams_0_threads_auto_pecore,
-                                         _update_num_streams_1_threads_auto_pecore,
-                                         _update_num_streams_0_threads_auto_pecore_p,
-                                         _update_num_streams_0_threads_auto_pecore_e,
-                                         _update_num_streams_10_threads_auto_pecore_e,
-                                         _update_num_streams_1_threads_auto_pecore_e,
-                                         _update_core_type,
-                                         _update_cpu_pinning));
+                         testing::Values(_1sockets_streams_4_threads_1,
+                                         _1sockets_streams_4_threads_0,
+                                         _1sockets_streams_12_threads_1,
+                                         _1sockets_streams_13_threads_1,
+                                         _1sockets_streams_6_threads_1_core_e,
+                                         _1sockets_streams_5_threads_1_binding,
+                                         _2sockets_streams_36_threads_1,
+                                         _2sockets_streams_4_threads_4,
+                                         _2sockets_streams_1_threads_36,
+                                         _pecore_streams_5_threads_2,
+                                         _pecore_streams_5_threads_5,
+                                         _pecore_streams_4_threads_5,
+                                         _pecore_streams_4_threads_1,
+                                         _pecore_streams_5_threads_10,
+                                         _pecore_streams_26_threads_1,
+                                         _pecore_streams_26_threads_1_p,
+                                         _pecore_streams_26_threads_1_e,
+                                         _pecore_streams_1_threads_0,
+                                         _pecore_streams_1_threads_1_p,
+                                         _pecore_streams_1_threads_1_e,
+                                         _pecore_streams_10_threads_1_e,
+                                         _pecore_streams_10_threads_1_binding));
 #endif
 }  // namespace

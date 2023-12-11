@@ -169,7 +169,6 @@ public:
                int threadBindingOffset = 0,
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               std::vector<std::vector<int>> streamsInfoTable = {},
                bool cpuReservation = false)
             : _name{name},
               _streams{streams},
@@ -179,28 +178,15 @@ public:
               _threadBindingOffset{threadBindingOffset},
               _threads{threads},
               _threadPreferredCoreType(threadPreferredCoreType),
-              _streams_info_table{streamsInfoTable},
-              _cpu_reservation{cpuReservation} {}
+              _cpu_reservation{cpuReservation} {
+            update_executor_config();
+        }
 
         /**
-         * @brief Modify _streams_info_table and related configuration according to user-specified parameters, bind
-         * threads to cpu cores if cpu_pinning is true.
-         * @param stream_nums Number of streams specified by user. support value >= 0. If stream_nums = 0, using all
-         * cores of the platform.
-         * @param threads_per_stream Number of threads per stream specified by user. support value >= 0.
-         * If threads_per_stream = 0, calculate threads per stream to use all cores of the platform.
-         * @param core_type Cpu type (Big/Little/Any) specified by user
-         * @param enable_hyper_threading whether to use logical cores
-         * @param use_tbb whether to create threads by TBB
-         * @param cpu_pinning Whether to bind the threads to cpu cores
-         * @return updated configured values
+         * @brief Modify _streams_info_table and related configuration according to configuration
          */
-        Config update_executor_config(int stream_nums = 1,
-                                      int threads_per_stream = 0,
-                                      PreferredCoreType core_type = PreferredCoreType::ANY,
-                                      bool enable_hyper_threading = true,
-                                      bool use_tbb = true,
-                                      bool cpu_pinning = false);
+        void update_executor_config();
+
         /**
          * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
          *        that is, only create one thread with TBB
