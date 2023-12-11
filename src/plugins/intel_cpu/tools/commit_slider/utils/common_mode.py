@@ -85,14 +85,26 @@ class Mode(ABC):
         if not ("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
 
-    def prepareRun(self, list, cfg):
-        self.normalizeCfg(cfg)
-        cfg["serviceConfig"] = {}
+    def initialDegradationCheck(self, list, cfg):
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
             raise util.RepoError("Borders {i1} and {i2} doesn't differ".format(
                 i1=0, i2=len(list) - 1))
-        self.commitList = list
+
+    def prepareRun(self, list, cfg):
+        self.normalizeCfg(cfg)
+        cfg["serviceConfig"] = {}
+        # check prerun-cashed commits
+        canReduce, newList = util.getReducedInterval(list, cfg)
+        if canReduce and self.checkIfListBordersDiffer(newList, cfg):
+            self.commonLogger.info(
+                "Initial interval reduced to cashed {c1}..{c2}".format(
+                    c1=newList[0], c2=newList[-1])
+            )
+            list = newList
+        else:
+            self.initialDegradationCheck(list, cfg)
+        return list
 
     def normalizeCfg(self, cfg):
         if not self.traversal.isComparative():
@@ -136,7 +148,7 @@ class Mode(ABC):
                 csvwriter.writerows(rows)
 
     def run(self, list, cfg) -> int:
-        self.prepareRun(list, cfg)
+        list = self.prepareRun(list, cfg)
         for i, item in enumerate(list):
             list[i] = item.replace('"', "")
         self.traversal.wrappedBypass(
@@ -192,9 +204,14 @@ class Mode(ABC):
             raise NotImplementedError()
 
         def wrappedBypass(self, curList, list, cfg) -> int:
+            i = input(curList)
+            print("bypass")
             try:
+                print("try")
+                i = input(curList)
                 self.bypass(curList, list, cfg)
             except util.BuildError as be:
+                i = input(be.errType)
                 if be.errType == util.BuildError.BuildErrType.TO_SKIP:
                     self.skipCommit(be.commit, curList, cfg)
                     self.wrappedBypass(curList, list, cfg)
@@ -240,6 +257,12 @@ class Mode(ABC):
 
 
         def prepBypass(self, curList, list, cfg):
+            if (cfg["cachedPathConfig"]["enabled"] and
+                cfg["cachedPathConfig"]["scheme"] == "optional"):
+                # try to reduce interval by cashed borders
+                print(curList)
+                i = input("_")
+                pass
             skipInterval = cfg["noCleanInterval"]
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
@@ -270,6 +293,7 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
+                i = input("low len")
                 isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
