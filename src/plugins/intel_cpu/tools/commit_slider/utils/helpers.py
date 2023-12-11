@@ -99,12 +99,12 @@ def absolutizePaths(cfg):
     if cfg["dlbConfig"]["launchedAsJob"]:
         cfg["appPath"] = cfg["dlbConfig"]["appPath"]
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
-    # we don't absolutize paths with placeholders, i.e. {cashedPath}
-    pathToAbsolutize = list(filter(lambda path: not [
-        tup[1] for tup in
-        string.Formatter().parse(cfg[path]) if
-        tup[1] is not None
-        ], pathToAbsolutize))
+    # # we don't absolutize paths with placeholders, i.e. {cashedPath}
+    # pathToAbsolutize = list(filter(lambda path: not [
+    #     tup[1] for tup in
+    #     string.Formatter().parse(cfg[path]) if
+    #     tup[1] is not None
+    #     ], pathToAbsolutize))
     for item in pathToAbsolutize:
         path = cfg[item]
         path = os.path.abspath(path)
@@ -233,14 +233,14 @@ def fetchAppOutput(cfg, commit):
     i = input("we here")
     if cfg["cachedPathConfig"]["enabled"] == True:
         pathExists, suggestedAppPath = getCashedPath(commit, cfg)
-        if pathExists:
-            for item in string.Formatter().parse(appPath):
-                if item[1] is not None and item[1] == 'cashedPath':
-                    commitLogger.info(
-                        "App path, corresponding commit {c} is cashed, "
-                        "value:{p}".format(c=commit,
-                                           p=suggestedAppPath))
-                    appPath = appPath.format(cashedPath=suggestedAppPath)
+        if pathExists and cfg["cachedPathConfig"]["changeAppPath"]:
+            # for item in string.Formatter().parse(appPath):
+            #     if item[1] is not None and item[1] == 'cashedPath':
+            commitLogger.info(
+                "App path, corresponding commit {c} is cashed, "
+                "value:{p}".format(c=commit, p=suggestedAppPath))
+            appPath = suggestedAppPath
+                    # appPath = appPath.format(cashedPath=suggestedAppPath)
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
