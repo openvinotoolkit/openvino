@@ -148,7 +148,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
 
     // Special case for string data type.
     // TODO notify that strings won't be exposed as a view?
-    if(ov_type == ov::element::string) {
+    if (ov_type == ov::element::string) {
         auto data = t.data<std::string>();
 
         // Slow approach ~x5:
@@ -165,15 +165,10 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
         });
         auto stride = max_element->length();
         auto dtype = py::dtype("|S" + std::to_string(stride));
-        // // TODO: consider sharing here.
-        // // To share strings should all be same length padded?
-        // if (is_shared) {
-        //     return py::array(dtype, t.get_shape(), ov::Strides{stride}, t.data(), py::cast(t));
-        // }
         auto array = py::array(dtype, t.get_shape(), ov::Strides{stride});
         // Create an empty array and populate it with utf-8 encoded strings:
         auto ptr = array.data();
-        for(size_t i = 0; i < t.get_size(); ++i) {
+        for (size_t i = 0; i < t.get_size(); ++i) {
             auto start = &data[i][0];
             auto length = data[i].length();
             auto end = std::copy(start, start + length, (char*)ptr + i * stride);
@@ -269,8 +264,7 @@ ov::Tensor create_copied(py::array& array) {
                 data[i] = std::string(ptr, buf.strides[0]);
             }
             return tensor;
-        }
-        else if (array.dtype().kind() == 'U') {
+        } else if (array.dtype().kind() == 'U') {
             py::buffer_info buf = array.request();
             auto data = tensor.data<std::string>();
             // TODO: check if array size is equal to tensor?
@@ -279,7 +273,8 @@ ov::Tensor create_copied(py::array& array) {
                 // char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
                 char* ptr = reinterpret_cast<char*>(buf.ptr) + array.offset_at(i);
                 // TODO: check other unicode kinds? 2BYTE and 1BYTE?
-                PyObject* _unicode_obj = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
+                PyObject* _unicode_obj =
+                    PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
                 PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
                 const char* _tmp_str = PyBytes_AsString(_utf8_obj);
                 data[i] = std::string(_tmp_str);

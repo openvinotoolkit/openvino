@@ -262,7 +262,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> OVDict:
+    def infer_new_request(self, inputs: Any = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.

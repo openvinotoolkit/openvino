@@ -15,7 +15,6 @@
 
 namespace py = pybind11;
 
-
 void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
     cls.doc() =

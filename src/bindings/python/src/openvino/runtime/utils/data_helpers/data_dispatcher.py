@@ -31,7 +31,7 @@ def get_request_tensor(
 
 @singledispatch
 def value_to_tensor(
-    value: Union[Tensor, np.ndarray, ScalarTypes],
+    value: Union[Tensor, np.ndarray, ScalarTypes, str],
     request: Optional[_InferRequestWrapper] = None,
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
@@ -85,13 +85,14 @@ def _(
 @value_to_tensor.register(np.number)
 @value_to_tensor.register(int)
 @value_to_tensor.register(float)
+@value_to_tensor.register(str)
 def _(
-    value: ScalarTypes,
+    value: Union[ScalarTypes, str],
     request: _InferRequestWrapper,
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    # np.number/int/float edge-case, copy will occur in both scenarios.
+    # np.number/int/float/str edge-case, copy will occur in both scenarios.
     tensor_type = get_request_tensor(request, key).get_element_type()
     tensor_dtype = tensor_type.to_dtype()
     tmp = np.array(value)
@@ -195,8 +196,9 @@ def _(
 @create_shared.register(np.number)
 @create_shared.register(int)
 @create_shared.register(float)
+@create_shared.register(str)
 def _(
-    inputs: Union[Tensor, ScalarTypes],
+    inputs: Union[Tensor, ScalarTypes, str],
     request: _InferRequestWrapper,
 ) -> Tensor:
     return value_to_tensor(inputs, request=request, is_shared=True)
@@ -260,8 +262,9 @@ def _(
 @update_tensor.register(np.number)  # type: ignore
 @update_tensor.register(float)
 @update_tensor.register(int)
+@update_tensor.register(str)
 def _(
-    inputs: Union[np.number, float, int],
+    inputs: Union[ScalarTypes, str],
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
@@ -287,7 +290,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
             raise TypeError(f"Incompatible key type for input: {key}")
         # Copy numpy arrays to already allocated Tensors.
         # If value object has __array__ attribute, load it to Tensor using np.array
-        if isinstance(value, (np.ndarray, np.number, int, float)) or hasattr(value, "__array__"):
+        if isinstance(value, (np.ndarray, np.number, int, float, str)) or hasattr(value, "__array__"):
             update_tensor(value, request, key)
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(value, Tensor):
@@ -300,7 +303,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
 @singledispatch
 def create_copied(
-    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes],
+    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes, str],
     request: _InferRequestWrapper,
 ) -> Union[dict, None]:
     # Check the special case of the array-interface
@@ -334,8 +337,9 @@ def _(
 @create_copied.register(np.number)
 @create_copied.register(int)
 @create_copied.register(float)
+@create_copied.register(str)
 def _(
-    inputs: Union[Tensor, ScalarTypes],
+    inputs: Union[Tensor, ScalarTypes, str],
     request: _InferRequestWrapper,
 ) -> Tensor:
     return value_to_tensor(inputs, request=request, is_shared=False)
@@ -346,7 +350,7 @@ def _(
 
 def _data_dispatch(
     request: _InferRequestWrapper,
-    inputs: Union[ContainerTypes, Tensor, np.ndarray, ScalarTypes] = None,
+    inputs: Union[ContainerTypes, Tensor, np.ndarray, ScalarTypes, str] = None,
     is_shared: bool = False,
 ) -> Union[dict, Tensor]:
     if inputs is None:

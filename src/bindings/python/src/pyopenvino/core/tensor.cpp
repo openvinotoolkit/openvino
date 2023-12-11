@@ -283,7 +283,7 @@ void regclass_Tensor(py::module m) {
             // Special property which decodes strings to unicode used by numpy:
             auto ov_type = self.get_element_type();
             auto dtype = Common::ov_type_to_dtype().at(ov_type);
-            if(ov_type == ov::element::string) {
+            if (ov_type == ov::element::string) {
                 auto data = self.data<std::string>();
                 // List is helpful to store PyObjects, can I work around it?
                 // Maybe storing them in C++ vector and get max length via
@@ -297,7 +297,7 @@ void regclass_Tensor(py::module m) {
 
                 // Approach that is compact and faster than np.char.decode(tensor.data):
                 py::list _list;
-                for(size_t i = 0; i < self.get_size(); ++i) {
+                for (size_t i = 0; i < self.get_size(); ++i) {
                     PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "strict");
                     _list.append(_unicode_obj);
                     Py_XDECREF(_unicode_obj);
