@@ -337,11 +337,6 @@ void EltwiseTppEmitter::emit_code(const std::vector<size_t> &in, const std::vect
     emit_impl(in, out);
 }
 
-std::set<std::vector<element::Type>> EltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
-    // todo: check what precisions are natively supported by tpp (without additional converts)
-    return {{element::f32, element::f32}};
-}
-
 void EltwiseTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     internal_call_preamble();
     // Note: 4 args is currently enough for unary and binary eltwises.
@@ -438,6 +433,11 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
     libxsmm_kernel = libxsmm_dispatch_meltw_binary_v2(op_type, shape, flags);
 }
 
+std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    // todo: check what precisions are natively supported by tpp (without additional converts)
+    return {{element::f32, element::f32}};
+}
+
 
 void BinaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     OPENVINO_ASSERT(in.size() == 2, "BinaryEltwiseTppEmitter expects 2 input registers, got " + std::to_string(in.size()));
@@ -498,6 +498,10 @@ void UnaryEltwiseTppEmitter::execute_unary_eltw_kernel(libxsmm_meltwfunction_una
     param.out.primary = out0;
     assert(eltwise_kernel);
     eltwise_kernel(&param);
+}
+
+std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {{element::f32}};
 }
 
 void UnaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {

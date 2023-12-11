@@ -76,7 +76,6 @@ public:
                      const ov::snippets::lowered::ExpressionPtr& expr);
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 //    size_t aux_gprs_count() const override;
     static libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type);
 
@@ -108,6 +107,7 @@ public:
     static void execute_binary_eltw_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
     uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_binary_eltw_kernel); }
     uintptr_t get_compiled_kernel_ptr() const override { return reinterpret_cast<uintptr_t>(libxsmm_kernel); }
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
     libxsmm_meltwfunction_binary libxsmm_kernel;
@@ -124,6 +124,7 @@ public:
     static void execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0);
     uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_unary_eltw_kernel); }
     uintptr_t get_compiled_kernel_ptr() const override { return reinterpret_cast<uintptr_t>(libxsmm_kernel); }
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
     libxsmm_meltwfunction_unary libxsmm_kernel;
