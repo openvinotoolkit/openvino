@@ -671,14 +671,10 @@ void FullyConnected::execute(dnnl::stream strm) {
     auto updateMemoryPtr = [this](int argType) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
-            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() == 3 ||
-             (getInputShapeAtPort(DATA_ID).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2) ||
-              useConv1x1)) {
+            if (argType == DNNL_ARG_SRC) {
                 primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
-            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() == 3 ||
-             (getOutputShapeAtPort(0).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2) ||
-              useConv1x1)) {
+            if (argType == DNNL_ARG_DST) {
                 primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
         }
@@ -977,7 +973,7 @@ std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_
 std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     auto desc = prim_desc.dst_desc(idx);
 
-    if (getOutputShapeAtPort(idx).getRank() == 3 || (getOutputShapeAtPort(idx).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2)) {
+    if (getOutputShapeAtPort(idx).getRank() != 2) {
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()), getOutputShapeAtPort(idx));
     }
