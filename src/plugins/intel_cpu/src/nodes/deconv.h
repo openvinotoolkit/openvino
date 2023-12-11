@@ -118,7 +118,7 @@ private:
 
     std::string errorPrefix;
 
-    InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
+    MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
 };
 
 }   // namespace node
