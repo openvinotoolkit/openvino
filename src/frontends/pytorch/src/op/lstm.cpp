@@ -168,10 +168,10 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
     const auto hidden_size_node = v0::Constant::create(element::i32, Shape{1}, {hidden_size});
     Output<Node> bias_concat;
     const auto num_directions_node = bidirectional ? two_1d : one_1d;
-    uint64_t num_directions = bidirectional ? 2 : 1;
+    Shape::value_type num_directions = bidirectional ? 2 : 1;
     if (!has_biases) {
-        uint64_t gates_count = variant == RnnVariant::RNN ? 1 : 4;
-        uint64_t gates_hidden = gates_count * static_cast<uint64_t>(hidden_size);
+        Shape::value_type gates_count = variant == RnnVariant::RNN ? 1 : 4;
+        Shape::value_type gates_hidden = gates_count * static_cast<Shape::value_type>(hidden_size);
         bias_concat = rg.make<v0::Constant>(element::i32, Shape{num_directions, gates_hidden}, 0);
         bias_concat = rg.make<v1::ConvertLike>(bias_concat, input);
     }
