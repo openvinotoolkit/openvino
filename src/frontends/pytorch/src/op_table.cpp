@@ -231,13 +231,15 @@ OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
+OP_CONVERTER(translate_log_sigmoid);
 OP_CONVERTER(translate_max_dim);
+OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
 OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_transpose_fx);
-
+OP_CONVERTER(translate_unbind_int_fx);
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -597,6 +599,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.add.Tensor", op::translate_add},
         {"aten.add_.Tensor", op::translate_add},
         {"aten.addmm.default", op::translate_addmm},
+        {"aten.amax.default", op::translate_amax},
         {"aten.arange.start", op::translate_arange_fx},
         {"aten.arange.default", op::translate_arange_fx},
         {"aten.argmax.default", op::translate_argmax},
@@ -632,11 +635,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.lift_fresh_copy.default", op::skip_node},
         {"aten.linalg_vector_norm.default", op::translate_linalg_vector_norm},
         {"aten.log.default", op::translate_log},
+        {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid},
         {"aten.logsumexp.default", op::translate_logsumexp},
         {"aten.lt.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten.masked_fill_.Scalar", op::inplace_op<op::translate_masked_fill>},
         {"aten.masked_fill.Tensor", op::translate_masked_fill},
-        {"aten.max.dim", op::translate_max_dim},
+        {"aten.max.dim", op::translate_max_dim_fx},
         {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten.mean.dim", op::translate_mean},
         {"aten.mm.default", op::translate_1to1_match_2_inputs<opset10::MatMul>},
@@ -667,9 +671,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.stack.default", op::translate_stack},
         {"aten.sub.default", op::translate_sub},
         {"aten.sub.Tensor", op::translate_sub},
+        {"aten.sum.dim_IntList", op::translate_sum},
         {"aten.t.default", op::translate_t},
         {"aten.tanh.default", op::translate_1to1_match_1_inputs<opset10::Tanh>},
         {"aten.transpose.int", op::translate_transpose},
+        {"aten.unbind.int", op::translate_unbind_int_fx},
         {"aten.unsqueeze.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten.upsample_nearest2d.default", op::translate_upsample_nearest2d},
         {"aten.view.default", op::translate_reshape},
