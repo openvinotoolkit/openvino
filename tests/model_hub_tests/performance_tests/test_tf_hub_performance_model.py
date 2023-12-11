@@ -12,6 +12,7 @@ from models_hub_common.constants import no_clean_cache_dir
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_performance_model import TestModelPerformance
 from models_hub_common.utils import get_models_list
+from models_hub_common.utils import cleanup_dir
 
 
 def clean_cache():
@@ -35,7 +36,7 @@ class TestTFPerformanceModel(TestModelPerformance):
 
     def teardown_method(self):
         if not no_clean_cache_dir:
-            clean_cache()
+            cleanup_dir(tf_hub_cache_dir)
         # deallocate memory after each test case
         gc.collect()
 
