@@ -11,16 +11,6 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace {
-std::vector<float> proposal;
-ov::Shape featureMapShape;
-size_t spatialBinsX;
-size_t spatialBinsY;
-float spatialScale;
-size_t groupSize;
-size_t outputDim;
-std::string mode;
-}  // namespace
 
 typedef std::tuple<ov::Shape,           // feature map shape
                    std::vector<float>,  // coords shape
@@ -46,6 +36,14 @@ class PSROIPoolingLayerCPUTest : public testing::WithParamInterface<PSROIPooling
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PSROIPoolingLayerCPUTestParamsSet> obj) {
+        std::vector<float> proposal;
+        ov::Shape featureMapShape;
+        size_t spatialBinsX;
+        size_t spatialBinsY;
+        float spatialScale;
+        size_t groupSize;
+        size_t outputDim;
+        std::string mode;
         PSROIPoolingLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
@@ -106,6 +104,16 @@ protected:
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroi)};
         function = std::make_shared<ov::Model>(results, params, "PSROIPooling");
     }
+
+public:
+    std::vector<float> proposal;
+    ov::Shape featureMapShape;
+    size_t spatialBinsX;
+    size_t spatialBinsY;
+    float spatialScale;
+    size_t groupSize;
+    size_t outputDim;
+    std::string mode;
 };
 
 TEST_P(PSROIPoolingLayerCPUTest, CompareWithRefs) {
