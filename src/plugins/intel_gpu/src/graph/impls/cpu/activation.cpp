@@ -115,11 +115,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
         // TODO: consider to re-implement lock/unlock in more exception-safetest way
         for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
-            op_inputs.push_back(std::make_shared<ov::op::v0::Constant>(input_host_tensors.back()));
         }
-
-        op->set_arguments(op_inputs);
-
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
         auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
 
@@ -135,6 +131,11 @@ struct activation_impl : public typed_primitive_impl<activation> {
             if (additional_params.a != 1.0f)
                 input_host_tensors.push_back(ov::Tensor(input_dt, {}, &param_a));
         }
+
+        for (size_t i = 0; i < input_host_tensors.size(); i++) {
+            op_inputs.push_back(std::make_shared<ov::op::v0::Constant>(input_host_tensors[i]));
+        }
+        op->set_arguments(op_inputs);
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
