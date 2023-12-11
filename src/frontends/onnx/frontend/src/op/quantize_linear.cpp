@@ -34,10 +34,12 @@ Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
 
 void validate_zero_point_type(const Node& onnx_node, const Output<ngraph::Node>& y_zero_point) {
     const auto& y_zero_point_et = y_zero_point.get_element_type();
-    CHECK_VALID_NODE(onnx_node,
-                     y_zero_point_et.is_static() && (y_zero_point_et == element::u8 || y_zero_point_et == element::i8),
-                     "\"y_zero_point\" input data type must be static and of 8-bit "
-                     "integer type.");
+    CHECK_VALID_NODE(
+        onnx_node,
+        y_zero_point_et.is_static() && (y_zero_point_et == element::u8 || y_zero_point_et == element::i8 ||
+                                        y_zero_point_et == element::u16 || y_zero_point_et == element::i16),
+        "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u8, i8, u16 or i16"
+        "integer type.");
 }
 
 Output<ngraph::Node> validate_scale(const Node& onnx_node, const Output<ngraph::Node>& y_scale) {
@@ -65,12 +67,28 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_out
     std::shared_ptr<ngraph::Node> output_low;
     std::shared_ptr<ngraph::Node> output_high;
 
-    if (destination_type == element::i8) {
+    // These values could be used in a ConvertQuantizeDequantize transformation and
+    // should be aligned
+    switch (destination_type) {
+    case element::i8:
         output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -128);
         output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 127);
-    } else {
+        break;
+    case element::u8:
         output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
         output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 255);
+        break;
+    case element::i16:
+        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -32768);
+        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 32767);
+        break;
+    case element::u16:
+        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
+        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 65535);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type for QuantizeLinear");
+        break;
     }
 
     return std::make_tuple(output_low, output_high);

@@ -59,9 +59,10 @@ static std::string getDeviceFullName() {
 #else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #endif
-        char *ch = reinterpret_cast<char*>(&regs[0]);
+        char* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
-            brand_string += ch[j];
+            if (ch[j] != '\0')
+                brand_string += ch[j];
     }
 #else
 # error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
@@ -136,7 +137,7 @@ std::mutex Engine::SchedulerGuard::mutex;
 std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
 
 Engine::SchedulerGuard::SchedulerGuard() {
-#if IE_THREAD == IE_THREAD_SEQ
+#if OV_THREAD == OV_THREAD_SEQ
     // To save state for ACL cores in single-thread mode
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 #else
@@ -330,6 +331,8 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 
     if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
         get_num_streams(streams, model, config);
+    } else {
+        config.streamExecutorConfig.set_config_zero_stream();
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
