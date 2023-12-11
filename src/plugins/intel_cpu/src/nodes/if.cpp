@@ -49,7 +49,8 @@ void If::PortMapHelper::redefineTo() {
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
             // Only the shape is updated, the memory type remains unchanged
             auto memDesc = dstMemPtrs[j]->getDescPtr();
-            dstMemPtrs[j]->redefineDesc(memDesc->cloneWithNewDims(newShape));
+            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(memDesc->getPrecision(), Shape(newShape));
+            dstMemPtrs[j]->redefineDesc(desc);
         }
 
         size = srcMemPtr->getSize();
