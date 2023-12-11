@@ -241,10 +241,3 @@ macro(ov_cpack)
 
     include(CPack)
 endmacro()
-
-# deprecated
-
-macro(ie_cpack)
-    message(WARNING "'ie_cpack' is deprecated. Please, use 'ov_cpack'")
-    ov_cpack(${ARGV})
-endmacro()

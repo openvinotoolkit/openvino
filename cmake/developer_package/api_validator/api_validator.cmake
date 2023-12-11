@@ -196,10 +196,3 @@ endfunction()
 function(ov_add_api_validator_post_build_step)
     _ov_add_api_validator_post_build_step(${ARGN})
 endfunction()
-
-# deprecated
-
-function(ie_add_api_validator_post_build_step)
-    message(WARNING "'ie_add_api_validator_post_build_step' is deprecated, use 'ov_add_api_validator_post_build_step' instead")
-    _ov_add_api_validator_post_build_step(${ARGN})
-endfunction()

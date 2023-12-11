@@ -87,11 +87,6 @@ function(ov_set_temp_directory temp_variable source_tree_dir)
     endif()
 endfunction()
 
-macro(set_temp_directory)
-    message(WARNING "'set_temp_directory' is deprecated. Please, use 'ov_set_temp_directory'")
-    ov_set_temp_directory(${ARGV})
-endmacro()
-
 #
 # For cross-compilation
 #
@@ -292,11 +287,6 @@ function(ov_mark_target_as_cc TARGET_NAME)
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)
-endfunction()
-
-function(ie_mark_target_as_cc TARGET_NAME)
-    message(WARNING "This function is deprecated. Please use ov_mark_target_as_cc(TARGET_NAME) instead.")
-    ov_mark_target_as_cc(${TARGET_NAME})
 endfunction()
 
 include(python_requirements)
