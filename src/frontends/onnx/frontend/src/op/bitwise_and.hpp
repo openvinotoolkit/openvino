@@ -7,8 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
@@ -19,7 +17,6 @@ namespace set_1 {
 OutputVector bitwise_and(const Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
 
 }  // namespace onnx_import
