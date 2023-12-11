@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/erf.hpp"
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/erf.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -19,30 +18,28 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_erfc(const NodeContext& context) {
-    // aten::erf(Tensor self) -> Tensor
-    // aten::erf.out(Tensor self, Tensor(!a) out) -> Tensor(!a)
-    num_inputs_check(context, 1, 2);
-    auto x = context.get_input(0);
-    auto xdtype = x.get_element_type();
+  // aten::erf(Tensor self) -> Tensor
+  // aten::erf.out(Tensor self, Tensor(!a) out) -> Tensor(!a)
+  num_inputs_check(context, 1, 2);
+  auto x = context.get_input(0);
 
-    // in torch, Erfc return always float dtype, while ov cast to input dtype
-    if (xdtype.is_dynamic() || !xdtype.is_real()) {
-        x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
-    }
+  // create 'ones' to use to calculate complementary of Erf output
+  auto ones =
+      context.mark_node(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f))
+          ->output(0);
 
-    // apply Erf to the input tensor 'x'
-    auto y = context.mark_node(std::make_shared<v0::Erf>(x));
+  // align data types of input 'x' and ones
+  align_eltwise_input_types(context, x, ones);
 
-    // create 'ones' to use to calculate complementary of Erf output
-    auto ones = context.mark_node(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f))->output(0);
-    ones = context.mark_node(make_shared<v1::ConvertLike>(ones, y));
+  // apply Erf to the input tensor 'x'
+  auto y = context.mark_node(make_shared<v0::Erf>(x));
 
-    y = context.mark_node(make_shared<v1::Subtract>(ones, y));
+  y = context.mark_node(make_shared<v1::Subtract>(ones, y));
 
-    if (!context.input_is_none(1)) {
-        context.mutate_input(1, y);
-    }
-    return {y};
+  if (!context.input_is_none(1)) {
+    context.mutate_input(1, y);
+  }
+  return {y};
 };
 
 }  // namespace op
