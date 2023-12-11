@@ -116,4 +116,13 @@ TEST_F(ModelUtilsTest, get_input_info_by_model) {
     ASSERT_EQ(cur, ref);
 }
 
+TEST_F(ModelUtilsTest, get_subgraph_set_node) {
+    Model_1 model;
+    std::unordered_set<std::shared_ptr<ov::Node>> out_ops;
+    ov::util::get_subgraph_set_node(out_ops, model.get_test_abs_0());
+    auto expected = model.get_out_nodes_after_abs_0();
+    std::set<std::shared_ptr<ov::Node>> orig(out_ops.begin(), out_ops.end()),
+                                        ref(expected.begin(), expected.end());
+    ASSERT_EQ(orig, ref);
+}
 }  // namespace

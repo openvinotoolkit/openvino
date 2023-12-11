@@ -123,30 +123,31 @@ RepeatPatternExtractor::update_extractor_cache(
 std::vector<std::vector<ov::NodeVector>>
 RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
                                               const ov::NodeVector& ordered_ops) {
+    // handle case impossible to extract repeat patterns
     if (start_op_vec.size() < 2 || ordered_ops.size() < 3) {
         return {{}};
     }
-    // prepare node vector contins only output nodes after start_node
+    // prepare node vectors contains potential patterns from start_node to output
+    // first one is biggest subgraph, last one is smallest one
     auto pattern_cnt = start_op_vec.size();
     std::vector<ov::NodeVector> patterns(pattern_cnt);
     for (size_t pattern_idx = 0; pattern_idx < pattern_cnt; ++pattern_idx) {
+        // get only nodes are after start node in graph
         std::unordered_set<std::shared_ptr<ov::Node>> nodes_to_check;
         const auto& start_op_idx = start_op_vec[pattern_idx];
-        if (start_op_vec[pattern_idx] == 6) {
-            auto a = 0;
-        }
         util::get_subgraph_set_node(nodes_to_check, ordered_ops[start_op_idx]);
-        const ov::NodeVector buf_ordered_ops(ordered_ops.begin() + start_op_idx, ordered_ops.end());
-        for (const auto& op : buf_ordered_ops) {
+        for (const auto& op : ordered_ops) {
             if (nodes_to_check.count(op)) {
                 patterns[pattern_idx].push_back(op);
             }
         }
     }
     {
+        // reverse node vectors to anylize from small to big subgraphs
         std::reverse(patterns.begin(), patterns.end());
         std::vector<ov::NodeVector> potential_patterns(pattern_cnt);
         for (size_t i_orig = 0; i_orig < pattern_cnt - 1; ++i_orig) {
+            // skip comparation in case pattern is iniatized
             if (!potential_patterns[i_orig].empty()) {
                 continue;
             }
@@ -154,16 +155,13 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                 if (!potential_patterns[i_ref].empty()) {
                     continue;
                 }
+                // extract minimal intersected patterns
                 auto intersection_len = std::min(patterns[i_orig].size(), patterns[i_ref].size());
-                if (potential_patterns[i_orig].size() > intersection_len ||
-                    potential_patterns[i_ref].size() > intersection_len) {
-                    continue;
-                }
                 ov::NodeVector pattern_orig(intersection_len, nullptr), pattern_ref(intersection_len, nullptr);
                 for (size_t j = 0; j < intersection_len; ++j) {
                     if (model_comparator->match(patterns[i_orig][j], patterns[i_ref][j])) {
                         if (patterns[i_orig][j] == patterns[i_ref][j]) {
-                            continue;
+                            break;
                         }
                         if (is_split_by_matched_nodes) {
                             if (model_comparator->match(patterns[i_orig][0], patterns[i_orig][j]) ||
@@ -171,6 +169,7 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                                 break;
                             }
                         }
+                        // check inputs and matching in case not start_node
                         if (j != 0) {
                             bool is_input_matched = false;
                             for (size_t input_idx = 0; input_idx < patterns[i_orig][j]->inputs().size(); ++input_idx) {
@@ -183,14 +182,14 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                                 }
                             }
                             if (!is_input_matched) {
-                                // continue;
-                                break;
+                                continue;
                             }
                         }
                         pattern_orig[j] = patterns[i_orig][j];
                         pattern_ref[j] = patterns[i_ref][j];
                     }
                 }
+                // fill vectors only by valid nodes
                 ov::NodeVector orig, ref;
                 for (size_t node_idx = 0; node_idx < pattern_orig.size(); ++node_idx) {
                     if (pattern_orig[node_idx] != 0) {
@@ -207,25 +206,25 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                 potential_patterns[i_ref] = ref;
             }
         }
+        // sort patterns by node vectors size
         std::sort(potential_patterns.begin(), potential_patterns.end(), [](const ov::NodeVector& a, const ov::NodeVector& b) {
             return a.size() > b.size();
         });
 
+        // exclude not repeated pattern
         while (potential_patterns.rbegin()->size() < 2 && !potential_patterns.empty()) {
             potential_patterns.pop_back();
         }
         patterns = potential_patterns;
     }
 
+    // group node vectors to the patterns: std::vector<ov::NodeVector>
     std::vector<std::vector<ov::NodeVector>> pattern_vec;
     for (size_t pattern_idx = 0; pattern_idx < patterns.size(); ++pattern_idx) {
         const auto& pattern = patterns[pattern_idx];
         if (pattern_vec.empty()) {
             pattern_vec.push_back({{pattern}});
         } else if (pattern_vec.rbegin()->begin()->size() != pattern.size()) {
-            // if (pattern_vec.rbegin()->size() == 1) {
-            //     pattern_vec.pop_back();
-            // }
             pattern_vec.push_back({{pattern}});
         } else {
             auto it = pattern_vec.rbegin();
@@ -238,10 +237,6 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                 bool is_matched = true;
                 for (size_t i = 0; i < pattern.size(); ++i) {
                     if (!model_comparator->match(pattern[i], ref[i])) {
-                        // if (pattern_vec.rbegin()->size() == 1) {
-                        //     pattern_vec.pop_back();
-                        // }
-                        // pattern_vec.push_back({{pattern}});
                         is_matched = false;
                         break;
                     }
@@ -275,7 +270,7 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
         }
         for (auto& nodes_vector : get_patterns_by_nodes(matched_node.second, ordered_ops)) {
             try {
-                if (nodes_vector.size() == 1) {
+                if (nodes_vector.size() < 1) {
                     continue;
                 }
                 auto extracted_pattern = ov::util::generate_model(nodes_vector.front(), is_save_const, is_save_borders_only);

@@ -93,7 +93,7 @@ public:
 
         std::shared_ptr<ov::op::v1::Multiply> test_multiply_0_1 =
             std::make_shared<ov::op::v1::Multiply>(test_add_0, test_multiply_0_0);
-        test_multiply_0_0->set_friendly_name("Op_" + std::to_string(op_idx++));
+        test_multiply_0_1->set_friendly_name("Op_" + std::to_string(op_idx++));
 
         std::shared_ptr<ov::op::v0::Relu> test_relu_0_1 =
             std::make_shared<ov::op::v0::Relu>(test_multiply_0_1);
@@ -140,6 +140,9 @@ public:
             ref_borders = std::move(ref_res);
         }
         start_ops = {test_abs_0, test_abs_0_0, test_abs_0_1, test_abs_1};
+        out_nodes = {test_abs_0, test_relu_0, test_add_0, test_multiply_0_1,
+                     test_relu_0_1, test_add};
+        start_node = test_abs_0;
     }
 
     std::shared_ptr<ov::Model> get() {
@@ -201,9 +204,21 @@ public:
     ov::NodeVector
     get_start_ops() { return start_ops; }
 
+    std::unordered_set<std::shared_ptr<ov::Node>>
+    get_out_nodes_after_abs_0() {
+        return out_nodes;
+    }
+
+    std::shared_ptr<ov::Node>
+    get_test_abs_0() {
+        return start_node;
+    }
+
 protected:
     std::shared_ptr<ov::Model> model;
     std::vector<std::vector<ov::NodeVector>> ref_nodes;
     std::vector<std::vector<PatternBorders>> ref_borders;
     ov::NodeVector start_ops;
+    std::unordered_set<std::shared_ptr<ov::Node>> out_nodes;
+    std::shared_ptr<ov::Node> start_node;
 };

@@ -20,7 +20,8 @@ align_input_info(const std::shared_ptr<ov::Model>& model,
                  const std::map<std::string, ov::conformance::InputInfo> &in_info,
                  const std::map<std::string, ov::conformance::InputInfo> &in_info_ref,
                  const std::unordered_map<std::string, std::string> &matched_op);
-                 
+
+// get set nodes of subgraph after start_node                
 void
 get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
                       const std::shared_ptr<ov::Node>& node);
@@ -42,7 +43,6 @@ generate_model(ov::NodeVector& nodes,
         size_t functional_node_cnt = 0;
         for (const auto& node : nodes) {
             auto orig_node_name = node->get_friendly_name();
-            // checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
                                      clone_node(node, is_copy_constants, false, orig_node_name) });
             
@@ -185,9 +185,6 @@ generate_model(ov::NodeVector& nodes,
                 ++it;
             }
         }
-    }
-    for (const auto& op : model->get_ordered_ops()) {
-        // checked_ops.insert(op->get_friendly_name());
     }
     
     return { model, model_input_info };
