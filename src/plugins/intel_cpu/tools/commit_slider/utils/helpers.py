@@ -230,7 +230,6 @@ def fetchAppOutput(cfg, commit):
     commitLogger = getCommitLogger(cfg, commit)
     appPath = cfg["appPath"]
     # format appPath if it was cashed
-    i = input("we here")
     if cfg["cachedPathConfig"]["enabled"] == True:
         pathExists, suggestedAppPath = getCashedPath(commit, cfg)
         if pathExists and cfg["cachedPathConfig"]["changeAppPath"]:

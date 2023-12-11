@@ -185,6 +185,10 @@ class Mode(ABC):
             SKIPPED = 2
             IGNORED = 3
 
+        class CommitSource(Enum):
+            BUILDED = 1
+            CASHED = 2
+
         class PathCommit:
             def __init__(self, cHash, state):
                 self.cHash = cHash
@@ -204,14 +208,9 @@ class Mode(ABC):
             raise NotImplementedError()
 
         def wrappedBypass(self, curList, list, cfg) -> int:
-            i = input(curList)
-            print("bypass")
             try:
-                print("try")
-                i = input(curList)
                 self.bypass(curList, list, cfg)
             except util.BuildError as be:
-                i = input(be.errType)
                 if be.errType == util.BuildError.BuildErrType.TO_SKIP:
                     self.skipCommit(be.commit, curList, cfg)
                     self.wrappedBypass(curList, list, cfg)
@@ -260,9 +259,14 @@ class Mode(ABC):
             if (cfg["cachedPathConfig"]["enabled"] and
                 cfg["cachedPathConfig"]["scheme"] == "optional"):
                 # try to reduce interval by cashed borders
-                print(curList)
-                i = input("_")
-                pass
+                canReduce, newList = util.getReducedInterval(curList, cfg)
+                if canReduce and self.mode.checkIfListBordersDiffer(newList, cfg):
+                    self.mode.commonLogger.info(
+                        "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
+                            c1=curList[0], c2=curList[-1],
+                            c1_=newList[0], c2_=newList[-1])
+                    )
+                    curList = newList
             skipInterval = cfg["noCleanInterval"]
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
@@ -273,6 +277,7 @@ class Mode(ABC):
             self.mode.commonLogger.info(
                 "Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2])
             )
+            return curList
 
         def isComparative(self):
             # redefine for uncommon traversal
@@ -287,13 +292,12 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
-            self.prepBypass(curList, list, cfg)
+            curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                i = input("low len")
                 isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
@@ -321,7 +325,7 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
-            self.prepBypass(curList, list, cfg)
+            curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
@@ -354,7 +358,7 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
-            self.prepBypass(curList, list, cfg)
+            curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
