@@ -3,7 +3,7 @@
 
 #include "tensor.hpp"
 
-#include <iostream>
+#include "addon.hpp"
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
     if (info.Length() == 0) {
@@ -48,10 +48,14 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->tensor_prototype = ref;
 
-    exports.Set("Tensor", func);
+    exports.Set("Tensor", prototype);
     return exports;
 }
 

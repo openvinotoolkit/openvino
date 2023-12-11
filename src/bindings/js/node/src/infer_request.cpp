@@ -7,6 +7,7 @@
 #include <random>
 #include <thread>
 
+#include "addon.hpp"
 #include "compiled_model.hpp"
 #include "node_output.hpp"
 #include "tensor.hpp"
@@ -34,10 +35,14 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object InferRequestWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->infer_request_prototype = ref;
 
-    exports.Set("InferRequest", func);
+    exports.Set("InferRequest", prototype);
     return exports;
 }
 

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node_output.hpp"
-#include "partial_shape_wrap.hpp"
 
+#include "addon.hpp"
 #include "helper.hpp"
+#include "partial_shape_wrap.hpp"
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
 
@@ -21,10 +22,14 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->output_prototype = ref;
 
-    exports.Set("Output", func);
+    // exports.Set("Output", prototype);
     return exports;
 }
 
@@ -67,9 +72,14 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object Output<const ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    exports.Set("Output", func);
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->const_output_prototype = ref;
+
+    // exports.Set("Output", prototype);
     return exports;
 }
 

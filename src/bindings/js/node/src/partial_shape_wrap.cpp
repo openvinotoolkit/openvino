@@ -3,7 +3,7 @@
 
 #include "partial_shape_wrap.hpp"
 
-#include <iostream>
+#include "addon.hpp"
 
 PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PartialShapeWrap>(info) {
     const size_t attrs_length = info.Length();
@@ -39,10 +39,14 @@ Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object PartialShapeWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->partial_shape_prototype = ref;
 
-    exports.Set("PartialShape", func);
+    exports.Set("PartialShape", prototype);
     return exports;
 }
 

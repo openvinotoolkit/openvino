@@ -3,6 +3,7 @@
 
 #include "compiled_model.hpp"
 
+#include "addon.hpp"
 #include "errors.hpp"
 #include "infer_request.hpp"
 #include "node_output.hpp"
@@ -20,10 +21,14 @@ Napi::Function CompiledModelWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object CompiledModelWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->compiled_model_prototype = ref;
 
-    exports.Set("CompiledModel", func);
+    exports.Set("CompiledModel", prototype);
     return exports;
 }
 
