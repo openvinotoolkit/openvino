@@ -15,7 +15,7 @@
 #include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/layer_transformation.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsUtils {
 
@@ -30,7 +30,7 @@ public:
 class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphFactory {
 };
 
-class LayerTransformation : virtual public LayerTestsUtils::LayerTestsCommon {
+class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
 
