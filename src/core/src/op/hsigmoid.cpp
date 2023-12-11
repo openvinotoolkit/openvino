@@ -42,11 +42,15 @@ bool HSigmoid::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     const auto& input_shape = inputs[0].get_shape();
     const auto count = shape_size(input_shape);
     outputs[0].set_shape(input_shape);
+
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32>::apply<hsigmoid::Evaluate>(inputs[0].get_element_type(),
-                                                               inputs[0],
-                                                               outputs[0],
-                                                               count);
+    return IF_TYPE_OF(v5_HSigmoid_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32),
+                      hsigmoid::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      count);
 }
 
 bool HSigmoid::has_evaluate() const {

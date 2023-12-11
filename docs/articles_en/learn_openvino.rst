@@ -30,6 +30,5 @@ as well as an experienced user.
 | :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`  
 | The OpenVINO samples (Python and C++) are simple console applications that show how to use specific OpenVINO API features. They can assist you in executing tasks such as loading a model, running inference, querying particular device capabilities, etc.
 
-| :doc:`OpenVINO™ API 2.0 Transition Guide <openvino_2_0_transition_guide>`
-| With the release of 2022.1 OpenVINO introduced its improved API 2.0 and its new OpenVINO IR model format: IR v11. This tutorial will instruct you on how to adopt the new solution, as well as show you the benefits of the new logic of working with models.
-
+| :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>`
+| Detailed information on how OpenVINO accelerates Generative AI use cases and what models it supports. This tutorial provides instructions for running Generative AI models using Hugging Face Optimum Intel and Native OpenVINO APIs.
