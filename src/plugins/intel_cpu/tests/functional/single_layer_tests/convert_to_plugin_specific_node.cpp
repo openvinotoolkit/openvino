@@ -12,12 +12,13 @@ using namespace ov::test::utils;
 
 namespace ov {
 namespace test {
-using ConvertToPluginSpecificNodeParams = std::tuple<ov::Shape,            // non const input shape
-                                                     ov::Shape,            // const input shape
-                                                     ov::element::Type,    // precision
-                                                     utils::EltwiseTypes,  // node type
-                                                     size_t,               // port for const input
-                                                     size_t>;              // expected number of constant node
+
+using ConvertToPluginSpecificNodeParams = std::tuple<ov::Shape,                      // non const input shape
+                                                     ov::Shape,                      // const input shape
+                                                     ov::element::Type,              // element type
+                                                     ov::test::utils::EltwiseTypes,  // node type
+                                                     size_t,                         // port for const input
+                                                     size_t>;                        // expected number of constant node
 
 class ConvertToPluginSpecificNode : public testing::WithParamInterface<ConvertToPluginSpecificNodeParams>,
                                     public SubgraphBaseStaticTest {
@@ -25,13 +26,13 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvertToPluginSpecificNodeParams> obj) {
         ov::Shape nonConstShape, constShape;
         ov::element::Type prc;
-        utils::EltwiseTypes nodeType;
+        ov::test::utils::EltwiseTypes nodeType;
         size_t port, constNodeNum;
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = obj.param;
 
         std::ostringstream result;
-        result << "IS_NON_CONST=" << nonConstShape.to_string() << "_";
-        result << "IS_CONST=" << constShape.to_string() << "_";
+        result << "IS_NON_CONST=" << nonConstShape << "_";
+        result << "IS_CONST=" << constShape << "_";
         result << "PRC=" << prc << "_";
         result << "NODE=" << nodeType << "_";
         result << "PORT=" << port << "_";
@@ -48,22 +49,21 @@ protected:
 
         ov::Shape nonConstShape, constShape;
         ov::element::Type prc;
-        utils::EltwiseTypes nodeType;
+        ov::test::utils::EltwiseTypes nodeType;
         size_t port;
 
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
-
         const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));
-        const auto constNode = ngraph::builder::makeConstant(prc, ov::Shape(constShape), std::vector<float>{}, true);
+        const auto constNode = ngraph::builder::makeConstant(prc, constShape, std::vector<float>{}, true);
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;
 
-        auto powerStatic = utils::makeEltwise(inputs[0], inputs[1], nodeType);
+        auto powerStatic = ov::test::utils::makeEltwise(inputs[0], inputs[1], nodeType);
 
-        function = std::make_shared<ov::Model>(powerStatic, ov::ParameterVector{param}, "ConvertToPluginSpecificNode");
+        function = std::make_shared<ov::Model>(powerStatic, ParameterVector{param}, "ConvertToPluginSpecificNode");
     }
 };
 
@@ -84,9 +84,9 @@ const std::vector<ov::Shape> constIS = {
     {1, 1, 1, 1},
 };
 
-std::vector<utils::EltwiseTypes> nodeTypes = {utils::EltwiseTypes::ADD,
-                                              utils::EltwiseTypes::SUBTRACT,
-                                              utils::EltwiseTypes::MULTIPLY};
+std::vector<ov::test::utils::EltwiseTypes> nodeTypes = {ov::test::utils::EltwiseTypes::ADD,
+                                                        ov::test::utils::EltwiseTypes::SUBTRACT,
+                                                        ov::test::utils::EltwiseTypes::MULTIPLY};
 
 const std::vector<size_t> port = {0, 1};
 
@@ -105,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckEltwise,
 const auto testParamsPower = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                 ::testing::ValuesIn(constIS),
                                                 ::testing::Values(ov::element::f32),
-                                                ::testing::Values(utils::EltwiseTypes::POWER),
+                                                ::testing::Values(ov::test::utils::EltwiseTypes::POWER),
                                                 ::testing::Values(1),
                                                 ::testing::Values(0));
 
@@ -115,5 +115,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckPower,
                          ConvertToPluginSpecificNode::getTestCaseName);
 
 }  // namespace
+
 }  // namespace test
 }  // namespace ov

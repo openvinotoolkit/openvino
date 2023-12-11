@@ -28,14 +28,13 @@ void OpSummaryDestroyer::initialize(OpSummary* p) {
     p_instance = p;
 }
 
-OpSummary::OpSummary(unsigned short int in_downgrade_coefficient) {
+OpSummary::OpSummary() {
     reportFilename = ov::test::utils::OP_REPORT_FILENAME;
-    downgrade_coefficient = in_downgrade_coefficient;
 }
 
-OpSummary& OpSummary::createInstance(unsigned short int in_downgrade_coefficient) {
+OpSummary& OpSummary::createInstance() {
     if (!p_instance) {
-        p_instance = new OpSummary(in_downgrade_coefficient);
+        p_instance = new OpSummary();
         destroyer.initialize(p_instance);
     }
     return *p_instance;
@@ -43,13 +42,6 @@ OpSummary& OpSummary::createInstance(unsigned short int in_downgrade_coefficient
 
 OpSummary& OpSummary::getInstance() {
     return createInstance();
-}
-
-void OpSummary::setDowngradeCoefficient(unsigned short int in_downgrade_coefficient) {
-    if (p_instance && p_instance->downgrade_coefficient != in_downgrade_coefficient) {
-        p_instance->downgrade_coefficient = in_downgrade_coefficient;
-    }
-    auto& summary_instance = createInstance(in_downgrade_coefficient);
 }
 
 void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
@@ -313,9 +305,6 @@ void OpSummary::saveReport() {
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (auto& it : stats) {
-        it.second.rel_passed /= downgrade_coefficient;
-        it.second.rel_all /= downgrade_coefficient;
-
         std::string name = functional::get_node_version(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
