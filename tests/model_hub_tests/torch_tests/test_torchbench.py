@@ -30,7 +30,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         subprocess.check_call(
             ["git", "checkout", "850364ac2678b2363f086b7549254b6cb7df2e4d"], cwd=self.repo_dir.name)
         m_list = get_models_list(self._model_list_path)
-        m_processed_list = ["demucs","tts_angular"]
+        m_processed_list = [m for m, _, mark, _ in m_list if mark != "skip"]
         subprocess.check_call(
             [sys.executable, "install.py"]+m_processed_list, cwd=self.repo_dir.name)
 
@@ -52,11 +52,6 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
     def teardown_class(self):
         # cleanup tmpdir
         self.repo_dir.cleanup()
-
-    @pytest.mark.parametrize("name", ["demucs","tts_angular"])
-    @pytest.mark.precommit
-    def test_convert_model_all_models2(self, name, ie_device):
-        self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name", process_pytest_marks(_model_list_path))
     @pytest.mark.nightly
