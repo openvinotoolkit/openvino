@@ -11,7 +11,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ov/opsets/opset2.hpp>
 #include <low_precision/space_to_batch.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
