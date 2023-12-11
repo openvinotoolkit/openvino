@@ -117,6 +117,7 @@ LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_tile_rank(2);
+    subgraph->set_tensor_rank(master_shape.size());
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
     subgraph->generate({}, {}, {}, backend_passes, lowered_pass_config, lowered_backend_passes, factory);
     return subgraph;

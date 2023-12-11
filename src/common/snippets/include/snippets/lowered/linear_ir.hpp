@@ -33,6 +33,7 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
+    size_t m_tensor_rank = 1;
     PerfCountMode perf_count_mode = PerfCountMode::Disabled;
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
@@ -72,10 +73,9 @@ public:
 
     bool is_dynamic() const;
 
-    const container& get_ops() const {return m_expressions; }
-    const io_container& get_IO_ops() const {return m_io_expressions; }
-    Config get_config() {return m_config; }
-    void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
+    const container& get_ops() const { return m_expressions; }
+    const io_container& get_IO_ops() const { return m_io_expressions; }
+    Config get_config() const { return m_config; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -129,6 +129,8 @@ public:
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
     void serialize(const std::string& xml, const std::string& bin) const;
 
+    void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
+    void set_tensor_rank(size_t tensor_rank) { m_config.m_tensor_rank = tensor_rank; }
     void set_min_parallel_work_amount(size_t value) { m_config.m_min_parallel_work_amount = value; }
     void set_min_kernel_work_amount(size_t value) { m_config.m_min_kernel_work_amount = value; }
 
@@ -138,6 +140,7 @@ public:
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
+    void update_shape_infer();
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
 

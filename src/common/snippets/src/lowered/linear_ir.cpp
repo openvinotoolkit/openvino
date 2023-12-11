@@ -41,7 +41,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
                 last_param = it;
         }
     }
-    m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
+    update_shape_infer();
 }
 
 std::shared_ptr<LinearIR> LinearIR::clone() const {
@@ -59,7 +59,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     cloned->m_loop_manager = m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
-    cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    cloned->update_shape_infer();
     return cloned;
 }
 
@@ -150,7 +150,11 @@ bool LinearIR::is_dynamic() const {
         if (ioe->get_type() == IOExpression::io_type::OUTPUT && utils::is_dynamic_vdims(ioe->get_input_port_descriptor(0)->get_shape()))
             return true;
     }
-    return false;
+    return std::any_of(m_expressions.cbegin(), m_expressions.cend(),
+                       [](const ExpressionPtr& expr) {
+                            return ov::is_type<op::LoopBeginDynamic>(expr->get_node()) ||
+                                   ov::is_type<op::LoopEndDynamic>(expr->get_node());
+                       });
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {
@@ -355,6 +359,10 @@ VectorDims LinearIR::get_master_shape() const {
         }
     }
     return master_shape;
+}
+
+void LinearIR::update_shape_infer() {
+    m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
 }
 
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)
