@@ -30,19 +30,17 @@ private:
     static OpSummary* p_instance;
     static bool extractBody;
     std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
-    unsigned short int downgrade_coefficient;
 
     std::string get_opset_number(const std::string& opset_full_name);
 
 protected:
-    OpSummary(unsigned short int downgrade_coefficient = 1);
-    static OpSummary& createInstance(unsigned short int downgrade_coefficient = 1);
+    OpSummary();
+    static OpSummary& createInstance();
     static OpSummaryDestroyer destroyer;
     friend class OpSummaryDestroyer;
 
 public:
     static OpSummary& getInstance();
-    static void setDowngradeCoefficient(unsigned short int downgrade_coefficient = 1);
 
     std::map<ov::NodeTypeInfo, PassRate> getOPsStats() {
         return opsStats;

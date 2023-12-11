@@ -701,6 +701,29 @@ TEST(constant, int64_vector_broadcast) {
     EXPECT_EQ(p[3], 1);
 }
 
+TEST(constant, int64_string_max) {
+    Shape shape{4};
+    vector<string> input{"9223372036854775807", "9223372036854775807", "9223372036854775807", "9223372036854775807"};
+
+    constexpr auto exp_value = std::numeric_limits<int64_t>::max();
+    ov::op::v0::Constant c(element::i64, shape, input);
+    auto v = c.get_vector<int64_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, testing::Each(exp_value));
+
+    const auto p = c.get_data_ptr<int64_t>();
+    EXPECT_EQ(p[0], exp_value);
+    EXPECT_EQ(p[1], exp_value);
+    EXPECT_EQ(p[2], exp_value);
+    EXPECT_EQ(p[3], exp_value);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
+}
+
 //
 // uint1
 //
@@ -1182,6 +1205,31 @@ TEST(constant, uint64_vector_broadcast) {
     EXPECT_EQ(p[1], 1);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 1);
+}
+
+TEST(constant, uint64_string_max) {
+    Shape shape{4};
+    vector<string> input{"18446744073709551615",
+                         "18446744073709551615",
+                         "18446744073709551615",
+                         "18446744073709551615"};
+    ov::op::v0::Constant c(element::u64, shape, input);
+    constexpr auto exp_value = std::numeric_limits<uint64_t>::max();
+    auto v = c.get_vector<uint64_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, testing::Each(exp_value));
+
+    const auto p = c.get_data_ptr<uint64_t>();
+    EXPECT_EQ(p[0], exp_value);
+    EXPECT_EQ(p[1], exp_value);
+    EXPECT_EQ(p[2], exp_value);
+    EXPECT_EQ(p[3], exp_value);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
 //
