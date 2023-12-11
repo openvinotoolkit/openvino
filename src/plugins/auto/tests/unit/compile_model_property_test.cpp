@@ -3,6 +3,7 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/runtime/properties.hpp"
 
 // define a matcher if all the elements of subMap are contained in the map.
 MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are contained in the map.") {
@@ -229,7 +230,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertyTestParams> obj) {
         std::string deviceName;
         std::string devicePriorities;
-        ov::PropertyName propertyName;
         std::map<std::string, bool> isSupportProperty;
         ov::AnyMap properties;
         std::tie(deviceName, devicePriorities, isSupportProperty, properties) = obj.param;
