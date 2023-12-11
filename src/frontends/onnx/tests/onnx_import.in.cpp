@@ -7029,3 +7029,30 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_and) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/bitwise_and.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {1, 0, 1, 4, 5});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_and_broadcast_condition) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/bitwise_and_broadcast_condition.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {0, 0, 0, 4, 4});
+
+    test_case.run();
+}
+
+
