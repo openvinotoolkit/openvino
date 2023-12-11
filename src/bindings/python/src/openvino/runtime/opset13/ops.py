@@ -292,7 +292,7 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
-    def display_shared_memory_warning(warning_message: str):
+    def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:
             log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
 
