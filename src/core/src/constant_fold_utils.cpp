@@ -65,13 +65,10 @@ std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov:
 }
 
 std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node,
-                                                       OutputVector inputs,
+                                                       OutputVector&& inputs,
                                                        bool constant_fold_inputs) {
     size_t num_inputs = node->get_input_size();
     if (num_inputs == 0)
-        return node;
-
-    if (is_convert(node))
         return node;
 
     bool requires_conversion = false;

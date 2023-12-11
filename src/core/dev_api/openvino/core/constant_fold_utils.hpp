@@ -28,7 +28,7 @@ bool is_convert(const std::shared_ptr<Node>& node);
 ///
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
 OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node,
-                                                      OutputVector inputs,
+                                                      OutputVector&& inputs,
                                                       bool constant_fold_inputs = true);
 
 OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node,
