@@ -24,7 +24,7 @@ void regclass_Tensor(py::module m) {
             R"(
                 Tensor's special constructor.
 
-                :param array: Array to create tensor from.
+                :param array: Array to create the tensor from.
                 :type array: numpy.array
                 :param shared_memory: If `True`, this Tensor memory is being shared with a host,
                                       that means the responsibility of keeping host memory is
@@ -103,6 +103,22 @@ void regclass_Tensor(py::module m) {
 
                     arr = np.array(shape=(100), dtype=np.uint8)
                     t = ov.Tensor(arr, [100, 8], ov.Type.u1)
+            )");
+
+    // It may clash in future with overloads like <ov::Coordinate, ov::Coordinate>
+    cls.def(py::init([](py::list& list) {
+                auto array = py::array(list);
+                return Common::object_from_data<ov::Tensor>(array, false);
+            }),
+            py::arg("list"),
+            R"(
+                Tensor's special constructor.
+
+                Creates a Tensor from a given Python list.
+                Warning: It is always a copy of list's data!
+
+                :param array: List to create the tensor from.
+                :type array: List[int, float, str]
             )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));

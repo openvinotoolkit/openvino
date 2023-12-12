@@ -69,6 +69,29 @@ def test_empty_string_tensor(init_type):
 @pytest.mark.parametrize(
     ("string_data"),
     [
+        ([bytes("text", encoding="utf-8"), bytes("openvino", encoding="utf-8")]),
+        ([[b"xyz"], [b"abc"], [b"this is my last"]]),
+        (["text", "abc", "openvino"]),
+        (["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"]),
+        ([["text"], ["abc"], ["openvino"]]),
+        ([["jeszcze więcej słów", "효과가 있었어"]]),
+    ],
+)
+def test_init_with_list(string_data):
+    tensor = ov.Tensor(string_data)
+    assert tensor.element_type == ov.Type.string
+    # Convert to numpy to perform all checks. Memory is not shared,
+    # so it does not matter if data is stored in numpy format.
+    _string_data = np.array(string_data)
+    # Encoded:
+    check_bytes_based(tensor, _string_data)
+    # Decoded:
+    check_string_based(tensor, _string_data)
+
+
+@pytest.mark.parametrize(
+    ("string_data"),
+    [
         (np.array(["text", "abc", "openvino"]).astype("S")),  # "|S"
         (np.array([["xyz"], ["abc"]]).astype(np.bytes_)),  # "|S"
         (np.array(["text", "abc", "openvino"])),  # "<U", depending on platform
@@ -77,7 +100,7 @@ def test_empty_string_tensor(init_type):
         (np.array([["jeszcze więcej słów", "효과가 있었어"]])),  # "<U", depending on platform
     ],
 )
-def test_init_with_numpy_bytes(string_data):
+def test_init_with_numpy(string_data):
     tensor = ov.Tensor(string_data, shared_memory=False)
     assert tensor.element_type == ov.Type.string
     # Encoded:
@@ -107,7 +130,7 @@ def test_init_with_numpy_bytes(string_data):
         (np.array([["#text@", "больше текста"]])),  # "<U"
     ],
 )
-def test_empty_tensor_populate_bytes(init_shape, string_data):
+def test_empty_tensor_populate(init_shape, string_data):
     tensor = ov.Tensor(ov.Type.string, init_shape)
     assert tensor.element_type == ov.Type.string
     tensor.copy_from(string_data)

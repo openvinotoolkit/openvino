@@ -182,10 +182,10 @@ py::array string_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
-    // List is helpful to store PyObjects, can I work around it?
+    // List is helpful to store PyObjects, can it be replaced?
     // Maybe storing them in C++ vector and get max length via
     // PyUnicode_GET_LENGTH or PyUnicode_GetLength
-    // but there is a problem of detecting endianness...
+    // but there is a problem of detecting endianness.
     // In [2]: np.dtype("<U4")
     // Out[2]: dtype('<U4')
     // In [3]: np.dtype("|U4")
@@ -353,6 +353,10 @@ ov::Tensor create_shared(py::array& array) {
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
+    if (array_helpers::get_ov_type(array) == ov::element::string) {
+        OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
+    }
+
     auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
 
     if (array_helpers::is_contiguous(array)) {
@@ -362,6 +366,10 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node>& port) {
+    if (array_helpers::get_ov_type(array) == ov::element::string) {
+        OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
+    }
+
     auto array_type = array_helpers::get_ov_type(array);
     auto array_shape_size = ov::shape_size(array_helpers::get_shape(array));
     auto port_element_type = port.get_element_type();
@@ -465,7 +473,15 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        res[py::cast(out)] = array_helpers::array_from_tensor(request.m_request.get_tensor(out), share_outputs);
+        auto t = request.m_request.get_tensor(out);
+        if (t.get_element_type() == ov::element::string) {
+            if (share_outputs) {
+                PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);
+            }
+            res[py::cast(out)] = array_helpers::string_array_from_tensor(std::move(t));
+        } else {
+            res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
+        }
     }
     return res;
 }
