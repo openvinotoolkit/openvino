@@ -855,7 +855,7 @@ bool fuse_type_to_multinomial_v13(const std::shared_ptr<ov::Node>& node, const p
     }
 
     return update_type(0, node, precisions, [&](const element::Type& type) {
-        multinomial->set_convert_type(ov::element::i32);
+        multinomial->set_convert_type(type);
     });
 }
 
