@@ -292,13 +292,15 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+    def display_shared_memory_warning(warning_message: str) -> None:
+        if shared_memory:
+            log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
+
     if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
     else:
         _value, _shared_memory = np.array(value), False
-        if shared_memory:
-            log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default. "
-                        "Set shared_memory=False to hide this warning.")
+        display_shared_memory_warning(f"Converting scalar to corresponding type of {_value.dtype}")
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
@@ -307,30 +309,30 @@ def constant(
                 raise RuntimeError(
                     f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
                     "Please use `openvino.helpers` module and `pack_data`, `unpack_data` functions to fill this Constant's data.")
-            log.warning(f"Constant initialized with packed type of {dtype}. Memory sharing is disabled by default.")
+            display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
             if not np.allclose(_value, 0):
                 raise RuntimeError(
                     f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
                     "Please use `this_constant.data[:] = ...` to fill this Constant's data.")
-            log.warning(f"Constant initialized with OpenVINO custom {dtype}. Memory sharing is disabled by default.")
+            display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
         else:
             _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
             if _dtype is int:
-                log.warning("Converting scalar type of undefined bitwidth to 32-bit integer. Memory sharing is disabled by default.")
+                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit integer")
                 _value, _shared_memory = _value.astype(np.int32), False
             elif _dtype is float:
-                log.warning("Converting scalar type of undefined bitwidth to 32-bit float. Memory sharing is disabled by default.")
+                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit float")
                 _value, _shared_memory = _value.astype(np.float32), False
             elif _dtype is bool:
-                log.warning("Converting bool type to numpy bool. Memory sharing is disabled by default.")
+                display_shared_memory_warning("Converting bool type to numpy bool")
                 _value, _shared_memory = _value.astype(np.bool_), False
             else:
                 if _dtype != _value.dtype:
-                    log.warning(f"Converting value of {_value.dtype} to {_dtype}. Memory sharing is disabled by default.")
+                    display_shared_memory_warning(f"Converting value of {_value.dtype} to {_dtype}")
                     _value, _shared_memory = _value.astype(_dtype), False
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)

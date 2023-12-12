@@ -325,8 +325,9 @@ bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
-    return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
-           pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
+    std::string real_name = ov::parseDeviceNameIntoConfig(dev_name)._deviceName;
+    return pluginRegistry.find(real_name) != pluginRegistry.end() &&
+           pluginRegistry.at(real_name).pluginCreateFunc == ov::proxy::create_plugin;
 #else
     return false;
 #endif
@@ -837,7 +838,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 return compile_model_and_cache(model, plugin, parsed._config, {}, cacheContent);
             });
     } else if (cacheManager) {
-        // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
+        // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
