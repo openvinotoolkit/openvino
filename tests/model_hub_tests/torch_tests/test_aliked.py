@@ -121,7 +121,7 @@ class TestAlikedConvertModel(TestTorchConvertModel):
         self.repo_dir.cleanup()
 
     @pytest.mark.nightly
-    @pytest.mark.precommit
+    #@pytest.mark.precommit
     @pytest.mark.parametrize("name", ['aliked-n16rot'])
     def test_convert_model_all_models_default(self, name, ie_device):
         self.run(name, None, ie_device)
