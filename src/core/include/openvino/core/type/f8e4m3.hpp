@@ -83,12 +83,6 @@ public:
 
 private:
     constexpr f8e4m3(uint8_t x, bool) : m_value{x} {}
-    union F32 {
-        F32(float val) : f{val} {}
-        F32(uint32_t val) : i{val} {}
-        float f;
-        uint32_t i;
-    };
 
     uint8_t m_value = 0;
 };
