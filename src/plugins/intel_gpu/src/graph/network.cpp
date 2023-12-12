@@ -37,6 +37,7 @@
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
+#include "program_dump_graph.h"
 
 // TODO: Remove once we have an abstraction for kernels_cache
 #include "kernel_base.h"
@@ -1119,6 +1120,22 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_COUT << "[program:" << std::setw(2) << ((get_program() != nullptr) ? get_program()->get_id() : 0)
                        << "|network:" << std::setw(2) << get_id() << "|iter:" << std::setw(4) << curr_iter <<  "] benchmark_app cmd: "
                        << data_shape_str.str() << std::endl;
+    }
+
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty() && debug_config->is_target_iteration(curr_iter)) {
+        auto get_fixed_str = [](int value, int length = 2) -> std::string {
+            std::ostringstream ss;
+            ss << std::setw(length) << std::setfill('0') << std::to_string(value);
+            return ss.str();
+        };
+        std::string path = get_dir_path(get_config());
+        if (!path.empty()) {
+            std::ofstream ofs(path + "cldnn_program_exec_p" + get_fixed_str(get_program()->get_id()) + "_n" + get_fixed_str(get_id())
+                              + "_" + get_fixed_str(curr_iter, 5) + ".graph");
+            dump_graph_init(ofs, *get_program(), [&](const primitive_id& id) -> std::shared_ptr<primitive_inst> {
+                return get_primitive(id);
+            });
+        }
     }
 
     // Store events only in case of OOO queue or enabled Profiling
