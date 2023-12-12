@@ -36,7 +36,7 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
-    threshold = 0.1f;
+    rel_threshold = 0.1f;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -52,7 +52,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
