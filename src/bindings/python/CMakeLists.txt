@@ -329,7 +329,7 @@ macro(ov_define_setup_py_dependencies)
 
     if(wheel_pre_release)
         list(APPEND ov_setup_py_deps
-            "${OpenVINO_SOURCE_DIR}/docs/dev/pre-release-note.md")
+            "${OpenVINO_SOURCE_DIR}/docs/dev/pypi_publish/pre-release-note.md")
     endif()
 endmacro()
 
