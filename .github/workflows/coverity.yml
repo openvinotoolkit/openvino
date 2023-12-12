@@ -1,8 +1,9 @@
 name: Coverity (Ubuntu 20.04, Python 3.11)
 on:
-  schedule:
-    # run daily at 00:00
-    - cron: '0 0 * * *'
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
