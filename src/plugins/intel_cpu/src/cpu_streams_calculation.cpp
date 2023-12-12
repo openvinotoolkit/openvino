@@ -15,6 +15,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"
+#include "transformations/utils.hpp"
 
 using namespace ov;
 using namespace ov::threading;
@@ -31,8 +32,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
                                                      const Config::LatencyThreadingMode latencyThreadingMode,
-                                                     const std::vector<std::vector<int>>& proc_type_table,
-                                                     const int num_blocked_cores) {
+                                                     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
     std::vector<std::vector<int>> proc_socket_table;
@@ -165,7 +165,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             if ((proc_type_table.size() == 1) && (model_prefer_threads > 0)) {
                 stream_info[NUMBER_OF_STREAMS] = n_streams;
                 if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
-                    (proc_type_table[0][MAIN_CORE_PROC] > 0) && (num_blocked_cores == 0)) {
+                    (proc_type_table[0][MAIN_CORE_PROC] > 0)) {
                     stream_info[PROC_TYPE] = MAIN_CORE_PROC;
                     n_threads_per_stream =
                         proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
@@ -478,13 +478,15 @@ int get_model_prefer_threads(const int num_streams,
                 model_prefer = proc_type_table[0][ALL_PROC];
             }
 #else
-            bool fp_intesive = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+            bool fp_intensive = has_matmul_with_compressed_weights(model);
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
             // by default the latency case uses (faster) Big cores only, depending on the compute ratio
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (fp_intesive ? fp32_threshold : int8_threshold))
-                               ? proc_type_table[0][MAIN_CORE_PROC]
+                                                                 (fp_intensive ? int8_threshold : fp32_threshold))
+                               ? ((!fp_intensive && ov::get_number_of_blocked_cores())
+                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
+                                      : proc_type_table[0][MAIN_CORE_PROC])
                                : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
 #endif
         }
@@ -524,8 +526,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                                  model_prefer_threads,
                                                                  ov::util::to_string(config.hintPerfMode),
                                                                  config.latencyThreadingMode,
-                                                                 proc_type_table,
-                                                                 ov::get_number_of_blocked_cores());
+                                                                 proc_type_table);
     return proc_type_table;
 }
 
