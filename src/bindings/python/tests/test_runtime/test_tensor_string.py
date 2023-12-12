@@ -16,14 +16,14 @@ def _check_tensor_string(tensor_data, test_data):
 
 
 def check_bytes_based(tensor, string_data):
-    tensor_data = tensor.data
+    tensor_data = tensor.bytes_data
     encoded_data = string_data if string_data.dtype.kind == "S" else np.char.encode(string_data)
     assert tensor_data.dtype.kind == "S"
     _check_tensor_string(tensor_data, encoded_data)
 
 
 def check_string_based(tensor, string_data):
-    tensor_data = tensor.data_str
+    tensor_data = tensor.str_data
     decoded_data = string_data if string_data.dtype.kind == "U" else np.char.decode(string_data)
     assert tensor_data.dtype.kind == "U"
     _check_tensor_string(tensor_data, decoded_data)

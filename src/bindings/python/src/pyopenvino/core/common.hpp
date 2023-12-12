@@ -57,6 +57,10 @@ std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
+py::array bytes_array_from_tensor(ov::Tensor&& t);
+
+py::array string_array_from_tensor(ov::Tensor&& t);
+
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
 }; // namespace array_helpers

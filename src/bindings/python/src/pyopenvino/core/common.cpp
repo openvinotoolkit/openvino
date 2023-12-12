@@ -142,46 +142,83 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     }
 }
 
+py::array bytes_array_from_tensor(ov::Tensor&& t) {
+    if (t.get_element_type() != ov::element::string) {
+        OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    // Slow approach ~x5:
+    // py::list _list;
+    // for(size_t i = 0; i < t.get_size(); ++i) {
+    //     PyObject* _unicode_obj = PyBytes_FromStringAndSize(&data[i][0], data[i].length());
+    //     _list.append(_unicode_obj);
+    //     Py_XDECREF(_unicode_obj);
+    // }
+    // return py::array(_list);
+    auto data = t.data<std::string>();
+    auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
+        return x.length() < y.length();
+    });
+    auto max_stride = max_element->length();
+    auto dtype = py::dtype("|S" + std::to_string(max_stride));
+    // Adjusting strides to follow the numpy convention:
+    auto new_strides = t.get_strides();
+    auto element_stride = new_strides[new_strides.size() - 1];
+    for (size_t i = 0; i < new_strides.size(); ++i) {
+        new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+    }
+    auto array = py::array(dtype, t.get_shape(), new_strides);
+    // Create an empty array and populate it with utf-8 encoded strings:
+    auto ptr = array.data();
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        auto start = &data[i][0];
+        auto length = data[i].length();
+        auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
+        std::fill_n(end, max_stride - length, 0);
+    }
+    return array;
+}
+
+py::array string_array_from_tensor(ov::Tensor&& t) {
+    if (t.get_element_type() != ov::element::string) {
+        OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    // List is helpful to store PyObjects, can I work around it?
+    // Maybe storing them in C++ vector and get max length via
+    // PyUnicode_GET_LENGTH or PyUnicode_GetLength
+    // but there is a problem of detecting endianness...
+    // In [2]: np.dtype("<U4")
+    // Out[2]: dtype('<U4')
+    // In [3]: np.dtype("|U4")
+    // Out[3]: dtype('<U4')
+    // auto dtype = py::dtype("|U" + ...); <-- promise a fallback to system native
+
+    // Approach that is compact and faster than np.char.decode(tensor.data):
+    auto data = t.data<std::string>();
+    py::list _list;
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "strict");
+        _list.append(_unicode_obj);
+        Py_XDECREF(_unicode_obj);
+    }
+    // Adjusting shape to follow the numpy convention:
+    py::array array(_list);
+    array.resize(t.get_shape());
+    return array;
+}
+
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
+    // Special case for string data type.
+    if (t.get_element_type() == ov::element::string) {
+        PyErr_WarnEx(PyExc_RuntimeWarning,
+                     "Data of string type will be copied! Please use dedicated functions "
+                     "`str_data` and `bytes_data` to avoid confusion while accessing "
+                     "Tensor's contents.",
+                     1);
+        return bytes_array_from_tensor(std::move(t));
+    }
+    // Get actual dtype from OpenVINO type:
     auto ov_type = t.get_element_type();
     auto dtype = Common::ov_type_to_dtype().at(ov_type);
-
-    // Special case for string data type.
-    // TODO notify that strings won't be exposed as a view?
-    if (ov_type == ov::element::string) {
-        auto data = t.data<std::string>();
-
-        // Slow approach ~x5:
-        // py::list _list;
-        // for(size_t i = 0; i < t.get_size(); ++i) {
-        //     PyObject* _unicode_obj = PyBytes_FromStringAndSize(&data[i][0], data[i].length());
-        //     _list.append(_unicode_obj);
-        //     Py_XDECREF(_unicode_obj);
-        // }
-        // return py::array(_list);
-
-        auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
-            return x.length() < y.length();
-        });
-        auto max_stride = max_element->length();
-        auto dtype = py::dtype("|S" + std::to_string(max_stride));
-        // Adjusting strides to follow the numpy convention:
-        auto new_strides = t.get_strides();
-        auto element_stride = new_strides[new_strides.size() - 1];
-        for (size_t i = 0; i < new_strides.size(); ++i) {
-            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
-        }
-        auto array = py::array(dtype, t.get_shape(), new_strides);
-        // Create an empty array and populate it with utf-8 encoded strings:
-        auto ptr = array.data();
-        for (size_t i = 0; i < t.get_size(); ++i) {
-            auto start = &data[i][0];
-            auto length = data[i].length();
-            auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
-            std::fill_n(end, max_stride - length, 0);
-        }
-        return array;
-    }
     // Return the array as a view:
     if (is_shared) {
         if (ov_type.bitwidth() < Common::values::min_bitwidth) {

@@ -277,49 +277,45 @@ void regclass_Tensor(py::module m) {
 
             For tensors with string element type, returns a numpy array of bytes
             without any decoding.
-            To change the underlaying data use `copy_from` function.
-            Warning: Data is always a copy of underlaying memory!
+            To change the underlaying data use `string_data`/`bytes_data` properties
+            or the `copy_from` function.
+            Warning: Data of string type is always a copy of underlaying memory!
 
             :rtype: numpy.array
         )");
 
-    cls.def_property_readonly(
-        "data_str",
+    cls.def_property(
+        "bytes_data",
         [](ov::Tensor& self) {
-            // Special property which decodes strings to unicode used by numpy:
-            auto ov_type = self.get_element_type();
-            auto dtype = Common::ov_type_to_dtype().at(ov_type);
-            if (ov_type == ov::element::string) {
-                auto data = self.data<std::string>();
-                // List is helpful to store PyObjects, can I work around it?
-                // Maybe storing them in C++ vector and get max length via
-                // PyUnicode_GET_LENGTH or PyUnicode_GetLength
-                // but there is a problem of detecting endianness...
-                // In [2]: np.dtype("<U4")
-                // Out[2]: dtype('<U4')
-                // In [3]: np.dtype("|U4")
-                // Out[3]: dtype('<U4')
-                // auto dtype = py::dtype("|U" + ...); <-- promise a fallback to system native
-
-                // Approach that is compact and faster than np.char.decode(tensor.data):
-                py::list _list;
-                for (size_t i = 0; i < self.get_size(); ++i) {
-                    PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "strict");
-                    _list.append(_unicode_obj);
-                    Py_XDECREF(_unicode_obj);
-                }
-                // Adjusting shape to follow the numpy convention:
-                py::array array(_list);
-                array.resize(self.get_shape());
-                return array;
-            }
-            OPENVINO_THROW("Only applicable for string arrays!");
+            return Common::array_helpers::bytes_array_from_tensor(std::forward<ov::Tensor>(self));
+        },
+        [](ov::Tensor& self, py::object& other) {
+            // TODO: implement
+            return;
         },
         R"(
-            Access to Tensor's data with string Type.
+            Access to Tensor's data with string Type in np.bytes_ dtype.
 
-            Returns a decoded numpy array with corresponding shape and dtype.
-            Warning: Data is always a copy of underlaying memory!
+            Returns a numpy array with corresponding shape and dtype.
+            Warning: Data of string type is always a copy of underlaying memory!
+
+            :rtype: numpy.array
+        )");
+
+    cls.def_property(
+        "str_data",
+        [](ov::Tensor& self) {
+            return Common::array_helpers::string_array_from_tensor(std::forward<ov::Tensor>(self));
+        },
+        [](ov::Tensor& self, py::object& other) {
+            // TODO: implement
+            return;
+        },
+        R"(
+            Access to Tensor's data with string Type in np.str_ dtype.
+
+            Returns a numpy array with corresponding shape and dtype.
+            Warning: Data of string type is always a copy of underlaying memory!
 
             :rtype: numpy.array
         )");
