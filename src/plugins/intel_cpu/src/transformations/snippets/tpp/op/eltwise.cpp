@@ -9,11 +9,6 @@ namespace intel_cpu {
 namespace tpp {
 namespace op {
 
-EltwiseTPP::EltwiseTPP() {
-    // Initialize input/output ports as memory access ports
-    ctor_initialize(std::set<size_t>{0, 1}, std::set<size_t>{0});
-}
-
 bool EltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v1::Add>(node) ||
            ov::is_type<ov::op::v1::Subtract>(node) ||
@@ -25,6 +20,15 @@ bool EltwiseTPP::visit_attributes(AttributeVisitor& visitor) {
     std::string modifier{"TPP"};
     visitor.on_attribute("modifier", modifier);
     return MemoryAccess::visit_attributes(visitor);
+}
+
+BinaryEltwiseTPP::BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type) : EltwiseTPP(), m_op_type(op_type) {
+    // Initialize input/output ports as memory access ports
+    ctor_initialize(std::set<size_t>{0, 1}, std::set<size_t>{0});
+}
+
+UnaryEltwiseTPP::UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type) : EltwiseTPP(), m_op_type(op_type) {
+    ctor_initialize(std::set<size_t>{0}, std::set<size_t>{0});
 }
 
 Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
@@ -101,6 +105,19 @@ bool Exp::visit_attributes(AttributeVisitor& visitor) {
     return UnaryEltwiseTPP::visit_attributes(visitor);
 }
 
+Relu::Relu(const Output<Node>& arg0) : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_RELU), ov::op::v0::Relu(arg0) {
+}
+
+std::shared_ptr<Node> Relu::clone_with_new_inputs(const OutputVector& new_args) const {
+    check_new_args_count(this, new_args);
+    const auto& new_op = std::make_shared<Relu>(new_args.at(0));
+    new_op->clone_memory_acess_ports(*this);
+    return new_op;
+}
+
+bool Relu::visit_attributes(AttributeVisitor& visitor) {
+    return UnaryEltwiseTPP::visit_attributes(visitor);
+}
 
 } // namespace op
 } // namespace tpp

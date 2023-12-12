@@ -10,6 +10,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/relu.hpp"
 
 #include "libxsmm_typedefs.h"
 
@@ -22,14 +23,13 @@ using AutoBroadcastType = ov::op::AutoBroadcastType;
 
 class EltwiseTPP : public modifier::TensorProcessingPrimitive {
 public:
-    EltwiseTPP();
     static bool is_supported(const std::shared_ptr<ov::Node>& node);
     bool visit_attributes(AttributeVisitor& visitor);
 };
 
 class BinaryEltwiseTPP : public EltwiseTPP {
 public:
-    BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type) : m_op_type(op_type) {}
+    BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type);
     libxsmm_meltw_binary_type get_op_type() const { return m_op_type; }
 private:
     libxsmm_meltw_binary_type m_op_type;
@@ -37,7 +37,7 @@ private:
 
 class UnaryEltwiseTPP : public EltwiseTPP {
 public:
-    UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type) : m_op_type(op_type) {}
+    UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type);
     libxsmm_meltw_unary_type get_op_type() const { return m_op_type; }
 private:
     libxsmm_meltw_unary_type m_op_type;
@@ -79,6 +79,14 @@ class Exp : public UnaryEltwiseTPP, public ov::op::v0::Exp {
 public:
     OPENVINO_OP("Exp", "TppOpset", ov::op::v0::Exp);
     Exp(const Output<Node>& arg);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+};
+
+class Relu : public UnaryEltwiseTPP, public ov::op::v0::Relu {
+public:
+    OPENVINO_OP("Relu", "TppOpset", ov::op::v0::Relu);
+    Relu(const Output<Node>& arg);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 };

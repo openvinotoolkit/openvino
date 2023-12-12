@@ -28,6 +28,21 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 };
+
+/// One unary operation: Exp
+/// Tokenized simply by starting subgraph.
+//    in1
+//    Exp
+//   Result
+class ExpFunction : public SnippetsFunctionBase {
+public:
+    explicit ExpFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 /// Like AddSinh but with a constant second input (and no sinh on in)
 //   in1       in2
 //        Add
