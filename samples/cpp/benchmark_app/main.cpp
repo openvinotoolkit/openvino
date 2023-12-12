@@ -125,7 +125,7 @@ void next_step(const std::string additional_info = "") {
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
 }
 
-ov::hint::PerformanceMode handle_performance_hint(const std::string& device, const ov::Core& core, ov::AnyMap& config) {
+void handle_performance_hint(const std::string& device, const ov::Core& core, ov::AnyMap& config) {
     ov::hint::PerformanceMode ov_perf_hint;
     auto supported_properties = core.get_property(device, ov::supported_properties);
     if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
@@ -170,7 +170,7 @@ ov::hint::PerformanceMode handle_performance_hint(const std::string& device, con
             slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
         }
     }
-    return ov_perf_hint;
+    return;
 }
 
 void setDeviceProperty(ov::Core& core,
