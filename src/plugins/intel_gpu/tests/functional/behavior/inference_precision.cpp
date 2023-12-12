@@ -4,6 +4,7 @@
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace {
 using params = std::tuple<ov::element::Type, ov::element::Type>;
