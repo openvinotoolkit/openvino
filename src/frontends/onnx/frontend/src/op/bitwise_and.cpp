@@ -15,10 +15,8 @@ namespace op {
 namespace set_1 {
 OutputVector bitwise_and(const Node& node) {
     const auto inputs = node.get_ng_inputs();
-    OPENVINO_ASSERT(inputs.size() == 2);
-    const auto& a = inputs[0];
-    const auto& b = inputs[1];
-    return {std::make_shared<v13::BitwiseAnd>(a, b)};
+    OPENVINO_ASSERT(inputs.size() == 2);   
+    return {std::make_shared<v13::BitwiseAnd>(inputs[0], inputs[1])};
 
 }
 
