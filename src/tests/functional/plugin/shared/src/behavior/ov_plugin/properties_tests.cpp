@@ -417,8 +417,12 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
             core->compile_model(model, target_device, compileModelProperties);
         } catch (const Exception& ex) {
             std::string err_msg(ex.what());
-            ASSERT_TRUE(err_msg.find("Unsupported precision") != std::string::npos) <<
-                        "Fail to set and compile_model with precision: " << type << std::endl;
+            ASSERT_TRUE(err_msg.find("Wrong value") != std::string::npos ||
+                        err_msg.find("Unsupported precision") != std::string::npos) <<
+                        "Error message is unclear. The err msg:" << err_msg << std::endl;
+            ASSERT_TRUE(err_msg.find("Supported values") != std::string::npos) <<
+                        "The error message doesn't provide info about supported precicions." <<
+                        "The err msg: " << err_msg << std::endl;
             continue;
         }
 
@@ -601,6 +605,16 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
     }
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::available_devices);
+}
+
+TEST_P(OVGetMetricPropsTest, GetMetriDeviceFullNameWithoutAdditionalTerminatorChars) {
+    ov::Core core = createCoreWithTemplate();
+    auto supported_properties = core.get_property(target_device, ov::supported_properties);
+    if (util::contains(supported_properties, ov::device::full_name)) {
+        std::string full_name;
+        OV_ASSERT_NO_THROW(full_name = core.get_property(target_device, ov::device::full_name));
+        EXPECT_EQ(full_name.size(), strlen(full_name.c_str()));
+    }
 }
 
 TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_OPTIMIZATION_CAPABILITIES) {

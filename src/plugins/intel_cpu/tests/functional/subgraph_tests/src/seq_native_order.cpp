@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/gru_cell.hpp"
+#include "common_test_utils/node_builders/lstm_cell.hpp"
+#include "common_test_utils/node_builders/rnn_cell.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
+using namespace ov::test::utils;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 enum class SEQ_TYPE {
     GRU,
@@ -34,7 +37,7 @@ using SeqParams = std::tuple<SEQ_TYPE,                            // node type
                              bool,                                // Linear_before_reset
                              ov::op::RecurrentSequenceDirection,  // Direction
                              ElementType,                         // Network precision
-                             ngraph::helpers::InputLayerType>;    // 'sequence_lengths' input type
+                             InputLayerType>;                     // 'sequence_lengths' input type
 
 class SequenceCPUTest : public testing::WithParamInterface<SeqParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
@@ -47,7 +50,7 @@ public:
         bool linearBeforeReset;
         ov::op::RecurrentSequenceDirection direction;
         ElementType netPrecision;
-        ngraph::helpers::InputLayerType seqInType;
+        InputLayerType seqInType;
 
         std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = obj.param;
 
@@ -141,7 +144,7 @@ protected:
         weightShape.push_back(B_shape);
 
         ov::PartialShape seq_len_shape(std::vector<ov::Dimension>{bounds[batch_size_pos]});
-        if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (seqInType == InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(seq_len_shape);
         } else {
             OPENVINO_ASSERT(seq_len_shape.is_static());
@@ -160,7 +163,7 @@ protected:
             if (seqType == SEQ_TYPE::LSTM) {
                 currTS.emplace_back(std::vector<size_t>{bs, numDirections, hidden_size});
             }
-            if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (seqInType == InputLayerType::PARAMETER) {
                 currTS.emplace_back(std::vector<size_t>{bs});
             }
             targetStaticShapes.push_back(currTS);
@@ -168,7 +171,7 @@ protected:
 
         // funciton creation
         std::vector<ov::element::Type> types(inputDynamicShapes.size(), netPrecision);
-        if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (seqInType == InputLayerType::PARAMETER) {
             types.back() = ElementType::i64;
         }
         ov::ParameterVector params;
@@ -190,45 +193,45 @@ protected:
 
         std::shared_ptr<ov::Node> seq_node;
         if (seqType == SEQ_TYPE::GRU) {
-            seq_node = ngraph::builder::makeGRU(inputs,
-                                                weightShape,
-                                                hidden_size,
-                                                activations,
-                                                {},
-                                                {},
-                                                clip,
-                                                linearBeforeReset,
-                                                true,
-                                                direction,
-                                                (seqInType == ngraph::helpers::InputLayerType::CONSTANT ?
-                                                ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
-                                                ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
+            seq_node = utils::make_gru(
+                inputs,
+                weightShape,
+                hidden_size,
+                activations,
+                {},
+                {},
+                clip,
+                linearBeforeReset,
+                true,
+                direction,
+                (seqInType == InputLayerType::CONSTANT ? SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST
+                                                       : SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else if (seqType == SEQ_TYPE::LSTM) {
-            seq_node = ngraph::builder::makeLSTM(inputs,
-                                                 weightShape,
-                                                 hidden_size,
-                                                 activations,
-                                                 {},
-                                                 {},
-                                                 clip,
-                                                 true,
-                                                 direction,
-                                                 (seqInType == ngraph::helpers::InputLayerType::CONSTANT ?
-                                                 ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
-                                                 ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
+            seq_node = utils::make_lstm(
+                inputs,
+                weightShape,
+                hidden_size,
+                activations,
+                {},
+                {},
+                clip,
+                true,
+                direction,
+                (seqInType == InputLayerType::CONSTANT ? SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST
+                                                       : SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else if (seqType == SEQ_TYPE::RNN) {
-            seq_node = ngraph::builder::makeRNN(inputs,
-                                                weightShape,
-                                                hidden_size,
-                                                activations,
-                                                {},
-                                                {},
-                                                clip,
-                                                true,
-                                                direction,
-                                                (seqInType == ngraph::helpers::InputLayerType::CONSTANT ?
-                                                ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
-                                                ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
+            seq_node = utils::make_rnn(
+                inputs,
+                weightShape,
+                hidden_size,
+                activations,
+                {},
+                {},
+                clip,
+                true,
+                direction,
+                (seqInType == InputLayerType::CONSTANT ? SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST
+                                                       : SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else {
             OPENVINO_THROW("Unsupported seq type");
         }
@@ -254,7 +257,7 @@ protected:
         const size_t batchSize = targetInputStaticShapes[0][1];
         const int64_t maxSeqLen = targetInputStaticShapes[0][0];
 
-        if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (seqInType == InputLayerType::PARAMETER) {
             const auto& funcInputs = function->inputs();
             const auto& seqLenInput = inputs.find(funcInputs[seqLengthInIdx].get_node_shared_ptr());
             if (seqLenInput == inputs.end())
@@ -266,7 +269,7 @@ protected:
     }
 
 private:
-    ngraph::helpers::InputLayerType seqInType;
+    InputLayerType seqInType;
     size_t seqLengthInIdx = 2;
 };
 
@@ -326,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_lstm_rnn, SequenceCPUTest
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
+                               ::testing::Values(InputLayerType::PARAMETER)),
             SequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_gru, SequenceCPUTest,
@@ -339,7 +342,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_gru, SequenceCPUTest,
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
+                               ::testing::Values(InputLayerType::PARAMETER)),
             SequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_gru, SequenceCPUTest,
@@ -352,7 +355,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_gru, SequenceCPUTest,
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
+                               ::testing::Values(InputLayerType::CONSTANT)),
             SequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_rnn_lstm, SequenceCPUTest,
@@ -365,7 +368,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_rnn_lstm, SequenceCPUTest,
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
+                               ::testing::Values(InputLayerType::CONSTANT)),
             SequenceCPUTest::getTestCaseName);
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

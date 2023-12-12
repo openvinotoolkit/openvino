@@ -5,8 +5,7 @@ import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place, PartialShape # pylint: disable=no-name-in-module,import-error
-
+from openvino._pyopenvino import Place, PartialShape  # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
 
@@ -378,7 +377,7 @@ def convert_params_lists_to_dicts(input_model,
     input_user_data_types_dict - dictionary where key is input name, value is type from user;
     freeze_placeholder - dictionary where key is input name, value is input value from user;
     """
-    from openvino.runtime import PartialShape # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime import PartialShape  # pylint: disable=no-name-in-module,import-error
     model_inputs = input_model.get_inputs()
     input_user_data_types_dict = {}
     input_user_shapes_dict = {}
@@ -397,7 +396,7 @@ def convert_params_lists_to_dicts(input_model,
 
     # input_user_data_types is list only if unnamed inputs were used
     if isinstance(input_user_data_types, list):
-        from openvino.runtime import Type # pylint: disable=no-name-in-module,import-error
+        from openvino.runtime import Type  # pylint: disable=no-name-in-module,import-error
 
         if input_user_shapes_dict is None:
             input_user_shapes_dict = {}
@@ -405,8 +404,8 @@ def convert_params_lists_to_dicts(input_model,
         # this cycle adds each unnamed type to dictionary using name from model_inputs
         for idx, node_type in enumerate(input_user_data_types):
             assert isinstance(node_type, (type, np.dtype, Type)), "Got incorrect format of input types. " \
-                                                        "Expected numpy type or openvino.runtime.Type, " \
-                                                        "got {}.".format(type(node_type))
+                                                                  "Expected numpy type or openvino.runtime.Type, " \
+                                                                  "got {}.".format(type(node_type))
 
             inp_name = find_first_unused_input(model_inputs, input_user_data_types_dict, "type")
             input_user_data_types_dict[inp_name] = node_type
@@ -416,7 +415,6 @@ def convert_params_lists_to_dicts(input_model,
                 input_user_shapes_dict[inp_name] = None
     else:
         input_user_data_types_dict = input_user_data_types
-
 
     return input_user_shapes_dict, input_user_data_types_dict
 

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ov_models/builders.hpp>
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -11,14 +9,15 @@ using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-typedef std::tuple<ElementType,         // netPrecision
-                   InputShape,          // shape
-                   bool,                // is_causal
-                   bool,                // has_attn
-                   bool,                // has_scale
-                   std::string,         // targetDevice
+typedef std::tuple<ElementType,                      // netPrecision
+                   std::vector<InputShape>,          // shape
+                   bool,                             // is_causal
+                   bool,                             // has_attn
+                   bool,                             // has_scale
+                   std::string,                      // targetDevice
                    CPUSpecificParams>
     ScaledAttnCPUTestParams;
 
@@ -36,4 +35,5 @@ protected:
     bool has_scale;
 };
 
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
