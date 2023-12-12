@@ -362,7 +362,7 @@ def convert(
     :param name: Optional name for the output node.
     :return: New node performing the conversion operation.
     """
-    if not isinstance(destination_type, str) and not isinstance(destination_type, Type):
+    if isinstance(destination_type, NumericType):
         _destination_type = get_element_type_str(destination_type).lower()
     else:
         _destination_type = destination_type
