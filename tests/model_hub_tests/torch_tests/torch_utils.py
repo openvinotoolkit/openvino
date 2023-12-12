@@ -3,6 +3,7 @@
 
 import pytest
 import torch
+import os
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import convert_model
@@ -27,8 +28,20 @@ def flattenize_structure(outputs):
 
 def process_pytest_marks(filepath: str):
     return [
-        pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n
+        pytest.param(n, marks=pytest.mark.xfail(reason=r) if m ==
+                     "xfail" else pytest.mark.skip(reason=r)) if m else n
         for n, _, m, r in get_models_list(filepath)]
+
+
+def extract_unsupported_ops_from_exception(e: str) -> list:
+    exception_str = "No conversion rule found for operations:"
+    for s in e.splitlines():
+        it = s.find(exception_str)
+        if it >= 0:
+            _s = s[it + len(exception_str):]
+            ops = _s.replace(" ", "").split(",")
+            return ops
+    return []
 
 
 class TestTorchConvertModel(TestConvertModel):
@@ -49,8 +62,19 @@ class TestTorchConvertModel(TestConvertModel):
             return [i.numpy() for i in inputs]
 
     def convert_model(self, model_obj):
-        ov_model = convert_model(
-            model_obj, example_input=self.example, verbose=True)
+        try:
+            ov_model = convert_model(
+                model_obj, example_input=self.example, verbose=True)
+        except Exception as e:
+            report_filename = os.environ.get("OP_REPORT_FILE", None)
+            if report_filename:
+                mode = 'a' if os.path.exists(report_filename) else 'w'
+                with open(report_filename, mode) as f:
+                    ops = extract_unsupported_ops_from_exception(str(e))
+                    if ops:
+                        ops = [f"{op} {self.model_name}" for op in ops]
+                        f.write("\n".join(ops) + "\n")
+            raise e
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):

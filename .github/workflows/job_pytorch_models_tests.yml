@@ -110,7 +110,13 @@ jobs:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
+      - name: Reformat unsupported ops file
+        if: '!cancelled()'
+        run: |
+          python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
+  
       - name: Available storage after tests
         run: |
           echo "Available storage:"
@@ -122,5 +128,5 @@ jobs:
         with:
           name: test-results-torch-models
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST-torch*
           if-no-files-found: 'error'
