@@ -412,7 +412,10 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
     if (node.get_users().size() == 1)
         return true;
 
-    if (node.get_users().back()->is_type<shape_of>())
+    const auto non_shape_of_users_count = std::count_if(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+        return !user->is_type<shape_of>();
+    });
+    if (non_shape_of_users_count <= 1)
         return true;
 
     return false;
