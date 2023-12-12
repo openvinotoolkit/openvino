@@ -23,7 +23,6 @@ jobs:
     timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 30 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
-    continue-on-error: true
     defaults:
       run:
         shell: bash
@@ -104,6 +103,7 @@ jobs:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: PyTorch Models Tests
+        continue-on-error: true
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
@@ -114,6 +114,7 @@ jobs:
           OP_REPORT_FILE: ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
 
       - name: Reformat unsupported ops file
+        continue-on-error: true
         run: |
           python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
   
