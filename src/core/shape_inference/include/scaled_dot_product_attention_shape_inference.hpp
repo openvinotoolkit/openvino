@@ -13,11 +13,11 @@ template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    const bool iscausal = op->get_causal();
+    const bool& iscausal = op->get_causal();
     using DimType = typename T::value_type;
-    const auto inputs_count = input_shapes.size();
-    const auto has_attention_mask_input = inputs_count >= 4;
-    const auto has_scale_input = inputs_count == 5;
+    const auto& inputs_count = input_shapes.size();
+    const auto& has_attention_mask_input = inputs_count >= 4;
+    const auto& has_scale_input = inputs_count == 5;
     NODE_VALIDATION_CHECK(op, inputs_count == 3 || has_attention_mask_input || has_scale_input);
     TRShape n_dims{};
     DimType e_dim{};
@@ -25,9 +25,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     DimType s_dim{};
     DimType ev_dim{};
 
-    const auto query = input_shapes[0];
+    const auto& query = input_shapes[0];
     if (query.rank().is_static()) {
-        bool query_input_correctness = query.rank().get_length() >= 3;
+        const bool& query_input_correctness = query.rank().get_length() >= 3;
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                query_input_correctness,
@@ -39,9 +39,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         n_dims = query;
     }
 
-    const auto key = input_shapes[1];
+    const auto& key = input_shapes[1];
     if (key.rank().is_static()) {
-        const bool key_input_correctness =
+        const bool& key_input_correctness =
             key.rank().get_length() >= 3 &&
             TRShape::broadcast_merge_into(n_dims,
                                           TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
@@ -54,9 +54,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         s_dim = *(key.end() - 2);
     }
 
-    const auto value = input_shapes[2];
+    const auto& value = input_shapes[2];
     if (value.rank().is_static()) {
-        const bool value_input_correctness =
+        const bool& value_input_correctness =
             value.rank().get_length() >= 3 &&
             TRShape::broadcast_merge_into(n_dims,
                                           TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
@@ -70,9 +70,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     }
 
     if (has_attention_mask_input && !iscausal) {
-        const auto attention_mask = input_shapes[3];
+        const auto& attention_mask = input_shapes[3];
         if (attention_mask.rank().is_static() && attention_mask.rank() != 0) {
-            const auto attention_mask_rank_len = attention_mask.rank().get_length();
+            const auto& attention_mask_rank_len = attention_mask.rank().get_length();
             bool attention_mask_input_correctness =
                 attention_mask_rank_len >= 2 && DimType::broadcast_merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
                 DimType::broadcast_merge(s_dim, s_dim, *(attention_mask.end() - 1));
@@ -93,8 +93,8 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     if (has_scale_input) {
         if (input_shapes[4].rank().is_static() && input_shapes[4].is_static()) {
-            const auto scale_is_scalar = input_shapes[4].rank().compatible(0);
-            const auto scale_has_one_elem = input_shapes[4].rank().compatible(1) && input_shapes[4][0].compatible(1);
+            const auto& scale_is_scalar = input_shapes[4].rank().compatible(0);
+            const auto& scale_has_one_elem = input_shapes[4].rank().compatible(1) && input_shapes[4][0].compatible(1);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
                                    scale_is_scalar || scale_has_one_elem,

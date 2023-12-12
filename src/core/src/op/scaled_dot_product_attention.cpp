@@ -40,8 +40,8 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
     auto out_type = get_input_element_type(0);
-    const auto input_size = get_input_size();
-    const auto causal = get_causal();
+    const auto& input_size = get_input_size();
+    const auto& causal = get_causal();
     if (input_size >= 4 && !causal) {
         const auto& attention_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(
@@ -63,8 +63,8 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
                           out_type.is_real() || out_type.is_dynamic(),
                           "The element type of the input tensor must be a floating-point.");
 
-    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-    const auto output_shapes = shape_infer(this, input_shapes);
+    const auto& input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto& output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_type, output_shapes[0]);
 }
 
