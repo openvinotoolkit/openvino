@@ -11,7 +11,7 @@
 #include <ie_compound_blob.h>
 
 #include <gpu/gpu_config.hpp>
-#include <remote_blob_tests/remote_blob_helpers.hpp>
+#include <remote_tensor_tests/helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
