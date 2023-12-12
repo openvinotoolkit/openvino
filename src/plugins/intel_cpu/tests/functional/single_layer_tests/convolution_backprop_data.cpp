@@ -42,7 +42,7 @@ public:
         std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = obj.param;
 
         ov::op::PadType padType;
-        std::vector<uint64_t> kernel, stride, dilation;
+        std::vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
@@ -199,7 +199,7 @@ public:
     }
 
 protected:
-    std::vector<uint64_t> kernel, stride;
+    std::vector<size_t> kernel, stride;
 
     void SetUp() override {
         rel_threshold = 1e-4f;
@@ -249,7 +249,7 @@ protected:
 private:
     ElementType prec;
     ov::op::PadType padType;
-    std::vector<uint64_t> dilation;
+    std::vector<size_t> dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::vector<std::vector<int32_t>> outShapeData;
@@ -285,30 +285,30 @@ const ov::AnyMap cpuBF16PluginConfig = {
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
 /* ============= Deconvolution params (planar layout) ============= */
-const std::vector<uint64_t> numOutChannels_Planar = {6};
+const std::vector<size_t> numOutChannels_Planar = {6};
 
 /* ============= Deconvolution params (blocked layout) ============= */
-const std::vector<uint64_t> numOutChannels_Blocked = {64};
+const std::vector<size_t> numOutChannels_Blocked = {64};
 
 /* ============= Deconvolution params (2D) ============= */
-const std::vector<std::vector<uint64_t>> kernels2d = {{3, 3}, {1, 1}};
-const std::vector<std::vector<uint64_t>> strides2d = {{1, 1}, {2, 2}};
+const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
-const std::vector<std::vector<uint64_t>> dilations2d = {{1, 1}};
+const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
 
-const std::vector<std::vector<uint64_t>> deconvAmxKernels2d = {{3, 3}, {2, 2}};
-const std::vector<std::vector<uint64_t>> deconvAmxStrides2d = {{2, 2}};
+const std::vector<std::vector<size_t>> deconvAmxKernels2d = {{3, 3}, {2, 2}};
+const std::vector<std::vector<size_t>> deconvAmxStrides2d = {{2, 2}};
 
 /* ============= Deconvolution params (3D) ============= */
-const std::vector<std::vector<uint64_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
-const std::vector<std::vector<uint64_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
+const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
-const std::vector<std::vector<uint64_t>> dilations3d = {{1, 1, 1}};
+const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}};
 
-const std::vector<std::vector<uint64_t>> deconvAmxKernels3d = {{3, 3, 3}, {2, 2, 2}};
-const std::vector<std::vector<uint64_t>> deconvAmxStrides3d = {{2, 2, 2}};
+const std::vector<std::vector<size_t>> deconvAmxKernels3d = {{3, 3, 3}, {2, 2, 2}};
+const std::vector<std::vector<size_t>> deconvAmxStrides3d = {{2, 2, 2}};
 
 /* ============= */
 
@@ -667,11 +667,11 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_BF16,
                          DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Kernel_1x1 (2D) ============= */
-const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(::testing::Values(std::vector<uint64_t>({1, 1})),
-                                                                  ::testing::Values(std::vector<uint64_t>({1, 1})),
+const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(::testing::Values(std::vector<size_t>({1, 1})),
+                                                                  ::testing::Values(std::vector<size_t>({1, 1})),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                                                                  ::testing::Values(std::vector<uint64_t>({1, 1})),
+                                                                  ::testing::Values(std::vector<size_t>({1, 1})),
                                                                   ::testing::ValuesIn(numOutChannels_Blocked),
                                                                   ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                   ::testing::ValuesIn(emptyOutputPadding));
@@ -703,7 +703,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_reorder_Deconv_2D,
     DeconvolutionLayerCPUTest,
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(kernels2d),
-                                          ::testing::Values(std::vector<uint64_t>{1, 1}),
+                                          ::testing::Values(std::vector<size_t>{1, 1}),
                                           ::testing::ValuesIn(padBegins2d),
                                           ::testing::ValuesIn(padEnds2d),
                                           ::testing::ValuesIn(dilations2d),
