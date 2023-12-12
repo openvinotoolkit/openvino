@@ -581,8 +581,6 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
 ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionQwen);
 
-    //if (std::getenv("NOQWEN")) return;
-
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
     auto rotary_emb_cos = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
     auto rotary_emb_sin = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
@@ -606,14 +604,6 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
                                            {"shrink_axis_mask", {}},
                                            {"ellipsis_mask", {}}});  //  tensor_array<f32[?,?,32,128]>
 
-    // since sequence length dimension of rotary_pos_emb has been sliced to past-kv-length + cur_len
-    // here the slicing `-cur_len:` returns the positions for current kv tokens
-    //
-    //       rotary_pos_emb = [i[:, -cur_len:, :, :] for i in rotary_pos_emb]
-    //
-    // given that StridedSlice on rotary_emb_cos/rotary_emb_sin is ensured to be the tail part
-    // and the result has compatible shape with query_proj/key_proj, we can safely assert that
-    // the length is the same as query_proj/key_proj, so we don't need to match it.
     auto hidden_states = makePattern("f32[?,?,?]");  //
     auto ShapeOf_485735 = makePattern<opset1::ShapeOf>({hidden_states}, {});
     auto Multiply_567524 = makePattern<opset1::Multiply>({ShapeOf_485735, {-1}}, {{"auto_broadcast", "numpy"}});
@@ -716,7 +706,6 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         new_args.push_back(pattern_map.at(rotary_emb_cos));
         new_args.push_back(pattern_map.at(rotary_emb_sin));
 
-        //std::cout << " RoPEFusionQwen: " << split_output_id << " : " << root << std::endl;
         auto old_node = root;
         auto new_node = std::make_shared<RoPENode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
