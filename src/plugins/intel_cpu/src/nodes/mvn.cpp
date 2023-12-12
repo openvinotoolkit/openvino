@@ -605,6 +605,7 @@ private:
 
         // cover vector and tails on avx512, avx2
         // cover on sse, 2 part vector, first part vector and second part tails, first part tails
+        Xbyak::Label label_exit;
         for (int i = 0; i < repeats; i++) {
             if (i > 0) {
                 reset_with_offset(4);
@@ -621,12 +622,6 @@ private:
 
             L(label_tails);
             {
-                if (i > 0) {
-                    // empty second half on sse
-                    cmp(reg_rt_shape, 0);
-                    jbe(label_end);
-                }
-
                 Xbyak::Label label_sse_full_size;
                 if (isa == cpu::x64::sse41) {
                     // on sse, first 4 could be done with vector manner
@@ -635,17 +630,22 @@ private:
                 }
 
                 worker_tails_unroll();
-                jmp(label_end, T_NEAR);
+                // exit directly if tails is done, for all platforms
+                jmp(label_exit, T_NEAR);
 
                 L(label_sse_full_size);
                 {
                     worker_vector_unroll();
                     save_result();
                     sub(reg_rt_shape, 4);
+                    // exit directly if empty second half
+                    cmp(reg_rt_shape, 0);
+                    jbe(label_exit, T_NEAR);
                 }
             }
             L(label_end);
         }
+        L(label_exit);
     }
 
     inline void worker_vector_unroll() {
@@ -1098,6 +1098,7 @@ private:
 
         // cover vector and tails on avx512, avx2
         // cover on sse, 2 part vector, first part vector and second part tails, first part tails
+        Xbyak::Label label_exit;
         int repeats = (isa == cpu::x64::sse41) ? 2 : 1;
         for (int i = 0; i < repeats; i++) {
             if (i > 0) {
@@ -1114,12 +1115,6 @@ private:
 
             L(label_tails);
             {
-                if (i > 0) {
-                    // empty second half on sse
-                    cmp(reg_rt_shape, 0);
-                    jbe(label_end);
-                }
-
                 Xbyak::Label label_sse_full_size;
                 if (isa == cpu::x64::sse41) {
                     // on sse, first 4 could be done with vector manner
@@ -1128,16 +1123,21 @@ private:
                 }
 
                 worker_tails_unroll();
-                jmp(label_end, T_NEAR);
+                // exit directly if tails is done, for all platforms
+                jmp(label_exit, T_NEAR);
 
                 L(label_sse_full_size);
                 {
                     worker_mvn_vector_unroll(reg_work_amount);
                     sub(reg_rt_shape, 4);
+                    // exit directly if empty second half
+                    cmp(reg_rt_shape, 0);
+                    jbe(label_exit, T_NEAR);
                 }
             }
             L(label_end);
         }
+        L(label_exit);
     }
 
     // nspc norm per channel with unroll
