@@ -12,13 +12,15 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/multinomial.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/pass/manager.hpp"
 #include "perf_counter.hpp"
 #include "transformations/convert_precision.hpp"
-#include "transformations/insert_nop_convert_on_multinomial.hpp"
+#include "transformations/keep_node_in_original_precision.hpp"
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;
@@ -54,9 +56,10 @@ ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov:
         precisions_to_convert[type] = element::f32;
 
     ov::pass::Manager manager;
-    manager.register_pass<pass::InsertNopConvertOnMultinomial>();
+    manager.register_pass<pass::KeepNodeInOriginalPrecision<op::v8::RandomUniform, op::v13::Multinomial>>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_to_convert, type_to_fuse_map{}, true, false);
     manager.run_passes(m_model);
+
 
     for (auto node : m_model->get_ordered_ops()) {
         m_nodes.push_back(node);

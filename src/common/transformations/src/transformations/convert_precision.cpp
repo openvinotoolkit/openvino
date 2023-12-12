@@ -27,6 +27,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/rt_info/keep_original_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -145,17 +146,54 @@ bool convert_node_output_precision(
     const std::unordered_map<const ov::Node*, std::vector<Input<Node>>>& const_to_internal_output,
     bool function_changed) {
     bool node_changed = false;
-    // Handle case with Constants as they can have consumers from other ov::Model object
-    const auto constant = ov::as_type_ptr<opset10::Constant>(node);
-    const auto it = const_to_internal_output.find(node.get());
-    if (constant && it != const_to_internal_output.end()) {
-        return fuse_type_to_constant(node, precisions, it->second);
-    }
 
-    // Check that node type exists in map and we can fuse type into node
-    const auto t2f_it = type_to_fuse.find(node->get_type_info());
-    if (t2f_it != type_to_fuse.end()) {
-        node_changed = t2f_it->second(node, precisions);
+    if (ov::has_keep_original_precision_attribute(node)) {
+        const auto& attribute = ov::get_keep_original_precision_attribute(node);
+        const auto& original_input_types = attribute.get_input_types();
+        const auto& original_output_types = attribute.get_output_types();
+
+        // If KeepOriginalPrecision attribute is set - surround this node with Converts
+
+        for (size_t i = 0; i < original_input_types.size(); i++) {
+            const auto& type = original_input_types[i];
+            if (type != node->get_input_element_type(i)) {
+                // in this case - input node was already converted to a desired type.
+                // So we need to insert a convert to original precision
+                auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), type);
+                ov::set_keep_original_precision_attribute(convert);
+                node->input(i).replace_source_output(convert);
+                node_changed = true;
+            }
+        }
+        for (size_t i = 0; i < original_output_types.size(); i++) {
+            auto it = precisions.find(original_output_types[i]);
+            if (it != precisions.end()) {
+                // if output node's precision meant to be converted to a desired type
+                // we need a convert from original to desired type to keep the rest of
+                // the graph consistent
+                auto output = node->output(i);
+                auto output_consumers = output.get_target_inputs();
+                auto convert = std::make_shared<ov::op::v0::Convert>(output, it->second);
+                ov::set_keep_original_precision_attribute(convert);
+                for (auto& input : output_consumers) {
+                    input.replace_source_output(convert);
+                }
+                node_changed = true;
+            }
+        }
+    } else {
+        // Handle case with Constants as they can have consumers from other ov::Model object
+        const auto constant = ov::as_type_ptr<opset10::Constant>(node);
+        const auto it = const_to_internal_output.find(node.get());
+        if (constant && it != const_to_internal_output.end()) {
+            return fuse_type_to_constant(node, precisions, it->second);
+        }
+
+        // Check that node type exists in map and we can fuse type into node
+        const auto t2f_it = type_to_fuse.find(node->get_type_info());
+        if (t2f_it != type_to_fuse.end()) {
+            node_changed = t2f_it->second(node, precisions);
+        }
     }
 
     if ((function_changed || node_changed) && !node_is_replaced(node)) {

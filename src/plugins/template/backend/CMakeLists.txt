@@ -16,7 +16,6 @@ set (SRC
     int_backend.cpp 
     int_executable.cpp 
     evaluates_map.cpp
-    transformations/insert_nop_convert_on_multinomial.cpp
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
