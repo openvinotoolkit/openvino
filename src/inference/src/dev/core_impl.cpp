@@ -325,8 +325,9 @@ bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
-    return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
-           pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
+    std::string real_name = ov::parseDeviceNameIntoConfig(dev_name)._deviceName;
+    return pluginRegistry.find(real_name) != pluginRegistry.end() &&
+           pluginRegistry.at(real_name).pluginCreateFunc == ov::proxy::create_plugin;
 #else
     return false;
 #endif
