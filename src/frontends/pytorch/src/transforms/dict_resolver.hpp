@@ -12,9 +12,16 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class DictResolver : public ov::pass::ModelPass {
+// This transformation replaces pattern Parameter(Dict)->aten::__getitem__
+class DictParameterResolver : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DictResolver");
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::DictParameterResolver");
+    bool run_on_model(const std::shared_ptr<Model>& model) override;
+};
+// This transformation replaces pattern prim::DictConstruct->Result
+class DictResultResolver : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::DictResultResolver");
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
