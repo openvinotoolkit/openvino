@@ -260,8 +260,8 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
     }
 
     if (std::floor(power) == power && power > 0) {
-        h->fmov(dst.s, 1.);
         h->uni_orr(aux, src(), src());
+        h->fmov(dst.s, 1.);
 
         auto current_power = static_cast<size_t>(power);
         while (current_power > 0) {
