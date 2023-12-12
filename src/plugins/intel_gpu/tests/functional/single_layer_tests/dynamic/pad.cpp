@@ -61,8 +61,7 @@ protected:
         InputShape shapes;
         ov::op::PadMode padMode;
         std::vector<ov::test::utils::InputLayerType> inputLayerTypes;
-        ov::element::Type model_type;
-        std::tie(shapes, model_type, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = this->GetParam();
+        std::tie(shapes, inType, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_GPU;
 
@@ -88,7 +87,7 @@ protected:
         }
 
         ov::ParameterVector functionParams;
-        functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front()));
+        functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front()));
         functionParams.front()->set_friendly_name("data");
 
         std::shared_ptr<ov::Node> pads_begin, pads_end, arg_pad_value;
@@ -112,11 +111,11 @@ protected:
 
         // argPadValue
         if (inputLayerTypes[2] == ov::test::utils::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, ov::PartialShape({})));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape({})));
             functionParams.back()->set_friendly_name("padValue");
             arg_pad_value = functionParams.back();
         } else {
-            arg_pad_value = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{}, &argPadValue);
+            arg_pad_value = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, &argPadValue);
         }
 
         auto pad = std::make_shared<ov::op::v1::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
