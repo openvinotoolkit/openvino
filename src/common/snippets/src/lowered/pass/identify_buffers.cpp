@@ -74,48 +74,16 @@ void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrP
 }
 
 std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool) {
-    // There are several sync points for adjacency check:
-    // 1. Loop because only in Loop we increment pointers. So if some Buffers in the one Loop have conflict
-    //    (cannot be inplace: the different ptr increment and data sizes) they are called as adjacent
-    // 2. Brgemm because its blocking implementation requires Buffers with unique memory on all inputs and outputs
+    // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
+    // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
+    // they are called as adjacent
     const auto size = pool.size();
     std::vector<bool> adj(size * size, false);
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
 
-    auto is_buffer = [](const ExpressionPort& port) {
-        return ov::is_type<op::Buffer>(port.get_expr()->get_node());
-    };
-
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
-        if (const auto brgemm = ov::as_type_ptr<op::Brgemm>(expr->get_node())) {
-            const auto consumers = expr->get_output_port_connector(0)->get_consumers();
-
-            auto buffer_it = std::find_if(consumers.begin(), consumers.end(), is_buffer);
-            if (buffer_it == consumers.end())
-                continue;
-            OPENVINO_ASSERT(std::count_if(consumers.begin(), consumers.end(), is_buffer) == 1, "Brgemm mustn't have more than 1 consumer buffer");
-
-            BufferPool adjacency_buffers;
-            adjacency_buffers.push_back(buffer_it->get_expr());
-
-            for (const auto& input_connector : expr->get_input_port_connectors()) {
-                const auto parent_expr = input_connector->get_source().get_expr();
-                if (ov::is_type<op::Buffer>(parent_expr->get_node())) {
-                    adjacency_buffers.push_back(parent_expr);
-                }
-            }
-            for (auto buffer_it = adjacency_buffers.begin(); buffer_it != adjacency_buffers.end(); ++buffer_it) {
-                for (auto neighbour_it = std::next(buffer_it); neighbour_it != adjacency_buffers.end(); ++neighbour_it) {
-                    const auto buffer_idx = get_buffer_idx(*buffer_it, pool);
-                    const auto neighbour_idx = get_buffer_idx(*neighbour_it, pool);
-                    adj[index(size, neighbour_idx, buffer_idx)] = adj[index(size, buffer_idx, neighbour_idx)] = true;
-                }
-            }
-            continue;
-        }
-
         const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
         if (!loop_end)
             continue;
@@ -234,9 +202,7 @@ auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> s
 
 bool IdentifyBuffers::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
-    // Unite Buffers using Graph coloring algorithm.
-    // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
-    //        so these Buffers are always IntermediateBuffer nonadjacent
+    // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool;
 
     for (const auto& expr : linear_ir) {

@@ -2,18 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 typedef std::tuple<
         InputShape,     // Input shape definition
@@ -199,7 +195,7 @@ std::vector<InputShape> inShapesDynamic = {
             }
         }
 };
-std::vector<ngraph::Shape> inShapesStatic = {
+std::vector<ov::Shape> inShapesStatic = {
         { 100 },
         { 4, 100 },
         { 4, 2, 100 },
@@ -227,4 +223,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_NonZeroDynamicCPUTest, NonZeroLayerCPUTest,
 
 } // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

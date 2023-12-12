@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/interpolate.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "openvino/core/preprocess/pre_post_process.hpp"
 
-using namespace ov::test;
-using ngraph::helpers::operator<<;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/interpolate.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 using InterpolateSpecificParams = std::tuple<ov::op::v4::Interpolate::InterpolateMode,          // InterpolateMode
                                              ov::op::v4::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
@@ -24,23 +25,23 @@ using InterpolateSpecificParams = std::tuple<ov::op::v4::Interpolate::Interpolat
 using ShapeParams = std::tuple<ov::op::v4::Interpolate::ShapeCalcMode, // ShapeCalculationMode
                                InputShape,                                 // Input shapes
                                // params describing input, choice of which depends on ShapeCalcMode
-                               ngraph::helpers::InputLayerType,            // sizes input type
-                               ngraph::helpers::InputLayerType,            // scales input type
+                               ov::test::utils::InputLayerType,            // sizes input type
+                               ov::test::utils::InputLayerType,            // scales input type
                                std::vector<std::vector<float>>,            // scales or sizes values
                                std::vector<int64_t>>;                      // axes
 
 using InterpolateLayerGPUTestParamsSet = std::tuple<InterpolateSpecificParams,
                                                     ShapeParams,
-                                                    ElementType,
+                                                    ov::element::Type,
                                                     bool>;                 // use Interpolate_v11
 
 class InterpolateLayerGPUTest : public testing::WithParamInterface<InterpolateLayerGPUTestParamsSet>,
-                                virtual public SubgraphBaseTest {
+                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerGPUTestParamsSet> obj) {
         InterpolateSpecificParams specificParams;
         ShapeParams shapeParams;
-        ElementType prec;
+        ov::element::Type prec;
         bool useInterpolateV11;
         std::map<std::string, std::string> additionalConfig;
         std::tie(specificParams, shapeParams, prec, useInterpolateV11) = obj.param;
@@ -56,13 +57,14 @@ public:
 
         ov::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
         InputShape inputShapes;
-        ngraph::helpers::InputLayerType sizesInputType;
-        ngraph::helpers::InputLayerType scalesInputType;
+        ov::test::utils::InputLayerType sizesInputType;
+        ov::test::utils::InputLayerType scalesInputType;
         std::vector<std::vector<float>> shapeDataForInput;
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, inputShapes, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
 
         std::ostringstream result;
+        using ov::operator<<;
         result << "ShapeCalcMode=" << shapeCalcMode << "_";
         result << "IS=";
         result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -101,7 +103,7 @@ public:
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -160,7 +162,7 @@ protected:
 
         InterpolateSpecificParams specificParams;
         ShapeParams shapeParams;
-        ElementType ngPrc;
+        ov::element::Type ngPrc;
         bool useInterpolateV11;
         std::tie(specificParams, shapeParams, ngPrc, useInterpolateV11) = this->GetParam();
 
@@ -174,8 +176,8 @@ protected:
         std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
 
         InputShape dataShape;
-        ngraph::helpers::InputLayerType sizesInputType;
-        ngraph::helpers::InputLayerType scalesInputType;
+        ov::test::utils::InputLayerType sizesInputType;
+        ov::test::utils::InputLayerType scalesInputType;
         std::vector<std::vector<float>> shapeDataForInput;
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
@@ -195,10 +197,10 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(dataShape);
-        if (sizesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (sizesInputType == ov::test::utils::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
-        if (scalesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (scalesInputType == ov::test::utils::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
 
@@ -208,38 +210,38 @@ protected:
 
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES) {
-            if (scalesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()});
+            if (scalesInputType == ov::test::utils::InputLayerType::PARAMETER) {
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{scales.front().size()});
                 params.push_back(paramNode);
                 scalesInput = paramNode;
             } else {
-                scalesInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()}, scales.front());
+                scalesInput = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{scales.front().size()}, scales.front());
             }
-            if (sizesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()});
+            if (sizesInputType == ov::test::utils::InputLayerType::PARAMETER) {
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{sizes.front().size()});
                 params.push_back(paramNode);
                 sizesInput = paramNode;
             } else {
-                sizesInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()}, sizes.front());
+                sizesInput = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{sizes.front().size()}, sizes.front());
             }
         } else {
-            if (sizesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()});
+            if (sizesInputType == ov::test::utils::InputLayerType::PARAMETER) {
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{sizes.front().size()});
                 params.push_back(paramNode);
                 sizesInput = paramNode;
             } else {
-                sizesInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()}, sizes.front());
+                sizesInput = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{sizes.front().size()}, sizes.front());
             }
-            if (scalesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()});
+            if (scalesInputType == ov::test::utils::InputLayerType::PARAMETER) {
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{scales.front().size()});
                 params.push_back(paramNode);
                 scalesInput = paramNode;
             } else {
-                scalesInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()}, scales.front());
+                scalesInput = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{scales.front().size()}, scales.front());
             }
         }
 
-        auto axesInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{axes.size()}, axes);
+        auto axesInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
 
         for (size_t i = 0; i < params.size(); i++) {
             params[i]->set_friendly_name(std::string("param_") + std::to_string(i));
@@ -268,20 +270,17 @@ protected:
                                                                         interpAttr);
         }
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < interpolate->get_output_size(); ++i) {
             results.push_back(std::make_shared<ov::op::v0::Result>(interpolate->output(i)));
         }
-        function = std::make_shared<ngraph::Function>(results, params, "InterpolateGPU");
+        function = std::make_shared<ov::Model>(results, params, "InterpolateGPU");
     }
 };
 
-TEST_P(InterpolateLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(InterpolateLayerGPUTest, Inference) {
     run();
 }
-
-namespace {
 
 const std::vector<ov::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes_Smoke = {
         ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
@@ -339,48 +338,48 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
          {{1.f, 1.f, 0.5f, 2.0f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{0.5f, 2.0f}},
         reducedAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}, {2, 7, 8, 7}, {1, 11, 5, 6}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{1, 2, 24, 10}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{24, 10}},
         reducedAxes4D.front()
     }
@@ -390,16 +389,16 @@ const std::vector<ShapeParams> shapeParams4D_Full = {
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
     }
@@ -409,32 +408,32 @@ const std::vector<ShapeParams> shapeParams4DReducedAxis_Full = {
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1.5f}},
         reducedAxes4D.back()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{6}},
         reducedAxes4D.back()
     }
@@ -462,7 +461,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerGPUTes
         ::testing::Combine(
              interpolateCasesNN_Smoke,
             ::testing::ValuesIn(shapeParams4D_Smoke),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -470,7 +469,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerGPUTest,
          ::testing::Combine(
             interpolateCasesNN_Full,
             ::testing::ValuesIn(shapeParams4DReducedAxis_Full),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
      InterpolateLayerGPUTest::getTestCaseName);
 
@@ -496,7 +495,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLay
         ::testing::Combine(
             interpolateCasesLinearOnnx_Smoke,
             ::testing::ValuesIn(shapeParams4D_Smoke),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -504,7 +503,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerGPUT
         ::testing::Combine(
             interpolateCasesLinearOnnx_Full,
             ::testing::ValuesIn(shapeParams4D_Full),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -530,7 +529,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerGP
         ::testing::Combine(
             interpolateCasesLinear_Smoke,
             ::testing::ValuesIn(shapeParams4D_Smoke),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -538,7 +537,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
             interpolateCasesLinear_Full,
             ::testing::ValuesIn(shapeParams4DReducedAxis_Full),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -564,7 +563,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerGPU
         ::testing::Combine(
             interpolateCasesCubic_Smoke,
             ::testing::ValuesIn(shapeParams4D_Smoke),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -572,7 +571,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
             interpolateCasesCubic_Full,
             ::testing::ValuesIn(shapeParams4DReducedAxis_Full),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -594,40 +593,40 @@ const std::vector<ShapeParams> shapeParams5D_Smoke = {
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}, {1.f, 1.f, 1.25f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 10}, -1, -1, -1}, {{1, 4, 2, 3, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.5f, 2.f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 2}, {2, 7, 8, 7, 4}, {1, 11, 5, 6, 2}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 10}, -1, -1, -1}, {{1, 4, 2, 3, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{1, 4, 4, 1, 6}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 10}, -1, -1, -1}, {{1, 4, 2, 3, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
+        ov::test::utils::InputLayerType::PARAMETER,
         {{4, 1, 6}},
         reducedAxes5D.front()
     },
@@ -637,24 +636,24 @@ const std::vector<ShapeParams> shapeParams5D_Full = {
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 4}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
         {{1, 6, 4}},
         reducedAxes5D.front()
     }
@@ -682,7 +681,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateL
         ::testing::Combine(
             interpolateCasesLinearOnnx5D_Smoke,
             ::testing::ValuesIn(shapeParams5D_Smoke),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -690,7 +689,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerGP
         ::testing::Combine(
             interpolateCasesLinearOnnx5D_Full,
             ::testing::ValuesIn(shapeParams5D_Full),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -716,7 +715,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerGPUT
         ::testing::Combine(
             interpolateCasesNN5D_Smoke,
             ::testing::ValuesIn(shapeParams5D_Smoke),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
@@ -724,10 +723,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN5D_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
             interpolateCasesNN5D_Full,
             ::testing::ValuesIn(shapeParams5D_Full),
-            ::testing::Values(ElementType::f32),
+            ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
-
 } // namespace
-
-} // namespace GPULayerTestsDefinitions

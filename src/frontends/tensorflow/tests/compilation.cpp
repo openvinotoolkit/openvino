@@ -14,6 +14,20 @@ using namespace ov::frontend::tensorflow::tests;
 
 class CompileModelsTests : public ::testing::Test {};
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(CompileModelsTests, DISABLED_NgramCompilation) {
+    ov::Core core;
+    auto model = convert_model("model_ngram/model_ngram.pbtxt");
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    const auto runtime_model = compiled_model.get_runtime_model();
+
+    // A convert node will be inserted for CPU plugin API 2.0
+    EXPECT_EQ(runtime_model->get_ordered_ops().size(), 5);
+    EXPECT_EQ(runtime_model->get_parameters().size(), 2);
+    EXPECT_EQ(runtime_model->get_results().size(), 1);
+}
+#else
 TEST_F(CompileModelsTests, NgramCompilation) {
     ov::Core core;
     auto model = convert_model("model_ngram/model_ngram.pbtxt");
@@ -25,6 +39,7 @@ TEST_F(CompileModelsTests, NgramCompilation) {
     EXPECT_EQ(runtime_model->get_parameters().size(), 2);
     EXPECT_EQ(runtime_model->get_results().size(), 1);
 }
+#endif
 
 #ifdef OPENVINO_ARCH_ARM64
 // Ticket: CVS-122396
