@@ -29,11 +29,19 @@ def check_string_based(tensor, string_data):
     _check_tensor_string(tensor_data, decoded_data)
 
 
-def test_shared_memory_fails():
+def test_string_tensor_shared_memory_fails():
     data = np.array(["You", "shall", "not", "pass!"])
     with pytest.raises(RuntimeError) as e:
         _ = ov.Tensor(data, shared_memory=True)
     assert "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied." in str(e.value)
+
+
+def test_string_tensor_data_warning():
+    data = np.array(["You", "shall", "not", "pass!"])
+    t = ov.Tensor(data, shared_memory=False)
+    with pytest.warns(RuntimeWarning) as w:
+        _ = t.data
+    assert "Data of string type will be copied! Please use dedicated functions" in str(w[0].message)
 
 
 @pytest.mark.parametrize(
