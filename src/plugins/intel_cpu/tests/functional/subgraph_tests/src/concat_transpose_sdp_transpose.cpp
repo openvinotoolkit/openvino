@@ -123,7 +123,7 @@ public:
         }
 
         // pre SDPA transpose
-        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);  // TODO dtype
+        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
@@ -167,20 +167,11 @@ public:
         function = std::make_shared<Function>(results, sinks, inputParams, "ConcatTranposeSDP");
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        {
-            ov::pass::Serialize serializer("ConcatTranposeSDP.xml", "ConcatTranposeSDP.bin");
-            serializer.run_on_model(function);
-        }
-
         functionRefs = function->clone();
         pass::Manager manager;
         // decompose ScaledDotProductAttention
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
         manager.run_passes(functionRefs);
-        {
-            ov::pass::Serialize serializer("ConcatTranposeSDP_ref.xml", "ConcatTranposeSDP_ref.bin");
-            serializer.run_on_model(function);
-        }
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         std::vector<ov::Shape> shapes(4);
@@ -253,7 +244,7 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);  // TODO
+    CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -263,7 +254,7 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {
-    {// TODO: dynamic batch
+    {
      // inputShapes LLama
      {
          // B, H, L1, S

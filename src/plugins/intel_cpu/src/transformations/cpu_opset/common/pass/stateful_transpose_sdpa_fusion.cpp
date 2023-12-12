@@ -52,10 +52,6 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
     auto sdp2 = wrap_type<opset13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input(), any_input()});
     auto sdp = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sdp0, sdp1, sdp2});
 
-    // post SDPA Transpose
-    auto order_out = wrap_type<opset6::Constant>();
-    auto transpose_out = wrap_type<opset6::Transpose>({sdp, order_out});
-
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -112,9 +108,9 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
         const auto order_q_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
         const auto order_k_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
         const auto order_v_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
-        const auto& vec_order_q = order_q_node->get_vector<int32_t>();
-        const auto& vec_order_k = order_k_node->get_vector<int32_t>();
-        const auto& vec_order_v = order_v_node->get_vector<int32_t>();
+        const auto& vec_order_q = order_q_node->cast_vector<int32_t>();
+        const auto& vec_order_k = order_k_node->cast_vector<int32_t>();
+        const auto& vec_order_v = order_v_node->cast_vector<int32_t>();
         if (vec_order_q != vec_order_k || vec_order_q != vec_order_v) // the transpose order of q/k/v should be the same.
             return false;
 

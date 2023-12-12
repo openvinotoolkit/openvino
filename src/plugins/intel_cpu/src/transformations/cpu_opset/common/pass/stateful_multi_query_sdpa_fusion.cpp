@@ -112,9 +112,9 @@ StatefulMultiQuerySDPAFusion::StatefulMultiQuerySDPAFusion() {
         const auto order_k_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
         const auto order_v_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
 
-        const auto& permute_q = order_q_node->get_vector<int32_t>();
-        const auto& permute_k = order_k_node->get_vector<int32_t>();
-        const auto& permute_v = order_v_node->get_vector<int32_t>();
+        const auto& permute_q = order_q_node->cast_vector<int32_t>();
+        const auto& permute_k = order_k_node->cast_vector<int32_t>();
+        const auto& permute_v = order_v_node->cast_vector<int32_t>();
         if (permute_q != permute_k || permute_q != permute_v) {
             return false;
         }

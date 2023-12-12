@@ -125,7 +125,7 @@ public:
         }
 
         // pre SDPA transpose
-        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);  // TODO dtype
+        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
@@ -260,7 +260,7 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);  // TODO
+    CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
