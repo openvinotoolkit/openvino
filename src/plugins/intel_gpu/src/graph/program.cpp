@@ -1217,19 +1217,17 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
-void program::dump_program(const char* stage,
-                           bool with_full_info,
-                           std::function<bool(program_node const&)> const& filter) const {
+void program::dump_program(const char* stage, bool with_full_info) const {
     std::string path = get_dir_path(_config);
     if (path.empty() || !with_full_info) {
         return;
     }
 
     std::ofstream graph(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".graph");
-    dump_graph_init(graph, *this, filter);
+    dump_graph_init(graph, *this);
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".info");
-    dump_graph_info(graph, *this, filter);
+    dump_graph_info(graph, *this);
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".order");
     dump_graph_processing_order(graph, *this);
