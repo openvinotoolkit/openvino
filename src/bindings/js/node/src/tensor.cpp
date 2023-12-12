@@ -3,7 +3,7 @@
 
 #include "tensor.hpp"
 
-#include <iostream>
+#include "addon.hpp"
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
     if (info.Length() == 0) {
@@ -48,10 +48,14 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->tensor_prototype = ref;
 
-    exports.Set("Tensor", func);
+    exports.Set("Tensor", prototype);
     return exports;
 }
 
@@ -64,10 +68,14 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
 }
 
 Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
-    auto obj = GetClassConstructor(env).New({});
-    auto t = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
+    const auto prototype = env.GetInstanceData<AddonData>()->tensor_prototype;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to Tensor prototype.");
+    }
+    auto tensor_js = prototype->New({});
+    const auto t = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_js);
     t->set_tensor(tensor);
-    return obj;
+    return tensor_js;
 }
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {

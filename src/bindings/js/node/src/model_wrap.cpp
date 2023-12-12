@@ -41,7 +41,7 @@ Napi::Object ModelWrap::Wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
         OPENVINO_THROW("Invalid pointer to model prototype.");
     }
     const auto& model_js = prototype->New({});
-    ModelWrap* mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
+    const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
 }

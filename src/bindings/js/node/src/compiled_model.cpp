@@ -3,6 +3,7 @@
 
 #include "compiled_model.hpp"
 
+#include "addon.hpp"
 #include "errors.hpp"
 #include "infer_request.hpp"
 #include "node_output.hpp"
@@ -20,17 +21,25 @@ Napi::Function CompiledModelWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object CompiledModelWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->compiled_model_prototype = ref;
 
-    exports.Set("CompiledModel", func);
+    exports.Set("CompiledModel", prototype);
     return exports;
 }
 
 Napi::Object CompiledModelWrap::Wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     Napi::HandleScope scope(env);
-    Napi::Object obj = GetClassConstructor(env).New({});
-    CompiledModelWrap* cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+    const auto prototype = env.GetInstanceData<AddonData>()->compiled_model_prototype;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+    }
+    auto obj = prototype->New({});
+    const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->_compiled_model = compiled_model;
     return obj;
 }

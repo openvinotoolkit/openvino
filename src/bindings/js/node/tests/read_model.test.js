@@ -17,11 +17,13 @@ const core = new ov.Core();
 describe('Core.readModeSync', () => {
   it('readModeSync(xmlPath) ', () => {
     const model = core.readModelSync(modelPath);
+    assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
   });
 
   it('readModeSync(xmlPath, weightsPath) ', () => {
     const model = core.readModelSync(modelPath, weightsPath);
+    assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
   });
 
@@ -30,23 +32,24 @@ describe('Core.readModeSync', () => {
       new Uint8Array(modelFile.buffer),
       new Uint8Array(weightsFile.buffer),
     );
+    assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
   });
 });
 
 describe('Core.readModel', () => {
   it('readModel(xmlPath) ', async () => {
-    const model = await core.readModelSync(modelPath);
+    const model = await core.readModel(modelPath);
     assert.equal(model.inputs.length, 1);
   });
 
   it('readModel(xmlPath, weightsPath) ', async () => {
-    const model = await core.readModelSync(modelPath, weightsPath);
+    const model = await core.readModel(modelPath, weightsPath);
     assert.equal(model.inputs.length, 1);
   });
 
-  it('readModeSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', async () => {
-    const model = await core.readModelSync(
+  it('readMode(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', async () => {
+    const model = await core.readModel(
       new Uint8Array(modelFile.buffer),
       new Uint8Array(weightsFile.buffer),
     );

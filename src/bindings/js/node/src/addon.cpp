@@ -18,8 +18,8 @@
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
-    auto data = new AddonData();
-    env.SetInstanceData<AddonData>(data);
+    auto addon_data = new AddonData();
+    env.SetInstanceData<AddonData>(addon_data);
 
     ModelWrap::Init(env, exports);
     CoreWrap::Init(env, exports);
