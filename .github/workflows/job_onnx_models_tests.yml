@@ -107,5 +107,12 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
+      - name: Check Dir
+        run: ls -laR ${INSTALL_TEST_DIR}/onnx
+
       - name: ONNX Models Tests
-        run: python3 -m pytest --backend="CPU" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
+        continue-on-error: true
+        run: python3 -m pytest --backend="CPU" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 -k 'not _cuda' --model_zoo_xfail
+
+      - name: ONNX Models Tests (2)
+        run: pytest --backend="CPU" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
