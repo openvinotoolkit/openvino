@@ -2,23 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/space_to_depth.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::op::v0;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/space_to_depth.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
+using ov::op::v0::SpaceToDepth;
 
 typedef std::tuple<
-    InputShape,                         // Input shape
-    ElementType,                        // Input element type
-    SpaceToDepth::SpaceToDepthMode,     // Mode
-    std::size_t                         // Block size
+    InputShape,                      // Input shape
+    ov::element::Type,               // Input element type
+    SpaceToDepth::SpaceToDepthMode,  // Mode
+    std::size_t                      // Block size
 > SpaceToDepthLayerGPUTestParams;
 
 class SpaceToDepthLayerGPUTest : public testing::WithParamInterface<SpaceToDepthLayerGPUTestParams>,
@@ -26,10 +26,10 @@ class SpaceToDepthLayerGPUTest : public testing::WithParamInterface<SpaceToDepth
 public:
     static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerGPUTestParams> obj) {
         InputShape shapes;
-        ElementType inType;
+        ov::element::Type model_type;
         SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        std::tie(shapes, inType, mode, blockSize) = obj.param;
+        std::size_t block_size;
+        std::tie(shapes, model_type, mode, block_size) = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -37,7 +37,7 @@ public:
         for (const auto& item : shapes.second) {
             results << ov::test::utils::vec2str(item) << "_";
         }
-        results << "Prc=" << inType << "_";
+        results << "Prc=" << model_type << "_";
         switch (mode) {
             case SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
                 results << "BLOCKS_FIRST_";
@@ -48,7 +48,7 @@ public:
             default:
                 throw std::runtime_error("Unsupported SpaceToDepthMode");
         }
-        results << "BS=" << blockSize;
+        results << "BS=" << block_size;
 
         return results.str();
     }
@@ -57,17 +57,18 @@ protected:
     void SetUp() override {
         InputShape shapes;
         SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        std::tie(shapes, inType, mode, blockSize) = this->GetParam();
+        std::size_t block_size;
+        ov::element::Type model_type;
+        std::tie(shapes, model_type, mode, block_size) = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes({shapes});
 
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
-        auto d2s = std::make_shared<ov::op::v0::SpaceToDepth>(params[0], mode, blockSize);
+        auto d2s = std::make_shared<ov::op::v0::SpaceToDepth>(params[0], mode, block_size);
 
         ov::ResultVector results;
         for (size_t i = 0; i < d2s->get_output_size(); i++)
@@ -76,18 +77,14 @@ protected:
     }
 };
 
-TEST_P(SpaceToDepthLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(SpaceToDepthLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-
-const std::vector<ElementType> inputElementType = {
-        ElementType::f32,
-        ElementType::f16,
-        ElementType::i8
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i8
 };
 
 const std::vector<SpaceToDepth::SpaceToDepthMode> SpaceToDepthModes = {
@@ -96,7 +93,6 @@ const std::vector<SpaceToDepth::SpaceToDepthMode> SpaceToDepthModes = {
 };
 
 // ======================== Static Shapes Tests ========================
-namespace static_shapes {
 
 const std::vector<ov::Shape> inputShapesBS2_4D = {
         {1, 16,  8,  8},
@@ -115,16 +111,16 @@ const std::vector<ov::Shape> inputShapesBS3_4D = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthStaticBS2_4D, SpaceToDepthLayerGPUTest,
                          testing::Combine(
-                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS2_4D)),
-                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesBS2_4D)),
+                                 testing::ValuesIn(model_types),
                                  testing::ValuesIn(SpaceToDepthModes),
                                  testing::Values(1, 4)),
                          SpaceToDepthLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthStaticBS3_4D, SpaceToDepthLayerGPUTest,
                          testing::Combine(
-                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS3_4D)),
-                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesBS3_4D)),
+                                 testing::ValuesIn(model_types),
                                  testing::ValuesIn(SpaceToDepthModes),
                                  testing::Values(1, 3)),
                          SpaceToDepthLayerGPUTest::getTestCaseName);
@@ -146,24 +142,22 @@ const std::vector<ov::Shape> inputShapesBS3_5D = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthStaticBS2_5D, SpaceToDepthLayerGPUTest,
                          testing::Combine(
-                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS2_5D)),
-                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesBS2_5D)),
+                                 testing::ValuesIn(model_types),
                                  testing::ValuesIn(SpaceToDepthModes),
                                  testing::Values(1, 4)),
                          SpaceToDepthLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthStaticBS3_5D, SpaceToDepthLayerGPUTest,
                          testing::Combine(
-                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS3_5D)),
-                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesBS3_5D)),
+                                 testing::ValuesIn(model_types),
                                  testing::ValuesIn(SpaceToDepthModes),
                                  testing::Values(1, 3)),
                          SpaceToDepthLayerGPUTest::getTestCaseName);
 
-} // namespace static_shapes
 
 //======================== Dynamic Shapes Tests ========================
-namespace dynamic_shapes {
 
 const std::vector<InputShape> inputShapes4D = {
         {{-1, -1, -1, -1}, {{2, 3, 12, 24}}},
@@ -176,7 +170,7 @@ const std::vector<InputShape> inputShapes5D = {
 INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthDynamic4D, SpaceToDepthLayerGPUTest,
                          testing::Combine(
                                  testing::ValuesIn(inputShapes4D),
-                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(model_types),
                                  testing::ValuesIn(SpaceToDepthModes),
                                  testing::Values(1, 2, 3)),
                          SpaceToDepthLayerGPUTest::getTestCaseName);
@@ -184,12 +178,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthDynamic4D, SpaceToDepthLayerGPUTes
 INSTANTIATE_TEST_SUITE_P(smoke_GPUSpaceToDepthDynamic5D, SpaceToDepthLayerGPUTest,
                          testing::Combine(
                                  testing::ValuesIn(inputShapes5D),
-                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(model_types),
                                  testing::ValuesIn(SpaceToDepthModes),
                                  testing::Values(1, 2)),
                          SpaceToDepthLayerGPUTest::getTestCaseName);
 
-} // namespace dynamic_shapes
-
 } // namespace
-} // namespace GPULayerTestsDefinitions

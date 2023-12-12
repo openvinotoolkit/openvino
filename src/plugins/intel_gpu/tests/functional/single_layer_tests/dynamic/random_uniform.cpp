@@ -2,26 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
-using namespace ngraph;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/random_uniform.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 typedef std::tuple<
         std::vector<InputShape>,            // Input shapes
         std::pair<double, double>,          // Min value, Max value
         std::pair<uint64_t, uint64_t>,      // Global seed, operation seed
-        ElementType,                        // Network precision
-        TargetDevice,                       // Device name
-        std::map<std::string, std::string>  // Additional network configuration
+        ov::element::Type,                  // Network precision
+        std::string                        // Device name
 > RandomUnifromDynamicGPUTestParamsSet;
 
 class RandomUnifromDynamicGPUTest : public testing::WithParamInterface<RandomUnifromDynamicGPUTestParamsSet>,
-                            virtual public SubgraphBaseTest {
+                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RandomUnifromDynamicGPUTestParamsSet>& obj) {
         RandomUnifromDynamicGPUTestParamsSet basicParamsSet = obj.param;
@@ -29,10 +31,9 @@ public:
         std::vector<InputShape> input_shapes;
         std::pair<double, double> min_max_values;
         std::pair<uint64_t, uint64_t> seeds;
-        ElementType precision;
-        TargetDevice target_device;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(input_shapes, min_max_values, seeds, precision, target_device, additionalConfig) = basicParamsSet;
+        ov::element::Type precision;
+        std::string target_device;
+        std::tie(input_shapes, min_max_values, seeds, precision, target_device) = basicParamsSet;
 
         result << "shape=";
         for (const auto& shape : input_shapes) {
@@ -75,37 +76,37 @@ protected:
     void set_tensor_value(T scalar, ov::Tensor& tensor) {
         #define CASE(X)                                                                   \
             case X: {                                                                     \
-                auto *dataPtr = tensor.data<element_type_traits<X>::value_type>();        \
-                dataPtr[0] = static_cast<element_type_traits<X>::value_type>(scalar);     \
+                auto *dataPtr = tensor.data<ov::element_type_traits<X>::value_type>();        \
+                dataPtr[0] = static_cast<ov::element_type_traits<X>::value_type>(scalar);     \
                 break;                                                                    \
             }
 
         switch (tensor.get_element_type()) {
-            CASE(ElementType::boolean)
-            CASE(ElementType::i8)
-            CASE(ElementType::i16)
-            CASE(ElementType::i32)
-            CASE(ElementType::i64)
-            CASE(ElementType::u8)
-            CASE(ElementType::u16)
-            CASE(ElementType::u32)
-            CASE(ElementType::u64)
-            CASE(ElementType::bf16)
-            CASE(ElementType::f16)
-            CASE(ElementType::f32)
-            CASE(ElementType::f64)
-            CASE(ElementType::u1)
-            CASE(ElementType::i4)
-            CASE(ElementType::u4)
+            CASE(ov::element::boolean)
+            CASE(ov::element::i8)
+            CASE(ov::element::i16)
+            CASE(ov::element::i32)
+            CASE(ov::element::i64)
+            CASE(ov::element::u8)
+            CASE(ov::element::u16)
+            CASE(ov::element::u32)
+            CASE(ov::element::u64)
+            CASE(ov::element::bf16)
+            CASE(ov::element::f16)
+            CASE(ov::element::f32)
+            CASE(ov::element::f64)
+            CASE(ov::element::u1)
+            CASE(ov::element::i4)
+            CASE(ov::element::u4)
             default: OPENVINO_THROW("Unsupported element type: ", tensor.get_element_type());
         }
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        auto generate_input = [&](size_t index, ElementType element_type) {
+        auto generate_input = [&](size_t index, ov::element::Type element_type) {
             ov::Tensor tensor(element_type, targetInputStaticShapes[index]);
             if (index != 0) {
                 auto scalar_val = index == 1 ? min_max_values.first : min_max_values.second;
@@ -121,11 +122,9 @@ protected:
     void SetUp() override {
         RandomUnifromDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
         std::vector<InputShape> shapes;
-        ElementType netType;
-        std::map<std::string, std::string> additionalConfig;
+        ov::element::Type netType;
         std::pair<uint64_t, uint64_t> seeds;
-
-        std::tie(shapes, min_max_values, seeds, netType, targetDevice, additionalConfig) = basicParamsSet;
+        std::tie(shapes, min_max_values, seeds, netType, targetDevice) = basicParamsSet;
 
         init_input_shapes(shapes);
 
@@ -144,14 +143,10 @@ private:
     std::pair<double, double> min_max_values;
 };
 
-
-TEST_P(RandomUnifromDynamicGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(RandomUnifromDynamicGPUTest, Inference) {
     run();
 }
 
-namespace {
-std::map<std::string, std::string> emptyAdditionalConfig;
 const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
     {
         {{ov::PartialShape::dynamic(4)}, {{1, 2, 3, 4}, {1, 1, 5, 5}, {2, 3, 4, 5}}},
@@ -183,21 +178,18 @@ const std::vector<std::pair<uint64_t, uint64_t>> seeds = {
     {100, 10},
 };
 
-const std::vector<ElementType> netPrecisions = {
-    ElementType::i32,
-    ElementType::f32,
-    ElementType::f16,
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::i32,
+    ov::element::f32,
+    ov::element::f16,
 };
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                  ::testing::ValuesIn(min_max_values),
                                                  ::testing::ValuesIn(seeds),
                                                  ::testing::ValuesIn(netPrecisions),
-                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                 ::testing::Values(emptyAdditionalConfig));
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_random_uniform, RandomUnifromDynamicGPUTest,
                          testParams_smoke, RandomUnifromDynamicGPUTest::getTestCaseName);
-
 } // namespace
-} // namespace GPULayerTestsDefinitions

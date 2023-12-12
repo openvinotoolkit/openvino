@@ -1,49 +1,43 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_layer/convolution.hpp"
-#include "common_test_utils/test_constants.hpp"
+#include "shared_test_classes/single_op/convolution.hpp"
 
-// using namespace LayerTestsDefinitions;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/convolution.hpp"
 
-namespace GPULayerTestsDefinitions {
-
-using LayerTestsDefinitions::convSpecificParams;
+namespace {
+using ov::test::InputShape;
+using ov::test::convSpecificParams;
 
 typedef std::tuple<
         convSpecificParams,
-        ElementType,     // Net precision
-        ElementType,     // Input precision
-        ElementType,     // Output precision
-        InputShape,      // Input shape
-        LayerTestsUtils::TargetDevice,   // Device name
-        bool             // activation fusing
+        ov::element::Type,     // Model type
+        InputShape,            // Input shape
+        std::string,           // Device name
+        bool                   // activation fusing
 > convLayerTestParamsSet;
 
 
 class ConvolutionLayerGPUTestDynamic : public testing::WithParamInterface<convLayerTestParamsSet>,
-                             virtual public SubgraphBaseTest {
+                                       virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
         convSpecificParams convParams;
-        ElementType netType;
-        ElementType inType, outType;
+        ov::element::Type model_type;
         InputShape inputShape;
         std::string targetDevice;
         bool activationFusing;
-        std::tie(convParams, netType, inType, outType, inputShape, targetDevice, activationFusing) = obj.param;
+        std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = obj.param;
 
-        ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        ov::op::PadType padType;
+        std::vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
@@ -63,9 +57,7 @@ public:
         result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << convOutChannels << "_";
         result << "AP=" << padType << "_";
-        result << "netPRC=" << netType << "_";
-        result << "inPRC=" << inType << "_";
-        result << "outPRC=" << outType << "_";
+        result << "netPRC=" << model_type << "_";
         result << "trgDev=" << targetDevice << "_";
         result << "activationFusing=" << activationFusing;
 
@@ -76,48 +68,45 @@ protected:
     void SetUp() override {
         convSpecificParams convParams;
         InputShape inputShape;
-        auto netType = ElementType::undefined;
+        auto model_type = ov::element::undefined;
         bool activationFusing;
-        std::tie(convParams, netType, inType, outType, inputShape, targetDevice, activationFusing) = this->GetParam();
+        std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = this->GetParam();
 
         init_input_shapes({inputShape});
 
-        ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        ov::op::PadType padType;
+        std::vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
-        auto convolutionNode = ngraph::builder::makeConvolution(inputParams.front(), netType, kernel, stride, padBegin,
-                                                                padEnd, dilation, padType, convOutChannels);
+        auto convolutionNode = ov::test::utils::make_convolution(inputParams.front(), model_type, kernel, stride, padBegin,
+                                                                 padEnd, dilation, padType, convOutChannels);
         if (activationFusing) {
-                auto activationNode = ngraph::builder::makeActivation(convolutionNode, netType, ngraph::helpers::ActivationTypes::Relu);
+                auto activationNode = ov::test::utils::make_activation(convolutionNode, model_type, ov::test::utils::ActivationTypes::Relu);
 
-                ngraph::ResultVector results;
+                ov::ResultVector results;
                 for (size_t i = 0; i < activationNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ngraph::opset1::Result>(activationNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(activationNode->output(i)));
 
-                function = std::make_shared<ngraph::Function>(results, inputParams, "Convolution");
+                function = std::make_shared<ov::Model>(results, inputParams, "Convolution");
         } else {
-                ngraph::ResultVector results;
+                ov::ResultVector results;
                 for (size_t i = 0; i < convolutionNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ngraph::opset1::Result>(convolutionNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(convolutionNode->output(i)));
 
-                function = std::make_shared<ngraph::Function>(results, inputParams, "Convolution");
+                function = std::make_shared<ov::Model>(results, inputParams, "Convolution");
         }
     }
 };
 
-TEST_P(ConvolutionLayerGPUTestDynamic, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(ConvolutionLayerGPUTestDynamic, Inference) {
     run();
 }
-
-namespace {
 
 // ======== 1D convolutions
 const std::vector<ov::test::InputShape> dynInputShapes1D = {
@@ -130,27 +119,25 @@ const std::vector<ov::test::InputShape> dynInputShapes1D = {
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3}),
-                        ::testing::Values(SizeVector{1}),
+                        ::testing::Values(std::vector<size_t>{3}),
+                        ::testing::Values(std::vector<size_t>{1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1}),
-                        ::testing::Values(SizeVector{1}),
+                        ::testing::Values(std::vector<size_t>{1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes1D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
-const std::vector<SizeVector> kernels1D = { {3}, {1} };
-const std::vector<SizeVector> strides1D = { {1} };
+const std::vector<std::vector<size_t>> kernels1D = { {3}, {1} };
+const std::vector<std::vector<size_t>> strides1D = { {1} };
 const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0}, {1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0}, {1} };
-const std::vector<SizeVector> dilations1D = { {1} };
-const SizeVector numOutChannels = { 64, 63 };
+const std::vector<std::vector<size_t>> dilations1D = { {1} };
+const std::vector<size_t> numOutChannels = { 64, 63 };
 const std::vector<InputShape> inputShapes1D = {
         {{}, {{ 2, 64, 7 }}},
         {{}, {{ 1, 67, 7 }}},
@@ -181,10 +168,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_ExplicitPad1D, Convolutio
                         ::testing::ValuesIn(padEnds1D),
                         ::testing::ValuesIn(dilations1D),
                         ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT)),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::Values(ov::op::PadType::EXPLICIT)),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(inputShapes1D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -209,16 +194,14 @@ const std::vector<ov::test::InputShape> dynInputShapes2D_static_output = {
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{3, 3}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -228,16 +211,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymPad, Convolut
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymAutoPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{3, 3}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
                         ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -247,16 +228,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymAutoPad, Conv
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_AsymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{3, 3}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
                         ::testing::Values(std::vector<ptrdiff_t>{2, 1}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(10),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -266,16 +245,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_AsymPad, Convol
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_static_output, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3}),
-                        ::testing::Values(SizeVector{2, 2}),
+                        ::testing::Values(std::vector<size_t>{3, 3}),
+                        ::testing::Values(std::vector<size_t>{2, 2}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 1}),
-                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(256),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT)),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::Values(ov::op::PadType::EXPLICIT)),
+                ::testing::Values(ov::element::f32),
                 ::testing::ValuesIn(dynInputShapes2D_static_output),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(true)),
@@ -293,16 +270,14 @@ const std::vector<ov::test::InputShape> dynInputShapes3D = {
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3, 3}),
-                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<size_t>{3, 3, 3}),
+                        ::testing::Values(std::vector<size_t>{1, 1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
-                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1, 1}),
                         ::testing::Values(3),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes3D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -312,16 +287,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymPad, Convolut
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymAutoPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3, 3}),
-                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<size_t>{3, 3, 3}),
+                        ::testing::Values(std::vector<size_t>{1, 1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{0, 0, 0}),
                         ::testing::Values(std::vector<ptrdiff_t>{0, 0, 0}),
-                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1, 1}),
                         ::testing::Values(3),
-                        ::testing::ValuesIn({ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes3D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -331,20 +304,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymAutoPad, Conv
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DAsymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
-                        ::testing::Values(SizeVector{3, 3, 3}),
-                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<size_t>{3, 3, 3}),
+                        ::testing::Values(std::vector<size_t>{1, 1, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
                         ::testing::Values(std::vector<ptrdiff_t>{2, 1, 1}),
-                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<size_t>{1, 1, 1}),
                         ::testing::Values(3),
-                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::f16),
-                ::testing::Values(ElementType::undefined),
+                        ::testing::ValuesIn({ov::op::PadType::EXPLICIT, ov::op::PadType::VALID})),
+                ::testing::Values(ov::element::f16),
                 ::testing::ValuesIn(dynInputShapes3D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 }  // namespace
-} // namespace GPULayerTestsDefinitions

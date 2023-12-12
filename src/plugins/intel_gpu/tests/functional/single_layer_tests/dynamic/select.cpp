@@ -2,34 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/select.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
-#include <string>
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/select.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 typedef std::tuple<
-    std::vector<InputShape>,    // input shapes
-    ElementType,                // presion of 'then' and 'else' of inputs
-    op::AutoBroadcastSpec,      // broadcast spec
-    TargetDevice                // device name
+    std::vector<InputShape>,   // input shapes
+    ov::element::Type,         // presion of 'then' and 'else' of inputs
+    ov::op::AutoBroadcastSpec, // broadcast spec
+    std::string                // device name
 > SelectLayerTestParamSet;
 
 class SelectLayerGPUTest : public testing::WithParamInterface<SelectLayerTestParamSet>,
-                           virtual public SubgraphBaseTest {
+                           virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SelectLayerTestParamSet>& obj) {
         std::vector<InputShape> inshapes;
-        ElementType netType;
-        op::AutoBroadcastSpec broadcast;
-        TargetDevice targetDevice;
-        std::tie(inshapes, netType, broadcast, targetDevice) = obj.param;
+        ov::element::Type model_type;
+        ov::op::AutoBroadcastSpec broadcast;
+        std::string targetDevice;
+        std::tie(inshapes, model_type, broadcast, targetDevice) = obj.param;
 
         std::ostringstream result;
 
@@ -43,7 +42,7 @@ public:
                 result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "Precision=" << netType << "_";
+        result << "Precision=" << model_type << "_";
         result << "Broadcast=" << broadcast.m_type << "_";
         result << "trgDev=" << targetDevice;
 
@@ -53,47 +52,41 @@ public:
 protected:
     void SetUp() override {
         std::vector<InputShape> inshapes;
-        ElementType netType;
-        op::AutoBroadcastSpec broadcast;
-        std::tie(inshapes, netType, broadcast, targetDevice) = this->GetParam();
+        ov::element::Type model_type;
+        ov::op::AutoBroadcastSpec broadcast;
+        std::tie(inshapes, model_type, broadcast, targetDevice) = this->GetParam();
 
         init_input_shapes(inshapes);
 
-        ParameterVector params = {
-            std::make_shared<opset1::Parameter>(ElementType::boolean, inputDynamicShapes[0]),
-            std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[1]),
-            std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[2]),
+        ov::ParameterVector params = {
+            std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, inputDynamicShapes[0]),
+            std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]),
+            std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2]),
         };
 
         auto select = std::make_shared<ov::op::v1::Select>(params[0], params[1], params[2], broadcast);
 
-        auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
-            ResultVector results;
+        auto makeFunction = [](ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+            ov::ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
-            return std::make_shared<Function>(results, params, "SelectLayerGPUTest");
+            return std::make_shared<ov::Model>(results, params, "SelectLayerGPUTest");
         };
         function = makeFunction(params, select);
     }
 };
 
-TEST_P(SelectLayerGPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(SelectLayerGPUTest, Inference) {
    run();
 }
 
-namespace {
-
-const std::vector<ElementType> netPrecisions = {
-        ElementType::f32,
-        ElementType::f16,
-        ElementType::i32,
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i32,
 };
-
-namespace Select {
 
 // AutoBroadcastType: NUMPY
 const std::vector<std::vector<InputShape>> inShapesDynamicNumpy = {
@@ -131,8 +124,8 @@ const std::vector<std::vector<InputShape>> inShapesDynamicNumpy = {
 
 const auto numpyCases = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamicNumpy),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(op::AutoBroadcastType::NUMPY),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
@@ -148,8 +141,8 @@ const std::vector<std::vector<InputShape>> inShapesDynamicRangeNumpy = {
 
 const auto rangeNumpyCases = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamicRangeNumpy),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(op::AutoBroadcastType::NUMPY),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
@@ -171,13 +164,10 @@ const std::vector<std::vector<InputShape>> inShapesDynamicNone = {
 
 const auto noneCases = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamicNone),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(op::AutoBroadcastType::NONE),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::op::AutoBroadcastType::NONE),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_select_CompareWithRefsNone_dynamic, SelectLayerGPUTest, noneCases, SelectLayerGPUTest::getTestCaseName);
-
-} // namespace Select
 } // namespace
-} // namespace GPULayerTestsDefinitions

@@ -2,22 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_layer/non_max_suppression.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
-using namespace ngraph;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
 
 enum {
     BATCHES,
@@ -32,9 +26,9 @@ using TargetShapeParams = std::tuple<size_t,   // Number of batches
 using InputShapeParams = std::tuple<std::vector<ov::Dimension>,       // bounds for input dynamic shape
                                     std::vector<TargetShapeParams>>;  // target input dimensions
 
-using InputPrecisions = std::tuple<ElementType,  // boxes and scores precisions
-                                   ElementType,  // max_output_boxes_per_class precision
-                                   ElementType>; // iou_threshold, score_threshold, soft_nms_sigma precisions
+using InputPrecisions = std::tuple<ov::element::Type,  // boxes and scores precisions
+                                   ov::element::Type,  // max_output_boxes_per_class precision
+                                   ov::element::Type>; // iou_threshold, score_threshold, soft_nms_sigma precisions
 
 using ThresholdValues = std::tuple<float,  // IOU threshold
                                    float,  // Score threshold
@@ -44,13 +38,14 @@ using NmsLayerTestParams = std::tuple<InputShapeParams,                         
                                       InputPrecisions,                                    // Input precisions
                                       int32_t,                                            // Max output boxes per class
                                       ThresholdValues,                                    // IOU, Score, Soft NMS sigma
-                                      ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
+                                      ov::op::v9::NonMaxSuppression::BoxEncodingType,     // Box encoding
                                       bool,                                               // Sort result descending
-                                      ngraph::element::Type,                              // Output type
-                                      TargetDevice,                                       // Device name
+                                      ov::element::Type,                              // Output type
+                                      std::string,                                        // Device name
                                       std::map<std::string, std::string>>;                // Additional network configuration
 
-class NmsLayerGPUTest : public testing::WithParamInterface<NmsLayerTestParams>, virtual public SubgraphBaseTest {
+class NmsLayerGPUTest : public testing::WithParamInterface<NmsLayerTestParams>,
+                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsLayerTestParams>& obj) {
         InputShapeParams inShapeParams;
@@ -58,17 +53,17 @@ public:
         int32_t maxOutBoxesPerClass;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
-        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
+        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
-        element::Type outType;
-        TargetDevice targetDevice;
+        ov::element::Type outType;
+        std::string targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType,
                  targetDevice, additionalConfig) = obj.param;
 
         std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
 
-        ElementType paramsPrec, maxBoxPrec, thrPrec;
+        ov::element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
         std::vector<ov::Dimension> bounds;
@@ -88,6 +83,7 @@ public:
         result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
         result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
         result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
+        using ov::operator<<;
         result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
         result << "config=(";
         for (const auto& configEntry : additionalConfig) {
@@ -99,7 +95,7 @@ public:
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
         // w/a to fill valid data for port 2
         const auto& funcInputs = function->inputs();
@@ -122,13 +118,13 @@ protected:
         InputPrecisions inPrecisions;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
-        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
+        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
-        element::Type outType;
+        ov::element::Type outType;
         std::map<std::string, std::string> additionalConfig;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType,
                  targetDevice, additionalConfig) = this->GetParam();
-        element::Type paramsPrec, maxBoxPrec, thrPrec;
+        ov::element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
         std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
@@ -137,18 +133,18 @@ protected:
         std::tie(bounds, targetInDims) = inShapeParams;
 
         if (!bounds.empty()) {
-            inputDynamicShapes = std::vector<ngraph::PartialShape>{{bounds[BATCHES], bounds[BOXES], 4}, {bounds[BATCHES], bounds[CLASSES], bounds[BOXES]}};
+            inputDynamicShapes = std::vector<ov::PartialShape>{{bounds[BATCHES], bounds[BOXES], 4}, {bounds[BATCHES], bounds[CLASSES], bounds[BOXES]}};
         } else {
             size_t batches, boxes, classes;
             std::tie(batches, boxes, classes) = targetInDims.front();
             ov::Dimension numBatches(batches), numBoxes(boxes), numClasses(classes);
-            inputDynamicShapes = std::vector<ngraph::PartialShape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}};
+            inputDynamicShapes = std::vector<ov::PartialShape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}};
         }
 
         for (const auto &ts : targetInDims) {
             size_t numBatches, numBoxes, numClasses;
             std::tie(numBatches, numBoxes, numClasses) = ts;
-            targetStaticShapes.push_back(std::vector<ngraph::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
+            targetStaticShapes.push_back(std::vector<ov::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
         }
 
         ov::ParameterVector params;
@@ -158,17 +154,18 @@ protected:
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
-        auto maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
-        auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
-        auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
-                                                                       softNmsSigmaNode, boxEncoding, sortResDescend, outType);
-        ngraph::ResultVector results;
+        auto maxOutBoxesPerClassNode = std::make_shared<ov::op::v0::Constant>(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+        auto iouThrNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{iouThr});
+        auto scoreThrNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{scoreThr});
+        auto softNmsSigmaNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma});
+
+        auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
+                                                                   softNmsSigmaNode, boxEncoding, sortResDescend, outType);
+        ov::ResultVector results;
         for (size_t i = 0; i < nms->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset4::Result>(nms->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(nms->output(i)));
         }
-        function = std::make_shared<ngraph::Function>(results, params, "Nms");
+        function = std::make_shared<ov::Model>(results, params, "Nms");
     }
 
 private:
@@ -397,13 +394,9 @@ private:
     int32_t maxOutBoxesPerClass;
 };
 
-TEST_P(NmsLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(NmsLayerGPUTest, Inference) {
     run();
 }
-
-namespace {
 
 std::map<std::string, std::string> emptyAdditionalConfig;
 
@@ -419,18 +412,20 @@ const std::vector<InputShapeParams> inShapeParams = {
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
 const std::vector<float> threshold = {0.3f, 0.7f};
 const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
-const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
-                                                                           op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
+const std::vector<ov::op::v9::NonMaxSuppression::BoxEncodingType> encodType =
+    {ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
+     ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
+
 const std::vector<bool> sortResDesc = {true, false};
-const std::vector<element::Type> outType = {element::i32};
+const std::vector<ov::element::Type> outType = {ov::element::i32};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Nms_dynamic, NmsLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapeParams),
         ::testing::Combine(
-            ::testing::Values(ElementType::f32),
-            ::testing::Values(ElementType::i32),
-            ::testing::Values(ElementType::f32)),
+            ::testing::Values(ov::element::f32),
+            ::testing::Values(ov::element::i32),
+            ::testing::Values(ov::element::f32)),
         ::testing::ValuesIn(maxOutBoxPerClass),
         ::testing::Combine(
             ::testing::ValuesIn(threshold),
@@ -444,4 +439,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Nms_dynamic, NmsLayerGPUTest,
     NmsLayerGPUTest::getTestCaseName);
 
 } // namespace
-} // namespace GPULayerTestsDefinitions

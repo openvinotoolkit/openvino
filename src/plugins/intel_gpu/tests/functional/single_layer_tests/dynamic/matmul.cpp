@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/mat_mul.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
-#include <string>
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/matmul.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 struct ShapeRelatedParams {
     std::vector<InputShape> inputShapes;
@@ -22,36 +21,36 @@ struct ShapeRelatedParams {
 
 typedef std::tuple<
         ShapeRelatedParams,
-        ElementType,                       // Network precision
-        ElementType,                       // Input precision
-        ElementType,                       // Output precision
-        ngraph::helpers::InputLayerType,   // Secondary input type
-        TargetDevice,                      // Device name
+        ov::element::Type,                       // Network precision
+        ov::element::Type,                       // Input precision
+        ov::element::Type,                       // Output precision
+        ov::test::utils::InputLayerType,         // Secondary input type
+        std::string,                             // Device name
         std::map<std::string, std::string> // Additional network configuration
 > MatMulLayerTestParamsSet;
 
 class MatMulLayerGPUTest : public testing::WithParamInterface<MatMulLayerTestParamsSet>,
-                           virtual public SubgraphBaseTest {
+                           virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet>& obj) {
         MatMulLayerTestParamsSet basicParamsSet = obj.param;
 
-        ElementType netType;
-        ElementType inType, outType;
-        ShapeRelatedParams shapeRelatedParams;
-        ngraph::helpers::InputLayerType secondaryInputType;
-        TargetDevice targetDevice;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
+        ov::element::Type model_type;
+        ov::element::Type inType, outType;
+        ShapeRelatedParams shape_related_params;
+        ov::test::utils::InputLayerType secondary_input_type;
+        std::string targetDevice;
+        std::map<std::string, std::string> additional_config;
+        std::tie(shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config) =
                 basicParamsSet;
 
         std::ostringstream result;
         result << "IS=";
-        for (const auto& shape : shapeRelatedParams.inputShapes) {
+        for (const auto& shape : shape_related_params.inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
-        for (const auto& shape : shapeRelatedParams.inputShapes) {
+        for (const auto& shape : shape_related_params.inputShapes) {
             result << "(";
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
@@ -61,15 +60,15 @@ public:
             }
             result << ")_";
         }
-        result << "transpose_a=" << shapeRelatedParams.transpose.first << "_";
-        result << "transpose_b=" << shapeRelatedParams.transpose.second << "_";
-        result << "secondaryInputType=" << secondaryInputType << "_";
-        result << "netPRC=" << netType << "_";
+        result << "transpose_a=" << shape_related_params.transpose.first << "_";
+        result << "transpose_b=" << shape_related_params.transpose.second << "_";
+        result << "secondary_input_type=" << secondary_input_type << "_";
+        result << "netPRC=" << model_type << "_";
         result << "inPRC=" << inType << "_";
         result << "outPRC=" << outType << "_";
         result << "trgDev=" << targetDevice;
         result << "config=(";
-        for (const auto& configEntry : additionalConfig) {
+        for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")";
@@ -87,17 +86,17 @@ protected:
     void SetUp() override {
         MatMulLayerTestParamsSet basicParamsSet = this->GetParam();
 
-        ShapeRelatedParams shapeRelatedParams;
-        ElementType netType;
-        helpers::InputLayerType secondaryInputType;
-        std::map<std::string, std::string> additionalConfig;
+        ShapeRelatedParams shape_related_params;
+        ov::element::Type model_type;
+        ov::test::utils::InputLayerType secondary_input_type;
+        std::map<std::string, std::string> additional_config;
 
-        std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
+        std::tie(shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config) = basicParamsSet;
 
-        init_input_shapes(shapeRelatedParams.inputShapes);
+        init_input_shapes(shape_related_params.inputShapes);
 
-        bool transpA = shapeRelatedParams.transpose.first;
-        bool transpB = shapeRelatedParams.transpose.second;
+        bool transpA = shape_related_params.transpose.first;
+        bool transpB = shape_related_params.transpose.second;
 
         if (transpA) {
             transpose(inputDynamicShapes[0]);
@@ -115,69 +114,64 @@ protected:
         const auto& inShapeA = inputDynamicShapes[0];
         const auto& inShapeB = inputDynamicShapes[1];
 
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+        configuration.insert(additional_config.begin(), additional_config.end());
 
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inShapeA)};
 
         std::shared_ptr<ov::Node> matrixB;
-        if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
-            auto param = std::make_shared<ov::op::v0::Parameter>(netType, inShapeB);
+        if (secondary_input_type == ov::test::utils::InputLayerType::PARAMETER) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inShapeB);
             matrixB = param;
             params.push_back(param);
         } else {
             ASSERT_TRUE(inShapeB.is_static());
-            auto tensor = ov::test::utils::create_and_fill_tensor(netType, inShapeB.to_shape());
+            auto tensor = ov::test::utils::create_and_fill_tensor(model_type, inShapeB.to_shape());
             matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
         }
 
         auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], matrixB, transpA, transpB);
-        auto makeFunction = [](const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
-            ngraph::ResultVector results;
+        auto makeFunction = [](const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+            ov::ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ngraph::opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
-            return std::make_shared<ngraph::Function>(results, params, "MatMul");
+            return std::make_shared<ov::Model>(results, params, "MatMul");
         };
-        function = makeFunction(netType, params, matMul);
+        function = makeFunction(model_type, params, matMul);
     }
 };
 
-TEST_P(MatMulLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(MatMulLayerGPUTest, Inference) {
     run();
 }
-
-namespace {
 
 /* ============= Common params ============= */
 std::map<std::string, std::string> emptyAdditionalConfig;
 
-std::vector<std::map<std::string, std::string>> additionalConfig {
+std::vector<std::map<std::string, std::string>> additional_config {
     std::map<std::string, std::string>{/* empty config */},
 };
 
-const std::vector<ElementType> netPRCs {
-    ElementType::f32,
+const std::vector<ov::element::Type> netPRCs {
+    ov::element::f32,
 };
 
 
 /* ============= FullyConnected ============= */
-namespace fullyConnected {
 
 const std::vector<ShapeRelatedParams> IS2D_smoke = {
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
 
-    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
-    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
 
-    {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
 
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
 
     {
         {
@@ -196,17 +190,17 @@ const std::vector<ShapeRelatedParams> IS2D_smoke = {
 };
 
 const std::vector<ShapeRelatedParams> IS2D_nightly = {
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, false}},
 
-    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, false}},
-    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, true}},
 
-    {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, true}},
-    {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, true}},
 
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, true}},
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
 
     {
         {
@@ -232,31 +226,31 @@ const std::vector<ShapeRelatedParams> IS2D_nightly = {
 };
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_smoke),
-                                                                ::testing::Values(ElementType::f32),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::element::f32),
+                                                                ::testing::Values(ov::element::undefined),
+                                                                ::testing::Values(ov::element::undefined),
+                                                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                                 ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerGPUTest, testParams2D_smoke, MatMulLayerGPUTest::getTestCaseName);
 
 const auto testParams2D_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_nightly),
-                                                                ::testing::Values(ElementType::f32),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::element::f32),
+                                                                ::testing::Values(ov::element::undefined),
+                                                                ::testing::Values(ov::element::undefined),
+                                                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                                 ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D, MatMulLayerGPUTest, testParams2D_nightly, MatMulLayerGPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS3D_smoke = {
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, true}},
 
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, true}},
 
     {
         {
@@ -266,7 +260,7 @@ const std::vector<ShapeRelatedParams> IS3D_smoke = {
         {false, true}
     },
 
-    {static_shapes_to_test_representation({{1, 429}, {1, 429, 1}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 429}, {1, 429, 1}}), {true, true}},
     {
         {
             {{-1, -1}, {{1, 129}, {2, 129}, {1, 129}, {2, 129}}},
@@ -285,11 +279,11 @@ const std::vector<ShapeRelatedParams> IS3D_smoke = {
 };
 
 const std::vector<ShapeRelatedParams> IS3D_nightly = {
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {true, true}},
 
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, true}},
 
     {
         {
@@ -315,20 +309,20 @@ const std::vector<ShapeRelatedParams> IS3D_nightly = {
 };
 
 const auto fullyConnectedParams3D_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_smoke),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::element::f32),
+                                                       ::testing::Values(ov::element::undefined),
+                                                       ::testing::Values(ov::element::undefined),
+                                                       ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerGPUTest, fullyConnectedParams3D_smoke, MatMulLayerGPUTest::getTestCaseName);
 
 const auto fullyConnectedParams3D_nightly = ::testing::Combine(::testing::ValuesIn(IS3D_nightly),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::element::f32),
+                                                       ::testing::Values(ov::element::undefined),
+                                                       ::testing::Values(ov::element::undefined),
+                                                       ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -366,62 +360,59 @@ const std::vector<ShapeRelatedParams> IS4D_smoke = {
 };
 
 const auto fullyConnectedParams4D_smoke = ::testing::Combine(::testing::ValuesIn(IS4D_smoke),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::element::f32),
+                                                       ::testing::Values(ov::element::undefined),
+                                                       ::testing::Values(ov::element::undefined),
+                                                       ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_4D, MatMulLayerGPUTest, fullyConnectedParams4D_smoke, MatMulLayerGPUTest::getTestCaseName);
 
-} // namespace fullyConnected
-
 /* ============= MatMul ============= */
-namespace matmul {
 
 const std::vector<ShapeRelatedParams> IS = {
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
 
-    {static_shapes_to_test_representation({{1, 2, 100010, 120}, {120, 5}}), {true, true}},
-    {static_shapes_to_test_representation({{1, 2, 200010, 120}, {120, 5}}), {false, true}},
-    {static_shapes_to_test_representation({{1, 2, 30, 120}, {120, 100010}}), {true, true}},
-    {static_shapes_to_test_representation({{1, 2, 30, 120}, {120, 100010}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 100010, 120}, {120, 5}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 200010, 120}, {120, 5}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 30, 120}, {120, 100010}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 2, 30, 120}, {120, 100010}}), {true, false}},
 
-    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
-    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
-    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
-    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
 
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
 
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}}
+    {ov::test::static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}}
 };
 
 const std::vector<ShapeRelatedParams> IS_OneDNN = {
-    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {false, false}},
-    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {true, false}},
-    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {false, true}},
-    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {true, true}},
 
-    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {false, false}},
-    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {true, false}},
-    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {false, true}},
-    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {true, true}},
+    {ov::test::static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {true, true}},
 
-    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {false, false}},
-    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {true, false}},
-    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {false, true}},
-    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {true, true}}
+    {ov::test::static_shapes_to_test_representation({{12, 12}, {12, 12}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{12, 12}, {12, 12}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{12, 12}, {12, 12}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{12, 12}, {12, 12}}), {true, true}}
 };
 
 const std::vector<ShapeRelatedParams> IS_Dynamic = {
@@ -678,44 +669,41 @@ const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {
 
 const auto testParams = ::testing::Combine(::testing::ValuesIn(IS),
                                            ::testing::ValuesIn(netPRCs),
-                                           ::testing::Values(ElementType::undefined),
-                                           ::testing::Values(ElementType::undefined),
-                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                           ::testing::Values(ov::element::undefined),
+                                           ::testing::Values(ov::element::undefined),
+                                           ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                           ::testing::ValuesIn(additionalConfig));
+                                           ::testing::ValuesIn(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Static, MatMulLayerGPUTest, testParams, MatMulLayerGPUTest::getTestCaseName);
 
 const auto testParamsOneDNN = ::testing::Combine(::testing::ValuesIn(IS_OneDNN),
-                                                 ::testing::Values(ElementType::f16),
-                                                 ::testing::Values(ElementType::undefined),
-                                                 ::testing::Values(ElementType::undefined),
-                                                 ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                 ::testing::Values(ov::element::f16),
+                                                 ::testing::Values(ov::element::undefined),
+                                                 ::testing::Values(ov::element::undefined),
+                                                 ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                 ::testing::ValuesIn(additionalConfig));
+                                                 ::testing::ValuesIn(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_OneDNN, MatMulLayerGPUTest, testParamsOneDNN, MatMulLayerGPUTest::getTestCaseName);
 
 const auto testParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
                                                   ::testing::ValuesIn(netPRCs),
-                                                  ::testing::Values(ElementType::undefined),
-                                                  ::testing::Values(ElementType::undefined),
-                                                  ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                  ::testing::Values(ov::element::undefined),
+                                                  ::testing::Values(ov::element::undefined),
+                                                  ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                  ::testing::ValuesIn(additionalConfig));
+                                                  ::testing::ValuesIn(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerGPUTest, testParamsDynamic, MatMulLayerGPUTest::getTestCaseName);
 
 const auto testParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
                                              ::testing::ValuesIn(netPRCs),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::element::undefined),
+                                             ::testing::Values(ov::element::undefined),
+                                             ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                             ::testing::ValuesIn(additionalConfig));
+                                             ::testing::ValuesIn(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic, MatMulLayerGPUTest, testParamsDynamic_nightly, MatMulLayerGPUTest::getTestCaseName);
-
-} // namespace matmul
 } // namespace
-} // namespace GPULayerTestsDefinitions
