@@ -35,6 +35,8 @@ using ov::element::dynamic;
 using ov::element::f16;
 using ov::element::f32;
 using ov::element::f64;
+using ov::element::f8e4m3;
+using ov::element::f8e5m2;
 using ov::element::i16;
 using ov::element::i32;
 using ov::element::i4;

@@ -161,6 +161,12 @@ public:
         case Type_t::nf4:
             fill_data<Type_t::nf4>(value);
             break;
+        case Type_t::f8e4m3:
+            fill_data<Type_t::f8e4m3>(value);
+            break;
+        case Type_t::f8e5m2:
+            fill_data<Type_t::f8e5m2>(value);
+            break;
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -800,6 +806,12 @@ private:
             break;
         case Type_t::nf4:
             write_buffer<Type_t::nf4>(source);
+            break;
+        case Type_t::f8e4m3:
+            write_buffer<Type_t::f8e4m3>(source);
+            break;
+        case Type_t::f8e5m2:
+            write_buffer<Type_t::f8e5m2>(source);
             break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:

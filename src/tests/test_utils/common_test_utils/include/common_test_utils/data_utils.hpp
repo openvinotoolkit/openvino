@@ -483,6 +483,14 @@ inline ov::float16 ie_abs(const ov::float16& val) {
     return ov::float16::from_bits(val.to_bits() & 0x7FFF);
 }
 
+inline ov::f8e4m3 ie_abs(const ov::f8e4m3& val) {
+    return ov::f8e4m3::from_bits(val.to_bits() & 0x7F);
+}
+
+inline ov::f8e5m2 ie_abs(const ov::f8e5m2& val) {
+    return ov::f8e5m2::from_bits(val.to_bits() & 0x7F);
+}
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

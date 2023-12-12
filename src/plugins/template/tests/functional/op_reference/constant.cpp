@@ -201,6 +201,18 @@ std::vector<ConstantParams> generateConstantDefinedTypeParams() {
                        std::vector<int64_t>{0x4000000000000001, 0x4000000000000002},
                        std::vector<int64_t>{0x4000000000000001, 0x4000000000000002},
                        "tensor_constant_int64"),
+        ConstantParams({2, 2},
+                       element::Type_t::f8e4m3,
+                       element::Type_t::f8e4m3,
+                       std::vector<ov::f8e4m3>{4.75, 4.5, -5.25, 0.0},
+                       std::vector<ov::f8e4m3>{4.75f, 4.5f, -5.25f, 0.0f},
+                       "tensor_constant_f8e4m3"),
+        ConstantParams({2, 2},
+                       element::Type_t::f8e5m2,
+                       element::Type_t::f8e5m2,
+                       std::vector<ov::f8e5m2>{4.75, 4.5, -5.25, 0.0},
+                       std::vector<ov::f8e5m2>{4.75f, 4.5f, -5.25f, 0.0f},
+                       "tensor_constant_f8e5m2"),
     };
     return constantParams;
 }

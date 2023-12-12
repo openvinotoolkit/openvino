@@ -19,6 +19,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/f8e4m3.hpp"
+#include "openvino/core/type/f8e5m2.hpp"
 #include "openvino/core/type/float16.hpp"
 
 /**
@@ -51,7 +53,9 @@ enum class Type_t {
     u16,        //!< u16 element type
     u32,        //!< u32 element type
     u64,        //!< u64 element type
-    nf4         //!< nf4 element type
+    nf4,        //!< nf4 element type
+    f8e4m3,     //!< f8e4m3 element type
+    f8e5m2      //!< f8e5m2 element type
 };
 
 /// \brief Base class to define element type
@@ -181,6 +185,12 @@ constexpr Type u64(Type_t::u64);
 /// \brief nf4 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type nf4(Type_t::nf4);
+/// \brief f8e4m3 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type f8e4m3(Type_t::f8e4m3);
+/// \brief f8e4m3 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type f8e5m2(Type_t::f8e5m2);
 
 template <typename T>
 Type from() {
@@ -214,6 +224,10 @@ template <>
 OPENVINO_API Type from<ov::bfloat16>();
 template <>
 OPENVINO_API Type from<ov::float16>();
+template <>
+OPENVINO_API Type from<ov::f8e4m3>();
+template <>
+OPENVINO_API Type from<ov::f8e5m2>();
 
 OPENVINO_API Type fundamental_type_for(const Type& type);
 
