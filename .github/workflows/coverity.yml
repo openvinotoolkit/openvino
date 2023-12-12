@@ -121,7 +121,7 @@ jobs:
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
 
-      - name: Pack Artefacts for submission
+      - name: Pack Artefacts
         run: |
           pushd ${BUILD_DIR}
             tar -C ${BUILD_DIR} -czvf openvino.tgz cov-int
@@ -129,6 +129,7 @@ jobs:
 
       - name: Submit artefacts
         run: |
+          apt-get update && apt-get install -y curl
           pushd ${BUILD_DIR}
             curl --form token=${{ secrets.COVERITY_TOKEN }} \
               --form email=${{ secrets.COVERITY_USER }} \
