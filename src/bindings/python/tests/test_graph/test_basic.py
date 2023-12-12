@@ -25,6 +25,7 @@ from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
 from openvino.runtime.utils.types import get_element_type
+from tests.utils.helpers import generate_model_with_memory
 
 
 def test_graph_api():
@@ -554,12 +555,7 @@ def test_multiple_outputs():
 
 
 def test_sink_model_ctor():
-    input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
-    rv = ops.read_value(input_data, "var_id_667", np.float32, [2, 2])
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
-    res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    model = generate_model_with_memory(input_shape=[2, 2], data_type=np.float32)
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
@@ -570,7 +566,7 @@ def test_sink_model_ctor():
     assert len(model.get_ops()) == 5
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
-    assert model.get_output_element_type(0) == input_data.get_element_type()
+    assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
     assert list(model.get_output_shape(0)) == [2, 2]
     assert (model.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
     assert len(model.get_parameters()) == 1
