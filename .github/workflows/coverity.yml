@@ -96,7 +96,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DBUILD_nvidia_plugin=OFF \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -110,7 +109,7 @@ jobs:
         run: |
           rm -rf ${COVERITY_TOOL_DIR} && mkdir -p ${COVERITY_TOOL_DIR}
           pushd ${COVERITY_TOOL_DIR}
-            wget https://scan.coverity.com/download/linux64 --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=openvino" -O coverity_tool.tgz
+            wget https://scan.coverity.com/download/linux64 --progress=bar:force:noscroll --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=openvino" -O coverity_tool.tgz
             tar xvf coverity_tool.tgz && rm coverity_tool.tgz
           popd
 
