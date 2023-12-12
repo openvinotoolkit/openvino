@@ -4,6 +4,7 @@
 
 include(GNUInstallDirs)
 
+# Put all libraries in one dir
 set(CMAKE_SKIP_INSTALL_RPATH OFF)
 
 #
@@ -33,9 +34,9 @@ macro(ov_npm_cpack_set_dirs)
         set(OV_CPACK_RUNTIMEDIR ${ARCH_FOLDER}/${build_type})
         set(OV_CPACK_ARCHIVEDIR ${ARCH_FOLDER}/${build_type})
     else()
-        set(OV_CPACK_LIBRARYDIR ${ARCH_FOLDER})
-        set(OV_CPACK_RUNTIMEDIR ${ARCH_FOLDER})
-        set(OV_CPACK_ARCHIVEDIR ${ARCH_FOLDER})
+        set(OV_CPACK_LIBRARYDIR ".")
+        set(OV_CPACK_RUNTIMEDIR ".")
+        set(OV_CPACK_ARCHIVEDIR ".")
     endif()
 
     set(OV_CPACK_LIBRARYDIR ${OV_CPACK_RUNTIMEDIR})
@@ -45,7 +46,7 @@ macro(ov_npm_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
-    set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
+    set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     # non-native stuff

@@ -3,7 +3,7 @@
 #
 
 #
-# OpenVINO Core components including frontends, plugins, etc
+# OpenVINO NPM binaries, includes openvino:runtime, frontends, plugins, tbb
 #
 macro(ov_cpack_settings)
     # fill a list of components which are part of conda
