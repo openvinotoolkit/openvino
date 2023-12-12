@@ -175,12 +175,10 @@ Plugin::Plugin() {
         m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
     }
 
-    // Set runtime info
+    // Set common info for compiled_model_format
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_format["OV_VERSION"] = ov_version.buildNumber;
-    for (const auto& device : m_device_map) {
-        m_compiled_model_format[device.first] = device.second->get_info().driver_version;
-    }
+    m_compiled_model_format_device_id = m_default_device_id;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
@@ -194,6 +192,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context->get_engine().get_device_info());
+    m_compiled_model_format_device_id = device_id;
 
     auto transformed_model = clone_and_transform_model(model, config);
     {
@@ -213,6 +212,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
+    m_compiled_model_format_device_id = device_id;
 
     auto transformed_model = clone_and_transform_model(model, config);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
@@ -338,22 +338,45 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
-    } else if (name == ov::internal::compiled_model_format.name()) {
-        auto model_format = ov::Any(m_compiled_model_format);
-        return decltype(ov::internal::compiled_model_format)::value_type(model_format.as<std::string>());
+    }
+
+    // Below properties depend on the device ID.
+    if (name == ov::internal::compiled_model_format.name()) {
+        auto model_format_map = m_compiled_model_format;
+        OPENVINO_ASSERT(m_device_map.find(m_compiled_model_format_device_id) != m_device_map.end(),
+                        "[GPU] compiled_model_format: Couldn't find device for GPU with id ",
+                        m_compiled_model_format_device_id);
+        // Set specified device info for compiled_model_format
+        model_format_map["DEVICE_ID"] = m_compiled_model_format_device_id;
+        model_format_map["DRIVER_VERSION"] =
+            m_device_map.at(m_compiled_model_format_device_id)->get_info().driver_version;
+        auto model_format = ov::Any(model_format_map);
+        return decltype(ov::internal::compiled_model_format)::value_type(std::move(model_format.as<std::string>()));
     } else if (name == ov::internal::compiled_model_format_supported.name()) {
         ov::Any res = true;
         auto it = options.find(ov::internal::compiled_model_format.name());
         if (it == options.end()) {
             res = false;
+            return res;
+        }
+        ov::AnyMap input_map = it->second.as<ov::AnyMap>();
+        // Check common info of compiled_model_format
+        for (auto& item : m_compiled_model_format) {
+            auto it = input_map.find(item.first);
+            if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
+                res = false;
+                return res;
+            }
+        }
+        // Check specified device info of compiled_model_format
+        auto id = input_map.find("DEVICE_ID");
+        auto ver = input_map.find("DRIVER_VERSION");
+        if (id == input_map.end() || ver == input_map.end()) {
+            res = false;
         } else {
-            ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-            for (auto& item : m_compiled_model_format) {
-                auto it = input_map.find(item.first);
-                if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
-                    res = false;
-                    break;
-                }
+            auto _it = m_device_map.find(id->second.as<std::string>());
+            if (_it == m_device_map.end() || _it->second->get_info().driver_version != ver->second.as<std::string>()) {
+                res = false;
             }
         }
         return res;
