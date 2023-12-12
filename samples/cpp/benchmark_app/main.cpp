@@ -126,7 +126,7 @@ void next_step(const std::string additional_info = "") {
 }
 
 void handle_performance_hint(const std::string& device, const ov::Core& core, ov::AnyMap& config) {
-    ov::hint::PerformanceMode ov_perf_hint;
+    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
     auto supported_properties = core.get_property(device, ov::supported_properties);
     if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
         supported_properties.end()) {
