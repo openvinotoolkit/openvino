@@ -166,9 +166,10 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
         auto max_stride = max_element->length();
         auto dtype = py::dtype("|S" + std::to_string(max_stride));
         // Adjusting strides to follow the numpy convention:
-        auto new_strides = t.get_shape();
+        auto new_strides = t.get_strides();
+        auto element_stride = new_strides[new_strides.size() - 1];
         for (size_t i = 0; i < new_strides.size(); ++i) {
-            new_strides[i] = max_stride;
+            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
         }
         auto array = py::array(dtype, t.get_shape(), new_strides);
         // Create an empty array and populate it with utf-8 encoded strings:
