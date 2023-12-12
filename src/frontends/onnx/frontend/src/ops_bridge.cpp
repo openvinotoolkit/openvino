@@ -576,6 +576,15 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
+    register_operator_in_custom_domain("DequantizeLinear",
+                                       VersionRange::since(1),
+                                       op::set_13::dequantize_linear,
+                                       "com.microsoft");
+    register_operator_in_custom_domain("QuantizeLinear",
+                                       VersionRange::since(1),
+                                       op::set_13::quantize_linear,
+                                       "com.microsoft");
+
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
 }

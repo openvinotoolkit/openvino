@@ -21,9 +21,7 @@ public:
 
     struct LoopPort {
         LoopPort() = default;
-        LoopPort(const ExpressionPort& port, bool is_scheduled = true)
-            : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_scheduled) {}
-
+        LoopPort(const ExpressionPort& port, bool is_incremented = true, size_t dim_idx = 0);
         std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
 
         friend bool operator==(const LoopPort& lhs, const LoopPort& rhs);
@@ -37,33 +35,68 @@ public:
         int64_t ptr_increment = 0;
         int64_t finalization_offset = 0;
         int64_t data_size = 0;
+        size_t dim_idx = 0; // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
     };
 
     class LoopInfo {
     public:
+        enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
         LoopInfo() = default;
-        LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+        LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<LoopPort>& entries,
-                 const std::vector<LoopPort>& exits)
-            : work_amount(work_amount), increment(increment), dim_idx(dim_idx),
-              entry_points(entries), exit_points(exits), outer_splited_loop(false) {}
-        LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+                 const std::vector<LoopPort>& exits,
+                 bool outer_splited_loop = false)
+            : m_work_amount(work_amount), m_increment(increment),
+              m_entry_points(entries), m_exit_points(exits), m_outer_splited_loop(outer_splited_loop) {}
+        LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<ExpressionPort>& entries,
-                 const std::vector<ExpressionPort>& exits);
+                 const std::vector<ExpressionPort>& exits,
+                 bool outer_splited_loop = false);
 
         std::shared_ptr<LoopInfo> clone_with_new_expr(const ExressionMap& expr_map) const;
 
-        size_t work_amount = 0;
-        size_t increment = 0;
-        size_t dim_idx = 0;  // The numeration begins from the end (dim_idx = 0 -> is the most inner dimension)
+        // Returns dimension index if dimension indices for all entry and exit points are equal, and UNDEFINED_DIM_IDX otherwise
+        size_t get_dim_idx() const;
+        size_t get_work_amount() const;
+        size_t get_increment() const;
+        const std::vector<LoopPort>& get_entry_points() const;
+        const std::vector<LoopPort>& get_exit_points() const;
+        bool get_outer_splited_loop() const;
+
+        /**
+         * \brief Inserts a separate body for first loop iteration processing if needed.
+         * Can also modify both main and first iter loop bodies.
+         * TODO: replace this temporary solution when ticket 119851 is implemented
+         *
+         * \param linear_ir LIR which should be modified
+         * \param loop_end_it iterator on LoopEnd expression for which the handler is called
+         *
+         * \return bool value which indicates whether the linear_ir was changed or not.
+         */
+        using FirstIterHandler = std::function<bool(LinearIR&, LinearIR::constExprIt)>;
+        const FirstIterHandler& get_first_iter_handler() const;
+
+        // Sets dim_idx to all entry and exit points
+        void set_dim_idx(size_t dim_idx);
+        void set_work_amount(size_t work_amount);
+        void set_increment(size_t increment);
+        void set_entry_points(std::vector<LoopPort> entry_points);
+        void set_exit_points(std::vector<LoopPort> exit_points);
+        void set_outer_splited_loop(bool outer_splited_loop);
+        void set_first_iter_handler(FirstIterHandler handler);
+
+    private:
+        size_t m_work_amount = 0;
+        size_t m_increment = 0;
         // The order of entry and exit expressions is important:
         //     - The position before first entry expr is Loop Begin position
         //     - The position after last exit expr is Loop End position
         // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
-        std::vector<LoopPort> entry_points = {};
-        std::vector<LoopPort> exit_points = {};
+        std::vector<LoopPort> m_entry_points = {};
+        std::vector<LoopPort> m_exit_points = {};
         // True if this Loop is outer Loop for nested Loops that splits the same dimension
-        bool outer_splited_loop = false;
+        bool m_outer_splited_loop = false;
+        FirstIterHandler m_first_iter_handler = nullptr;
     };
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
@@ -83,17 +116,44 @@ public:
     // Return Loop ID
     template <typename T>
     size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
-                    LinearIR::constExprIt loop_end_pos,
-                    size_t work_amount, size_t work_amount_increment, size_t dim_idx,
-                    const std::vector<T>& entries,
-                    const std::vector<T>& exits) {
-        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
+                     LinearIR::constExprIt loop_end_pos,
+                     size_t work_amount,
+                     size_t work_amount_increment,
+                     size_t dim_idx,
+                     const std::vector<T>& entries,
+                     const std::vector<T>& exits) {
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
+        loop_info->set_dim_idx(dim_idx);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
         }
         return loop_id;
     }
+
+    template <typename T>
+    size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
+                     LinearIR::constExprIt loop_end_pos,
+                     size_t work_amount,
+                     size_t increment,
+                     const std::vector<T>& entries,
+                     const std::vector<T>& exits) {
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
+        const auto loop_id = this->add_loop_info(loop_info);
+        for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+            insert_loop_id(*expr_it, loop_id);
+        }
+        return loop_id;
+    }
+
+    size_t replace_with_new_loop(const LinearIR& linear_ir,
+                                 LinearIR::constExprIt loop_begin_pos,
+                                 LinearIR::constExprIt loop_end_pos,
+                                 size_t work_amount,
+                                 size_t increment,
+                                 const std::vector<LoopPort>& entries,
+                                 const std::vector<LoopPort>& exits,
+                                 const size_t old_id);
 
     void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
