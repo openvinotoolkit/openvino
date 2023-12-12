@@ -23,9 +23,6 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
 Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
     auto func = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
 
     exports.Set("Output", func);
     return exports;
@@ -71,10 +68,6 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
 
 Napi::Object Output<const ov::Node>::Init(Napi::Env env, Napi::Object exports) {
     auto func = GetClassConstructor(env);
-
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
 
     exports.Set("Output", func);
     return exports;

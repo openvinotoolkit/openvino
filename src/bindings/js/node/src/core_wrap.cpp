@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "core_wrap.hpp"
-#include "read_model_args.hpp"
 
 #include <thread>
 
+#include "addon.hpp"
 #include "compiled_model.hpp"
 #include "model_wrap.hpp"
+#include "read_model_args.hpp"
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), env(info.Env()) {}
 
@@ -23,13 +24,14 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->core_prototype = ref;
 
-    exports.Set("Core", func);
+    exports.Set("Core", prototype);
     return exports;
 }
 
@@ -71,11 +73,17 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                                const Napi::Object& model,
-                                                const Napi::String& device) {
-    auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-    const auto& compiled_model = _core.compile_model(m->get_model(), device);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+                                         const Napi::Object& model,
+                                         const Napi::String& device) {
+    const auto model_prototype = info.Env().GetInstanceData<AddonData>()->model_prototype;
+    if (model_prototype && model.InstanceOf(model_prototype->Value().As<Napi::Function>())) {
+        const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
+        const auto& compiled_model = _core.compile_model(m->get_model(), device);
+        return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    } else {
+        reportError(info.Env(), "Cannot create Model from Napi::Object.");
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,

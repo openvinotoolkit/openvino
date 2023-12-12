@@ -41,9 +41,6 @@ Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
 Napi::Object PartialShapeWrap::Init(Napi::Env env, Napi::Object exports) {
     auto func = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
 
     exports.Set("PartialShape", func);
     return exports;

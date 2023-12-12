@@ -27,9 +27,6 @@ Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
 Napi::Object PrePostProcessorWrap::Init(Napi::Env env, Napi::Object exports) {
     auto func = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
 
     exports.Set("PrePostProcessor", func);
     return exports;
