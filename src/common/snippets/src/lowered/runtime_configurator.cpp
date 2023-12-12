@@ -39,6 +39,11 @@ void RuntimeConfigurator::init_loop_descriptors(const lowered::LinearIR::LoopMan
         OPENVINO_ASSERT(m_config.loops.count(loop_id) == 0, "Loop is already in RuntimeConfig");
         m_config.loops[loop_id] = {};
 
+        if (is_first_iter_loop_needed(loop_info)) {
+            RuntimeConfig::LoopDescriptor desc;
+            init_first_iter_loop_descriptor(loop_info, loop_id, desc);
+            m_config.loops[loop_id].push_back(desc);
+        }
         if (is_vector_loop_needed(loop_info)) {
             RuntimeConfig::LoopDescriptor desc;
             init_vector_loop_descriptor(loop_info, loop_id, desc);
@@ -68,6 +73,11 @@ void RuntimeConfigurator::update_loop_descriptors(const LinearIR::LoopManagerPtr
         OPENVINO_ASSERT(!utils::is_dynamic_vdim(loop_info->get_increment()), "Increment must be static value!");
         OPENVINO_ASSERT(m_config.loops.count(loop_id) != 0, "Loop descriptors should be in RuntimeConfig");
 
+        if (is_first_iter_loop_needed(loop_info)) {
+            auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
+            OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "First Loop Descriptor has not been found!");
+            init_first_iter_loop_descriptor(loop_info, loop_id, *desc_it);
+        }
         if (is_vector_loop_needed(loop_info)) {
             auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
             OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "Vector Loop Descriptor has not been found!");
@@ -83,11 +93,46 @@ void RuntimeConfigurator::update_loop_descriptors(const LinearIR::LoopManagerPtr
     }
 }
 
+void RuntimeConfigurator::init_first_iter_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
+                                                          RuntimeConfig::LoopDescriptor& first_iter_loop_desc) {
+    const auto loop_ports = loop_info->get_all_ports();
+    const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
+    const auto skip_evaluation = !is_wa_dynamic && loop_info->get_work_amount() <= loop_info->get_increment();
+
+    first_iter_loop_desc.work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
+                                       skip_evaluation ? 0 : loop_info->get_increment();
+    first_iter_loop_desc.ptr_increments.resize(loop_ports.size());
+    first_iter_loop_desc.finalization_offsets.resize(loop_ports.size());
+    first_iter_loop_desc.increment = loop_info->get_increment();
+    first_iter_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::First;
+
+    if (skip_evaluation) {
+        std::for_each(first_iter_loop_desc.ptr_increments.begin(), first_iter_loop_desc.ptr_increments.end(), [](int64_t& value) { value = 0; });
+        std::for_each(first_iter_loop_desc.finalization_offsets.begin(), first_iter_loop_desc.finalization_offsets.end(), [](int64_t& value) { value = 0; });
+        return;
+    }
+
+    const auto& increment = first_iter_loop_desc.increment;
+    for (size_t i = 0; i < loop_ports.size(); ++i) {
+        const auto& loop_port = loop_ports[i];
+        first_iter_loop_desc.ptr_increments[i] =
+            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
+                                                                                       : increment * loop_port.ptr_increment * loop_port.data_size;
+        first_iter_loop_desc.finalization_offsets[i] = 0;
+    }
+}
+
 void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
                                                       RuntimeConfig::LoopDescriptor& vector_loop_desc) {
     const auto loop_ports = loop_info->get_all_ports();
-    const auto skip_evaluation = !utils::is_dynamic_vdim(loop_info->get_work_amount()) && loop_info->get_work_amount() < loop_info->get_increment();
-    vector_loop_desc.work_amount = skip_evaluation ? 0 : loop_info->get_work_amount();
+    const auto first_iter_desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
+    const auto first_needed = first_iter_desc_it != m_config.loops.at(loop_id).cend() && first_iter_desc_it->work_amount > 0;
+    const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
+    const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
+                                    first_needed ? loop_info->get_work_amount() - first_iter_desc_it->work_amount : loop_info->get_work_amount();
+    const auto skip_evaluation = !is_wa_dynamic && target_work_amount < loop_info->get_increment();
+
+    vector_loop_desc.work_amount = skip_evaluation ? 0 : target_work_amount;
     vector_loop_desc.increment = loop_info->get_increment();
     vector_loop_desc.ptr_increments.resize(loop_ports.size());
     vector_loop_desc.finalization_offsets.resize(loop_ports.size());
@@ -113,12 +158,15 @@ void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManage
 
 void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
                                                     RuntimeConfig::LoopDescriptor& tail_loop_desc) {
+    const auto loop_ports = loop_info->get_all_ports();
     auto vector_desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
     const auto vector_needed = vector_desc_it != m_config.loops.at(loop_id).end() && vector_desc_it->work_amount > 0;
-    const auto loop_ports = loop_info->get_all_ports();
-    tail_loop_desc.work_amount = utils::is_dynamic_vdim(loop_info->get_work_amount()) ? loop_info->get_work_amount()
-                                                                                      : loop_info->get_work_amount() % loop_info->get_increment();
-    const auto skip_evaluation = tail_loop_desc.work_amount == 0;
+    const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
+    const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
+                                    vector_needed ? vector_desc_it->work_amount : loop_info->get_work_amount() % loop_info->get_increment();
+    const auto skip_evaluation = !is_wa_dynamic && tail_loop_desc.work_amount == 0;
+
+    tail_loop_desc.work_amount = target_work_amount;
     tail_loop_desc.increment = loop_info->is_dynamic() ? 1 : tail_loop_desc.work_amount;
     tail_loop_desc.ptr_increments.resize(loop_ports.size());
     tail_loop_desc.finalization_offsets.resize(loop_ports.size());

@@ -61,6 +61,14 @@ private:
      */
     static void offset_calculation(const lowered::PortDescriptorPtr& desc, size_t data_size, bool is_input, size_t rank, std::vector<int64_t>& offsets);
     /**
+     * @brief Initialize the first iteration loop descriptor
+     * @param loop_info loop information of the corresponding loop
+     * @param loop_id id of the target Loop
+     * @param first_iter_loop_desc ref of the first iter loop descriptor which should be inited
+     */
+    void init_first_iter_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
+                                         RuntimeConfig::LoopDescriptor& first_iter_loop_desc);
+    /**
      * @brief Initialize the vector loop descriptor
      * @param loop_info loop information of the corresponding loop
      * @param loop_id id of the target Loop
@@ -88,12 +96,22 @@ private:
                                                   const RuntimeConfig::LoopDescriptor& outer_splited_tail_loop_desc,
                                                   size_t outer_loop_id);
     /**
+     * @brief Check if first iter is needed
+     * @param loop_info loop information of the corresponding loop
+     * @return True if needed otherwise returns False
+     */
+    inline static bool is_first_iter_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+        return loop_info->get_first_iter_handler() != nullptr && (loop_info->get_work_amount() > loop_info->get_increment() || loop_info->is_dynamic());
+    }
+    /**
      * @brief Check if vector loop is needed
      * @param loop_info loop information of the corresponding loop
      * @return True if needed otherwise returns False
      */
     inline static bool is_vector_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-        return loop_info->get_work_amount() >= loop_info->get_increment() || loop_info->is_dynamic();
+        return (is_first_iter_loop_needed(loop_info) ? loop_info->get_work_amount() >= 2 * loop_info->get_increment()
+                                                     : loop_info->get_work_amount() >= loop_info->get_increment()) ||
+                loop_info->is_dynamic();
     }
     /**
      * @brief Check if tail loop is needed

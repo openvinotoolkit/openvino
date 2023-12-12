@@ -25,7 +25,7 @@ public:
      * @brief Describes Loops - the simple copy of LoopManager::LoopInfo without loop ports
      */
     struct LoopDescriptor {
-        enum Type { Vector, Tile, SplitedTile };
+        enum Type { First, Vector, Tile, SplitedTile };
         LoopDescriptor() = default;
         LoopDescriptor(size_t wa, size_t inc, std::vector<int64_t> ptr_incs = {}, std::vector<int64_t> final_offs = {}, Type type = Type::Vector)
             : work_amount(wa), increment(inc), ptr_increments(ptr_incs), finalization_offsets(final_offs), type(type) {}
