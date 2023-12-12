@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node_output.hpp"
-#include "partial_shape_wrap.hpp"
 
+#include "addon.hpp"
 #include "helper.hpp"
+#include "partial_shape_wrap.hpp"
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
 
@@ -21,13 +22,14 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->output_prototype = ref;
 
-    exports.Set("Output", func);
+    exports.Set("Output", prototype);
     return exports;
 }
 
@@ -36,8 +38,11 @@ ov::Output<ov::Node> Output<ov::Node>::get_output() const {
 }
 
 Napi::Object Output<ov::Node>::Wrap(Napi::Env env, ov::Output<ov::Node> output) {
-    Napi::HandleScope scope(env);
-    Napi::Object obj = GetClassConstructor(env).New({});
+    const auto prototype = env.GetInstanceData<AddonData>()->output_prototype;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to Output prototype.");
+    }
+    const auto& obj = prototype->New({});
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;
@@ -60,7 +65,7 @@ Output<const ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWra
 Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
     return Output::DefineClass(
         env,
-        "Output",
+        "ConstOutput",
         {Output<const ov::Node>::InstanceMethod("getShape", &Output<const ov::Node>::get_shape),
          Output<const ov::Node>::InstanceAccessor<&Output<const ov::Node>::get_shape>("shape"),
          Output<const ov::Node>::InstanceMethod("getPartialShape", &Output<const ov::Node>::get_partial_shape),
@@ -70,13 +75,14 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object Output<const ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->const_output_prototype = ref;
 
-    exports.Set("Output", func);
+    exports.Set("ConstOutput", prototype);
     return exports;
 }
 
@@ -85,8 +91,11 @@ ov::Output<const ov::Node> Output<const ov::Node>::get_output() const {
 }
 
 Napi::Object Output<const ov::Node>::Wrap(Napi::Env env, ov::Output<const ov::Node> output) {
-    Napi::HandleScope scope(env);
-    Napi::Object obj = GetClassConstructor(env).New({});
+    const auto prototype = env.GetInstanceData<AddonData>()->const_output_prototype;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to ConstOutput prototype.");
+    }
+    const auto& obj = prototype->New({});
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;

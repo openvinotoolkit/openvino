@@ -80,6 +80,7 @@ describe('InferRequest', () => {
 
   it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
     inferRequestAsync.inferAsync({ data: tensor }).then(result => {
+      assert.ok(result['fc_out'] instanceof ov.Tensor);
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);}
     );
@@ -87,6 +88,7 @@ describe('InferRequest', () => {
 
   it('Test inferAsync(inputData: Tensor[])', () => {
     inferRequestAsync.inferAsync([ tensor ]).then(result => {
+      assert.ok(result['fc_out'] instanceof ov.Tensor);
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
@@ -151,6 +153,7 @@ describe('InferRequest', () => {
   it('Test setTensor(string, tensor)', () => {
     inferRequest.setTensor('fc_out', resTensor);
     const res2 = inferRequest.getTensor('fc_out');
+    assert.ok(res2 instanceof ov.Tensor);
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
@@ -178,34 +181,41 @@ describe('InferRequest', () => {
 
   it('Test getTensor(tensorName)', () => {
     const t1 = irGetters.getTensor('data');
+    assert.ok(t1 instanceof ov.Tensor);
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
   it('Test getTensor(Output)', () => {
     const input = irGetters.getCompiledModel().input();
     const t1 = irGetters.getTensor(input);
+    assert.ok(t1 instanceof ov.Tensor);
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
   it('Test getInputTensor()', () => {
     const t1 = irGetters.getInputTensor();
+    assert.ok(t1 instanceof ov.Tensor);
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
   it('Test getInputTensor(idx)', () => {
     const t1 = irGetters.getInputTensor(0);
+    assert.ok(t1 instanceof ov.Tensor);
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
   it('Test getOutputTensor(idx?)', () => {
     const res1 = irGetters.getOutputTensor();
     const res2 = irGetters.getOutputTensor(0);
+    assert.ok(res1 instanceof ov.Tensor);
+    assert.ok(res2 instanceof ov.Tensor);
     assert.deepStrictEqual(res1.data[0], res2.data[0]);
   });
 
   it('Test getCompiledModel()', () => {
     const ir = compiledModel.createInferRequest();
     const cm = ir.getCompiledModel();
+    assert.ok(cm instanceof ov.CompiledModel);
     const ir2 = cm.createInferRequest();
     const res2 = ir2.infer([tensorData]);
     const res1 = ir.infer([tensorData]);

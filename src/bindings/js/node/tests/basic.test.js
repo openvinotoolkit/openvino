@@ -14,6 +14,15 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
+it('CompiledModel type', () => {
+  assert.ok(compiledModel instanceof ov.CompiledModel);
+});
+
+it('compileModel.createInferRequest()', () => {
+  const ir = compiledModel.createInferRequest();
+  assert.ok(ir instanceof ov.InferRequest);
+});
+
 describe('Core.compileModelSync()', () => {
   const tput = { 'PERFORMANCE_HINT': 'THROUGHPUT' };
 
@@ -104,9 +113,16 @@ describe('Core.compileModel()', () => {
 
 describe('Output class', () => {
 
+  it('Output type', () => {
+    assert.ok(model.output() instanceof ov.Output);
+  });
+
+  it('ConstOutput type', () => {
+    assert.ok(compiledModel.output() instanceof ov.ConstOutput);
+  });
+
   modelLike.forEach(([obj]) => {
     it('Output getters and properties', () => {
-      assert.strictEqual(typeof obj.output(), 'object');
       assert.strictEqual(obj.outputs.length, 1);
       // tests for an obj with one output
       assert.strictEqual(obj.output().toString(), 'fc_out');
@@ -122,6 +138,15 @@ describe('Output class', () => {
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
+
+  it('Output type', () => {
+    assert.ok(model.input() instanceof ov.Output);
+  });
+
+  it('ConstOutput type', () => {
+    assert.ok(compiledModel.input() instanceof ov.ConstOutput);
+  });
+
   modelLike.forEach(([obj]) => {
     it('input() is typeof object', () => {
       assert.strictEqual(typeof obj.input(), 'object');

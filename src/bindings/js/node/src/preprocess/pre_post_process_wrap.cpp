@@ -3,7 +3,7 @@
 
 #include "preprocess/pre_post_process_wrap.hpp"
 
-#include <iostream>
+#include "addon.hpp"
 
 PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<PrePostProcessorWrap>(info) {
@@ -25,13 +25,14 @@ Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
 }
 
 Napi::Object PrePostProcessorWrap::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
+    const auto& prototype = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
+    const auto ref = new Napi::FunctionReference();
+    *ref = Napi::Persistent(prototype);
+    const auto data = env.GetInstanceData<AddonData>();
+    data->ppp_prototype = ref;
 
-    exports.Set("PrePostProcessor", func);
+    exports.Set("PrePostProcessor", prototype);
     return exports;
 }
 
