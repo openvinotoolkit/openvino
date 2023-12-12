@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
-
-using namespace ngraph;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 using LRNParams = std::tuple<
     ElementType,           // data precision
     InputShape,            // data shape
@@ -59,8 +56,8 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
-        auto axesNode = ngraph::opset1::Constant::create(ngraph::element::i32, { axes.size() }, axes);
-        auto lrn = std::make_shared<ngraph::opset3::LRN>(params[0], axesNode, alpha, beta, bias, size);
+        auto axesNode = ov::op::v0::Constant::create(ov::element::i32, { axes.size() }, axes);
+        auto lrn = std::make_shared<ov::op::v0::LRN>(params[0], axesNode, alpha, beta, bias, size);
         function = makeNgraphFunction(inputPrecision, params, lrn, "LRN");
     }
 };
@@ -71,7 +68,7 @@ TEST_P(LRNLayerCPUTest, CompareWithRefs) {
 }
 
 const std::vector<ElementType> inputPrecisions = {
-    ngraph::element::f32,
+    ov::element::f32,
 };
 
 const std::vector<std::vector<std::int64_t>> axes = {
@@ -120,4 +117,5 @@ const auto testCases = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, LRNLayerCPUTest, testCases, LRNLayerCPUTest::getTestCaseName);
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
