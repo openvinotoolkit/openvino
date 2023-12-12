@@ -150,6 +150,14 @@ void LoopEnd::set_id(size_t id) {
     m_id = id;
 }
 
+void LoopEnd::update(const lowered::RuntimeConfig::LoopDescriptor& descriptor) {
+    set_work_amount(descriptor.work_amount);
+    set_increment(descriptor.increment);
+    set_ptr_increments(descriptor.ptr_increments);
+    set_finalization_offsets(descriptor.finalization_offsets);
+    set_evaluate_once(descriptor.work_amount < 2 * descriptor.increment);
+}
+
 void LoopEnd::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "LoopEnd must have one input");
     const auto loop_begin = ov::as_type_ptr<LoopBegin>(get_input_node_shared_ptr(0));

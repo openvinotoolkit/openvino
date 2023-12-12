@@ -8,6 +8,7 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/expression_factory.hpp"
+#include "snippets/lowered/runtime_configurator.hpp"
 #include "snippets/op/serialization_node.hpp"
 
 #include "openvino/core/graph_util.hpp"
@@ -19,7 +20,8 @@ namespace snippets {
 namespace lowered {
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config)
-        : m_io_expressions{}, m_config{config}, m_loop_manager(std::make_shared<LoopManager>()), m_shape_infer_factory(factory) {
+        : m_io_expressions{}, m_config{config}, m_loop_manager(std::make_shared<LoopManager>()),
+          m_shape_infer_factory(factory), m_runtime_configurator(std::make_shared<RuntimeConfigurator>()) {
     constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         constExprIt insertion_pos = m_expressions.end();
@@ -59,6 +61,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     cloned->m_loop_manager = m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
+    cloned->m_runtime_configurator = std::make_shared<RuntimeConfigurator>(*m_runtime_configurator);
     cloned->update_shape_infer();
     return cloned;
 }
@@ -363,6 +366,11 @@ VectorDims LinearIR::get_master_shape() const {
 
 void LinearIR::update_shape_infer() {
     m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
+}
+
+RuntimeConfig LinearIR::configure() {
+    m_runtime_configurator->update(*this);
+    return m_runtime_configurator->get_config();
 }
 
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)

@@ -401,6 +401,14 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     return result;
 }
 
+lowered::RuntimeConfig Subgraph::configure_runtime_args() {
+    // Firstly, update LoopInfo of loops
+    lowered::pass::ValidateShapes().run(*m_linear_ir);
+
+    // Secondly, configure lowered
+    return m_linear_ir->configure();
+}
+
 void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input_shapes,
                                          const std::vector<ov::element::Type>& input_precisions,
                                          const std::vector<ov::element::Type>& output_precisions,

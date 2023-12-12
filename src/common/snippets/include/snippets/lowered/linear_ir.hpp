@@ -7,6 +7,7 @@
 #include <list>
 
 #include "expression.hpp"
+#include "runtime_config.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -47,6 +48,8 @@ public:
     // False if all Buffers will have uniqie ID and offsets in the Linear IR
     bool m_are_buffers_optimized = true;
 };
+
+class RuntimeConfigurator;
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
@@ -144,6 +147,8 @@ public:
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
 
+    RuntimeConfig configure();
+
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
@@ -172,6 +177,7 @@ private:
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    std::shared_ptr<RuntimeConfigurator> m_runtime_configurator;
 };
 
 template<typename iterator>
