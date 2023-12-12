@@ -229,9 +229,7 @@ public:
     // Reverses connection - user becomes dependency.
 
     void remove_nodes(std::vector<program_node*>& to_remove);
-    void dump_program(const char* stage,
-                      bool with_full_info,
-                      std::function<bool(program_node const&)> const& filter = nullptr) const;
+    void dump_program(const char* stage, bool with_full_info) const;
 
     const primitives_info& get_primitives_info() const;
     data_types get_inference_precision(const program_node& node) const;
