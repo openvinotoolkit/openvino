@@ -221,8 +221,11 @@ class Mode(ABC):
                     cfg["extendBuildCommand"] = True
                     self.wrappedBypass(curList, list, cfg)
                 else:
-                    # exception must be reported to user
-                    pass
+                    raise util.BuildError(
+                        message = "error occured during handling",
+                        errType = util.BuildError.BuildErrType.WRONG_STATE,
+                        commit=be.commit
+                        )
 
 
         def skipCommit(self, commit, curList, cfg):
@@ -267,10 +270,8 @@ class Mode(ABC):
                             c1_=newList[0], c2_=newList[-1])
                     )
                     curList = newList
-            skipInterval = cfg["noCleanInterval"]
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
-            cfg["serviceConfig"]["skipCleanInterval"] = i2 - i1 < skipInterval
             self.mode.commonLogger.info(
                 "Check interval {i1}..{i2}".format(i1=i1, i2=i2)
             )

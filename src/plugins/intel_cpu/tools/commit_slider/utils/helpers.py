@@ -3,7 +3,6 @@ import shutil
 import os
 import sys
 import subprocess
-import string
 from enum import Enum
 import re
 import json
@@ -99,12 +98,6 @@ def absolutizePaths(cfg):
     if cfg["dlbConfig"]["launchedAsJob"]:
         cfg["appPath"] = cfg["dlbConfig"]["appPath"]
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
-    # # we don't absolutize paths with placeholders, i.e. {cashedPath}
-    # pathToAbsolutize = list(filter(lambda path: not [
-    #     tup[1] for tup in
-    #     string.Formatter().parse(cfg[path]) if
-    #     tup[1] is not None
-    #     ], pathToAbsolutize))
     for item in pathToAbsolutize:
         path = cfg[item]
         path = os.path.abspath(path)
@@ -158,12 +151,7 @@ def checkArgAndGetCommits(commArg, cfgData):
             return outList
 
 
-def runCommandList(commit, cfgData, enforceClean=False):
-    skipCleanInterval = False
-    if "trySkipClean" not in cfgData:
-        skipCleanInterval = not enforceClean
-    else:
-        skipCleanInterval = cfgData["trySkipClean"] and not enforceClean
+def runCommandList(commit, cfgData):
     commitLogger = getCommitLogger(cfgData, commit)
     if not cfgData["extendBuildCommand"]:
         commandList = cfgData["commandList"]
@@ -233,13 +221,10 @@ def fetchAppOutput(cfg, commit):
     if cfg["cachedPathConfig"]["enabled"] == True:
         pathExists, suggestedAppPath = getCashedPath(commit, cfg)
         if pathExists and cfg["cachedPathConfig"]["changeAppPath"]:
-            # for item in string.Formatter().parse(appPath):
-            #     if item[1] is not None and item[1] == 'cashedPath':
             commitLogger.info(
                 "App path, corresponding commit {c} is cashed, "
                 "value:{p}".format(c=commit, p=suggestedAppPath))
             appPath = suggestedAppPath
-                    # appPath = appPath.format(cashedPath=suggestedAppPath)
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -285,17 +270,7 @@ def handleCommit(commit, cfgData):
                     message="build error handled by skip",
                     commit=commit
                     )
-            else:
-                print("try to run")
-                # raise BuildError(
-                #     errType=BuildError.BuildErrType.UNSUPPORTED,
-                #     message="optional scheme of cashedAppPath is to-be implemented",
-                #     commit=commit
-                #     )
 
-    if "skipCleanInterval" in cfgData["serviceConfig"]:
-        skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
-        cfgData["trySkipClean"] = skipCleanInterval
     try:
         runCommandList(commit, cfgData)
         if cfgData["skipMode"]["flagSet"]["enableRebuild"]:
@@ -462,7 +437,6 @@ class RepoError(Exception):
 
 class BuildError(Exception):
     class BuildErrType(Enum):
-        # Undefined - unresolved behaviour, to-do ...
         UNDEFINED = 0
         # strategies to handle unsuccessful build
         TO_REBUILD = 1
@@ -473,9 +447,6 @@ class BuildError(Exception):
         TO_IGNORE = 4
         # throwed in unexpected case
         WRONG_STATE = 5
-        # state handling unsupported, i.e., 'optional'
-        # scheme of cashedAppPath handling is to-be implemented
-        UNSUPPORTED = 6
     def __init__(self, commit, message, errType):
         self.message = message
         self.errType = errType
