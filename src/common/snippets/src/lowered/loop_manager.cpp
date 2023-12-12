@@ -295,6 +295,46 @@ void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_p
     }
 }
 
+bool LinearIR::LoopManager::normalize(const LinearIR& linear_ir) {
+    // Should we check that the linear IR has exactly THIS loop manager?
+    OPENVINO_ASSERT(linear_ir.get_loop_manager().get() == this, "LoopManager can normalize only the corresponding LinearIR!");
+
+    // [ original Loop ID -> new normalized and sorted ]
+    std::map<size_t, size_t> loop_id_map;
+    for (const auto& expr : linear_ir) {
+        const auto& node = expr->get_node();
+        if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node)) {
+            const auto new_id = loop_id_map.size();
+            const auto old_id = loop_end->get_id();
+            OPENVINO_ASSERT(loop_id_map.count(old_id) == 0, "Loop IDs must be unique for normalization");
+            loop_id_map[old_id] = new_id;
+            loop_end->set_id(new_id);
+        }
+    }
+    OPENVINO_ASSERT(loop_id_map.size() == m_map.size(), "The count of Loops in LinearIR and in LoopManager is inconsistent!");
+    // If all new IDs are the same as original - nothing to update
+    if (std::all_of(loop_id_map.cbegin(), loop_id_map.cend(), [](const std::pair<size_t, size_t>& p) { return p.first == p.second; })) {
+        return false;
+    }
+
+    // create new sorted map of loop infos
+    std::map<size_t, LoopInfoPtr> new_map;
+    for (const auto& loop_pair : loop_id_map) {
+        new_map[loop_pair.second] = get_loop_info(loop_pair.first);
+    }
+    m_map = std::move(new_map);
+
+    // update Loop IDs for expressions
+    for (const auto& expr : linear_ir) {
+        auto expr_loop_ids = expr->get_loop_ids();
+        if (expr_loop_ids.empty()) continue;
+        for (auto& id : expr_loop_ids)
+            id = loop_id_map[id];
+        expr->set_loop_ids(expr_loop_ids);
+    }
+    return true;
+}
+
 void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       LinearIR::constExprIt loop_end_pos,
                                       size_t loop_depth, size_t vector_size) {

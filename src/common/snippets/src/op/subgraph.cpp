@@ -41,6 +41,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 
 #include "transformations/utils/utils.hpp"
@@ -462,6 +463,7 @@ void Subgraph::control_flow_transformations(const std::vector<snippets::lowered:
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_buffer_scratchpad_size, m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
+    pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.run(*m_linear_ir);
 
