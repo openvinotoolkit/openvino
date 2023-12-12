@@ -11,7 +11,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
     env:
       PIP_CACHE_PATH: /mount/caches/pip
 
