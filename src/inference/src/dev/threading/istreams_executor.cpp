@@ -563,12 +563,10 @@ void IStreamsExecutor::Config::update_executor_config() {
     }
 
     if (!_streams_info_table.empty()) {
-        int streams = 0;
         streams_info_available = true;
         std::vector<int> threads_proc_type(HYPER_THREADING_PROC + 1, 0);
         for (size_t i = 0; i < _streams_info_table.size(); i++) {
             if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
-                streams += _streams_info_table[i][NUMBER_OF_STREAMS];
                 threads_proc_type[_streams_info_table[i][PROC_TYPE]] +=
                     _streams_info_table[i][THREADS_PER_STREAM] * _streams_info_table[i][NUMBER_OF_STREAMS];
             }
@@ -612,7 +610,6 @@ void IStreamsExecutor::Config::update_executor_config() {
         if (_threadsPerStream == 0) {
             return;
         }
-        int threads_per_stream = std::max(1, _threadsPerStream);
 
         // create stream_info_table based on core type
         std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, 0);
@@ -628,7 +625,7 @@ void IStreamsExecutor::Config::update_executor_config() {
             int start = proc_type_table.size() > 1 ? 1 : 0;
             std::vector<int> core_types;
             // Using cores crossed sockets or hyper threads when streams = 1
-            if (_streams == 1 && threads_per_stream > proc_type_table[start][ov::MAIN_CORE_PROC]) {
+            if (_streams == 1 && _threadsPerStream > proc_type_table[start][ov::MAIN_CORE_PROC]) {
                 stream_info[NUMBER_OF_STREAMS] = _streams;
                 stream_info[PROC_TYPE] = ALL_PROC;
                 stream_info[STREAM_NUMA_NODE_ID] = proc_type_table.size() > 1 ? -1 : 0;
@@ -645,13 +642,13 @@ void IStreamsExecutor::Config::update_executor_config() {
             for (int j : core_types) {
                 for (size_t i = start; i < proc_type_table.size(); i++) {
                     if (proc_type_table[i][j] > 0 && cur_threads > 0) {
-                        if (threads_per_stream > proc_type_table[i][j]) {
+                        if (_threadsPerStream > proc_type_table[i][j]) {
                             stream_info[THREADS_PER_STREAM] = std::min(proc_type_table[i][j], cur_threads);
                             cur_threads -= stream_info[THREADS_PER_STREAM];
                         } else {
                             stream_info[NUMBER_OF_STREAMS] =
-                                std::min(proc_type_table[i][j], cur_threads) / threads_per_stream;
-                            cur_threads -= stream_info[NUMBER_OF_STREAMS] * threads_per_stream;
+                                std::min(proc_type_table[i][j], cur_threads) / _threadsPerStream;
+                            cur_threads -= stream_info[NUMBER_OF_STREAMS] * _threadsPerStream;
                         }
                         stream_info[PROC_TYPE] = j;
                         stream_info[STREAM_NUMA_NODE_ID] = proc_type_table[i][PROC_NUMA_NODE_ID];
