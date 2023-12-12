@@ -143,42 +143,33 @@ public:
                          // (for large #streams)
         } _threadPreferredCoreType =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
-
+        bool _cpu_reservation = false;
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
-        bool _cpu_reservation = false;
         bool _streams_changed = false;
 
         /**
          * @brief      A constructor with arguments
          *
-         * @param[in]  name                 The executor name
-         * @param[in]  streams              @copybrief Config::_streams
-         * @param[in]  threadsPerStream     @copybrief Config::_threadsPerStream
-         * @param[in]  threadBindingType    @copybrief Config::_threadBindingType
-         * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
-         * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
-         * @param[in]  threads              @copybrief Config::_threads
-         * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
+         * @param[in]  name                         The executor name
+         * @param[in]  streams                      @copybrief Config::_streams
+         * @param[in]  threads_per_stream           @copybrief Config::_threadsPerStream
+         * @param[in]  thread_preferred_core_type   @copybrief Config::_threadPreferBigCores
+         * @param[in]  cpu_reservation              @copybrief cpu reservation
+         * @param[in]  streams_info_table           @copybrief streams infomation table
          */
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
-               int threadsPerStream = 0,
-               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
-               int threadBindingStep = 1,
-               int threadBindingOffset = 0,
-               int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               bool cpuReservation = false)
+               int threads_per_stream = 0,
+               PreferredCoreType thread_preferred_core_type = PreferredCoreType::ANY,
+               bool cpu_reservation = false,
+               std::vector<std::vector<int>> streams_info_table = {})
             : _name{name},
               _streams{streams},
-              _threadsPerStream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType),
-              _cpu_reservation{cpuReservation} {
+              _threadsPerStream{threads_per_stream},
+              _threadPreferredCoreType(thread_preferred_core_type),
+              _cpu_reservation{cpu_reservation},
+              _streams_info_table{streams_info_table} {
             update_executor_config();
         }
 

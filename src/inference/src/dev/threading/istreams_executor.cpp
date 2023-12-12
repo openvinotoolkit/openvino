@@ -556,100 +556,108 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
 
 void IStreamsExecutor::Config::update_executor_config() {
     const auto proc_type_table = get_proc_type_table();
+    bool streams_info_available = false;
 
     if (proc_type_table.empty()) {
         return;
     }
 
-    if ((proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
-         _threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) ||
-        (proc_type_table[0][MAIN_CORE_PROC] == 0 && proc_type_table[0][HYPER_THREADING_PROC] == 0 &&
-         _threadPreferredCoreType == IStreamsExecutor::Config::BIG) ||
-        (proc_type_table.size() > 1 && _threadPreferredCoreType == IStreamsExecutor::Config::BIG)) {
-        _threadPreferredCoreType = IStreamsExecutor::Config::ANY;
-    }
-    if (_threadBindingType == ThreadBindingType::CORES || _threadBindingType == ThreadBindingType::HYBRID_AWARE) {
-        _cpu_reservation = true;
-    }
-
-    const auto total_num_cores = proc_type_table[0][ALL_PROC];
-    const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
-    const auto total_num_little_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
-
-    int num_cores = total_num_cores;
-    if (_threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
-        num_cores = total_num_big_cores;
-    } else if (_threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
-        num_cores = total_num_little_cores;
-    }
-
-    const auto threads = _threads > 0 ? _threads : num_cores;
-    _streams = _streams > 0 ? std::min(_streams, threads) : _streams;
-    if (_streams == 0) {
-        return;
-    }
-
-    _threadsPerStream = _threadsPerStream > 0 ? std::min(threads, _streams * _threadsPerStream) / _streams : 0;
-    if (_threadsPerStream == 0) {
-        return;
-    }
-    int threads_per_stream = std::max(1, _threadsPerStream);
-
-    // create stream_info_table based on core type
-    std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, 0);
-    stream_info[THREADS_PER_STREAM] = _threadsPerStream;
-    stream_info[STREAM_NUMA_NODE_ID] = 0;
-    stream_info[STREAM_SOCKET_ID] = 0;
-    int cur_threads = _streams * _threadsPerStream;
-    if (_threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
-        if (proc_type_table[0][MAIN_CORE_PROC] < _streams * threads_per_stream) {
-            if (proc_type_table[0][MAIN_CORE_PROC] > 0) {
-                stream_info[NUMBER_OF_STREAMS] = proc_type_table[0][MAIN_CORE_PROC] / threads_per_stream;
-                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-                _streams_info_table.push_back(stream_info);
-                cur_threads -= proc_type_table[0][MAIN_CORE_PROC];
+    if (!_streams_info_table.empty()) {
+        int streams = 0;
+        streams_info_available = true;
+        std::vector<int> threads_proc_type(HYPER_THREADING_PROC + 1, 0);
+        for (size_t i = 0; i < _streams_info_table.size(); i++) {
+            if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+                streams += _streams_info_table[i][NUMBER_OF_STREAMS];
+                threads_proc_type[_streams_info_table[i][PROC_TYPE]] +=
+                    _streams_info_table[i][THREADS_PER_STREAM] * _streams_info_table[i][NUMBER_OF_STREAMS];
             }
-            if (proc_type_table[0][HYPER_THREADING_PROC] > 0 && cur_threads > 0) {
-                stream_info[NUMBER_OF_STREAMS] = cur_threads / threads_per_stream;
-                stream_info[PROC_TYPE] = HYPER_THREADING_PROC;
-                _streams_info_table.push_back(stream_info);
+        }
+        for (size_t i = ALL_PROC; i < threads_proc_type.size(); i++) {
+            if (threads_proc_type[i] > proc_type_table[0][i]) {
+                streams_info_available = false;
+                break;
             }
+        }
+    }
+
+    if (_streams_info_table.empty() || !streams_info_available) {
+        _streams_info_table.clear();
+
+        const auto total_num_cores = proc_type_table[0][ALL_PROC];
+        const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
+        const auto total_num_little_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
+
+        if ((proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
+             _threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) ||
+            (proc_type_table[0][MAIN_CORE_PROC] == 0 && proc_type_table[0][HYPER_THREADING_PROC] == 0 &&
+             _threadPreferredCoreType == IStreamsExecutor::Config::BIG) ||
+            (proc_type_table.size() > 1 && _threadPreferredCoreType == IStreamsExecutor::Config::BIG)) {
+            _threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+        }
+
+        int num_cores = total_num_cores;
+        if (_threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
+            num_cores = total_num_big_cores;
+        } else if (_threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
+            num_cores = total_num_little_cores;
+        }
+
+        _streams = _streams > 0 ? std::min(_streams, num_cores) : _streams;
+        if (_streams == 0) {
+            return;
+        }
+
+        _threadsPerStream = _threadsPerStream > 0 ? std::min(num_cores, _streams * _threadsPerStream) / _streams : 0;
+        if (_threadsPerStream == 0) {
+            return;
+        }
+        int threads_per_stream = std::max(1, _threadsPerStream);
+
+        // create stream_info_table based on core type
+        std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, 0);
+        stream_info[THREADS_PER_STREAM] = _threadsPerStream;
+        stream_info[STREAM_NUMA_NODE_ID] = 0;
+        stream_info[STREAM_SOCKET_ID] = 0;
+        int cur_threads = _streams * _threadsPerStream;
+        if (_threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
+            stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+            stream_info[NUMBER_OF_STREAMS] = _streams;
+            _streams_info_table.push_back(stream_info);
         } else {
-            stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-            stream_info[NUMBER_OF_STREAMS] = _streams;
-            _streams_info_table.push_back(stream_info);
-        }
-    } else if (_threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
-        stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
-        stream_info[NUMBER_OF_STREAMS] = _streams;
-        _streams_info_table.push_back(stream_info);
-    } else {
-        int start = proc_type_table.size() > 1 ? 1 : 0;
-        // Using cores from muti sockets when streams = 1 in muti sockets platform
-        if (_streams == 1 && proc_type_table.size() > 1 &&
-            threads_per_stream > proc_type_table[1][ov::MAIN_CORE_PROC]) {
-            stream_info[NUMBER_OF_STREAMS] = _streams;
-            stream_info[PROC_TYPE] = ALL_PROC;
-            stream_info[STREAM_NUMA_NODE_ID] = -1;
-            stream_info[STREAM_SOCKET_ID] = -1;
-            _streams_info_table.push_back(stream_info);
-            stream_info[NUMBER_OF_STREAMS] = 0;
-        }
-        for (int j = ov::MAIN_CORE_PROC; j <= ov::HYPER_THREADING_PROC; j++) {
-            for (size_t i = start; i < proc_type_table.size(); i++) {
-                if (proc_type_table[i][j] > 0 && cur_threads > 0) {
-                    if (threads_per_stream > proc_type_table[i][j]) {
-                        stream_info[THREADS_PER_STREAM] = std::min(proc_type_table[i][j], cur_threads);
-                        cur_threads -= stream_info[THREADS_PER_STREAM];
-                    } else {
-                        stream_info[NUMBER_OF_STREAMS] =
-                            std::min(proc_type_table[i][j], cur_threads) / threads_per_stream;
-                        cur_threads -= stream_info[NUMBER_OF_STREAMS] * threads_per_stream;
+            int start = proc_type_table.size() > 1 ? 1 : 0;
+            std::vector<int> core_types;
+            // Using cores crossed sockets or hyper threads when streams = 1
+            if (_streams == 1 && threads_per_stream > proc_type_table[start][ov::MAIN_CORE_PROC]) {
+                stream_info[NUMBER_OF_STREAMS] = _streams;
+                stream_info[PROC_TYPE] = ALL_PROC;
+                stream_info[STREAM_NUMA_NODE_ID] = proc_type_table.size() > 1 ? -1 : 0;
+                stream_info[STREAM_SOCKET_ID] = proc_type_table.size() > 1 ? -1 : 0;
+                _streams_info_table.push_back(stream_info);
+                stream_info[NUMBER_OF_STREAMS] = 0;
+            }
+            if (_threadPreferredCoreType == IStreamsExecutor::Config::BIG &&
+                proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+                core_types = {MAIN_CORE_PROC, HYPER_THREADING_PROC};
+            } else {
+                core_types = {MAIN_CORE_PROC, EFFICIENT_CORE_PROC, HYPER_THREADING_PROC};
+            }
+            for (int j : core_types) {
+                for (size_t i = start; i < proc_type_table.size(); i++) {
+                    if (proc_type_table[i][j] > 0 && cur_threads > 0) {
+                        if (threads_per_stream > proc_type_table[i][j]) {
+                            stream_info[THREADS_PER_STREAM] = std::min(proc_type_table[i][j], cur_threads);
+                            cur_threads -= stream_info[THREADS_PER_STREAM];
+                        } else {
+                            stream_info[NUMBER_OF_STREAMS] =
+                                std::min(proc_type_table[i][j], cur_threads) / threads_per_stream;
+                            cur_threads -= stream_info[NUMBER_OF_STREAMS] * threads_per_stream;
+                        }
+                        stream_info[PROC_TYPE] = j;
+                        stream_info[STREAM_NUMA_NODE_ID] = proc_type_table[i][PROC_NUMA_NODE_ID];
+                        stream_info[STREAM_SOCKET_ID] = proc_type_table[i][PROC_SOCKET_ID];
+                        _streams_info_table.push_back(stream_info);
                     }
-                    stream_info[PROC_TYPE] = j;
-                    stream_info[STREAM_NUMA_NODE_ID] = proc_type_table[i][PROC_NUMA_NODE_ID];
-                    stream_info[STREAM_SOCKET_ID] = proc_type_table[i][PROC_SOCKET_ID];
-                    _streams_info_table.push_back(stream_info);
                 }
             }
         }

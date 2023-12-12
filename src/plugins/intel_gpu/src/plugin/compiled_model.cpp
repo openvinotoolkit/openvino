@@ -40,10 +40,6 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
                                                     config.get_property(ov::num_streams),
                                                     1,
-                                                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
-                                                    1,
-                                                    0,
-                                                    0,
                                                     ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
                                                     true});
     } else {
