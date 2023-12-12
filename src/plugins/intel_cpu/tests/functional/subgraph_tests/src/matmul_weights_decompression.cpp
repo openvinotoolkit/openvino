@@ -164,7 +164,7 @@ protected:
             transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
         }
 
-        auto up_to = weights_precision == ov::element::nf4 ? 15 : 7;
+        auto up_to = weights_precision == ov::element::i4 ? 7 : 15;
         auto weights = ngraph::builder::makeConstant<int8_t>(weights_precision, transformed_weights_shape, {}, true, up_to);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
@@ -188,11 +188,11 @@ protected:
             scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
             auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
-            auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, subtract_shape, {}, true, 7);
+            auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
             std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
-                    ? scaleshift_target_shape : ov::Shape(std::vector<size_t>(scaleshift_const_shape.size(), 1));
+                    ? scaleshift_target_shape : ov::Shape(scaleshift_const_shape.size(), 1);
                 auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {subtract_target_shape.size()}, subtract_target_shape);
                 auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);
                 shift_convert = shift_reshape;
