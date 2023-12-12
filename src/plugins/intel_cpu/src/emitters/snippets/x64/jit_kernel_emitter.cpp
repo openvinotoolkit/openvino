@@ -81,19 +81,32 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
-                    desc = first_consumer->get_output_port_descriptor(0);
-                } else {
-                    desc = expr->get_output_port_descriptor(0);
+                // Note that here we consider only the first child (which is usually load),
+                // but often there is another child - LoopEnd
+                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
+                const auto& first_consumer = consumer_inputs.begin()->get_expr();
+                // If there is a RankNormalization op after a parameter - we should skip it
+                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
+                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
+                std::set<std::vector<size_t>> child_layouts;
+                for (const auto& child_input : consumer_inputs) {
+                    const auto& child = child_input.get_expr();
+                    const auto port = child_input.get_index();
+                    const auto& n = child->get_node();
+                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(n);
+                    if (ma && ma->is_memory_access_input_port(port)) {
+                        desc = child_input.get_descriptor_ptr();
+                        child_layouts.insert(desc->get_layout());
+                    }
                 }
+                OPENVINO_ASSERT(child_layouts.size() == 1, "All children of an input expression must have the same layout");
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
                 num_outputs++;
-                desc = expr->get_input_port_descriptor(0);
+                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
