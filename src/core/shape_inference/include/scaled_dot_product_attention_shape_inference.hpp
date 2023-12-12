@@ -19,24 +19,20 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& has_attention_mask_input = inputs_count >= 4;
     const auto& has_scale_input = inputs_count == 5;
     NODE_VALIDATION_CHECK(op, inputs_count == 3 || has_attention_mask_input || has_scale_input);
-    TRShape n_dims{};
     DimType e_dim{};
     DimType l_dim{};
     DimType s_dim{};
     DimType ev_dim{};
 
-    const auto& query = input_shapes[0];
-    if (query.rank().is_static()) {
-        const bool& query_input_correctness = query.rank().get_length() >= 3;
+    TRShape n_dims = input_shapes[0];
+    if (n_dims.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               query_input_correctness,
-                               "Query input shape not compatible with other inputs.");
-        n_dims = TRShape(std::vector<DimType>(query.begin(), query.end() - 2));
-        l_dim = *(query.end() - 2);
-        e_dim = *(query.end() - 1);
-    } else {
-        n_dims = query;
+                               n_dims.rank().get_length() >= 3,
+                               "Query input rank length must be at least 3 or more.");
+        l_dim = *(n_dims.end() - 2);
+        e_dim = *(n_dims.end() - 1);
+        n_dims.resize(n_dims.size() - 2);
     }
 
     const auto& key = input_shapes[1];
