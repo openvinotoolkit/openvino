@@ -112,9 +112,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
     0,
     ov::threading::IStreamsExecutor::Config::ANY,
     false,
-    {
-        {4, MAIN_CORE_PROC, 0, 0, 0},
-    },
+    {},
     {},
 };
 
@@ -655,9 +653,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_0 = {
     0,
     ov::threading::IStreamsExecutor::Config::ANY,
     false,
-    {
-        {1, MAIN_CORE_PROC, 0, 0, 0},
-    },
+    {},
     {},
 };
 

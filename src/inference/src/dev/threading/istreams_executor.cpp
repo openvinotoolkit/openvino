@@ -583,22 +583,24 @@ void IStreamsExecutor::Config::update_executor_config() {
         num_cores = total_num_little_cores;
     }
 
-    _streams = _streams > 0 ? std::min(_streams, num_cores) : _streams;
+    const auto threads = _threads > 0 ? _threads : num_cores;
+    _streams = _streams > 0 ? std::min(_streams, threads) : _streams;
     if (_streams == 0) {
         return;
     }
 
-    _threadsPerStream = _threadsPerStream > 0 ? std::min(num_cores, _streams * _threadsPerStream) / _streams
-                                              : std::max(0, _threadsPerStream);
+    _threadsPerStream = _threadsPerStream > 0 ? std::min(threads, _streams * _threadsPerStream) / _streams : 0;
+    if (_threadsPerStream == 0) {
+        return;
+    }
     int threads_per_stream = std::max(1, _threadsPerStream);
-    _threads = _streams * threads_per_stream;
 
     // create stream_info_table based on core type
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, 0);
     stream_info[THREADS_PER_STREAM] = _threadsPerStream;
     stream_info[STREAM_NUMA_NODE_ID] = 0;
     stream_info[STREAM_SOCKET_ID] = 0;
-    int cur_threads = _threads;
+    int cur_threads = _streams * _threadsPerStream;
     if (_threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
         if (proc_type_table[0][MAIN_CORE_PROC] < _streams * threads_per_stream) {
             if (proc_type_table[0][MAIN_CORE_PROC] > 0) {
