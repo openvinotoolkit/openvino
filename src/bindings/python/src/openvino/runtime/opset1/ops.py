@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import List, Optional, Union
+from typing import List, Optional, Union, get_args
 
 import numpy as np
 from functools import partial
@@ -362,7 +362,8 @@ def convert(
     :param name: Optional name for the output node.
     :return: New node performing the conversion operation.
     """
-    if isinstance(destination_type, NumericType):
+    _destination_type = None  # type: Union[str, Type]
+    if isinstance(destination_type, get_args(NumericType)):
         _destination_type = get_element_type_str(destination_type).lower()
     else:
         _destination_type = destination_type
