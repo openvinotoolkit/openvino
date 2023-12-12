@@ -10,6 +10,7 @@
 #include "common/cpu_memcpy.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 #include "nodes/common/cpu_convert.h"
+#include "openvino/util/log.hpp"
 
 #include <string>
 #include <vector>
@@ -18,11 +19,16 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+inline size_t getElementNum(const MemoryPtr& srcMemPtr) {
+    auto srcDims = srcMemPtr->getStaticDims();
+    return std::accumulate(srcDims.begin(), srcDims.end(), 1, std::multiplies<size_t>());
+}
+
 If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
                                            const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
-        size = srcMemPtr->getSize();
+        size = getElementNum(srcMemPtr);
 }
 
 void If::PortMapHelper::execute(dnnl::stream& strm) {
@@ -30,15 +36,11 @@ void If::PortMapHelper::execute(dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    // cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
-    auto srcDims = srcMemPtr->getStaticDims();
-    auto srcDimsSize = std::accumulate(srcDims.begin(), srcDims.end(), (size_t)1, std::multiplies<size_t>());
-
     cpu_convert(srcMemPtr->getData(),
                 dstMemPtrs.front()->getData(),
                 srcMemPtr->getDesc().getPrecision(),
                 dstMemPtrs.front()->getDesc().getPrecision(),
-                srcDimsSize);
+                size);
 }
 
 void If::PortMapHelper::redefineTo() {
@@ -53,7 +55,7 @@ void If::PortMapHelper::redefineTo() {
             dstMemPtrs[j]->redefineDesc(desc);
         }
 
-        size = srcMemPtr->getSize();
+        size = getElementNum(srcMemPtr);
     }
 }
 
@@ -205,7 +207,15 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
         auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &toMems = inputMems[map_rule.to];
+        auto& toMems = inputMems[map_rule.to];
+        // Check precision between If node input/output and it's subgrapsh input/output.
+        for (const auto& toMem : toMems) {
+            if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
+                OPENVINO_WARN << "If node fromMem and toMem precision mismatch: from "
+                              << fromMem->getDesc().getPrecision().to_string() << " to "
+                              << toMem->getDesc().getPrecision().to_string();
+            }
+        }
 
         beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
@@ -218,6 +228,14 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     for (auto& map_rule : outputPortMap) {
         auto toMems = getToMemories(this, map_rule.from);
         auto &fromMem = outputMems[map_rule.to];
+        // Check precision between If node input/output and it's subgrapsh input/output.
+        for (const auto& toMem : toMems) {
+            if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
+                OPENVINO_WARN << "If node fromMem and toMem precision mismatch: from "
+                              << fromMem->getDesc().getPrecision().to_string() << " to "
+                              << toMem->getDesc().getPrecision().to_string();
+            }
+        }
 
         afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
