@@ -68,7 +68,11 @@ class TestTorchConvertModel(TestConvertModel):
         except Exception as e:
             report_filename = os.environ.get("OP_REPORT_FILE", None)
             if report_filename:
-                with open(report_filename, "a") as f:
+                if os.path.exists(report_filename):
+                    mode = 'a'
+                else:
+                    mode = 'w'
+                with open(report_filename, mode) as f:
                     ops = extract_unsupported_ops_from_exception(str(e))
                     if ops:
                         ops = [f"{op} {self.model_name}" for op in ops]
