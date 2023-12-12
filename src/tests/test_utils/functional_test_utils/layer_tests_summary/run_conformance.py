@@ -53,6 +53,8 @@ def parse_arguments():
     gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
+    entity_help = "Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or "\
+        "`ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0 and GPU.1 in case when device are the same"
     expected_failures_help = "Excepted failures list file path as csv"
     cache_path_help = "Path to the cache file with test_name list sorted by execution time as `.lst` file!"
@@ -70,6 +72,7 @@ def parse_arguments():
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_graph", help=dump_graph_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--special_mode", help=special_mode_help, type=str, required=False, default="")
+    parser.add_argument("-e", "--entity", help=entity_help, type=str, required=False, default="")
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=bool, required=False, default=False)
     parser.add_argument("-f", "--expected_failures", help=expected_failures_help, type=str, required=False, default="")
     parser.add_argument("-u", "--expected_failures_update", help=expected_failures_update_help, required=False,
@@ -82,7 +85,7 @@ def parse_arguments():
 class Conformance:
     def __init__(self, device: str, model_path: os.path, ov_path: os.path, type: str, workers: int,
                  gtest_filter: str, working_dir: os.path, ov_config_path: os.path, special_mode: str,
-                 cache_path: str, parallel_devices: bool, expected_failures_file: str,
+                 entity:str, cache_path: str, parallel_devices: bool, expected_failures_file: str,
                  expected_failures_update: bool):
         self._device = device
         self._model_path = model_path
@@ -96,19 +99,30 @@ class Conformance:
             rmtree(self._working_dir)
         os.mkdir(self._working_dir)
         self._cache_path = cache_path if os.path.isfile(cache_path) else ""
+        self.__entity = ""
         if type == constants.OP_CONFORMANCE:
+            if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "":
+                self.__entity = entity
+            else:
+                logger.error(f'Incorrect value to set entity type: {special_mode}. Please check `help` to get possible values')
+                exit(-1)
             if special_mode == "static" or special_mode == "dynamic" or special_mode == "":
                 self._special_mode = special_mode
             else:
+                logger.error(f'Incorrect value to set shape mode: {special_mode}. Please check `help` to get possible values')
+                exit(-1)
+            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*"#:*OpImpl*"
+        elif type == constants.API_CONFORMANCE:
+            if entity == "ov_compiled_model" or entity == "ov_plugin" or entity == "ov_infer_request" or entity == "":
+                self.__entity = entity
+            else:
                 logger.error(f'Incorrect value to set shape mode: {special_mode}. Please check to get possible values')
                 exit(-1)
-            self._gtest_filter = gtest_filter
-        elif type == constants.API_CONFORMANCE:
             self._special_mode = ""
             if special_mode == "mandatory":
-                self._gtest_filter = f"*mandatory*{gtest_filter}*:*{gtest_filter}*mandatory*"
+                self._gtest_filter = f"*{self.__entity}*mandatory*{gtest_filter}*:*{self.__entity}*{gtest_filter}*mandatory*"
             elif special_mode == "":
-                self._gtest_filter = gtest_filter
+                self._gtest_filter = f"*{self.__entity}*{gtest_filter}*"
             else:
                 logger.error(f'Incorrect value to set API scope: {special_mode}. Please check to get possible values')
                 exit(-1)
@@ -304,6 +318,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --models_path = {self._model_path}")
         logger.info(f"[ARGUMENTS] --dump_graph = {dump_models}")
         logger.info(f"[ARGUMENTS] --shape_mode = {self._special_mode}")
+        logger.info(f"[ARGUMENTS] --entity = {self.__entity}")
         logger.info(f"[ARGUMENTS] --parallel_devices = {self._is_parallel_over_devices}")
         logger.info(f"[ARGUMENTS] --cache_path = {self._cache_path}")
         logger.info(f"[ARGUMENTS] --expected_failures = {self._expected_failures_file}")
@@ -338,9 +353,9 @@ if __name__ == "__main__":
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
                               args.working_dir, args.ov_config_path,
-                              args.special_mode, args.cache_path,
-                              args.parallel_devices, args.expected_failures,
-                              args.expected_failures_update)
+                              args.special_mode, args.entity,
+                              args.cache_path, args.parallel_devices,
+                              args.expected_failures, args.expected_failures_update)
     conformance.run(args.dump_graph)
     if not conformance.is_successful_run:
         exit(-1)

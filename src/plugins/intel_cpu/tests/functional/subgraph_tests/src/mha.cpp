@@ -5,6 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "internal_properties.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -236,8 +237,8 @@ protected:
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+        if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
         }
     }
 };
@@ -618,8 +619,8 @@ protected:
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+        if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
         }
     }
 };

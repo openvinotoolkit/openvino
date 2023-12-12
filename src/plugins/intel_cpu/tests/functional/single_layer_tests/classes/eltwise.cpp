@@ -6,6 +6,7 @@
 
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "gtest/gtest.h"
+#include "internal_properties.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -150,9 +151,9 @@ void EltwiseLayerCPUTest::SetUp() {
 #endif
 
     if (enforceSnippets) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
     } else {
-        configuration.insert({"SNIPPETS_MODE", "DISABLE"});
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
     }
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
     std::shared_ptr<ov::Node> secondaryInput;
