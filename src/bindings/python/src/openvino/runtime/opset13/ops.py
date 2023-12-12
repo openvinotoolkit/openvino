@@ -261,7 +261,7 @@ def scaled_dot_product_attention(
     if attention_mask is not None:
         inputs.append(as_node(attention_mask))
     elif scale is not None:
-        inputs.append(as_node(convert_like(constant(0, Type.i32), inputs[0])))
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0])))
     if scale is not None:
         inputs.append(as_node(scale))
 
