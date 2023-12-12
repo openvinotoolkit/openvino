@@ -41,7 +41,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     const auto key = input_shapes[1];
     if (key.rank().is_static()) {
-        bool key_input_correctness =
+        const bool key_input_correctness =
             key.rank().get_length() >= 3 &&
             TRShape::broadcast_merge_into(n_dims,
                                           TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
@@ -56,7 +56,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     const auto value = input_shapes[2];
     if (value.rank().is_static()) {
-        bool value_input_correctness =
+        const bool value_input_correctness =
             value.rank().get_length() >= 3 &&
             TRShape::broadcast_merge_into(n_dims,
                                           TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
@@ -72,7 +72,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     if (has_attention_mask_input && !iscausal) {
         const auto attention_mask = input_shapes[3];
         if (attention_mask.rank().is_static() && attention_mask.rank() != 0) {
-            auto attention_mask_rank_len = attention_mask.rank().get_length();
+            const auto attention_mask_rank_len = attention_mask.rank().get_length();
             bool attention_mask_input_correctness =
                 attention_mask_rank_len >= 2 && DimType::broadcast_merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
                 DimType::broadcast_merge(s_dim, s_dim, *(attention_mask.end() - 1));
