@@ -12,11 +12,11 @@
 #endif
 
 #ifdef _WIN32
-# include <gpu/gpu_context_api_dx.hpp>
+# include "gpu/gpu_context_api_dx.hpp"
 #elif defined ENABLE_LIBVA
-# include <gpu/gpu_context_api_va.hpp>
+# include "gpu/gpu_context_api_va.hpp"
 #endif
-#include <gpu/gpu_context_api_ocl.hpp>
+#include "gpu/gpu_context_api_ocl.hpp"
 
 namespace {
 template <typename T>
