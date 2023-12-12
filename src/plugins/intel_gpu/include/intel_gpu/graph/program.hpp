@@ -98,6 +98,9 @@ public:
             _processing_order.erase(i);
         }
 
+        void save(cldnn::BinaryOutputBuffer& ob) const;
+        void load(cldnn::BinaryInputBuffer& ib, program& p);
+
     private:
         list_of_nodes _processing_order;
         std::map<program_node*, node_iterator> processing_order_iterators;
@@ -226,9 +229,7 @@ public:
     // Reverses connection - user becomes dependency.
 
     void remove_nodes(std::vector<program_node*>& to_remove);
-    void dump_program(const char* stage,
-                      bool with_full_info,
-                      std::function<bool(program_node const&)> const& filter = nullptr) const;
+    void dump_program(const char* stage, bool with_full_info) const;
 
     const primitives_info& get_primitives_info() const;
     data_types get_inference_precision(const program_node& node) const;
@@ -281,6 +282,9 @@ public:
 
     static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
     static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
 
 private:
     uint32_t prog_id = 0;

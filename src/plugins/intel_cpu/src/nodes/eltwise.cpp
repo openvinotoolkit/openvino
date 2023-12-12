@@ -176,10 +176,12 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
     };
 
     for (const auto prc : exec_precisions_priority) {
-        if (std::any_of(
-            supported_precision_intersection.begin(),
-            supported_precision_intersection.end(),
-            [&prc](const std::vector<element::Type>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
+        if (std::any_of(supported_precision_intersection.begin(),
+                        supported_precision_intersection.end(),
+                        [&prc, &src_prc](const std::vector<element::Type>& precisions) {
+                            return (std::find(precisions.begin(), precisions.end(), prc) != precisions.end()) &&
+                                   (src_prc[0] == prc);
+                        })) {
             exec_prc = prc;
             break;
         }
@@ -248,7 +250,11 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
         OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
-        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseAnd, jit_bitwise_and_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseNot, jit_bitwise_not_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
     if (precisions.empty())
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
@@ -622,7 +628,11 @@ private:
         OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
         OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
-        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseAnd, jit_bitwise_and_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseNot, jit_bitwise_not_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
         if (!ctx.emitter)
             OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
@@ -692,6 +702,16 @@ private:
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, ov::element::Type src_prc, ov::element::Type dst_prc, bool broadcast) {
         Xmm xmm_src = Xmm(vmm_src.getIdx());
 
+        if (src_prc == dst_prc) {
+            if (broadcast) {
+                load_scalar(xmm_src, op, src_prc, dst_prc);
+                uni_vbroadcastss(vmm_src, xmm_src);
+            } else {
+                uni_vmovups(vmm_src, op);
+            }
+            return;
+        }
+
         if (broadcast) {
             load_scalar(xmm_src, op, src_prc, dst_prc);
             uni_vbroadcastss(vmm_src, xmm_src);
@@ -740,6 +760,22 @@ private:
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, ov::element::Type src_prc, ov::element::Type dst_prc) {
+        if (src_prc == dst_prc) {
+            switch (src_prc.size()) {
+                case 4:
+                    uni_vmovss(xmm_src, op);
+                    break;
+                case 1:
+                    mov(reg_tmp_8, op);
+                    movzx(reg_tmp_32, reg_tmp_8);
+                    uni_vmovd(xmm_src, reg_tmp_32);
+                    break;
+                default:
+                    OPENVINO_THROW("unknown prc");
+            }
+            return;
+        }
+
         switch (src_prc) {
             case ov::element::f32:
             case ov::element::i32:
@@ -789,6 +825,11 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, ov::element::Type src_prc, ov::element::Type dst_prc) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+
+        if (src_prc == dst_prc) {
+            uni_vmovups(op, vmm_dst);
+            return;
+        }
 
         switch (src_prc) {
             case ov::element::f32:
@@ -877,6 +918,21 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, ov::element::Type src_prc, ov::element::Type dst_prc) {
+        if (src_prc == dst_prc) {
+            switch (src_prc.size()) {
+                case 4:
+                    uni_vmovss(op, xmm_dst);
+                    break;
+                case 1:
+                    movq(reg_tmp_64, xmm_dst);
+                    mov(op, reg_tmp_8);
+                    break;
+                default:
+                    OPENVINO_THROW("unknown prc");
+            }
+            return;
+        }
+
         switch (src_prc) {
             case ov::element::f32:
                 if (!dst_prc.is_real())
@@ -1565,9 +1621,9 @@ public:
 template<typename T>
 class EltwiseRefBaseExecutor : public Eltwise::IEltwiseExecutor {
 public:
-    EltwiseRefBaseExecutor(Eltwise::EltwiseData opData,
+    EltwiseRefBaseExecutor(const Eltwise::EltwiseData& opData,
                            const VectorDims& outBlkDims,
-                           std::vector<VectorDims> inpDims)
+                           const std::vector<VectorDims>& inpDims)
     : _opData(std::move(opData)), _inpDims(inpDims) {
         if (inpDims.empty()) {
             OPENVINO_THROW("Can not make Eltwise executor from empty input dims array");
@@ -1671,9 +1727,9 @@ template<typename T,
     ::type * = nullptr>
 class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
-    EltwiseRefExecutor(Eltwise::EltwiseData opData,
-                          const VectorDims& outBlkDims,
-                          std::vector<VectorDims> inpDims) : EltwiseRefBaseExecutor<T>(opData, outBlkDims, inpDims) {
+    EltwiseRefExecutor(const Eltwise::EltwiseData& opData,
+                       const VectorDims& outBlkDims,
+                       const std::vector<VectorDims>& inpDims) : EltwiseRefBaseExecutor<T>(opData, outBlkDims, inpDims) {
     }
 
     void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override {
@@ -1810,9 +1866,9 @@ template<typename T,
     ::type * = nullptr>
 class BitwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
-    BitwiseRefExecutor(Eltwise::EltwiseData opData,
+    BitwiseRefExecutor(const Eltwise::EltwiseData& opData,
                        const VectorDims& outBlkDims,
-                       std::vector<VectorDims> inpDims) : EltwiseRefBaseExecutor<T>(opData, outBlkDims, inpDims) {
+                       const std::vector<VectorDims>& inpDims) : EltwiseRefBaseExecutor<T>(opData, outBlkDims, inpDims) {
     }
 
     void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override {
@@ -2078,7 +2134,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     // if dim rank is greater than the maximum possible, we should use the reference execution
     bool canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     // TODO: Add EltwiseLog algorithm support for JIT implementation
-    canUseOptimizedImpl &= !(one_of(getAlgorithm(), Algorithm::EltwiseLog) || isBitwise(getAlgorithm()));
+    canUseOptimizedImpl &= !one_of(getAlgorithm(), Algorithm::EltwiseLog);
 
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
@@ -2865,7 +2921,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
 
-    // TODO: supported only via reference executor
+    // TODO: EltwiseLog is supported only via reference executor
     if (one_of(getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
@@ -2877,8 +2933,9 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
                Algorithm::EltwiseBitwiseOr,
-               Algorithm::EltwiseBitwiseXor))
+               Algorithm::EltwiseBitwiseXor)) {
         return false;
+    }
 
     bool isIntegerNode = isIntegerComputeSupported(this);
     if (isIntegerNode && node->getType() != Type::Eltwise)

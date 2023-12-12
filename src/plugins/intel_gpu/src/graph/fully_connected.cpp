@@ -167,7 +167,6 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
-
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
@@ -175,21 +174,46 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     auto orig_output_layout = orig_impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
-    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx) {
+
+    auto input_shape = orig_input_layout.get_partial_shape().to_shape();
+    auto output_shape = orig_output_layout.get_partial_shape().to_shape();
+
+    // Allow padding only for feature and outermost dimmension
+    auto can_apply_fake_alignment = true;
+    if (input_shape.size() == 3)
+        can_apply_fake_alignment &= orig_input_layout.data_padding.lower_size().sizes()[1] == 0 &&
+                                    orig_input_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    if (output_shape.size() == 3)
+        can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
+                                    orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
-        auto input_shape = orig_input_layout.get_partial_shape().to_shape();
-        auto input_row_idx = input_shape.size() - 2;
-        auto output_shape = orig_output_layout.get_partial_shape().to_shape();
-        auto output_row_idx = output_shape.size() - 2;
+
+        auto batch_size = std::accumulate(input_shape.begin(),
+                                          input_shape.end() - 1,
+                                          size_t{1},
+                                          std::multiplies<size_t>());
 
         // Vector by matrix multiplication sometimes works slower if we align it
-        if (input_shape[input_row_idx] == 1 && output_shape[output_row_idx] == 1 && input_shape[input_shape.size() - 1] >= 1024) {
+        if (batch_size == 1 && input_shape.back() >= 1024) {
             return std::move(orig_impl_param);
         }
 
-        size_t fake_align_base = (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) ? 16 : 8;
-        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], fake_align_base);
-        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], fake_align_base);
+        size_t fake_align_base = 8;
+        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
+            auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
+            auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_extra_alignment_needed = batch_size >= 256;
+            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+        }
+
+        std::fill(input_shape.begin(), input_shape.end() - 1, 1);
+        std::fill(output_shape.begin(), output_shape.end() - 1, 1);
+
+        input_shape[0] = align_to(batch_size, fake_align_base);
+        output_shape[0] = align_to(batch_size, fake_align_base);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
                                                 orig_input_layout.data_type,

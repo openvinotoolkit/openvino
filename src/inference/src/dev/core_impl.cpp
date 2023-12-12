@@ -325,8 +325,9 @@ bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
-    return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
-           pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
+    std::string real_name = ov::parseDeviceNameIntoConfig(dev_name)._deviceName;
+    return pluginRegistry.find(real_name) != pluginRegistry.end() &&
+           pluginRegistry.at(real_name).pluginCreateFunc == ov::proxy::create_plugin;
 #else
     return false;
 #endif
@@ -366,7 +367,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
-                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
+                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, std::move(fallback)};
             } else {
                 auto dev_order = defaultConfig[ov::device::priorities.name()].as<std::vector<std::string>>();
                 auto begin_it = std::find(dev_order.begin(), dev_order.end(), dev_name);
@@ -837,7 +838,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 return compile_model_and_cache(model, plugin, parsed._config, {}, cacheContent);
             });
     } else if (cacheManager) {
-        // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
+        // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
