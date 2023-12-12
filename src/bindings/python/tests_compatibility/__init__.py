@@ -155,7 +155,7 @@ xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionErro
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
-                                      "DFT, LayerNormalization, "
+                                      "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
