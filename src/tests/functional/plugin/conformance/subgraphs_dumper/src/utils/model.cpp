@@ -42,13 +42,13 @@ align_input_info(const std::shared_ptr<ov::Model>& model,
                  const std::map<std::string, ov::conformance::InputInfo>& in_info,
                  const std::map<std::string, ov::conformance::InputInfo>& in_info_ref,
                  const std::unordered_map<std::string, std::string> &matched_op) {
-    std::map<std::string, ov::conformance::InputInfo> updated_input_info = in_info_ref;
+    std::map<std::string, ov::conformance::InputInfo> updated_input_info(in_info_ref);
     for (const auto& op : model->get_ordered_ops()) {
         const auto op_name = op->get_friendly_name();
         if (!in_info.count(op_name)) {
             continue;
         }
-        if (matched_op.count(op_name)) {
+        if (matched_op.count(op_name) && in_info_ref.count(matched_op.at(op_name))) {
             updated_input_info[matched_op.at(op_name)] = in_info.at(op_name);
         }
     }

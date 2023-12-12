@@ -111,10 +111,10 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
             throw std::runtime_error("Generated models are incompatible with original ones!");
         }
         try {
-            subgraph_in_info = ov::util::align_input_info(subgraph, graph,
-                                                          subgraph_in_info, graph_in_info,
-                                                          get_matched_ops_in_graphs(subgraph, graph));
-            res = { true, subgraph, graph, subgraph_in_info, graph_in_info };
+            auto subgraph_in_info_new = ov::util::align_input_info(subgraph, graph,
+                                                                    subgraph_in_info, graph_in_info,
+                                                                    get_matched_ops_in_graphs(subgraph, graph));
+            res = { true, subgraph, graph, subgraph_in_info_new, graph_in_info };
         } catch(std::exception) {}
     }
     m_manager.set_match_in_types(false);
