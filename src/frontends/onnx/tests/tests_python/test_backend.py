@@ -391,9 +391,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_and_i16_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_and_i32_2d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_and_ui64_bcast_3v1d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
@@ -403,7 +400,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bitwise_xor_ui8_bcast_4v3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_xor_i16_3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_xor_i32_2d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_and_ui8_bcast_4v3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_or_ui8_bcast_4v3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
