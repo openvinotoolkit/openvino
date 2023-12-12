@@ -7,9 +7,9 @@
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using RollCPUTestParams = typename std::tuple<
         InputShape,                  // Input shape
@@ -58,12 +58,14 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             paramsIn.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
-        auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
-        auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
+        auto shiftNode =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{shift.size()}, shift)->output(0);
+        auto axesNode =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes)->output(0);
 
-        const auto roll = std::make_shared<ngraph::op::v7::Roll>(paramsIn[0], shiftNode, axesNode);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll)};
-        function = std::make_shared<ngraph::Function>(results, paramsIn, "roll");
+        const auto roll = std::make_shared<ov::op::v7::Roll>(paramsIn[0], shiftNode, axesNode);
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roll)};
+        function = std::make_shared<ov::Model>(results, paramsIn, "roll");
     }
 };
 
@@ -146,5 +148,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_5DRepeatingAxesNegativeShift, RollLayerCP
                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
-} // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov
