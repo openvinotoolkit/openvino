@@ -112,7 +112,6 @@ jobs:
 
       - name: ONNX Models Tests
         continue-on-error: true
-        run: python3 -m pytest --backend="CPU" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 -k 'not _cuda' --model_zoo_xfail
-
-      - name: ONNX Models Tests (2)
-        run: pytest --backend="CPU" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
+        run: |
+          mv "${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo_${{ env.ONNX_MODEL_ZOO_SHA }}" "${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo"
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_PATH}/models_data/model_zoo" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 -k 'not _cuda' --model_zoo_xfail
