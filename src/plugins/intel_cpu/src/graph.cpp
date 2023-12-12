@@ -895,14 +895,22 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
+        auto edgeMemory = childEdge->getMemoryPtr();
 
         const void* ext_data_ptr = input->data();
-        void* inter_data_ptr = childEdge->getMemory().getData();
+        void* inter_data_ptr = edgeMemory->getData();
 
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tensor_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(input);
-            Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-            childEdge->getMemory().load(ext_mem, false);
+            auto actualDesc = edgeMemory->getDescPtr();
+
+            if (!actualDesc->isCompatible(*ext_tensor_desc)) {
+                Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
+                edgeMemory->load(ext_mem, false);
+            } else {
+                size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
+                cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
+            }
         }
     } else {
         OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
@@ -975,13 +983,13 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
+        if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
-            size_t size_to_copy = intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            DEBUG_LOG("pull_output: convert ", srcPrec, " to ", dstPrec);
-            cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
+            size_t size_to_copy = intr_blob.getSize();
+            cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
     }
 }
