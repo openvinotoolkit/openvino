@@ -110,7 +110,7 @@ jobs:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
-          OP_REPORT_FILE: ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
       - name: Reformat unsupported ops file
         if: '!cancelled()'
