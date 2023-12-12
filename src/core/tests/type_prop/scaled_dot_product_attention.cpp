@@ -329,9 +329,10 @@ TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 3, 3, 5});
     auto causal = false;
 
-    OV_EXPECT_THROW(std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
-                    AssertFailure,
-                    testing::HasSubstr("Key input shape not compatible with other inputs."));
+    OV_EXPECT_THROW(
+        auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        AssertFailure,
+        testing::HasSubstr("Key input shape not compatible with other inputs."));
 }
 TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 3, 4});
@@ -340,9 +341,10 @@ TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 3, 3, 5});
     auto causal = false;
 
-    OV_EXPECT_THROW(std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
-                    AssertFailure,
-                    testing::HasSubstr("Value input shape not compatible with other inputs."));
+    OV_EXPECT_THROW(
+        auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        AssertFailure,
+        testing::HasSubstr("Value input shape not compatible with other inputs."));
 }
 
 TEST(type_prop, scaled_dot_product_unsupported_attention_shape) {
@@ -352,9 +354,10 @@ TEST(type_prop, scaled_dot_product_unsupported_attention_shape) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 3, 3, 5});
     auto causal = false;
 
-    OV_EXPECT_THROW(std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
-                    AssertFailure,
-                    testing::HasSubstr("Attention mask input shape not compatible with other inputs."));
+    OV_EXPECT_THROW(
+        auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        AssertFailure,
+        testing::HasSubstr("Attention mask input shape not compatible with other inputs."));
 }
 
 TEST(type_prop, scaled_dot_product_unsupported_scale_shape) {
@@ -366,7 +369,8 @@ TEST(type_prop, scaled_dot_product_unsupported_scale_shape) {
     auto causal = false;
 
     OV_EXPECT_THROW(
-        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+        auto op =
+            std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
         AssertFailure,
         testing::HasSubstr("Scale input must be scalar or have 1 element."));
 }
@@ -380,7 +384,8 @@ TEST(type_prop, scaled_dot_product_unsupported_dtype) {
     auto causal = false;
 
     OV_EXPECT_THROW(
-        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+        auto op =
+            std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
         AssertFailure,
         testing::HasSubstr("The element type of the input tensor must be a floating-point."));
 }
@@ -394,7 +399,8 @@ TEST(type_prop, scaled_dot_product_unsupported_value_dtype_mixed) {
     auto causal = false;
 
     OV_EXPECT_THROW(
-        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+        auto op =
+            std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
         AssertFailure,
         testing::HasSubstr("Mixed input types are not supported."));
 }
@@ -406,7 +412,8 @@ TEST(type_prop, scaled_dot_product_unsuported_attention_type) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::i32, PartialShape{1, 3, 5});
     auto causal = false;
 
-    OV_EXPECT_THROW(std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
-                    AssertFailure,
-                    testing::HasSubstr("The element type of attention_mask must be either floating-point or boolean."));
+    OV_EXPECT_THROW(
+        auto op = std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        AssertFailure,
+        testing::HasSubstr("The element type of attention_mask must be either floating-point or boolean."));
 }
