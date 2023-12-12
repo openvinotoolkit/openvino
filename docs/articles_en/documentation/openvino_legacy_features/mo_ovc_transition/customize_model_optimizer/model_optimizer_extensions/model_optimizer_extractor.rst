@@ -1,5 +1,7 @@
-# [LEGACY] Operation Extractor {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor}
+.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor}
 
+[LEGACY] Operation Extractor
+=============================
 
 .. meta::
    :description: Learn about a deprecated generic extension in Model Optimizer, 

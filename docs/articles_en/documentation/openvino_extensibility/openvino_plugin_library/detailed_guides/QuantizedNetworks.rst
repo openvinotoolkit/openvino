@@ -3,7 +3,11 @@
 Quantized models compute and restrictions
 =========================================
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
 
+   openvino_docs_ie_plugin_dg_lp_representation
 
 .. meta::
    :description: Learn about the support for quantized models with different 

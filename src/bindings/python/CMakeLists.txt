@@ -325,11 +325,11 @@ macro(ov_define_setup_py_dependencies)
         "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
+        "${OpenVINO_SOURCE_DIR}/docs/dev/pypi_publish/pypi-openvino-rt.md")
 
     if(wheel_pre_release)
         list(APPEND ov_setup_py_deps
-            "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
+            "${OpenVINO_SOURCE_DIR}/docs/dev/pypi_publish/pre-release-note.md")
     endif()
 endmacro()
 
