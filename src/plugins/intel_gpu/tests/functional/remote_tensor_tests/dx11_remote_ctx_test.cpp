@@ -8,14 +8,12 @@
 #include <tuple>
 #include <memory>
 
-#include <ie_compound_blob.h>
-
-#include <gpu/gpu_config.hpp>
-#include <common_test_utils/test_common.hpp>
-#include <common_test_utils/test_constants.hpp>
+#include "gpu/gpu_config.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
-#include <openvino/core/preprocess/pre_post_process.hpp>
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #ifdef _WIN32
 #ifdef  ENABLE_DX11
@@ -30,11 +28,12 @@
 #define NOMINMAX_DEFINED_CTX_UT
 #endif
 
-#include <gpu/gpu_context_api_dx.hpp>
-#include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #include <atlbase.h>
 #include <d3d11.h>
 #include <d3d11_4.h>
+
+#include "gpu/gpu_context_api_dx.hpp"
+#include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 
 #ifdef NOMINMAX_DEFINED_CTX_UT
 #undef NOMINMAX
@@ -202,29 +201,26 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-    using namespace InferenceEngine;
-    using namespace InferenceEngine::gpu;
-    auto ie = InferenceEngine::Core();
+    auto core = ov::Core();
 
     CComPtr<ID3D11Device> device_ptr;
     CComPtr<ID3D11DeviceContext> ctx_ptr;
 
     ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
         create_device_with_ctx(intel_adapters[0]));
-    auto remote_context = make_shared_context(ie,
-        ov::test::utils::DEVICE_GPU,
-        device_ptr);
-    ASSERT_TRUE(remote_context);
+
+    auto gpu_context = core.get_default_context("GPU").as<ov::intel_gpu::ocl::ClContext>();
+    auto context_handle = gpu_context.get();
+    ASSERT_TRUE(context_handle);
 
     for (auto adapter : other_adapters) {
         CComPtr<ID3D11Device> device_ptr;
         CComPtr<ID3D11DeviceContext> ctx_ptr;
 
         ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
-                        create_device_with_ctx(adapter));
-        ASSERT_THROW(make_shared_context(ie, ov::test::utils::DEVICE_GPU,
-                                         device_ptr),
-                     std::runtime_error);
+            create_device_with_ctx(adapter));
+        ASSERT_THROW(ov::intel_gpu::ocl::D3DContext gpu_context(core, device_ptr),
+            std::runtime_error);
     }
 }
 

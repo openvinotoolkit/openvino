@@ -3,7 +3,7 @@
 //
 
 #include <behavior/plugin/core_threading.hpp>
-#include <remote_blob_tests/remote_blob_helpers.hpp>
+#include <remote_tensor_tests/helpers.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
