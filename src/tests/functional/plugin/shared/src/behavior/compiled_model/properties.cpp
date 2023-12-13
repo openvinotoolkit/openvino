@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "openvino/runtime/properties.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 #include <locale.h>
 
@@ -74,7 +75,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
     std::tie(target_device, userConfig) = GetParam();
     compileModelProperties = userConfig.first;
     expectedDeviceName = userConfig.second;
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ov::test::utils::make_conv_pool_relu();
 }
 
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
