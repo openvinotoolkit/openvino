@@ -112,21 +112,23 @@ jobs:
         run: |
           ls -la /mount
           ls -laR ${MODELS_SHARE_PATH}
-
-      - name: Use common parent directory for models
-        continue-on-error: true
-        run: |
-          mkdir -p ${MODELS_PATH}
-          if [[ ! -h "${MODELS_PATH}/MSFT" ]]; then
-            ln -s ${MODELS_SHARE_PATH}/msft ${MODELS_PATH}/MSFT
-          fi
-          
-          if [[ ! -h "${MODELS_PATH}/onnx_model_zoo" ]]; then
-            ln -s {MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_PATH}/onnx_model_zoo
-          fi
-          
-          ls -laR ${MODELS_PATH}
+#
+#      - name: Use common parent directory for models
+#        continue-on-error: true
+#        run: |
+#          mkdir -p ${MODELS_PATH}
+#          if [[ ! -h "${MODELS_PATH}/MSFT" ]]; then
+#            ln -s ${MODELS_SHARE_PATH}/msft ${MODELS_PATH}/MSFT
+#          fi
+#
+#          if [[ ! -h "${MODELS_PATH}/onnx_model_zoo" ]]; then
+#            ln -s {MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_PATH}/onnx_model_zoo
+#          fi
+#
+#          ls -laR ${MODELS_PATH}
 
       - name: ONNX Models Tests
         run: |
-          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
+          rm -rf ${MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo
+          mv ${MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
