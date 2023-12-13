@@ -7054,5 +7054,3 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_and_broadcast_condition) {
 
     test_case.run();
 }
-
-
