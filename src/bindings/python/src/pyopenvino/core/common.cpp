@@ -81,66 +81,7 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 }
 };  // namespace containers
 
-namespace array_helpers {
-
-bool is_contiguous(const py::array& array) {
-    return C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-}
-
-ov::element::Type get_ov_type(const py::array& array) {
-    char ctype = array.dtype().kind();
-    if (ctype == 'U' || ctype == 'S') {
-        return ov::element::string;
-    }
-    return Common::dtype_to_ov_type().at(py::str(array.dtype()));
-}
-
-std::vector<size_t> get_shape(const py::array& array) {
-    return std::vector<size_t>(array.shape(), array.shape() + array.ndim());
-}
-
-std::vector<size_t> get_strides(const py::array& array) {
-    return std::vector<size_t>(array.strides(), array.strides() + array.ndim());
-}
-
-py::array as_contiguous(py::array& array, ov::element::Type type) {
-    switch (type) {
-    // floating
-    case ov::element::f64:
-        return array.cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
-    case ov::element::f32:
-        return array.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
-    // signed
-    case ov::element::i64:
-        return array.cast<py::array_t<int64_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::i32:
-        return array.cast<py::array_t<int32_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::i16:
-        return array.cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::i8:
-        return array.cast<py::array_t<int8_t, py::array::c_style | py::array::forcecast>>();
-    // unsigned
-    case ov::element::u64:
-        return array.cast<py::array_t<uint64_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::u32:
-        return array.cast<py::array_t<uint32_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::u16:
-        return array.cast<py::array_t<uint16_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::u8:
-        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
-    // other
-    case ov::element::boolean:
-        return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
-    case ov::element::u1:
-        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
-    // need to create a view on array to cast it correctly
-    case ov::element::f16:
-    case ov::element::bf16:
-        return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
-    default:
-        OPENVINO_THROW("Tensor cannot be created as contiguous!");
-    }
-}
+namespace string_helpers {
 
 py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
@@ -206,6 +147,110 @@ py::array string_array_from_tensor(ov::Tensor&& t) {
     return array;
 }
 
+void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
+    if (tensor.get_size() != static_cast<size_t>(array.size())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    py::buffer_info buf = array.request();
+    auto data = tensor.data<std::string>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
+        data[i] = std::string(ptr, buf.strides[0]);
+    }
+}
+
+void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
+    if (tensor.get_size() != static_cast<size_t>(array.size())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    py::buffer_info buf = array.request();
+    auto data = tensor.data<std::string>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
+        // TODO: check other unicode kinds? 2BYTE and 1BYTE?
+        PyObject* _unicode_obj =
+            PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
+        PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
+        const char* _tmp_str = PyBytes_AsString(_utf8_obj);
+        data[i] = std::string(_tmp_str);
+        Py_XDECREF(_unicode_obj);
+        Py_XDECREF(_utf8_obj);
+    }
+}
+
+void fill_string_tensor_data(ov::Tensor& tensor, py::array& array) {
+    if (array.dtype().kind() == 'S') {
+        fill_tensor_from_bytes(tensor, array);
+    } else if (array.dtype().kind() == 'U') {
+        fill_tensor_from_strings(tensor, array);
+    } else {
+        OPENVINO_THROW("Unknown string kind passed to fill the Tensor's data!");
+    }
+}
+
+};  // namespace string_helpers
+
+namespace array_helpers {
+
+bool is_contiguous(const py::array& array) {
+    return C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
+}
+
+ov::element::Type get_ov_type(const py::array& array) {
+    char ctype = array.dtype().kind();
+    if (ctype == 'U' || ctype == 'S') {
+        return ov::element::string;
+    }
+    return Common::dtype_to_ov_type().at(py::str(array.dtype()));
+}
+
+std::vector<size_t> get_shape(const py::array& array) {
+    return std::vector<size_t>(array.shape(), array.shape() + array.ndim());
+}
+
+std::vector<size_t> get_strides(const py::array& array) {
+    return std::vector<size_t>(array.strides(), array.strides() + array.ndim());
+}
+
+py::array as_contiguous(py::array& array, ov::element::Type type) {
+    switch (type) {
+    // floating
+    case ov::element::f64:
+        return array.cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+    case ov::element::f32:
+        return array.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+    // signed
+    case ov::element::i64:
+        return array.cast<py::array_t<int64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i32:
+        return array.cast<py::array_t<int32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i16:
+        return array.cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i8:
+        return array.cast<py::array_t<int8_t, py::array::c_style | py::array::forcecast>>();
+    // unsigned
+    case ov::element::u64:
+        return array.cast<py::array_t<uint64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u32:
+        return array.cast<py::array_t<uint32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u16:
+        return array.cast<py::array_t<uint16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u8:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // other
+    case ov::element::boolean:
+        return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u1:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // need to create a view on array to cast it correctly
+    case ov::element::f16:
+    case ov::element::bf16:
+        return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    default:
+        OPENVINO_THROW("Tensor cannot be created as contiguous!");
+    }
+}
+
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     // Special case for string data type.
     if (t.get_element_type() == ov::element::string) {
@@ -214,7 +259,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
                      "`str_data` and `bytes_data` to avoid confusion while accessing "
                      "Tensor's contents.",
                      1);
-        return bytes_array_from_tensor(std::move(t));
+        return string_helpers::bytes_array_from_tensor(std::move(t));
     }
     // Get actual dtype from OpenVINO type:
     auto ov_type = t.get_element_type();
@@ -298,34 +343,8 @@ ov::Tensor create_copied(py::array& array) {
     // Special case with string data type of kind "S"(bytes_) or "U"(str_).
     // pass through check for other string types like bytes and str.
     if (array_helpers::get_ov_type(array) == ov::element::string) {
-        if (array.dtype().kind() == 'S') {
-            py::buffer_info buf = array.request();
-            auto data = tensor.data<std::string>();
-            // TODO: check if array size is equal to tensor?
-            for (size_t i = 0; i < tensor.get_size(); ++i) {
-                const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
-                data[i] = std::string(ptr, buf.strides[0]);
-            }
-            return tensor;
-        } else if (array.dtype().kind() == 'U') {
-            py::buffer_info buf = array.request();
-            auto data = tensor.data<std::string>();
-            // TODO: check if array size is equal to tensor?
-            for (size_t i = 0; i < tensor.get_size(); ++i) {
-                char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
-                // TODO: check other unicode kinds? 2BYTE and 1BYTE?
-                PyObject* _unicode_obj =
-                    PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
-                PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
-                const char* _tmp_str = PyBytes_AsString(_utf8_obj);
-                data[i] = std::string(_tmp_str);
-                Py_XDECREF(_unicode_obj);
-                Py_XDECREF(_utf8_obj);
-            }
-            return tensor;
-        }
-        // pass or raise exception?
-        OPENVINO_THROW("Unknown string kind passed to the Tensor!");
+        string_helpers::fill_string_tensor_data(tensor, array);
+        return tensor;
     }
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
     std::memcpy(tensor.data(),
@@ -478,7 +497,7 @@ py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);
             }
-            res[py::cast(out)] = array_helpers::string_array_from_tensor(std::move(t));
+            res[py::cast(out)] = string_helpers::string_array_from_tensor(std::move(t));
         } else {
             res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
         }

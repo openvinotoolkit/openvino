@@ -303,37 +303,57 @@ void regclass_Tensor(py::module m) {
     cls.def_property(
         "bytes_data",
         [](ov::Tensor& self) {
-            return Common::array_helpers::bytes_array_from_tensor(std::forward<ov::Tensor>(self));
+            return Common::string_helpers::bytes_array_from_tensor(std::forward<ov::Tensor>(self));
         },
         [](ov::Tensor& self, py::object& other) {
-            // TODO: implement
+            if (py::isinstance<py::array>(other)) {
+                auto array = other.cast<py::array>();
+                Common::string_helpers::fill_string_tensor_data(self, array);
+            } else if (py::isinstance<py::list>(other)) {
+                auto array = py::array(other.cast<py::list>());
+                Common::string_helpers::fill_string_tensor_data(self, array);
+            } else {
+                OPENVINO_THROW("Invalid data to fill String Tensor!");
+            }
             return;
         },
         R"(
-            Access to Tensor's data with string Type in np.bytes_ dtype.
+            Access to Tensor's data with string Type in `np.bytes_` dtype.
 
-            Returns a numpy array with corresponding shape and dtype.
+            Getter returns a numpy array with corresponding shape and dtype.
             Warning: Data of string type is always a copy of underlaying memory!
 
-            :rtype: numpy.array
+            Setter fills underlaying Tensor's memory by copying strings from `other`.
+            `other` must have the same size (elements number) as the Tensor.
+            Tensor's shape is not changed by performing this operation!
         )");
 
     cls.def_property(
         "str_data",
         [](ov::Tensor& self) {
-            return Common::array_helpers::string_array_from_tensor(std::forward<ov::Tensor>(self));
+            return Common::string_helpers::string_array_from_tensor(std::forward<ov::Tensor>(self));
         },
         [](ov::Tensor& self, py::object& other) {
-            // TODO: implement
+            if (py::isinstance<py::array>(other)) {
+                auto array = other.cast<py::array>();
+                Common::string_helpers::fill_string_tensor_data(self, array);
+            } else if (py::isinstance<py::list>(other)) {
+                auto array = py::array(other.cast<py::list>());
+                Common::string_helpers::fill_string_tensor_data(self, array);
+            } else {
+                OPENVINO_THROW("Invalid data to fill String Tensor!");
+            }
             return;
         },
         R"(
-            Access to Tensor's data with string Type in np.str_ dtype.
+            Access to Tensor's data with string Type in `np.str_` dtype.
 
-            Returns a numpy array with corresponding shape and dtype.
+            Getter returns a numpy array with corresponding shape and dtype.
             Warning: Data of string type is always a copy of underlaying memory!
 
-            :rtype: numpy.array
+            Setter fills underlaying Tensor's memory by copying strings from `other`.
+            `other` must have the same size (elements number) as the Tensor.
+            Tensor's shape is not changed by performing this operation!
         )");
 
     cls.def("get_shape",
@@ -383,6 +403,22 @@ void regclass_Tensor(py::module m) {
         "copy_from",
         [](ov::Tensor& self, py::array& source) {
             auto _source = Common::object_from_data<ov::Tensor>(source, false);
+            if (self.get_shape() != _source.get_shape()) {
+                self.set_shape(_source.get_shape());
+            }
+            return _source.copy_to(self);
+        },
+        py::arg("source"),
+        R"(
+        Copy the source to this tensor. This tensor and the source should have the same element type.
+        Shape will be adjusted if there is a mismatch.
+    )");
+
+    cls.def(
+        "copy_from",
+        [](ov::Tensor& self, py::list& source) {
+            auto array = py::array(source);
+            auto _source = Common::object_from_data<ov::Tensor>(array, false);
             if (self.get_shape() != _source.get_shape()) {
                 self.set_shape(_source.get_shape());
             }

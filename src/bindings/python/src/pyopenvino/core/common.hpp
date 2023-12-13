@@ -44,6 +44,21 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 
+// Helpers for string types and numpy arrays of strings
+namespace string_helpers {
+
+py::array bytes_array_from_tensor(ov::Tensor&& t);
+
+py::array string_array_from_tensor(ov::Tensor&& t);
+
+void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array);
+
+void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array);
+
+void fill_string_tensor_data(ov::Tensor& tensor, py::array& array);
+
+}; // namespace string_helpers
+
 // Helpers for numpy arrays
 namespace array_helpers {
 
@@ -56,10 +71,6 @@ std::vector<size_t> get_shape(const py::array& array);
 std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
-
-py::array bytes_array_from_tensor(ov::Tensor&& t);
-
-py::array string_array_from_tensor(ov::Tensor&& t);
 
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
