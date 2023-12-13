@@ -118,7 +118,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/rms_fusion.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
-#include "plugin/transformations/remove_convert_before_gather.hpp"
+#include "plugin/transformations/move_convert_after_gather.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -279,7 +279,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Ignore nodes that are not related to FullyConnected and allow ConstantFolding to be applied to them
         pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_decompression_multiply);
 
-        manager.register_pass<ov::intel_gpu::RemoveConvertBeforeGather>();
+        manager.register_pass<ov::intel_gpu::MoveConvertAfterGather>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;

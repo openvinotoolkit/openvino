@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remove_convert_before_gather.hpp"
+#include "move_convert_after_gather.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,29 +13,27 @@
 namespace ov {
 namespace intel_gpu {
 
-RemoveConvertBeforeGather::RemoveConvertBeforeGather() {
+MoveConvertAfterGather::MoveConvertAfterGather() {
     using namespace ov::pass::pattern;
 
-    // Detect Any input - Convert - Gather pattern
-    auto weights = wrap_type<ov::op::v0::Constant>();
-    auto indices = any_input();
-    auto axis = any_input();
-    auto convert = wrap_type<ov::op::v0::Convert>({weights});
-    auto gather = wrap_type<ov::op::v8::Gather>({convert, indices, axis});
+    // f16 compressed LLM word embedding pattern
+    // Const -(f16)-> Convert -(f32)-> Gather -(f32)->
+    // Convert is moved after Gather to avoid constant folding, which would double the memory usage.
+    // Const -(f16)-> Gather -(f16)-> Convert -(f32)->
+    auto weights = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto convert = wrap_type<ov::op::v0::Convert>({weights}, consumers_count(1));
+    auto gather = wrap_type<ov::op::v8::Gather>({convert, any_input(), any_input()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto weights_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights).get_node_shared_ptr());
         const auto& convert_node = pattern_map.at(convert).get_node_shared_ptr();
         const auto& gather_node = pattern_map.at(gather).get_node_shared_ptr();
-
-        if (convert_node->get_output_target_inputs(0).size() != 1)
-            return true;
-
-        std::cout << "RemoveConvertBeforeGather @@ " << convert_node->get_friendly_name() << std::endl;
-
         auto& compressed_type = convert_node->get_input_element_type(0);
+
+        if (compressed_type != ov::element::f16)
+            return false;
 
         weights_node->clear_control_dependents();
         gather_node->input(0).replace_source_output(weights_node->output(0));
@@ -50,11 +48,6 @@ RemoveConvertBeforeGather::RemoveConvertBeforeGather() {
         gather_node->set_output_type(0, compressed_type, gather_node->get_output_partial_shape(0));
         convert_node->input(0).replace_source_output(gather_node->output(0));
 
-        // ov::replace_node(convert_node, input_node);
-        // if (is_decompression(convert_node)) {
-        //     unmark_as_decompression(convert_node);
-        //     disable_constant_folding(convert_node);
-        // }
         return true;
     };
 

@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_gpu {
 
-class RemoveConvertBeforeGather : public ov::pass::MatcherPass {
+class MoveConvertAfterGather : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveConvertBeforeGather", "0");
-    RemoveConvertBeforeGather();
+    OPENVINO_RTTI("MoveConvertAfterGather", "0");
+    MoveConvertAfterGather();
 };
 
 }   // namespace intel_gpu
