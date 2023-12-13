@@ -2404,22 +2404,15 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* p
     log::debug() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
-        for (int j = 0; j != static_cast<int>(getInputTo(layer->outData.front()).size()); j++) {
-            auto isNonFunctional = [](CNNLayerPtr l) {
-                return LayerInfo(l).isNonFunctional();
-            };
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
 
-            if (!CNNNetHasNextLayerSkipCertain(layer, 0, j, isNonFunctional)) {
-                continue;
-            }
-            auto nextLayer = CNNNetGetNextLayerSkipCertain(layer, 0, j, isNonFunctional);
-
-            if (!nextLayer.first) {
-                log::debug() << "for layer: " << layer->name << "outData[0] has non functional connection at " << j;
-            }
+        auto next_layers = CNNNetGetAllNextLayersSkipCertain(layer, -1, isNonFunctional);
+        for (auto& next_layer : next_layers) {
             auto nextMemoryLayerIt =
                 std::find_if(begin(memory_connection), end(memory_connection), [&](MemoryConnection::value_type& comp) {
-                    return comp.second.getOutput()->name == nextLayer.first->name;
+                    return comp.second.getOutput()->name == next_layer->name;
                 });
             if (nextMemoryLayerIt != memory_connection.end()) {
                 auto& nextMemoryLayer = nextMemoryLayerIt->second;
