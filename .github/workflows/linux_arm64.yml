@@ -346,7 +346,7 @@ jobs:
       event: ${{ github.event_name }}
 
   Overall_Status:
-    name: ci/gha_overall_status
+    name: ci/gha_overall_status_linux_arm64
     needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
             TensorFlow_Hub_Models_Tests, TensorFlow_Hub_Performance_Models_Tests, PyTorch_Models_Tests]
     if: ${{ always() }}
