@@ -454,7 +454,9 @@ The behavior depends on specific parameters of the operations and hardware confi
 
 .. important::
 
-   While working on the fine tuned model, inference may give an inaccurcy and performance drop on GPU due to the selected winograd convolutions. This issue can be fixed via disabling winograd convolutions, by running the code below:
+   While working on a fine tuned model, inference may give an inaccuracy and performance drop
+   on GPU if winograd convolutions are selected. This issue can be fixed by disabling winograd
+   convolutions:
 
    .. code:: bash
 
