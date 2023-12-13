@@ -396,7 +396,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
 
   CXX_Unit_Tests:
     name: C++ unit tests
