@@ -15,8 +15,6 @@
 #include <algorithm>
 #include <cstdint>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -330,7 +328,7 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
 
     // blocked order
     // [new_outer_order] U [inner_idxs]
-    SizeVector blk_order(total_ndims, 0);
+    VectorDims blk_order(total_ndims, 0);
     std::copy(outer_order.begin(), outer_order.end(), blk_order.begin());
     std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, blk_order.begin() + dims.size());
     return blk_order;

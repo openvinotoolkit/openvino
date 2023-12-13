@@ -8,7 +8,7 @@
 #include "embedding_bag_offset_sum.h"
 #include <openvino/opsets/opset3.hpp>
 
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

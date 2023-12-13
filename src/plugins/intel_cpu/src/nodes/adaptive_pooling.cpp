@@ -16,7 +16,6 @@
 #include <vector>
 #include "shape_inference/custom/adaptive_pooling.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 

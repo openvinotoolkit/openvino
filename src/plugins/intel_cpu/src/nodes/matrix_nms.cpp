@@ -16,8 +16,6 @@
 #include "utils/general_utils.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

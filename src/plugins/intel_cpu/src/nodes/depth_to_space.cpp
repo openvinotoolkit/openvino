@@ -17,7 +17,6 @@
 
 #define THROW_ERROR(...) OPENVINO_THROW("DepthToSpace layer with name '", getName(), "' ", __VA_ARGS__)
 
-using namespace InferenceEngine;
 using namespace dnnl::impl;
 
 namespace ov {

@@ -14,7 +14,6 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
-
 using details::CaselessEq;
 
 using namespace dnnl::impl::cpu;

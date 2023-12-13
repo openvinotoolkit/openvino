@@ -18,7 +18,6 @@
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

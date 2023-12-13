@@ -14,8 +14,6 @@
 #include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -142,7 +140,7 @@ void Broadcast::prepareParams() {
             repeats[axesMapping[i]] /= srcDims[i];
         }
 
-        SizeVector newSrcBlockedDims = SizeVector(dstBlockedDims.size(), 1);
+        VectorDims newSrcBlockedDims = VectorDims(dstBlockedDims.size(), 1);
         for (size_t i = 0; i < getInputShapeAtPort(AXES_MAPPING_IDX).getDims()[0]; i++) {
             newSrcBlockedDims[axesMapping[i]] = srcBlockedDims[i];
         }

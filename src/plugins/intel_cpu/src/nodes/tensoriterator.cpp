@@ -17,8 +17,6 @@
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -735,7 +733,7 @@ void TensorIterator::prepareTripCount() {
 
 /* *==============* *==============* *==============* *==============* *==============* */
 
-inline SizeVector sliced_input_dims(const MemoryPtr& mem, const int axis, const int stride) {
+inline VectorDims sliced_input_dims(const MemoryPtr& mem, const int axis, const int stride) {
     auto dims = mem->getStaticDims();
     if (axis != -1)
         dims[axis] = abs(stride);

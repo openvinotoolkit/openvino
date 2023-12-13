@@ -27,7 +27,7 @@
 #define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

@@ -14,8 +14,6 @@
 #include <openvino/opsets/opset1.hpp>
 #include "shape_inference/custom/priorbox.hpp"
 
-using namespace InferenceEngine;
-
 #define THROW_ERROR(...) OPENVINO_THROW("PriorBox layer with name '", getName(), "': ", __VA_ARGS__)
 
 namespace ov {

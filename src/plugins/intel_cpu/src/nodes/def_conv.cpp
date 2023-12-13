@@ -17,7 +17,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <common/dnnl_thread.hpp>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

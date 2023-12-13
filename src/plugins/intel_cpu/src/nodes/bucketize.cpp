@@ -11,8 +11,6 @@
 #include "openvino/core/parallel.hpp"
 #include "bucketize.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

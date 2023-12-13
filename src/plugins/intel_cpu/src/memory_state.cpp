@@ -9,8 +9,6 @@
 #include "blob_factory.hpp"
 #include "cpu_tensor.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 

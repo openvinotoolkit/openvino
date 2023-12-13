@@ -14,7 +14,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

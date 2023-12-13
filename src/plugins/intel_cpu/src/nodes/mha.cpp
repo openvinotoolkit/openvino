@@ -19,8 +19,6 @@
 #include "utils/bfloat16.hpp"
 #include <ie_ngraph_utils.hpp>
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;

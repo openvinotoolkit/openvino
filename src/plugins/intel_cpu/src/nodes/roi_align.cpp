@@ -17,7 +17,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;

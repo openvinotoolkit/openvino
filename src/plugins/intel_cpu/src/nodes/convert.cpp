@@ -11,7 +11,6 @@
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

@@ -35,9 +35,7 @@
 // #define FQ_DOUBLE_PRECISION
 
 using namespace dnnl;
-using namespace InferenceEngine;
 using namespace ov;
-using namespace details;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;

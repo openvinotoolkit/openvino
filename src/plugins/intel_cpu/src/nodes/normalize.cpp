@@ -26,7 +26,7 @@
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;

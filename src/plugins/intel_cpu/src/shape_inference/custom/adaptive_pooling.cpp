@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 
 /**
  * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C] dimensions and

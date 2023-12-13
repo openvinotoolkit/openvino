@@ -19,7 +19,7 @@
 #define THROW_SHCH_ERROR(...) OPENVINO_THROW("ShuffleChannels layer with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 

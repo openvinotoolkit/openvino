@@ -15,7 +15,6 @@
 #include <cassert>
 #include <vector>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

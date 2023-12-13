@@ -11,8 +11,6 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <openvino/opsets/opset2.hpp>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -90,7 +88,7 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
     }
 }
 
-static std::vector<size_t> getShape5D(const SizeVector &shape) {
+static std::vector<size_t> getShape5D(const VectorDims &shape) {
     std::vector<size_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
         shape5D[i] = shape[i];

@@ -23,7 +23,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "shape_inference/custom/matmul.hpp"
 using namespace dnnl;
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

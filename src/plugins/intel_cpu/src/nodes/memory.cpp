@@ -15,7 +15,6 @@
 #include "common/arbitrary_order_desc_creator.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

@@ -14,8 +14,6 @@
 #include <fstream>
 #include <memory_desc/cpu_memory_desc_utils.h>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -79,7 +77,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER &header) {
         OPENVINO_THROW("Dumper cannot parse file. Unsupported IEB format version.");
 
     const auto prc = static_cast<ov::element::Type_t>(header.precision);
-    SizeVector dims(header.ndims);
+    VectorDims dims(header.ndims);
     for (int i = 0; i < header.ndims; i++)
         dims[i] = header.dims[i];
 

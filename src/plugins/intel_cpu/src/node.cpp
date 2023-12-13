@@ -69,8 +69,6 @@ using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
-using namespace InferenceEngine::details;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -1252,7 +1250,7 @@ bool Node::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const SizeVector& dims) const {
+dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) const {
     switch (dims.size()) {
     case 1:
         return dnnl::memory::format_tag::a;

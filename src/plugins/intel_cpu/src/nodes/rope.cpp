@@ -15,8 +15,6 @@
 #include "common/cpu_memcpy.h"
 #include "utils/plain_tensor.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

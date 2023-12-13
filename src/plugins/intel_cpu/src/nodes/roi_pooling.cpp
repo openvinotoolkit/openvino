@@ -23,7 +23,6 @@
 #include <algorithm>
 #include <cmath>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

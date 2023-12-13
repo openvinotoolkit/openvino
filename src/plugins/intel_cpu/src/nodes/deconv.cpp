@@ -35,7 +35,6 @@
 #include <vector>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

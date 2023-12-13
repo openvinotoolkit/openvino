@@ -21,7 +21,6 @@
 #include "emitters/x64/jit_dnnl_emitters.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 

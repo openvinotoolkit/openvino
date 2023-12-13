@@ -14,7 +14,6 @@
 #include <partitioned_mem_mgr.h>
 #include "shape_inference/custom/gather.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
 
 #define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)

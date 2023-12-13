@@ -19,9 +19,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #endif
 
-using namespace InferenceEngine;
-
-
 namespace ov {
 namespace intel_cpu {
 namespace {

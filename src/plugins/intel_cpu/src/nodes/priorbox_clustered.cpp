@@ -14,8 +14,6 @@
 #include <openvino/opsets/opset1.hpp>
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

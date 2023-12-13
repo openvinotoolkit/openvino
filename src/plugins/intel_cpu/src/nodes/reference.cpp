@@ -8,9 +8,6 @@
 #include <ie_ngraph_utils.hpp>
 #include "openvino/core/shape_util.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

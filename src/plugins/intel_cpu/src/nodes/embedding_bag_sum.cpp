@@ -11,8 +11,6 @@
 #include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

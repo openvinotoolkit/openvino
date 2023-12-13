@@ -8,8 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "grn.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

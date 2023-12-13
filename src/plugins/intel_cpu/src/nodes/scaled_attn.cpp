@@ -31,7 +31,6 @@
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 
-using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
 using namespace dnnl::impl::cpu::x64;
 

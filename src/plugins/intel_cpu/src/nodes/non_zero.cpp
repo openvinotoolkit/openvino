@@ -11,8 +11,6 @@
 #include <utils/bfloat16.hpp>
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

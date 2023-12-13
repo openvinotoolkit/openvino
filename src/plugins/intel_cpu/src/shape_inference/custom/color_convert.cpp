@@ -10,7 +10,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 /**
  * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
  * passed through or recalculated as 2/3 of the initial size.

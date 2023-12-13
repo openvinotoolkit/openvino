@@ -14,8 +14,6 @@
 #include "common/cpu_memcpy.h"
 #include "shape_inference/custom/one_hot.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -58,11 +56,11 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {
-        srcDims = SizeVector{1};
+        srcDims = VectorDims{1};
     }
     VectorDims dstDims = getOutputShapeAtPort(0).getDims();
     if (ov::is_scalar(dstDims)) {
-        dstDims = SizeVector{1};
+        dstDims = VectorDims{1};
     }
 
     int output_dims_size = dstDims.size();

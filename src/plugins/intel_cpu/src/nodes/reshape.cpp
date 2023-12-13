@@ -14,7 +14,6 @@
 #include "common/cpu_memcpy.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

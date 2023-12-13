@@ -55,8 +55,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {

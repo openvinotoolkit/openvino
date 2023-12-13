@@ -13,8 +13,6 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace InferenceEngine;
-
 #define THROW_ERROR(...) OPENVINO_THROW("GatherND layer with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {

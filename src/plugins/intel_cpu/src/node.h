@@ -633,7 +633,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const InferenceEngine::SizeVector& dims) const;
+    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
 
     /**
      * @brief Auxiliary function to get node input precisions

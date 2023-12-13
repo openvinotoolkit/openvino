@@ -12,8 +12,6 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

@@ -14,8 +14,6 @@
 #include <memory>
 #include <string>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

@@ -13,8 +13,6 @@
 #include <openvino/core/type/float16.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
-
 
 namespace ov {
 namespace intel_cpu {

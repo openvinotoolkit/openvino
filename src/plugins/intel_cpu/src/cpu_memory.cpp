@@ -18,7 +18,6 @@
 #include "nodes/reorder.h"
 #include "memory_desc/cpu_memory_desc.h"
 
-using namespace InferenceEngine;
 using namespace dnnl;
 
 namespace ov {

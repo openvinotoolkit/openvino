@@ -25,8 +25,6 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
-using namespace InferenceEngine;
-
 struct Indexer4d {
     int dim3_;
     int dim23_;

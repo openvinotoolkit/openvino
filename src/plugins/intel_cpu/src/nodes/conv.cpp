@@ -36,7 +36,6 @@
 #include "ie_ngraph_utils.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

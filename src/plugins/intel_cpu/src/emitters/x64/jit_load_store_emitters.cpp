@@ -7,7 +7,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "utils/bfloat16.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;

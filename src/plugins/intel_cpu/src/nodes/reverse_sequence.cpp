@@ -9,8 +9,6 @@
 #include "openvino/core/parallel.hpp"
 #include "reverse_sequence.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -142,7 +140,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t i, start = 0, end = 0, srcIdx = 0;
-        SizeVector counters(srcDims.size(), 0);
+        VectorDims counters(srcDims.size(), 0);
         splitter(workAmountDst, nthr, ithr, start, end);
         for (int j = srcDims.size() - 1, i = start; j >= 0; --j) {
             counters[j] = i % srcDims[j];

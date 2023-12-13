@@ -32,7 +32,7 @@
 # endif
 #endif
 
-using namespace InferenceEngine;
+
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;

@@ -20,7 +20,6 @@
 #include "executors/transpose_list.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

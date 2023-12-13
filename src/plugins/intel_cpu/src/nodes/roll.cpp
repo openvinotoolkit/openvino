@@ -15,7 +15,6 @@
 #include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

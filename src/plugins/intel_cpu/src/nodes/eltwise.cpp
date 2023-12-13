@@ -53,7 +53,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "shape_inference/custom/eltwise.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

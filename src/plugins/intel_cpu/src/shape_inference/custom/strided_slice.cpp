@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
         std::unordered_set<int64_t> begin_mask,
         std::unordered_set<int64_t> end_mask,

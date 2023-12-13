@@ -55,7 +55,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 using namespace ov::intel_cpu::node;
 
 namespace ov {

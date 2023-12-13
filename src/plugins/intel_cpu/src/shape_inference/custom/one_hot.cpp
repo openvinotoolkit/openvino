@@ -10,7 +10,6 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
 
 /**
  * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
