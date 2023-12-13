@@ -8,6 +8,8 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+
 #if defined(OPENVINO_ARCH_X86_64)
 #include "nodes/kernels/x64/jit_kernel.hpp"
 #endif

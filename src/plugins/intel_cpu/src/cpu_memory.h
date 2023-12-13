@@ -357,17 +357,15 @@ class StringMemory : public IMemory {
 public:
     using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
-    class StringMemoryMngr : public IMemoryMngr {
+    class StringMemoryMngr {
     public:
         StringMemoryMngr() : m_data(nullptr, release) {}
         OvString* getStringPtr() const noexcept;
-        void setExtStringBuff(OvString* ptr, size_t size);
+        void setExtBuff(OvString* ptr, size_t size);
         size_t getStrLen() const noexcept;
-
-        void* getRawPtr() const noexcept override;
-        void setExtBuff(void* ptr, size_t size) override;
-        bool resize(size_t size) override;
-        bool hasExtBuffer() const noexcept override;
+        void* getRawPtr() const noexcept;
+        bool resize(size_t size /* string elements number */);
+        bool hasExtBuffer() const noexcept;
 
     private:
         bool m_use_external_storage = false;
@@ -387,9 +385,7 @@ public:
     StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryMngrPtr& manager)
         : m_engine(engine), m_mem_desc(desc), m_manager(manager) {}
 
-    bool isAllocated() const noexcept override {
-       return true;
-    }
+    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;

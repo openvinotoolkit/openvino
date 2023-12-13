@@ -614,8 +614,9 @@ void Graph::AllocateWithReuse() {
                 auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
                 edge->reuse(memory);
                 for (auto& edge_c : cluster) {
-                    if (edge_c->getDesc().getPrecision() == element::string && edge_c->getStatus() == Edge::Status::NeedAllocation &&
-                            !edge_c->getParent()->isConstant()) {
+                    OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
+                    if (edge_c->getStatus() == Edge::Status::NeedAllocation &&
+                            !(edge_c->getParent()->isConstant() && edge_c->getParent()->getType() == Type::Input)) {
                         auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc());
                         edge_c->reuse(memory);
                     }

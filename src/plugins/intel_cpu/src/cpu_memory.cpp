@@ -275,6 +275,10 @@ void MemoryMngrRealloc::destroy(void *ptr) {
 /////////////// StringMemory ///////////////
 
 StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data) : m_engine(engine), m_mem_desc(desc) {
+    if (m_mem_desc->getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
+    }
+
     m_manager = std::make_shared<StringMemoryMngr>();
 
     if (!m_mem_desc->isDefined()) {
@@ -286,20 +290,14 @@ StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc
 
     if (data != nullptr) {
         auto not_const_data = const_cast<void *>(data);
-        m_manager->setExtStringBuff(reinterpret_cast<OvString *>(not_const_data), string_size);
+        m_manager->setExtBuff(reinterpret_cast<OvString *>(not_const_data), string_size);
     } else {
         m_manager->resize(string_size);
     }
 }
 
-StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noexcept {
-    return m_data.get();
-}
-
 void StringMemory::load(const IMemory& src, bool ftz) const {
-    try {
-        auto str_mem = dynamic_cast<const StringMemory &>(src);
-    } catch (...) {
+    if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
 
@@ -311,8 +309,11 @@ void* StringMemory::getData() const  {
 }
 
 void StringMemory::redefineDesc(MemoryDescPtr desc) {
+    if (desc->getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
+    }
     if (!desc->hasDefinedMaxSize()) {
-        OPENVINO_THROW("Can not reset descriptor. Memory upper bound is unknown.");
+        OPENVINO_THROW("[CPU] StringMemory cannot reset descriptor. Memory upper bound is unknown.");
     }
 
     m_mem_desc = desc;
@@ -327,6 +328,22 @@ void StringMemory::nullify() {
     }
 }
 
+bool StringMemory::isAllocated() const noexcept {
+    if (getData()) {
+        return true;
+    }
+    if (!m_mem_desc) {
+        return false;
+    }
+    if (!(m_mem_desc->isDefined())) {
+        return true;
+    }
+    if (m_mem_desc->getCurrentMemSize() == 0) {
+        return true;
+    }
+    return false;
+}
+
 MemoryMngrPtr StringMemory::getMemoryMngr() const {
     OPENVINO_THROW("Unexpected call of StringMemory::getMemoryMngr()");
 }
@@ -335,10 +352,14 @@ dnnl::memory StringMemory::getPrimitive() const {
     OPENVINO_THROW("Unexpected call of StringMemory::getPrimitive()");
 }
 
-void StringMemory::StringMemoryMngr::setExtStringBuff(OvString* ptr, size_t size) {
+void StringMemory::StringMemoryMngr::setExtBuff(OvString* ptr, size_t size) {
     m_use_external_storage = true;
     m_str_upper_bound = size;
     m_data = decltype(m_data)(ptr, release);
+}
+
+StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noexcept {
+    return m_data.get();
 }
 
 bool StringMemory::StringMemoryMngr::resize(size_t size) {
@@ -370,10 +391,6 @@ void StringMemory::StringMemoryMngr::destroy(OvString* ptr) {
 
 void* StringMemory::StringMemoryMngr::getRawPtr() const noexcept {
     return reinterpret_cast<void *>(m_data.get());
-}
-
-void StringMemory::StringMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    OPENVINO_THROW("Unexpected call of StringMemoryMngr::setExtBuff()");
 }
 
 /////////////// DnnlMemoryMngr ///////////////

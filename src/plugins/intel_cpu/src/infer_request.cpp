@@ -180,7 +180,7 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     if (tensor->get_element_type() == element::string) {
         auto memMngr = dynamic_cast<const StringMemory &>(mem).getStringMemoryMngrPtr();
         OPENVINO_ASSERT(memMngr);
-        memMngr->setExtStringBuff(tensor->data<OvString>(), tensor->get_size());
+        memMngr->setExtBuff(tensor->data<OvString>(), tensor->get_size());
     } else {
         auto memMngr = mem.getMemoryMngr();
         OPENVINO_ASSERT(memMngr);
