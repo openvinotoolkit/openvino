@@ -185,41 +185,33 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(TBB_LIB_INSTALL_DIR "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_downloaded)
-        set(OV_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
+        if(WIN32)
+            set(_ov_tbb_libs_path "${TBBROOT}/bin")
+        else()
+            set(_ov_tbb_libs_path "${TBBROOT}/lib")
+            set(ov_tbb_exclude PATTERN "cmake" EXCLUDE)
+        endif()
 
-        if (NOT CPACK_GENERATOR STREQUAL "NPM")
-            if(WIN32)
-                install(DIRECTORY "${TBBROOT}/bin"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}"
-                        COMPONENT tbb)
-            else()
-                install(DIRECTORY "${TBBROOT}/lib"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}"
-                        COMPONENT tbb
-                        PATTERN "cmake" EXCLUDE)
-            endif()
-            
-            install(FILES "${TBBROOT}/LICENSE"
-                    DESTINATION "${OV_TBB_DIR_INSTALL}"
-                    COMPONENT tbb)
-        else() 
-            set(OV_TBB_DIR_INSTALL ".")
+        if(CPACK_GENERATOR STREQUAL "NPM")
+            # we need to install TBB libs to the same directory as other
+            set(OV_TBB_DIR_INSTALL ${OV_CPACK_RUNTIMEDIR})
+            # install content instead of whole directory
+            set(_ov_tbb_libs_path "${_ov_tbb_libs_path}/")
+        else()
+            set(OV_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
+        endif()
 
-            if(WIN32)
-                install(FILES "${TBBROOT}/bin/tbb12.dll"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}"
-                        COMPONENT tbb)
-            else()
-                install(FILES "${TBBROOT}/lib/libtbb.so.12.2" "${TBBROOT}/lib/libtbb.so.12"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}"
-                        COMPONENT tbb)
-            endif()
-
-            install(FILES "${TBBROOT}/LICENSE"
+        install(DIRECTORY "${_ov_tbb_libs_path}"
                 DESTINATION "${OV_TBB_DIR_INSTALL}"
+                COMPONENT tbb
+                ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
+                ${ov_tbb_exclude})
+
+        install(FILES "${TBBROOT}/LICENSE"
+                DESTINATION "${OV_TBB_DIR_INSTALL}"
+                ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
                 RENAME "TBB-LICENSE"
                 COMPONENT tbb)
-        endif()
 
         # install development files
 
@@ -228,31 +220,33 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                                DEPENDS tbb)
         list(APPEND core_dev_components tbb_dev)
 
-        if (NOT CPACK_GENERATOR STREQUAL "NPM")            
-            if(EXISTS "${TBBROOT}/lib/cmake")
-                # oneTBB case
-                install(DIRECTORY "${TBBROOT}/lib/cmake"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}/lib"
-                        COMPONENT tbb_dev)
-            else()
-                # tbb2020 case
-                install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
-                            "${TBBROOT}/cmake/TBBConfigVersion.cmake"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}/cmake"
-                        COMPONENT tbb_dev)
-            endif()
-
-            install(DIRECTORY "${TBBROOT}/include"
-                    DESTINATION "${OV_TBB_DIR_INSTALL}"
+        if(EXISTS "${TBBROOT}/lib/cmake")
+            # oneTBB case
+            install(DIRECTORY "${TBBROOT}/lib/cmake"
+                    DESTINATION "${OV_TBB_DIR_INSTALL}/lib"
+                    ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
                     COMPONENT tbb_dev)
+        else()
+            # tbb2020 case
+            install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
+                          "${TBBROOT}/cmake/TBBConfigVersion.cmake"
+                    DESTINATION "${OV_TBB_DIR_INSTALL}/cmake"
+                    ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
+                    COMPONENT tbb_dev)
+        endif()
 
-            if(WIN32)
-                # .lib files are needed only for Windows
-                install(DIRECTORY "${TBBROOT}/lib"
-                        DESTINATION "${OV_TBB_DIR_INSTALL}"
-                        COMPONENT tbb_dev
-                        PATTERN "cmake" EXCLUDE)
-            endif()
+        install(DIRECTORY "${TBBROOT}/include"
+                DESTINATION "${OV_TBB_DIR_INSTALL}"
+                ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
+                COMPONENT tbb_dev)
+
+        if(WIN32)
+            # .lib files are needed only for Windows
+            install(DIRECTORY "${TBBROOT}/lib"
+                    DESTINATION "${OV_TBB_DIR_INSTALL}"
+                    COMPONENT tbb_dev
+                    ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/lib" CACHE PATH "TBB library install directory" FORCE)
