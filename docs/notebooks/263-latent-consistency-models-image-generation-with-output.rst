@@ -42,24 +42,35 @@ repository <https://github.com/luosiallen/latent-consistency-model>`__.
 In this tutorial, we consider how to convert and run LCM using OpenVINO.
 An additional part demonstrates how to run quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
-pipeline. 
+pipeline.
 
 **Table of contents:**
 
-- `Prerequisites <#prerequisites>`__
-- `Prepare models for OpenVINO format conversion <#prepare-models-for-openvino-format-conversion>`__
-- `Convert models to OpenVINO format <#convert-models-to-openvino-format>`__
-- `Text Encoder <#text-encoder>`__
-- `U-Net <#u-net>`__
-- `VAE <#vae>`__
-- `Prepare inference pipeline <#prepare-inference-pipeline>`__
-- `Configure Inference Pipeline <#configure-inference-pipeline>`__
-- `Text-to-image generation <#text-to-image-generation>`__
-- `Quantization <#quantization>`__
-- `Prepare calibration dataset <#prepare-calibration-dataset>`__
-- `Run quantization <#run-quantization>`__
-- `Compare inference time of the FP16 and INT8 models <#compare-inference-time-of-the-fp-and-int-models>`__
-- `Interactive demo <#interactive-demo>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare models for OpenVINO format
+   conversion <#prepare-models-for-openvino-format-conversion>`__
+-  `Convert models to OpenVINO
+   format <#convert-models-to-openvino-format>`__
+
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-Net <#u-net>`__
+   -  `VAE <#vae>`__
+
+-  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+
+   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+
+-  `Text-to-image generation <#text-to-image-generation>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp-and-int-models>`__
+   -  `Compare UNet file size <#compare-unet-file-size>`__
+
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
@@ -69,7 +80,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "torch" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0" transformers "diffusers>=0.22.0" pillow gradio "nncf>=2.6.0" datasets
+    %pip install -q "openvino>=2023.1.0" transformers "diffusers>=0.23.1" pillow gradio "nncf>=2.6.0" datasets --extra-index-url https://download.pytorch.org/whl/cpu
 
 Prepare models for OpenVINO format conversion
 ---------------------------------------------
@@ -88,7 +99,7 @@ model is also integrated into
 Diffusers is the go-to library for state-of-the-art pretrained diffusion
 models for generating images, audio, and even 3D structures of
 molecules. This allows us to compare running original Stable Diffusion
-(from this `notebook <225-stable-diffusion-text-to-image-with-output.html>`__) and
+(from this `notebook <../225-stable-diffusion-text-to-image>`__) and
 distilled using LCD. The distillation approach efficiently converts a
 pre-trained guided diffusion model into a latent consistency model by
 solving an augmented PF-ODE.
@@ -116,7 +127,7 @@ provide which module should be loaded for initialization using
     VAE_DECODER_OV_PATH = Path("model/vae_decoder.xml")
     
     
-    def load_orginal_pytorch_pipeline_componets(skip_models=False, skip_safety_checker=True):
+    def load_orginal_pytorch_pipeline_componets(skip_models=False, skip_safety_checker=False):
         pipe = DiffusionPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7")
         scheduler = pipe.scheduler
         tokenizer = pipe.tokenizer
@@ -165,11 +176,6 @@ provide which module should be loaded for initialization using
 .. parsed-literal::
 
     Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
 
 
 Convert models to OpenVINO format
@@ -265,20 +271,6 @@ hidden states.
     del text_encoder
     gc.collect()
 
-
-.. parsed-literal::
-
-    Text encoder will be loaded from model/text_encoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
-
 U-Net
 ~~~~~
 
@@ -337,20 +329,6 @@ Model predicts the ``sample`` state for the next step.
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
     gc.collect()
-
-
-.. parsed-literal::
-
-    Unet will be loaded from model/unet.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
 
 VAE
 ~~~
@@ -416,20 +394,6 @@ VAE encoder, can be found in Stable Diffusion notebook.
     
     del vae
     gc.collect()
-
-
-.. parsed-literal::
-
-    VAE decoder will be loaded from model/vae_decoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
 
 Prepare inference pipeline
 --------------------------
@@ -673,7 +637,7 @@ decoded by the decoder part of the variational auto encoder.
                     ts = torch.full((bs,), t, dtype=torch.long)
     
                     # model prediction (v-prediction, eps, x)
-                    model_pred = self.unet([latents, ts, prompt_embeds, w_embedding],share_inputs=True, share_outputs=True)[0]
+                    model_pred = self.unet([latents, ts, prompt_embeds, w_embedding], share_inputs=True, share_outputs=True)[0]
     
                     # compute the previous noisy sample x_t -> x_t-1
                     latents, denoised = self.scheduler.step(
@@ -735,7 +699,7 @@ inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -890,8 +854,10 @@ model inputs for calibration we should customize ``CompiledModel``.
     
     import datasets
     from tqdm.notebook import tqdm
-    from transformers import Pipeline
+    from transformers import set_seed
     from typing import Any, Dict, List
+    
+    set_seed(1)
     
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model, prob: float, data_cache: List[Any] = None):
@@ -904,18 +870,22 @@ model inputs for calibration we should customize ``CompiledModel``.
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
     
-    def collect_calibration_data(lcm_pipeline: Pipeline, subset_size: int) -> List[Dict]:
+    def collect_calibration_data(lcm_pipeline: OVLatentConsistencyModelPipeline, subset_size: int) -> List[Dict]:
         original_unet = lcm_pipeline.unet
         lcm_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
     
         dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).shuffle(seed=42)
         lcm_pipeline.set_progress_bar_config(disable=True)
+        safety_checker = lcm_pipeline.safety_checker
+        lcm_pipeline.safety_checker = None
     
         # Run inference for data collection
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:
             prompt = batch["TEXT"]
+            if len(prompt) > tokenizer.model_max_length:
+                continue
             _ = lcm_pipeline(
                 prompt,
                 num_inference_steps=num_inference_steps,
@@ -935,6 +905,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         calibration_dataset = lcm_pipeline.unet.data_cache
         lcm_pipeline.set_progress_bar_config(disable=False)
         lcm_pipeline.unet = original_unet
+        lcm_pipeline.safety_checker = safety_checker
         return calibration_dataset
 
 .. code:: ipython3
@@ -954,19 +925,13 @@ model inputs for calibration we should customize ``CompiledModel``.
 
 .. parsed-literal::
 
-    Downloading readme:   0%|          | 0.00/56.0 [00:00<?, ?B/s]
+    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
 
 
 
 .. parsed-literal::
 
       0%|          | 0/200 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    Token indices sequence length is longer than the specified maximum sequence length for this model (85 > 77). Running this sequence through the model will result in indexing errors
-    WARNING:__main__:The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['colleges harnessing technology to make education free']
 
 
 Run quantization
@@ -1004,25 +969,72 @@ Create a quantized model from the pre-trained converted OpenVINO model.
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
 
 
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 200/200 [03:15<00:00,  1.02it/s]
-    Applying Smooth Quant: 100%|██████████| 101/101 [00:07<00:00, 13.89it/s]
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
 
 
 .. parsed-literal::
 
-    INFO:nncf:96 ignored nodes was found by name in the NNCFGraph
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 200/200 [03:57<00:00,  1.19s/it]
+    INFO:nncf:96 ignored nodes were found by name in the NNCFGraph
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 .. code:: ipython3
@@ -1098,8 +1110,7 @@ pipelines, we use median inference time on calibration subset.
     validation_size = 10
     calibration_dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).take(validation_size)
     validation_data = []
-    while len(validation_data) < validation_size:
-        batch = next(iter(calibration_dataset))
+    for batch in calibration_dataset:
         prompt = batch["TEXT"]
         validation_data.append(prompt)
     
@@ -1122,6 +1133,13 @@ pipelines, we use median inference time on calibration subset.
             inference_time.append(delta)
         return np.median(inference_time)
 
+
+
+.. parsed-literal::
+
+    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
+
+
 .. code:: ipython3
 
     %%skip not $to_quantize.value
@@ -1129,6 +1147,36 @@ pipelines, we use median inference time on calibration subset.
     fp_latency = calculate_inference_time(ov_pipe, validation_data)
     int8_latency = calculate_inference_time(int8_pipe, validation_data)
     print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    Performance speed up: 1.349
+
+
+Compare UNet file size
+^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    
+    print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
+    print(f"INT8 model size: {quantized_model_size:.2f} KB")
+    print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 model size: 1678912.43 KB
+    INT8 model size: 840741.46 KB
+    Model compression rate: 1.997
+
 
 Interactive demo
 ----------------

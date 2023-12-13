@@ -28,6 +28,7 @@ Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
 **Table of contents:**
 
+
 -  `Prerequisites <#prerequisites>`__
 -  `Load the original model <#load-the-original-model>`__
 
@@ -51,9 +52,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q  "diffusers>=0.21.0" transformers accelerate matplotlib gradio
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
-    %pip install -q openvino-nightly
+    %pip install -q  "diffusers>=0.21.0" transformers accelerate matplotlib gradio "openvino>=2023.2.0" --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::

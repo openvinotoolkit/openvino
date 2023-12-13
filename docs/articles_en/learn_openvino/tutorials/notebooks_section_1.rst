@@ -18,6 +18,12 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    Convert TensorFlow Hub models to OpenVINO Intermediate Representation (IR).
 
 .. showcase::
+   :title: 125-lraspp-segmentation
+   :img: _static/images/notebook_eye.png
+
+   Semantic segmentation with LRASPP MobileNet v3 and OpenVINO
+
+.. showcase::
    :title: 125-convnext-classification
    :img: _static/images/notebook_eye.png
 

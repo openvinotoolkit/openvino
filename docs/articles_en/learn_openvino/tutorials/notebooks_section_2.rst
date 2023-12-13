@@ -12,6 +12,22 @@ Model Demos
 Demos that demonstrate inference on a particular model.
 
 .. showcase::
+   :title: 272-paint-by-example
+   :img: https://camo.githubusercontent.com/79d83ce8fc6813a503f372bacb7dc709c79d9560060df3dc92196b9849cc33a9/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f3130333232363538302f3233363935343931382d66333634623232372d323933632d346637382d613962662d3964636562636231303334612e706e67
+
+   Paint by Example using Stable Diffusion and OpenVINO.
+
+.. showcase::
+   :title: 271-sdxl-turbo
+   :img:  _images/271-sdxl-turbo-with-output_30_1.png
+
+   Single step image generation using SDXL-turbo and OpenVINO.
+
+.. showcase::
+   :title: 270-sound-generation-audioldm2
+   :img: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/c93a0f86-d9cf-4bd1-93b9-e27532170d75
+
+.. showcase::
    :title: 269-film-slowmo
    :img: https://github.com/googlestaging/frame-interpolation/raw/main/moment.gif
 
@@ -52,6 +68,12 @@ Demos that demonstrate inference on a particular model.
    :img: https://user-images.githubusercontent.com/29454499/277367065-13a8f622-8ea7-4d12-b3f8-241d4499305e.png
 
    Image generation with Latent Consistency Model and OpenVINO.
+
+.. showcase::
+   :title: 263-lcm-lora-controlnet
+   :img: https://user-images.githubusercontent.com/29454499/284292122-f146e16d-7233-49f7-a401-edcb714b5288.png
+
+   Text-to-Image Generation with LCM LoRA and ControlNet Conditioning.
 
 .. showcase::
    :title: 262-softvc-voice-conversion
@@ -124,6 +146,12 @@ Demos that demonstrate inference on a particular model.
    :img: https://camo.githubusercontent.com/f46c3642d3266e9d56d8ea8a943e67825597de3ff51698703ea2ddcb1086e541/68747470733a2f2f6769746875622d70726f64756374696f6e2d757365722d61737365742d3632313064662e73332e616d617a6f6e6177732e636f6d2f37363136313235362f3235383634303731332d66383031626430392d653932372d346162642d616132662d3939393064653463616638642e676966
 
    Universal segmentation with OneFormer and OpenVINO™.
+
+.. showcase::
+   :title: 248-ssd-b1
+   :img: https://user-images.githubusercontent.com/29454499/258651862-28b63016-c5ff-4263-9da8-73ca31100165.jpeg
+
+   Image generation with Stable Diffusion XL and OpenVINO™.
 
 .. showcase::
    :title: 248-stable-diffusion-xl

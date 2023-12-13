@@ -95,6 +95,7 @@ notebooks/244-named-entity-recognition/244-named-entity-recognition.ipynb
 notebooks/245-typo-detector/245-typo-detector.ipynb
 notebooks/246-depth-estimation-videpth/246-depth-estimation-videpth.ipynb
 notebooks/247-code-language-id/247-code-language-id.ipynb
+notebooks/248-stable-diffusion-xl/248-ssd-b1.ipynb
 notebooks/248-stable-diffusion-xl/248-stable-diffusion-xl.ipynb
 notebooks/249-oneformer-segmentation/249-oneformer-segmentation.ipynb
 notebooks/250-music-generation/250-music-generation.ipynb
@@ -111,12 +112,16 @@ notebooks/260-pix2struct-docvqa/260-pix2struct-docvqa.ipynb
 notebooks/261-fast-segment-anything/261-fast-segment-anything.ipynb
 notebooks/262-softvc-voice-conversion/262-softvc-voice-conversion.ipynb
 notebooks/263-latent-consistency-models-image-generation/263-latent-consistency-models-image-generation.ipynb
+notebooks/263-latent-consistency-models-image-generation/263-lcm-lora-controlnet.ipynb
 notebooks/264-qrcode-monster/264-qrcode-monster.ipynb
 notebooks/265-wuerstchen-image-generation/265-wuerstchen-image-generation.ipynb
 notebooks/266-speculative-sampling/266-speculative-sampling.ipynb
 notebooks/267-distil-whisper-asr/267-distil-whisper-asr.ipynb
 notebooks/268-table-question-answering/268-table-question-answering.ipynb
 notebooks/269-film-slowmo/269-film-slowmo.ipynb
+notebooks/270-sound-generation-audioldm2/270-sound-generation-audioldm2.ipynb
+notebooks/271-sdxl-turbo/271-sdxl-turbo.ipynb
+notebooks/272-paint-by-example/272-paint-by-example.ipynb
 notebooks/301-tensorflow-training-openvino/301-tensorflow-training-openvino.ipynb
 notebooks/301-tensorflow-training-openvino/301-tensorflow-training-openvino-nncf.ipynb
 notebooks/302-pytorch-quantization-aware-training/302-pytorch-quantization-aware-training.ipynb

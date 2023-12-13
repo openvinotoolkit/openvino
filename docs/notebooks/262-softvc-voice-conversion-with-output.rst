@@ -18,8 +18,8 @@ audio are preserved.
 
 In this tutorial we will use the base model flow.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
@@ -36,7 +36,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --upgrade pip setuptools
-    %pip install -q "openvino>=2023.2.0.dev20230922"
+    %pip install -q "openvino>=2023.2.0"
     !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu gradio "numpy==1.23.5" "fairseq==0.12.2" praat-parselmouth
 

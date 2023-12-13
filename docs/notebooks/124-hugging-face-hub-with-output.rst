@@ -13,12 +13,12 @@ models, namely
 
 |image0|
 
-Throughout this notebook we will learn:
-
-1. How to load a HF pipeline using the ``transformers`` package and then convert it to OpenVINO.
-2. How to load the same pipeline using Optimum Intel package.
+Throughout this notebook we will learn: 1. How to load a HF pipeline
+using the ``transformers`` package and then convert it to OpenVINO. 2.
+How to load the same pipeline using Optimum Intel package.
 
 **Table of contents:**
+
 
 -  `Converting a Model from the HF Transformers
    Package <#converting-a-model-from-the-hf-transformers-package>`__
@@ -97,7 +97,8 @@ Initializing a Model Using the HF Transformers Package
 
 
 
-We will use `roberta text sentiment classification <https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest>`__
+We will use `roberta text sentiment
+classification <https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest>`__
 model in our example, it is a transformer-based encoder model pretrained
 in a special way, please refer to the model card to learn more.
 
@@ -120,7 +121,7 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
-    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
 
@@ -160,7 +161,9 @@ Let’s do a classification of a simple prompt below.
 Converting the Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- We use the OpenVINO `Model conversion API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
+We use the OpenVINO `Model
+conversion
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
 Intermediate Representation (IR).
 
@@ -235,11 +238,13 @@ original model.
 
 This is a rather simple example as the pipeline includes just one
 encoder model. Contemporary state of the art pipelines often consist of
-several model, feel free to explore other OpenVINO tutorials: 
-
-1. `Stable Diffusion v2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/236-stable-diffusion-v2>`__
-2. `Zero-shot Image Classification with OpenAI CLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/228-clip-zero-shot-image-classification>`__
-3. `Controllable Music Generation with MusicGen <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/250-music-generation>`__
+several model, feel free to explore other OpenVINO tutorials: 1. `Stable
+Diffusion
+v2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/236-stable-diffusion-v2>`__
+2. `Zero-shot Image Classification with OpenAI
+CLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/228-clip-zero-shot-image-classification>`__
+3. `Controllable Music Generation with
+MusicGen <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/250-music-generation>`__
 
 The workflow for the ``diffusers`` package is exactly the same. The
 first example in the list above relies on the ``diffusers``.
@@ -292,7 +297,8 @@ the full list of supported devices). For that, just replace the
 ``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
 class.
 
-You can find more information in `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
+You can find more information in `Optimum Intel
+documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
@@ -315,10 +321,10 @@ You can find more information in `Optimum Intel documentation <https://huggingfa
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2023-11-14 23:07:03.743874: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-11-14 23:07:03.778576: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-12-06 23:11:40.151548: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-12-06 23:11:40.186477: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-11-14 23:07:04.334607: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-06 23:11:40.746805: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Initialize and Convert the Model Automatically using OVModel class
@@ -355,7 +361,7 @@ inference run.
 .. parsed-literal::
 
     Framework not specified. Using pt to export to ONNX.
-    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
     Using the export variant default. Available variants are:
@@ -426,7 +432,7 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2023-11-14 23:07:16.627580: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-06 23:11:53.006485: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--cache_dir CACHE_DIR]
                                        [--framework {pt,tf}] [--trust-remote-code]
@@ -448,20 +454,20 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['stable-diffusion-xl', 'multiple-choice', 'zero-shot-
-                            image-classification', 'audio-classification', 'image-
-                            to-image', 'text2text-generation', 'text-
-                            classification', 'text-to-audio', 'text-generation',
-                            'depth-estimation', 'question-answering', 'fill-mask',
-                            'zero-shot-object-detection', 'conversational',
-                            'audio-frame-classification', 'masked-im', 'image-
-                            classification', 'mask-generation', 'stable-
-                            diffusion', 'token-classification', 'image-
-                            segmentation', 'audio-xvector', 'object-detection',
-                            'feature-extraction', 'semantic-segmentation', 'image-
-                            to-text', 'automatic-speech-recognition']. For decoder
-                            models, use `xxx-with-past` to export the model using
-                            past key values in the decoder.
+                            ['multiple-choice', 'depth-estimation', 'audio-
+                            classification', 'fill-mask', 'audio-frame-
+                            classification', 'image-to-text', 'text-
+                            classification', 'semantic-segmentation', 'automatic-
+                            speech-recognition', 'image-classification', 'text-to-
+                            audio', 'stable-diffusion', 'masked-im', 'text2text-
+                            generation', 'conversational', 'zero-shot-object-
+                            detection', 'mask-generation', 'token-classification',
+                            'feature-extraction', 'question-answering', 'audio-
+                            xvector', 'object-detection', 'zero-shot-image-
+                            classification', 'image-to-image', 'text-generation',
+                            'stable-diffusion-xl', 'image-segmentation']. For
+                            decoder models, use `xxx-with-past` to export the
+                            model using past key values in the decoder.
       --cache_dir CACHE_DIR
                             Path indicating where to store cache.
       --framework {pt,tf}   The framework to use for the export. If not provided,
@@ -498,7 +504,7 @@ compression:
 
 .. parsed-literal::
 
-    2023-11-14 23:07:20.866293: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-06 23:11:57.342495: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Framework not specified. Using pt to export to ONNX.
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).

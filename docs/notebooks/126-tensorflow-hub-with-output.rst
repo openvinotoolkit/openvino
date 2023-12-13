@@ -21,7 +21,7 @@ You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
 independently. 
 
-**Table of contents:**
+**Table of contents:** 
 
 - `Image classification <#image-classification>`__
 - `Install required packages <#install-required-packages>`__
@@ -37,7 +37,6 @@ independently.
 - `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
 - `Select inference device <#select-inference-device>`__
 - `Inference <#inference>`__
-
 
 Image classification
 --------------------
@@ -70,17 +69,15 @@ Install required packages
 .. code:: ipython3
 
     %pip install -q tensorflow_hub tensorflow pillow numpy matplotlib
-    %pip install -q "openvino==2023.2.0.dev20230922"
+    %pip install -q "openvino>=2023.2.0"
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.0 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.0 which is incompatible.
+    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.1 which is incompatible.
+    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-dev 2023.1.0 requires openvino==2023.1.0, but you have openvino 2023.2.0.dev20230922 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -110,12 +107,12 @@ Import libraries
 
     IMAGE_SHAPE = (224, 224)
     IMAGE_URL, IMAGE_PATH = "https://storage.googleapis.com/download.tensorflow.org/example_images/grace_hopper.jpg", "data/grace_hopper.jpg"
-    MODEL_URL, MODEL_PATH = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5", "models/mobilenet_v2_100_224.xml"
+    MODEL_URL, MODEL_PATH = "https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-classification/versions/2", "models/mobilenet_v2_100_224.xml"
 
 Download the classifier
 ~~~~~~~~~~~~~~~~~~~~~~~
 
- Select a MobileNetV2
+Select a MobileNetV2
 pre-trained model `from TensorFlow
 Hub <https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5>`__
 and wrap it as a Keras layer with ``hub.KerasLayer``.
@@ -127,14 +124,14 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
 .. parsed-literal::
 
-    2023-11-14 23:08:14.660883: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2023-11-14 23:08:14.661058: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2023-12-06 23:12:55.307954: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2023-12-06 23:12:55.308138: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Download a single image to try the model on
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- The input ``images`` are
+The input ``images`` are
 expected to have color values in the range [0,1], following the `common
 image input
 conventions <https://www.tensorflow.org/hub/common_signatures/images#input>`__.
@@ -319,7 +316,7 @@ Install required packages
 .. code:: ipython3
 
     %pip install -q tensorflow tensorflow_hub "opencv-python" numpy matplotlib
-    %pip install -q "openvino==2023.2.0.dev20230922"
+    %pip install -q "openvino>=2023.2.0"
 
 
 .. parsed-literal::
@@ -351,7 +348,7 @@ Install required packages
     STYLE_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/b/b4/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
     STYLE_IMAGE_PATH = "./data/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
     
-    MODEL_URL = "https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2"
+    MODEL_URL = "https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2"
     MODEL_PATH = "./models/arbitrary-image-stylization-v1-256.xml"
 
 Load the model

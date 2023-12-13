@@ -7,9 +7,9 @@ is a distilled variant of the
 OpenAI. The Distil-Whisper is proposed in the paper `Robust Knowledge
 Distillation via Large-Scale Pseudo
 Labelling <https://arxiv.org/abs/2311.00430>`__. According to authors,
-compared to Whisper, Distil-Whisper runs 6x faster with 50% fewer
-parameters, while performing to within 1% word error rate (WER) on
-out-of-distribution evaluation data.
+compared to Whisper, Distil-Whisper runs in several times faster with
+50% fewer parameters, while performing to within 1% word error rate
+(WER) on out-of-distribution evaluation data.
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -57,22 +57,16 @@ from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 - `Interactive demo <#interactive-demo>`__
 
 Prerequisites
--------------------------------------------------------
+-------------
+
+
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
-    %pip install -q openvino-nightly
-    %pip install -q "transformers" onnx datasets "git+https://github.com/eaidova/optimum-intel.git@ea/whisper" "gradio>=4.0" "librosa" "soundfile"
+    %pip uninstall -q -y optimum-intel optimum
+    %pip install -q transformers onnx "git+https://github.com/eaidova/optimum-intel.git@ea/whisper" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.0" "librosa" "soundfile"
     %pip install -q "nncf>=2.6.0" "jiwer"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: tokenizers 0.14.1 has requirement huggingface_hub<0.18,>=0.16.4, but you'll have huggingface-hub 0.19.0 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Load PyTorch model
 ------------------
@@ -238,8 +232,10 @@ OpenVINO model. It means that we can reuse initialized early processor.
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
 
 
-Select Inference device\ 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select Inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -267,7 +263,9 @@ Select Inference device\
 
 
 Compile OpenVINO model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -283,7 +281,9 @@ Compile OpenVINO model
 
 
 Run OpenVINO model inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -320,8 +320,10 @@ Run OpenVINO model inference
     Result:  Mr. Quilter is the apostle of the middle classes, and we are glad to welcome his gospel.
 
 
-Compare performance PyTorch vs OpenVINO\ 
----------------------------------------------------------------------------------
+Compare performance PyTorch vs OpenVINO
+---------------------------------------
+
+
 
 .. code:: ipython3
 
@@ -375,7 +377,9 @@ Compare performance PyTorch vs OpenVINO\
 
 
 Compare with OpenAI Whisper
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Since Distil-Whisper is optimized version of original OpenAI Whisper
 model, let’s compare performance and check benefits of using it.
@@ -1224,5 +1228,4 @@ recognition. Multilingual support will be provided later.
 .. .. raw:: html
 
 ..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
 

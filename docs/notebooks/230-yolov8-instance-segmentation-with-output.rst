@@ -13,17 +13,12 @@ This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch YOLOv8 with OpenVINO. We consider the steps required
 for instance segmentation scenario.
 
-The tutorial consists of the following steps:
-
-- Prepare the PyTorch model.
-- Download and prepare a dataset.
-- Validate the original model.
-- Convert the PyTorch model to OpenVINO IR.
-- Validate the converted model.
-- Prepare and run optimization pipeline.
-- Compare performance of the FP32 and quantized models.
-- Compare accuracy of the FP32 and quantized models.
-- Live demo
+The tutorial consists of the following steps: - Prepare the PyTorch
+model. - Download and prepare a dataset. - Validate the original model.
+- Convert the PyTorch model to OpenVINO IR. - Validate the converted
+model. - Prepare and run optimization pipeline. - Compare performance of
+the FP32 and quantized models. - Compare accuracy of the FP32 and
+quantized models. - Live demo
 
 **Table of contents:**
 
@@ -34,8 +29,7 @@ The tutorial consists of the following steps:
 
 -  `Instantiate model <#instantiate-model>`__
 
-   -  `Convert model to OpenVINO
-      IR <#convert-model-to-openvino-ir>`__
+   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
    -  `Verify model inference <#verify-model-inference>`__
    -  `Preprocessing <#preprocessing>`__
    -  `Postprocessing <#postprocessing>`__
@@ -47,8 +41,7 @@ The tutorial consists of the following steps:
 
    -  `Download the validation
       dataset <#download-the-validation-dataset>`__
-   -  `Define validation
-      function <#define-validation-function>`__
+   -  `Define validation function <#define-validation-function>`__
    -  `Configure Validator helper and create
       DataLoader <#configure-validator-helper-and-create-dataloader>`__
 
@@ -66,15 +59,16 @@ The tutorial consists of the following steps:
    -  `Validate quantized model
       accuracy <#validate-quantized-model-accuracy>`__
 
--  `Other ways to optimize
-   model <#other-ways-to-optimize-model>`__
+-  `Other ways to optimize model <#other-ways-to-optimize-model>`__
 -  `Live demo <#live-demo>`__
 
    -  `Run Live Object Detection and
       Segmentation <#run-live-object-detection-and-segmentation>`__
 
-Get PyTorch model 
------------------------------------------------------------
+Get PyTorch model
+-----------------
+
+
 
 Generally, PyTorch models represent an instance of the
 `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -92,15 +86,17 @@ In this case, the creators of the model provide an API that enables
 converting the YOLOv8 model to ONNX and then to OpenVINO IR. Therefore,
 we do not need to do these steps manually.
 
-Prerequisites 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Prerequisites
+^^^^^^^^^^^^^
+
+
 
 Install necessary packages.
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0"
-    %pip install "ultralytics==8.0.43" onnx
+    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.0.43" onnx --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -201,8 +197,10 @@ Define utility functions for drawing results
 
 
 
-Instantiate model 
------------------------------------------------------------
+Instantiate model
+-----------------
+
+
 
 For loading the model, required to specify a path to the model
 checkpoint. It can be some local path or name available on models hub
@@ -255,8 +253,10 @@ Let us consider the examples:
 
 
 
-Convert model to OpenVINO IR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model to OpenVINO IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 YOLOv8 provides API for convenient model exporting to different formats
 including OpenVINO IR. ``model.export`` is responsible for model
@@ -270,15 +270,19 @@ preserve dynamic shapes in the model.
     if not seg_model_path.exists():
         seg_model.export(format="openvino", dynamic=True, half=False)
 
-Verify model inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Verify model inference
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To test model work, we create inference pipeline similar to
 ``model.predict`` method. The pipeline consists of preprocessing step,
 inference of OpenVINO model and results post-processing to get results.
 
-Preprocessing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preprocessing
+~~~~~~~~~~~~~
+
+
 
 Model input is a tensor with the ``[-1, 3, -1, -1]`` shape in the
 ``N, C, H, W`` format, where \* ``N`` - number of images in batch (batch
@@ -391,8 +395,10 @@ To keep a specific shape, preprocessing automatically enables padding.
             input_tensor = np.expand_dims(input_tensor, 0)
         return input_tensor
 
-Postprocessing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocessing
+~~~~~~~~~~~~~~
+
+
 
 The model output contains: - detection boxes candidates - proto mask
 candidates
@@ -488,8 +494,10 @@ batch size - ``C`` - number of candidates - ``H`` - mask height - ``W``
             results.append({"det": pred[:, :6].numpy(), "segment": segments})
         return results
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -518,8 +526,10 @@ Select device from dropdown list for running inference using OpenVINO
 
 
 
-Test on single image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Test on single image
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, once we have defined preprocessing and postprocessing steps, we are
 ready to check model prediction.
@@ -569,15 +579,19 @@ ready to check model prediction.
 
 Great! The result is the same, as produced by original models.
 
-Check model accuracy on the dataset 
------------------------------------------------------------------------------
+Check model accuracy on the dataset
+-----------------------------------
+
+
 
 For comparing the optimized model result with the original, it is good
 to know some measurable results in terms of model accuracy on the
 validation dataset.
 
-Download the validation dataset 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download the validation dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 YOLOv8 is pre-trained on the COCO dataset, so to evaluate the model
 accuracy we need to download it. According to the instructions provided
@@ -628,8 +642,10 @@ evaluation function.
     /home/ea/work/openvino_notebooks/notebooks/230-yolov8-optimization/datasets/coco.yaml:   0%|          | 0.00/1…
 
 
-Define validation function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Define validation function
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -696,8 +712,10 @@ Define validation function
             pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
             print(pf % ('all', total_images, total_objects, s_mp, s_mr, s_map50, s_mean_ap))
 
-Configure Validator helper and create DataLoader 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure Validator helper and create DataLoader
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The original model repository uses a ``Validator`` wrapper, which
 represents the accuracy validation pipeline. It creates dataloader and
@@ -791,8 +809,10 @@ subset difference. *To validate the models on the full dataset set
    IOU threshold, ``mAP@.5:.95`` - is calculated on range IOU thresholds
    from 0.5 to 0.95 with step 0.05.
 
-Optimize model using NNCF Post-training Quantization API 
---------------------------------------------------------------------------------------------------
+Optimize model using NNCF Post-training Quantization API
+--------------------------------------------------------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -914,8 +934,10 @@ point precision, using the ``ignored_scope`` parameter.
     Quantized segmentation model will be saved to models/yolov8n-seg_openvino_int8_model/yolov8n-seg.xml
 
 
-Validate Quantized model inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Validate Quantized model inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 ``nncf.quantize`` returns the OpenVINO Model class instance, which is
 suitable for loading on a device for making predictions. ``INT8`` model
@@ -955,13 +977,16 @@ on the image.
 
 
 
-Compare the Original and Quantized Models 
------------------------------------------------------------------------------------
+Compare the Original and Quantized Models
+-----------------------------------------
 
-Compare performance of the Original and Quantized Models 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Finally, use the OpenVINO `Benchmark
+
+Compare performance of the Original and Quantized Models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Finally, use the OpenVINO
+`Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
@@ -1158,8 +1183,10 @@ models.
     [ INFO ] Throughput:   293.15 FPS
 
 
-Validate quantized model accuracy 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Validate quantized model accuracy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 As we can see, there is no significant difference between ``INT8`` and
 float model result in a single image test. To understand how
@@ -1205,8 +1232,10 @@ accuracy on a dataset.
 Great! Looks like accuracy was changed, but not significantly and it
 meets passing criteria.
 
-Other ways to optimize model 
-----------------------------------------------------------------------
+Other ways to optimize model
+----------------------------
+
+
 
 The performance could be also improved by another OpenVINO method such
 as async inference pipeline or preprocessing API.
@@ -1230,10 +1259,12 @@ utilization. For more information, refer to the overview of
 tutorial <118-optimize-preprocessing-with-output.html>`__.
 To see, how it could be used with YOLOV8 object detection model ,
 please, see `Convert and Optimize YOLOv8 real-time object detection with
-OpenVINO tutorial <230-yolov8-object-detection-with-output.html>`__
+OpenVINO tutorial <./230-yolov8-object-detection.ipynb>`__
 
-Live demo 
----------------------------------------------------
+Live demo
+---------
+
+
 
 The following code runs model inference on a video:
 
@@ -1339,8 +1370,10 @@ The following code runs model inference on a video:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Live Object Detection and Segmentation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Object Detection and Segmentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be

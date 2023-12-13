@@ -16,6 +16,7 @@ navigation.
 
 **Table of contents:**
 
+
 -  `Introduction <#introduction>`__
 
    -  `Task <#task>`__
@@ -116,14 +117,14 @@ Install prerequisites
 
 
 
-First, complete the `repository installation steps <../notebooks_installation.html>`__.
+First, complete the `repository installation steps <../../README.md>`__.
 
 Then, the following cell will install: - HuggingFace Optimum with
 OpenVINO support - HuggingFace Evaluate to benchmark results
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio" "onnx>=1.11.0" "transformers>=4.33.0" "evaluate"
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio" "onnx>=1.11.0" "transformers>=4.33.0" "evaluate" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 
@@ -131,9 +132,9 @@ OpenVINO support - HuggingFace Evaluate to benchmark results
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.0 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.0 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.0 which is incompatible.
+    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.1 which is incompatible.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.1 which is incompatible.
+    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
@@ -163,10 +164,10 @@ equivalent to ``AutoModelForSequenceClassification`` from Transformers
 
 .. parsed-literal::
 
-    2023-11-15 00:06:22.342451: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-11-15 00:06:22.376717: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-12-07 00:07:02.218482: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-12-07 00:07:02.252471: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-11-15 00:06:22.962059: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-07 00:07:02.836089: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -260,7 +261,7 @@ Download resources
 .. parsed-literal::
 
     Framework not specified. Using pt to export to ONNX.
-    Some weights of the model checkpoint at huggingface/CodeBERTa-language-id were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
+    Some weights of the model checkpoint at huggingface/CodeBERTa-language-id were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
     Using the export variant default. Available variants are:
@@ -283,7 +284,7 @@ Download resources
 
 .. parsed-literal::
 
-    Ressources cached locally at: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/notebooks/247-code-language-id/model/CodeBERTa-language-id
+    Ressources cached locally at: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/247-code-language-id/model/CodeBERTa-language-id
 
 
 Create inference pipeline
@@ -396,7 +397,7 @@ NOTE: the base model is loaded using
 
 .. parsed-literal::
 
-    Some weights of the model checkpoint at huggingface/CodeBERTa-language-id were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
+    Some weights of the model checkpoint at huggingface/CodeBERTa-language-id were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
 
@@ -582,7 +583,7 @@ Inference on new input using quantized model
       df['speed'] = df.distance / df.time
     
     Predicted label: python
-    Predicted score: 0.83
+    Predicted score: 0.81
 
 
 Load evaluation set
@@ -699,16 +700,16 @@ displayed.
         <tr>
           <th>base</th>
           <td>1.0</td>
-          <td>2.340578</td>
-          <td>51.269396</td>
-          <td>0.019505</td>
+          <td>2.045702</td>
+          <td>58.659569</td>
+          <td>0.017048</td>
         </tr>
         <tr>
           <th>quantized</th>
           <td>1.0</td>
-          <td>3.334829</td>
-          <td>35.983857</td>
-          <td>0.027790</td>
+          <td>2.602893</td>
+          <td>46.102553</td>
+          <td>0.021691</td>
         </tr>
       </tbody>
     </table>
@@ -719,8 +720,11 @@ displayed.
 Additional resources
 --------------------
 
- - `Grammatical Error Correction with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
-- `Quantize a Hugging Face Question-Answering Model with OpenVINO <https://github.com/huggingface/optimum-intel/blob/main/notebooks/openvino/question_answering_quantization.ipynb>`__ \ \*\*
+- `Grammatical Error Correction
+with
+OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
+- `Quantize a Hugging Face Question-Answering Model with
+OpenVINO <https://github.com/huggingface/optimum-intel/blob/main/notebooks/openvino/question_answering_quantization.ipynb>`__\ \*\*
 
 Clean up
 --------

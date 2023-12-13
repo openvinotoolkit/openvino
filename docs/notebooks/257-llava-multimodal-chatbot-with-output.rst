@@ -43,6 +43,7 @@ The tutorial consists from following steps:
 
 **Table of contents:**
 
+
 -  `About model <#about-model>`__
 -  `Prerequisites <#prerequisites>`__
 -  `Build model tokenizer and image
@@ -113,7 +114,7 @@ Install required dependencies
     import sys
     
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino-nightly==2023.2.0.dev20231102" "git+https://github.com/openvinotoolkit/nncf.git@release_v270"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.31.0,<4.35.0" "gradio" "einops"
+    %pip install -q "openvino>=2023.2.0" "nncf>=2.7.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.31.0,<4.35.0" "gradio" "einops"
 
 .. code:: ipython3
 
@@ -227,7 +228,7 @@ The code below preparing function for converting LLaVA model to OpenVINO
 Intermediate Representation format. It splits model on parts described
 above, prepare example inputs for each part and convert each part using
 `OpenVINO Model Conversion
-API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__.
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__.
 ``ov.convert_model`` function accepts PyTorch model instance and returns
 ``ov.Model`` object that represent model in OpenVINO format. It is ready
 to use for loading on device using ``ov.compile_model`` or can be saved
@@ -484,7 +485,7 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model 
+Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -495,7 +496,7 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF 
+Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -534,11 +535,11 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2023.2/weight_compression.html>`__.
+documentation <https://docs.openvino.ai/2023.1/weight_compression.html>`__.
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format 
+Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 

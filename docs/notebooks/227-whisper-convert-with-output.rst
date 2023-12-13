@@ -26,6 +26,7 @@ Whisper pipeline with OpenVINO models.
 
 **Table of contents:**
 
+
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate model <#instantiate-model>`__
 
@@ -54,10 +55,10 @@ Install dependencies.
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers
+    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -I "git+https://github.com/garywu007/pytube.git"
     %pip install -q -U gradio
-    %pip install -q -I "git+https://github.com/openai/whisper.git@fcfeaf1b61994c071bba62da47d7846933576ac9"
+    %pip install -q -I "git+https://github.com/openai/whisper.git@fcfeaf1b61994c071bba62da47d7846933576ac9" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Instantiate model
 -----------------
@@ -563,7 +564,7 @@ Interactive demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. parsed-literal::

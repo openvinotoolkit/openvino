@@ -13,6 +13,7 @@ requests) rather than wait for the current inference to complete first.
 
 **Table of contents:**
 
+
 -  `Imports <#imports>`__
 -  `Prepare model and data
    processing <#prepare-model-and-data-processing>`__
@@ -36,8 +37,7 @@ requests) rather than wait for the current inference to complete first.
 -  `AsyncInferQueue <#asyncinferqueue>`__
 
    -  `Setting Callback <#setting-callback>`__
-   -  `Test the performance with
-      AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
+   -  `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
 Imports
 -------
@@ -46,8 +46,15 @@ Imports
 
 .. code:: ipython3
 
-    # %pip install -q "openvino>=2023.1.0"
-    # %pip install -q opencv-python matplotlib
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q opencv-python matplotlib
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -306,7 +313,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 38.27 fps
+    average throuput in sync mode: 40.67 fps
 
 
 Async Mode
@@ -445,7 +452,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 72.15 fps
+    average throuput in async mode: 74.75 fps
 
 
 Compare the performance
@@ -588,5 +595,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 105.36 fps
+    average throughput in async mode with async infer queue: 111.75 fps
 

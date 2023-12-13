@@ -30,8 +30,7 @@ steps:
       Representation <#convert-model-to-openvino-intermediate-representation>`__
    -  `Prepare inference data <#prepare-inference-data>`__
 
--  `Check model inference
-   result <#check-model-inference-result>`__
+-  `Check model inference result <#check-model-inference-result>`__
 -  `Validate model accuracy on
    dataset <#validate-model-accuracy-on-dataset>`__
 -  `Quantization <#quantization>`__
@@ -42,8 +41,10 @@ steps:
 -  `Compare Accuracy of the Original and Quantized
    Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
-Download and prepare model 
---------------------------------------------------------------------
+Download and prepare model
+--------------------------
+
+
 
 data2vec is a framework for self-supervised representation learning for
 images, speech, and text as described in `data2vec: A General Framework
@@ -61,8 +62,10 @@ In our case, we will use ``data2vec-audio-base-960h`` model, which was
 finetuned on 960 hours of audio from LibriSpeech Automatic Speech
 Recognition corpus and distributed as part of HuggingFace transformers.
 
-Obtain Pytorch model representation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Obtain Pytorch model representation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For instantiating PyTorch model class, we should use
 ``Data2VecAudioForCTC.from_pretrained`` method with providing model ID
@@ -77,8 +80,8 @@ model specific pre- and post-processing steps.
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0"
-    %pip install -q datasets "torchmetrics>=0.11.0"
-    %pip install -q soundfile librosa transformers
+    %pip install -q datasets "torchmetrics>=0.11.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q soundfile librosa transformers --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -96,8 +99,10 @@ model specific pre- and post-processing steps.
     2023-09-12 19:27:58.411557: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Convert model to OpenVINO Intermediate Representation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model to OpenVINO Intermediate Representation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -133,8 +138,10 @@ Convert model to OpenVINO Intermediate Representation
     Read IR model from model/data2vec-audo-base.xml
 
 
-Prepare inference data 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare inference data
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -169,8 +176,10 @@ dataset.
     Loading cached processed dataset at /home/ea/.cache/huggingface/datasets/patrickvonplaten___librispeech_asr_dummy/clean/2.1.0/f2c70a4d03ab4410954901bde48c54b85ca1b7f9bf7d616e7e2a72b5ee6ddbfc/cache-5282243604a7a526.arrow
 
 
-Check model inference result 
-----------------------------------------------------------------------
+Check model inference result
+----------------------------
+
+
 
 The code below is used for running model inference on a single sample
 from the dataset. It contains the following steps:
@@ -242,8 +251,10 @@ For reference, see the same function provided for OpenVINO model.
 
 
 
-Validate model accuracy on dataset 
-----------------------------------------------------------------------------
+Validate model accuracy on dataset
+----------------------------------
+
+
 
 For model accuracy evaluation, `Word Error
 Rate <https://en.wikipedia.org/wiki/Word_error_rate>`__ metric can be
@@ -302,8 +313,10 @@ library.
     [OpenVino]  Word Error Rate: 0.0383
 
 
-Quantization 
-------------------------------------------------------
+Quantization
+------------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -565,8 +578,10 @@ saved using ``ov.save_model`` function.
     quantized_model_path = Path(f"{MODEL_NAME}_openvino_model/{MODEL_NAME}_quantized.xml")
     ov.save_model(quantized_model, quantized_model_path)
 
-Check INT8 model inference result 
----------------------------------------------------------------------------
+Check INT8 model inference result
+---------------------------------
+
+
 
 ``INT8`` model is the same in usage like the original one. We need to
 read it, using the ``core.read_model`` method and load on the device,
@@ -604,8 +619,8 @@ using ``core.compile_model``. After that, we can reuse the same
 
 
 
-Compare Performance of the Original and Quantized Models 
---------------------------------------------------------------------------------------------------
+Compare Performance of the Original and Quantized Models
+--------------------------------------------------------
 
 `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
@@ -771,8 +786,10 @@ is used to measure the inference performance of the ``FP16`` and
     [ INFO ] Throughput:   66.40 FPS
 
 
-Compare Accuracy of the Original and Quantized Models 
------------------------------------------------------------------------------------------------
+Compare Accuracy of the Original and Quantized Models
+-----------------------------------------------------
+
+
 
 Finally, calculate WER metric for the ``INT8`` model representation and
 compare it with the ``FP16`` result.

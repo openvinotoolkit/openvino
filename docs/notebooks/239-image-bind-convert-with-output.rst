@@ -83,19 +83,20 @@ zero-shot classification.
 
    -  `Text-Image classification <#text-image-classification>`__
    -  `Text-Audio classification <#text-audio-classification>`__
-   -  `Image-Audio
-      classification <#image-audio-classification>`__
+   -  `Image-Audio classification <#image-audio-classification>`__
 
 -  `Next Steps <#next-steps>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
     import sys
     
-    %pip install -q soundfile pytorchvideo ftfy "timm==0.6.7" einops fvcore "openvino>=2023.1.0"
+    %pip install -q soundfile pytorchvideo ftfy "timm==0.6.7" einops fvcore "openvino>=2023.1.0"  --extra-index-url https://download.pytorch.org/whl/cpu
     
     if sys.version_info.minor < 8:
         %pip install -q "decord"
@@ -124,8 +125,10 @@ Prerequisites
     /home/ea/work/openvino_notebooks/notebooks/239-image-bind/ImageBind
 
 
-Instantiate PyTorch model 
--------------------------------------------------------------------
+Instantiate PyTorch model
+-------------------------
+
+
 
 To start work with the model, we should instantiate the PyTorch model
 class. ``imagebind_model.imagebind_huge(pretrained=True)`` downloads
@@ -160,8 +163,10 @@ card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
       warnings.warn(
 
 
-Prepare input data 
-------------------------------------------------------------
+Prepare input data
+------------------
+
+
 
 ImageBind works with data across 6 different modalities. Each of them
 requires its steps for preprocessing. ``data`` module is responsible for
@@ -192,8 +197,10 @@ data reading and preprocessing for each modality.
         ModalityType.AUDIO: data.load_and_transform_audio_data(audio_paths, "cpu"),
     }
 
-Convert Model to OpenVINO Intermediate Representation (IR) format 
------------------------------------------------------------------------------------------------------------
+Convert Model to OpenVINO Intermediate Representation (IR) format
+-----------------------------------------------------------------
+
+
 
 OpenVINO supports PyTorch through Model Conversion API. You will use
 `model conversion Python
@@ -226,8 +233,10 @@ embeddings.
     
     core = ov.Core()
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -289,8 +298,10 @@ select device from dropdown list for running inference using OpenVINO
       if npatch_per_img == N:
 
 
-Zero-shot classification using ImageBind and OpenVINO 
------------------------------------------------------------------------------------------------
+Zero-shot classification using ImageBind and OpenVINO
+-----------------------------------------------------
+
+
 
 In zero-shot classification, a piece of data is embedded and fed to the
 model to retrieve a label that corresponds with the contents of the
@@ -350,8 +361,10 @@ they represent the same object.
     image_list = [img.split('/')[-1] for img in image_paths]
     audio_list = [audio.split('/')[-1] for audio in audio_paths]
 
-Text-Image classification 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text-Image classification
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -364,8 +377,10 @@ Text-Image classification
 .. image:: 239-image-bind-convert-with-output_files/239-image-bind-convert-with-output_20_0.png
 
 
-Text-Audio classification 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text-Audio classification
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -378,8 +393,10 @@ Text-Audio classification
 .. image:: 239-image-bind-convert-with-output_files/239-image-bind-convert-with-output_22_0.png
 
 
-Image-Audio classification 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image-Audio classification
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -491,9 +508,11 @@ Putting all together, we can match text, image, and sound for our data.
 
 
 
-Next Steps 
-----------------------------------------------------
+Next Steps
+----------
 
-Open the `239-image-bind-quantize <239-image-bind-quantize-with-output.html>`__
+
+
+Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.
