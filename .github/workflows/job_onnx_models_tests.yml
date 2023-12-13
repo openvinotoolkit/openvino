@@ -27,8 +27,8 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       MODELS_SHARE_PATH: "/mount/onnxtestdata"
-      MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
     steps:
       - name: Download OpenVINO package
@@ -49,7 +49,6 @@ jobs:
           echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "MODELS_PATH=$GITHUB_WORKSPACE/onnx_test_models" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -83,7 +82,10 @@ jobs:
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Update Models
-        run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH}/models_data -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
+        run: |
+          mkdir -p ${ONNX_MODELS_PATH}
+          bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${ONNX_MODELS_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
+          ls -laR ${ONNX_MODELS_PATH}
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -112,23 +114,14 @@ jobs:
         run: |
           ls -la /mount
           ls -laR ${MODELS_SHARE_PATH}
-#
-#      - name: Use common parent directory for models
-#        continue-on-error: true
-#        run: |
-#          mkdir -p ${MODELS_PATH}
-#          if [[ ! -h "${MODELS_PATH}/MSFT" ]]; then
-#            ln -s ${MODELS_SHARE_PATH}/msft ${MODELS_PATH}/MSFT
-#          fi
-#
-#          if [[ ! -h "${MODELS_PATH}/onnx_model_zoo" ]]; then
-#            ln -s {MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_PATH}/onnx_model_zoo
-#          fi
-#
-#          ls -laR ${MODELS_PATH}
+
+      - name: Use common parent directory for models
+        continue-on-error: true
+        run: |
+          rm -rf ${MODELS_SHARE_PATH}/onnx_model_zoo
+          mv ${ONNX_MODELS_PATH}/model_zoo/onnx_model_zoo_* ${MODELS_SHARE_PATH}/onnx_model_zoo
+
+          ls -laR ${MODELS_SHARE_PATH}
 
       - name: ONNX Models Tests
-        run: |
-          rm -rf ${MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo
-          mv ${MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_SHARE_PATH}/models_data/model_zoo/onnx_model_zoo
-          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
+        run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
