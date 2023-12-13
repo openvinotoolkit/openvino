@@ -43,9 +43,8 @@ The notebook contains the following steps:
 
 
 -  `Prerequisites <#prerequisites>`__
--  `Create PyTorch Models
-   pipeline <#create-pytorch-models-pipeline>`__
--  `Convert models to OpenVINO Intermediate representation (IR)
+-  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Convert models to OpenVINO Intermediate representation
    format <#convert-models-to-openvino-intermediate-representation-format>`__
 
    -  `Text Encoder <#text-encoder>`__
@@ -53,26 +52,27 @@ The notebook contains the following steps:
    -  `VAE <#vae>`__
 
 -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
--  `Configure Inference
-   Pipeline <#configure-inference-pipeline>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
    -  `Text-to-Image generation <#text-to-image-generation>`__
    -  `Image-to-Image generation <#image-to-image-generation>`__
+   -  `Interactive Demo <#interactive-demo>`__
 
--  `Interactive Demo <#interactive-demo>`__
+Prerequisites
+-------------
 
-Prerequisites 
--------------------------------------------------------
+
 
 Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
-    %pip -q install "openvino>=2023.1.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "openvino>=2023.1.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio" 
 
-Create PyTorch Models pipeline 
-------------------------------------------------------------------------
+Create PyTorch Models pipeline
+------------------------------
+
+
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -121,8 +121,10 @@ First, load the pre-trained weights of all components of the model.
 
 
 
-Convert models to OpenVINO Intermediate representation format 
--------------------------------------------------------------------------------------------------------
+Convert models to OpenVINO Intermediate representation format
+-------------------------------------------------------------
+
+
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -150,8 +152,10 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -220,8 +224,10 @@ hidden states.
 
 
 
-U-net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+U-net
+~~~~~
+
+
 
 U-net model has three inputs:
 
@@ -297,8 +303,10 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-VAE 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VAE
+~~~
+
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -409,8 +417,10 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 
-Prepare Inference Pipeline 
---------------------------------------------------------------------
+Prepare Inference Pipeline
+--------------------------
+
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -810,8 +820,10 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline 
-----------------------------------------------------------------------
+Configure Inference Pipeline
+----------------------------
+
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -882,8 +894,10 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-Text-to-Image generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text-to-Image generation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, let’s see model in action
 
@@ -951,8 +965,10 @@ Now is show time!
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Image-to-Image generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image-to-Image generation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1052,8 +1068,10 @@ found in this
 .. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_39_1.png
 
 
-Interactive Demo 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Interactive Demo
+~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 

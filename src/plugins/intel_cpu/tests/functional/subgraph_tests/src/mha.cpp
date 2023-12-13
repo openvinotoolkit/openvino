@@ -11,8 +11,9 @@
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
+namespace ov {
+namespace test {
 using ExpectedNodes = std::vector<std::pair<std::string, size_t>>;
 
 typedef std::tuple<std::vector<InputShape>,   // Input shapes
@@ -26,19 +27,19 @@ typedef std::tuple<std::vector<InputShape>,   // Input shapes
 
 static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes,
                                                    std::vector<ElementType>& inputPrecisions) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -91,24 +92,24 @@ static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes,
                                                    std::vector<ElementType>& inputPrecisions) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -143,7 +144,7 @@ static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 class MHATest : public testing::WithParamInterface<MHATuple>, virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -314,19 +315,19 @@ INSTANTIATE_TEST_SUITE_P(
 static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes,
                                                         std::vector<ElementType>& inputPrecisions,
                                                         std::vector<ElementType>& matMulIn0Precisions) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -436,26 +437,26 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize5, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
                                                         const std::vector<ElementType>& inputPrecisions,
                                                         const std::vector<ElementType>& matMulIn0Precisions,
                                                         const bool fakeQuantize3Exists) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -525,7 +526,7 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::Pa
         transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 class MHAQuantTest : public testing::WithParamInterface<MHATuple>,
@@ -705,3 +706,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2,
                          MHAQuantTest::getTestCaseName);
 
 }  // namespace
+}  // namespace test
+}  // namespace ov
