@@ -68,9 +68,6 @@ private:
                                    const std::shared_ptr<const ov::Model>& cached_body_model) {
         m_cached_body_models->insert(std::make_pair(cached_body_model_signature, cached_body_model));
     }
-    std::string make_output_tensor_name(const std::shared_ptr<ov::opset8::Result>& result_node,
-                                        std::string operation_name,
-                                        size_t port_index);
 };
 
 }  // namespace tensorflow

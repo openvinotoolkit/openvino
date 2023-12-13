@@ -60,7 +60,8 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
 /// \param[in] saved_model_output_names Map of for output names
 void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
                               const std::shared_ptr<std::map<std::string, std::string>>& saved_model_input_names,
-                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
+                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names,
+                              bool tensor_names_need_indices) {
     // 1. check if it is the input or output tensor of the model
     // perform the adjustment only for the input and output tensors of the model
     auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(ov_output.get_node_shared_ptr());
@@ -113,6 +114,9 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
             }
         } else {
             signature_passed = false;
+        }
+        if (tensor_names_need_indices) {
+            ov_output.set_names({ov_output.get_node_shared_ptr()->get_friendly_name() + ":0"});
         }
     }
 
@@ -319,32 +323,6 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     }
     translate_graph(m_input_model, m_ov_model);
     return m_ov_model;
-}
-
-std::string TranslateSession::make_output_tensor_name(const std::shared_ptr<ov::opset8::Result>& result_node,
-                                                      std::string operation_name,
-                                                      size_t port_index) {
-    if (result_node->get_output_tensor(0).get_names().size() == 0) {
-        // If Result has no tensor names, set tensor names by Op name incoming to result and output port
-        return operation_name + ":" + std::to_string(port_index);
-    } else {
-        // Get any tensor name from Result node and extract port and operation name information.
-        // The following code is needed to get correct port indeces for output operations with multiple output ports
-        // (like NMS).
-        std::string tensor_name = result_node->get_output_tensor(0).get_any_name();
-        std::string operation_name_from_output_tensor;
-        std::string port_type_from_output_tensor;
-        size_t port_index_from_output_tensor;
-        ov::frontend::tensorflow::extract_operation_name_and_port(tensor_name,
-                                                                  operation_name_from_output_tensor,
-                                                                  port_index_from_output_tensor,
-                                                                  port_type_from_output_tensor);
-        if (operation_name == operation_name_from_output_tensor && port_index_from_output_tensor != port_index) {
-            return operation_name + ":" + std::to_string(port_index_from_output_tensor);
-        } else {
-            return operation_name + ":" + std::to_string(port_index);
-        }
-    }
 }
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
@@ -580,19 +558,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                       operation_name,
                                                                       port_index,
                                                                       port_type);
-
-            bool set_names_with_indices = input_model->tensor_names_need_indices();
-
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
                     result_node->set_friendly_name(model_output_name + ":0");
-                    if (set_names_with_indices) {
-                        result_node->get_output_tensor(0).set_names(
-                            {make_output_tensor_name(result_node, operation_name, port_index)});
-                    }
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -602,10 +573,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                             operation_name + "node specified as custom output does not exist");
                 auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
                 result_node->set_friendly_name(model_output_name);
-                if (set_names_with_indices) {
-                    result_node->get_output_tensor(0).set_names(
-                        {make_output_tensor_name(result_node, operation_name, port_index)});
-                }
                 results.push_back(result_node);
             } else if (port_type == "in") {
                 // TODO: avoid this traversing by having a map for OpPlace objects, for example
@@ -670,25 +637,26 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    if (saved_model_inputs || saved_model_outputs) {
-        // only SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
-        // for example, serving_default_input_name:0 maps to input_name
-        // we need to re-write input and output internal tensor names to user specific
+    // only SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
+    // for example, serving_default_input_name:0 maps to input_name
+    // we need to re-write input and output internal tensor names to user specific
 
-        // it makes sense to use set because Parameter and Results nodes may have the common tensor
-        std::set<ov::Output<ov::Node>> ov_tensors;
-        for (const auto& param : params) {
-            ov_tensors.insert(param->output(0));
-        }
-        for (const auto& result : results) {
-            ov_tensors.insert(result->input_value(0));
-        }
+    // it makes sense to use set because Parameter and Results nodes may have the common tensor
+    std::set<ov::Output<ov::Node>> ov_tensors;
+    for (const auto& param : params) {
+        ov_tensors.insert(param->output(0));
+    }
+    for (const auto& result : results) {
+        ov_tensors.insert(result->input_value(0));
+    }
 
-        // it iterates through these tensors and adjusts their names
-        // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
-        for (auto ov_tensor : ov_tensors) {
-            adjust_saved_model_names(ov_tensor, saved_model_inputs, saved_model_outputs);
-        }
+    // it iterates through these tensors and adjusts their names
+    // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
+    for (auto ov_tensor : ov_tensors) {
+        adjust_saved_model_names(ov_tensor,
+                                 saved_model_inputs,
+                                 saved_model_outputs,
+                                 input_model->tensor_names_need_indices());
     }
 
     // reorder Parameter and Result nodes according to the requested order

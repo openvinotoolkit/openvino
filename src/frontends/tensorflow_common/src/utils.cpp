@@ -23,9 +23,6 @@ namespace tensorflow {
 void set_node_name(const string& node_name, const shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
     node->set_friendly_name(node_name);
-    if (outputs.size() == 1) {
-        set_out_name(node_name, outputs[0]);
-    }
     for (size_t idx = 0; idx < outputs.size(); ++idx) {
         set_out_name({node_name + ":" + to_string(idx)}, outputs[idx]);
     }
