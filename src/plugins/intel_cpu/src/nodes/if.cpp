@@ -10,7 +10,6 @@
 #include "common/cpu_memcpy.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 #include "nodes/common/cpu_convert.h"
-#include "openvino/util/log.hpp"
 
 #include <string>
 #include <vector>
@@ -19,16 +18,11 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-inline size_t getElementNum(const MemoryPtr& srcMemPtr) {
-    auto srcDims = srcMemPtr->getStaticDims();
-    return std::accumulate(srcDims.begin(), srcDims.end(), 1, std::multiplies<size_t>());
-}
-
 If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
                                            const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
-        size = getElementNum(srcMemPtr);
+        size = srcMemPtr->getShape().getElementsCount();
 }
 
 void If::PortMapHelper::execute(dnnl::stream& strm) {
@@ -47,7 +41,7 @@ void If::PortMapHelper::redefineTo() {
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-        auto newShape = srcMemPtr->getDesc().getShape().getDims();
+        auto newShape = srcMemPtr->getStaticDims();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
             // Only the shape is updated, the memory type remains unchanged
             auto memDesc = dstMemPtrs[j]->getDescPtr();
@@ -55,7 +49,7 @@ void If::PortMapHelper::redefineTo() {
             dstMemPtrs[j]->redefineDesc(desc);
         }
 
-        size = getElementNum(srcMemPtr);
+        size = srcMemPtr->getShape().getElementsCount();
     }
 }
 
@@ -211,9 +205,10 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
         // Check precision between If node input/output and it's subgrapsh input/output.
         for (const auto& toMem : toMems) {
             if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
-                OPENVINO_WARN << "If node fromMem and toMem precision mismatch: from "
-                              << fromMem->getDesc().getPrecision().to_string() << " to "
-                              << toMem->getDesc().getPrecision().to_string();
+                DEBUG_LOG("If node fromMem and toMem precision mismatch: from ",
+                          fromMem->getDesc().getPrecision().to_string(),
+                          " to ",
+                          toMem->getDesc().getPrecision().to_string());
             }
         }
 
@@ -231,9 +226,10 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
         // Check precision between If node input/output and it's subgrapsh input/output.
         for (const auto& toMem : toMems) {
             if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
-                OPENVINO_WARN << "If node fromMem and toMem precision mismatch: from "
-                              << fromMem->getDesc().getPrecision().to_string() << " to "
-                              << toMem->getDesc().getPrecision().to_string();
+                DEBUG_LOG("If node fromMem and toMem precision mismatch: from ",
+                          fromMem->getDesc().getPrecision().to_string(),
+                          " to ",
+                          toMem->getDesc().getPrecision().to_string());
             }
         }
 
