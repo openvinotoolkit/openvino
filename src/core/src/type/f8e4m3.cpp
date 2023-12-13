@@ -11,14 +11,13 @@
 
 #include "openvino/reference/fake_convert.hpp"
 
-using namespace ov;
-
+namespace ov {
 static_assert(sizeof(f8e4m3) == 1, "class f8e4m3 must be exactly 1 byte");
 
-f8e4m3::f8e4m3(float value) : f8e4m3(static_cast<ov::float16>(value)){};
-f8e4m3::f8e4m3(const ov::f8e4m3& f8_val) : m_value(f8_val.to_bits()){};
+f8e4m3::f8e4m3(float value) : f8e4m3(static_cast<float16>(value)){};
+f8e4m3::f8e4m3(const f8e4m3& f8_val) : m_value(f8_val.to_bits()){};
 
-f8e4m3::f8e4m3(ov::float16 f16_val) {
+f8e4m3::f8e4m3(float16 f16_val) {
     constexpr uint16_t fp16_inf = 0x7C00;
     constexpr auto fp16_exp_bias = 15;
     constexpr auto fp16_mant_size = 10;
@@ -60,7 +59,7 @@ f8e4m3::operator float() const {
     // TODO: Handle subnormal values (exp_bits == 0 && f16_mantisa_bits != 0)
     short exp_val = (exp_bits == 0 && f16_mantisa_bits == 0) ? 0 : (exp_bits + bias_diff);
     const uint16_t f16_bits = static_cast<uint16_t>(sign | (exp_val << fp16_mant_size) | f16_mantisa_bits);
-    ov::float16 f16_val = ov::float16::from_bits(f16_bits);
+    float16 f16_val = float16::from_bits(f16_bits);
     return static_cast<float>(f16_val);
 }
 
@@ -75,3 +74,4 @@ size_t f8e4m3::size() const {
 uint8_t f8e4m3::to_bits() const {
     return m_value;
 }
+}  // namespace ov
