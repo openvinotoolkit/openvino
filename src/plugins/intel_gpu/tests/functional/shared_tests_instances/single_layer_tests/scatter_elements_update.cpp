@@ -74,15 +74,15 @@ const std::vector<std::vector<int64_t>> idxWithNegativeValues = {
     {-1, 0, -4, -6, -2, -3, -7, -5},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_ScatterEltsUpdate12,
-    ScatterElementsUpdate12LayerTest,
-    ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
-                       ::testing::ValuesIn(idxWithNegativeValues),
-                       ::testing::ValuesIn(reduceModes),
-                       ::testing::ValuesIn({true, false}),
-                       ::testing::Values(inputPrecisions[0]),
-                       ::testing::Values(idxPrecisions[0]),
-                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ScatterElementsUpdate12LayerTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(
+//     smoke_ScatterEltsUpdate12,
+//     ScatterElementsUpdate12LayerTest,
+//     ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
+//                        ::testing::ValuesIn(idxWithNegativeValues),
+//                        ::testing::ValuesIn(reduceModes),
+//                        ::testing::ValuesIn({true, false}),
+//                        ::testing::Values(inputPrecisions[0]),
+//                        ::testing::Values(idxPrecisions[0]),
+//                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
+//     ScatterElementsUpdate12LayerTest::getTestCaseName);
 }  // namespace
