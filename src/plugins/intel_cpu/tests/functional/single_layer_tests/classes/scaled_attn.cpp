@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset13.hpp>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 #include "scaled_attn.hpp"
+
 #include "gtest/gtest.h"
+#include "openvino/opsets/opset13.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnCPUTestParams>& obj) {
     CPUSpecificParams cpuParams;
@@ -132,4 +131,5 @@ TEST_P(ScaledAttnLayerCPUTest, CompareWithRefs) {
 namespace ScaledAttn {
 
 }  // namespace ScaledAttn
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

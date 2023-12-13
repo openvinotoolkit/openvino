@@ -100,8 +100,8 @@ void LSTMCellTest::SetUp() {
 
     auto lstm_cell = std::make_shared<ov::op::v4::LSTMCell>(params[0], params[1], params[2], W, R, B, hidden_size, activations,
                                                           activations_alpha, activations_beta, clip);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
-                                 std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(lstm_cell->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;

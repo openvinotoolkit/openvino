@@ -14,6 +14,7 @@
 #include "gna_fused_iterator.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
@@ -316,11 +317,11 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivation) {
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
     auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
-    auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
-    auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto conv = std::make_shared<ov::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
     auto activation =
         ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
-    auto result = std::make_shared<ngraph::opset8::Result>(activation);
+    auto result = std::make_shared<ov::op::v0::Result>(activation);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
 
@@ -338,8 +339,8 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
     auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
-    auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
-    auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto conv = std::make_shared<ov::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto maxpool = ngraph::builder::makePooling(conv,
                                                 {1, 1},
@@ -351,7 +352,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
                                                 false,
                                                 ngraph::helpers::PoolingTypes::MAX);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
+    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
 
@@ -369,8 +370,8 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
     auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
-    auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
-    auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto conv = std::make_shared<ov::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
     auto activation =
         ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -384,7 +385,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
                                                 false,
                                                 ngraph::helpers::PoolingTypes::MAX);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
+    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
 

@@ -1,5 +1,7 @@
-# [LEGACY] Graph Transformation Extensions {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions}
+.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions}
 
+[LEGACY] Graph Transformation Extensions
+==========================================
 
 .. meta::
   :description: Learn about various base classes for front, middle and back phase 

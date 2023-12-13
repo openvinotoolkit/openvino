@@ -13,7 +13,7 @@ endif()
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-set(DEPENDENCIES openvino::runtime::dev openvino::frontend::common)
+set(DEPENDENCIES openvino::runtime::dev)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::onnx)

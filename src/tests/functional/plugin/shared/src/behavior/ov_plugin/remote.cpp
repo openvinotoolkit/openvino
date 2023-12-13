@@ -5,7 +5,7 @@
 #include "behavior/ov_plugin/remote.hpp"
 #include "transformations/utils/utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace ov {
 namespace test {
@@ -45,7 +45,7 @@ void OVRemoteTest::SetUp() {
     std::pair<ov::AnyMap, ov::AnyMap> param_pair;
     std::tie(element_type, target_device, config, param_pair) = GetParam();
     std::tie(context_parameters, tensor_parameters) = param_pair;
-    function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, element_type);
+    function = ov::test::utils::make_conv_pool_relu({1, 1, 32, 32}, element_type);
     exec_network = core.compile_model(function, target_device, config);
     infer_request = exec_network.create_infer_request();
     input = function->get_parameters().front();

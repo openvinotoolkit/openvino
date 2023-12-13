@@ -68,6 +68,7 @@ OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
+OP_CONVERTER(translate_erfc);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
@@ -89,6 +90,7 @@ OP_CONVERTER(translate_getitem);
 OP_CONVERTER(translate_glu);
 OP_CONVERTER(translate_grid_sampler);
 OP_CONVERTER(translate_group_norm);
+OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
@@ -114,6 +116,7 @@ OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
+OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_max);
@@ -168,6 +171,7 @@ OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_round);
@@ -346,6 +350,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erf_", op::inplace_op<op::translate_erf>},
+        {"aten::erfc", op::translate_erfc},
+        {"aten::erfc_", op::inplace_op<op::translate_erfc>},
         {"aten::exp", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
         {"aten::expand", op::translate_expand},
@@ -373,6 +379,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::glu", op::translate_glu},
         {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::group_norm", op::translate_group_norm},
+        {"aten::gru", op::translate_gru},
         {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
@@ -416,6 +423,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::log10", op::translate_log10},
         {"aten::log10_", op::inplace_op<op::translate_log10>},
+        {"aten::lstm", op::translate_lstm},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
@@ -486,6 +494,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         // for real dtypes, these operations return input tensor without changes and can be skipped
         {"aten::resolve_conj", op::skip_node},
         {"aten::resolve_neg", op::skip_node},
+        {"aten::rnn_relu", op::translate_rnn},
+        {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::translate_rsqrt},

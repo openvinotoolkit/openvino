@@ -10,7 +10,7 @@ namespace LayerTestsDefinitions {
     std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<selectTestParams> &obj) {
         std::vector<std::vector<size_t>> dataShapes(3);
         InferenceEngine::Precision dataType;
-        ngraph::op::AutoBroadcastSpec broadcast;
+        ov::op::AutoBroadcastSpec broadcast;
         std::string targetDevice;
         std::tie(dataShapes, dataType, broadcast, targetDevice) = obj.param;
         std::ostringstream result;
@@ -25,19 +25,19 @@ namespace LayerTestsDefinitions {
     void SelectLayerTest::SetUp() {
         std::vector<std::vector<size_t>> inputShapes(numOfInputs);
         InferenceEngine::Precision inputPrecision;
-        ngraph::op::AutoBroadcastSpec broadcast;
+        ov::op::AutoBroadcastSpec broadcast;
         std::tie(inputShapes, inputPrecision, broadcast, targetDevice) = this->GetParam();
 
         ngraph::ParameterVector paramNodesVector;
-        auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::boolean, ngraph::Shape(inputShapes[CONDITION]));
+        auto paramNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::boolean, ngraph::Shape(inputShapes[CONDITION]));
         paramNodesVector.push_back(paramNode);
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         for (size_t i = 1; i < inputShapes.size(); i++) {
-            paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes[i]));
+            paramNode = std::make_shared<ov::op::v0::Parameter>(inType, ngraph::Shape(inputShapes[i]));
             paramNodesVector.push_back(paramNode);
         }
         auto select = std::make_shared<ov::op::v1::Select>(paramNodesVector[0], paramNodesVector[1], paramNodesVector[2], broadcast);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(select)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(select)};
         function = std::make_shared<ngraph::Function>(results, paramNodesVector, "select");
     }
 }  // namespace LayerTestsDefinitions

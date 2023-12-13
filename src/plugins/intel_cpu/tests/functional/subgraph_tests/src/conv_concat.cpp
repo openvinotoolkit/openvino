@@ -11,7 +11,6 @@
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/filter_cpu_info.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace ov {

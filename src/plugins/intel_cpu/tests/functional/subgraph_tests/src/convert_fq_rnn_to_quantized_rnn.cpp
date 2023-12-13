@@ -2,31 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/output_vector.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "test_utils/fusing_test_utils.hpp"
 #include "ov_models/builders.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
-using namespace ov;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 using ConvertFqRnnToQuantizedRnnTestParams = std::tuple<std::string, std::vector<InputShape>, bool>;
 
@@ -68,22 +62,30 @@ public:
     }
 
 protected:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
 
         const auto& funcInputs = function->inputs();
         const auto& shapeX = targetInputStaticShapes[0];
         const auto& shapeH = targetInputStaticShapes[1];
 
-        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, 1, 0, 16);
-        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, 1, 0, 16);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 1;
+        in_data.resolution = 16;
+        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, in_data);
+        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, in_data);
 
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensorX});
         inputs.insert({funcInputs[1].get_node_shared_ptr(), tensorH});
 
         if (hasCell) {
             const auto& shapeC = targetInputStaticShapes[cellIdx];
-            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC, 2, -1, 128, 2);
+            in_data.start_from = -1;
+            in_data.range = 2;
+            in_data.resolution = 128;
+            in_data.seed = 2;
+            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC, in_data);
             inputs.insert({funcInputs[cellIdx].get_node_shared_ptr(), tensorC});
         }
     }
@@ -116,9 +118,9 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrec, shape));
 
-        auto makeDataFQ = [](const ngraph::Output<Node>& input) {
+        auto makeDataFQ = [](const ov::Output<Node>& input) {
             const auto fqLevels = 256;
-            return ngraph::builder::makeFakeQuantize(input, ngraph::element::f32, fqLevels, {},
+            return ngraph::builder::makeFakeQuantize(input, ov::element::f32, fqLevels, {},
                                                       {-128.f/127}, {1.f},
                                                       {-128.f/127}, {1.f});
         };
@@ -128,16 +130,16 @@ protected:
         if (quantizedHiddenState) {
             H = makeDataFQ(inputParams[1]);
         } else {
-            H = ngraph::builder::makeConstant(ngraph::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
+            H = ngraph::builder::makeConstant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
 
-        auto W = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
+        auto W = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
+        auto R = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
+        auto B = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;
-            return ngraph::builder::makeFakeQuantize(weight, ngraph::element::f32,
+            return ngraph::builder::makeFakeQuantize(weight, ov::element::f32,
                                                      fqLevelsW, std::vector<size_t>{},
                                                      {-127.f/63}, {127.f/63},
                                                      {-127.f/63}, {127.f/63});
@@ -152,7 +154,7 @@ protected:
         const auto batchSize  = targetStaticShapes.front()[0][0];
         const auto maxSeqLen  = targetStaticShapes.front()[0][1];
         std::vector<int> lengths(batchSize, static_cast<int>(maxSeqLen));
-        auto seq_lengths = ngraph::opset1::Constant::create(element::i64, Shape{batchSize}, lengths);
+        auto seq_lengths = ov::op::v0::Constant::create(element::i64, Shape{batchSize}, lengths);
 
         if (rnnType == "LSTMSequence") {
             hasCell = true;
@@ -215,4 +217,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, ConvertFqRnnToQuantizedRnn,
                          ConvertFqRnnToQuantizedRnn::getTestCaseName);
 } // namespace
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

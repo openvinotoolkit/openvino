@@ -11,7 +11,8 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 using CustomOpI64CPUTestParams = std::tuple<ElementType, InputShape>;
 
 class CustomOpI64 : public ov::op::Op {
@@ -151,4 +152,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          ::testing::Combine(::testing::Values(ElementType::i32), ::testing::Values(inputShapes)),
                          CustomOpConvertI64CPUTest::getTestCaseName);
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

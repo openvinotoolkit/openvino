@@ -5,15 +5,18 @@
 #include <ie_ngraph_utils.hpp>
 #include "cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <cpu_memory.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/general_utils.h"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "utils/cpu_utils.hpp"
-#include <limits>
-#include <vector>
-#include <numeric>
+#include "utils/general_utils.h"
+
 #include <blob_factory.hpp>
+#include <cpu_memory.h>
 #include <dnnl_types.h>
+#include <limits>
+#include <numeric>
+#include <vector>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -46,27 +49,12 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
     }
 }
 
-CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
-    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        OPENVINO_THROW("Cannot convert InferenceEngine::TensorDesc with ANY layout to CpuBlockedMemoryDesc");
-
-    const auto& blkDesc = desc.getBlockingDesc();
-    const auto& dims = desc.getDims();
-
-    auto strides = blkDesc.getStrides();
-    // for empty tensor case InferenceEngine::TensorDesc fill strides with non zero values before first 0 dims
-    // i.e. dims[1, 0, 2, 3] -> strides [0, 6, 3, 1]
-    if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
-        std::fill(strides.begin(), strides.end(), 0);
+BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
+    if (desc->getType() & MemoryDescType::Blocked) {
+        return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
+    } else {
+        OPENVINO_THROW("Can not convert unsupported memory descriptor");
     }
-
-    return CpuBlockedMemoryDesc(InferenceEngine::details::convertPrecision(desc.getPrecision()),
-                                Shape(dims),
-                                blkDesc.getBlockDims(),
-                                blkDesc.getOrder(),
-                                blkDesc.getOffsetPadding(),
-                                blkDesc.getOffsetPaddingToData(),
-                                strides);
 }
 
 CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {
@@ -82,6 +70,8 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
 
     if (byte_strides.empty()) {
         blk_strides = ov::row_major_strides(shape);
+    } else if (tensor->get_size() == 0) {
+        blk_strides.resize(shape.size());
     } else {
         // ROI tensor need figure out correct blk_strides
         blk_strides.resize(byte_strides.size());
@@ -108,6 +98,7 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
         blk_strides);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         OPENVINO_THROW("Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc");
@@ -131,15 +122,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Infe
                                  strides);
 }
 
-BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
-    if (desc->getType() & MemoryDescType::Blocked) {
-        return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Can not convert unsupported memory descriptor");
-    }
-}
-
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory& mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
@@ -148,7 +131,7 @@ InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory &mem) 
     return make_blob_with_precision(desc, mem.getData());
 }
 
-InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const IMemory &mem) {
+InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const IMemory& mem) {
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 
@@ -174,6 +157,7 @@ InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDes
         OPENVINO_THROW("Cannot convert MemoryDesc to InferenceEngine::TensorDesc");
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::string MemoryDescUtils::dim2str(Dim dim) {
     return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
