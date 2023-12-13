@@ -689,7 +689,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             p.get_processing_order().begin(),
             p.get_processing_order().end(),
             reorder_cnt{ 0, 0 },
-            [&](reorder_cnt& total, program_node* node) {
+            [&](const reorder_cnt& total, program_node* node) {
             if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
                 return total;
             auto count = count_reorders(fmt_map, lo, node);

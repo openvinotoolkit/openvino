@@ -1038,6 +1038,17 @@ private:
 #endif
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+
+#if __cplusplus >= 202002L
+#define ov_memory_order_release std::memory_order_release
+#define ov_memory_order_relaxed std::memory_order_relaxed
+#define ov_memory_order_acquire std::memory_order_acquire
+#else
+#define ov_memory_order_release std::memory_order::memory_order_release
+#define ov_memory_order_relaxed std::memory_order::memory_order_relaxed
+#define ov_memory_order_acquire std::memory_order::memory_order_acquire
+#endif
+
 class UpdateNodesBase : public IUpdateNodes {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
@@ -1048,22 +1059,22 @@ public:
                 if (node->isDynamicNode()) {
                     node->updateShapes();
                 }
-                m_prepareCounter.store(i, std::memory_order::memory_order_release);
+                m_prepareCounter.store(i, ov_memory_order_release);
             }
         }
         catch(...) {
-            m_completion.store(true, std::memory_order::memory_order_relaxed);
+            m_completion.store(true, ov_memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_relaxed);
-        m_completion.store(true, std::memory_order::memory_order_release);
+        m_prepareCounter.store(stop_indx, ov_memory_order_relaxed);
+        m_completion.store(true, ov_memory_order_release);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            const bool completion = m_completion.load(std::memory_order::memory_order_acquire);
-            const size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_relaxed);
+            const bool completion = m_completion.load(ov_memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(ov_memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
@@ -1081,6 +1092,10 @@ protected:
     std::atomic<bool> m_completion{false};
     std::vector<NodePtr>& m_executableGraphNodes;
 };
+
+#undef ov_memory_order_release
+#undef ov_memory_order_relaxed
+#undef ov_memory_order_acquire
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #if (TBB_VERSION_MAJOR > 2020)

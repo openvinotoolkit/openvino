@@ -4,14 +4,14 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
-  # pull_request:
-  #   paths-ignore:
-  #     - '**/docs/**'
-  #     - 'docs/**'
-  #     - '**/**.md'
-  #     - '**.md'
-  #     - '**/layer_tests_summary/**'
-  #     - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
   push:
     paths-ignore:
       - '**/docs/**'
@@ -118,6 +118,7 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_CXX_STANDARD=20 `
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
