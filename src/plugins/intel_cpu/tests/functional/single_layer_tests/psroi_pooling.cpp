@@ -83,7 +83,7 @@ protected:
 
         ov::Shape proposalShape = {proposal.size() / 5, 5};
 
-        auto coords = ngraph::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
+        auto coords = ngraph::builder::makeConstant<float>(ov::element::f32, proposalShape, proposal);
         ov::ParameterVector params{
             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(featureMapShape))};
 
