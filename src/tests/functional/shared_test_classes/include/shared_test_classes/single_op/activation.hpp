@@ -82,6 +82,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
 
 protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 };
 
