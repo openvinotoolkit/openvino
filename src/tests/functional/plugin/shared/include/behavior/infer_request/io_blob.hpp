@@ -9,6 +9,7 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
@@ -455,7 +456,7 @@ public:
     void SetUp()  override {
         std::tie(layout, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }

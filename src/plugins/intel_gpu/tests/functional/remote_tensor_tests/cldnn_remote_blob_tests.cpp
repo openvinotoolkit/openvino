@@ -18,6 +18,8 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -578,8 +580,8 @@ class TwoNets_Test : public ov::test::TestsCommon,
     public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
+        fn_ptrs = {ov::test::utils::make_split_multi_conv_concat(),
+                   ov::test::utils::make_multi_single_conv()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TwoNetsParams>& obj) {

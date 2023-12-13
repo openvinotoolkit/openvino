@@ -10,6 +10,7 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -83,7 +84,7 @@ public:
 
     void SetUp() override {
         std::tie(m_batch_size, m_infer_request_num) = this->GetParam();
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::test::utils::make_multi_single_conv();
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
 
         m_auto_batch_plugin =

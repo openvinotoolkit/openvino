@@ -9,6 +9,7 @@
 #include "openvino/runtime/core.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -69,8 +70,8 @@ protected:
 
         init_input_shapes(input_shape);
         //TODO: think how we can switch between several input topologies in the future
-        //  function = ngraph::builder::subgraph::makeSplitConvConcat(input_shape.front().first.get_min_shape(), model_type);
-        function = ngraph::builder::subgraph::makeSplitMultiConvConcat(input_shape.front().first.get_min_shape(), model_type);
+        //  function = ov::test::utils::make_split_conv_concat(input_shape.front().first.get_min_shape(), model_type);
+        function = ov::test::utils::make_split_multi_conv_concat(input_shape.front().first.get_min_shape(), model_type);
 
         //  make topology dynamic
         std::map<std::string, ov::PartialShape> dynShape;

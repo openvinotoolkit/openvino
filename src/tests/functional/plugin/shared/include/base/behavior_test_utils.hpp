@@ -10,6 +10,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsUtils {
 
@@ -174,7 +175,7 @@ protected:
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
     }
     void TearDown() override {
         if (!configuration.empty()) {

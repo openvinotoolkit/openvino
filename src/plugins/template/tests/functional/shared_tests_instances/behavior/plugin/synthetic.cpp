@@ -5,8 +5,9 @@
 #include <vector>
 
 #include "behavior/plugin/hetero_synthetic.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
 #include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace {
 using namespace HeteroTests;
@@ -21,7 +22,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                                       {"TEMPLATE1", "openvino_template_plugin"}}),
                        ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::withMajorNodesFunctions(
                            [] {
-                               return ngraph::builder::subgraph::makeConvPool2Relu2();
+                               return ov::test::utils::make_conv_pool2_relu2();
                            },
                            {"Conv_1"},
                            true))),
@@ -45,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 static std::vector<std::function<std::shared_ptr<ov::Model>()>> dynamicBuilders = {
     [] {
-        return ngraph::builder::subgraph::makeConvPoolReluNonZero();
+        return ov::test::utils::make_conv_pool_relu_non_zero();
     },
 };
 

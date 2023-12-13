@@ -11,6 +11,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/result.hpp"
+#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "common_test_utils/subgraph_builders/single_split.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -282,7 +285,7 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
     std::tie(element_type, target_device, config) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
     execNet = core->compile_model(function, target_device, config);
     req = execNet.create_infer_request();
 }
@@ -384,7 +387,7 @@ void OVInferRequestCheckTensorPrecision::TearDown() {
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getInputFromFunctionWithSingleInput) {
-    model = ngraph::builder::subgraph::makeSplitConcat({1, 4, 24, 24}, element_type);
+    model = ov::test::utils::make_split_concat({1, 4, 24, 24}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;
@@ -400,7 +403,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getInputFromFunctionWithSingleInput) 
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getOutputFromFunctionWithSingleInput) {
-    model = ngraph::builder::subgraph::makeSplitConcat({1, 4, 24, 24}, element_type);
+    model = ov::test::utils::make_split_concat({1, 4, 24, 24}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;
@@ -416,7 +419,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputFromFunctionWithSingleInput)
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInputs) {
-    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
+    model = ov::test::utils::make_multiple_input_output_double_concat({1, 1, 32, 32}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;
@@ -447,7 +450,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInput
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromFunctionWithSeveralOutputs) {
-    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
+    model = ov::test::utils::make_multiple_input_output_double_concat({1, 1, 32, 32}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;
@@ -478,7 +481,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromFunctionWithSeveralOutp
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromSplitFunctionWithSeveralOutputs) {
-    model = ngraph::builder::subgraph::makeSingleSplit({1, 4, 24, 24}, element_type);
+    model = ov::test::utils::make_single_split({1, 4, 24, 24}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;

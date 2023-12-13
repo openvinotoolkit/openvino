@@ -11,6 +11,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 namespace ov {
 namespace test {
@@ -118,7 +119,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        simpleNetwork = ov::test::utils::make_single_conv();
     }
 };
 

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <base/ov_behavior_test_utils.hpp>
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
@@ -43,7 +44,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        simpleNetwork = ov::test::utils::make_single_conv();
     }
 };
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;

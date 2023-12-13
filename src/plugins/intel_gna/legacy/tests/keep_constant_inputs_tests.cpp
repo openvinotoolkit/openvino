@@ -21,6 +21,8 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
+#include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
@@ -60,7 +62,7 @@ void transformNetwork(InferenceEngine::CNNNetwork& clonedNetwork, bool keep_cons
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
     std::shared_ptr<ov::Model> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    f_ptr = ov::test::utils::make_conv_pool_relu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 2);
@@ -68,7 +70,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
     std::shared_ptr<ov::Model> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    f_ptr = ov::test::utils::make_conv_pool_relu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
@@ -76,7 +78,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
     std::shared_ptr<ov::Model> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvBias();
+    f_ptr = ov::test::utils::make_conv_bias();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 3);
@@ -84,7 +86,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
     std::shared_ptr<ov::Model> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvBias();
+    f_ptr = ov::test::utils::make_conv_bias();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);

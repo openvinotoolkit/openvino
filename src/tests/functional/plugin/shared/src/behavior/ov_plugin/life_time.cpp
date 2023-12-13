@@ -6,6 +6,7 @@
 
 #include <ov_models/subgraph_builders.hpp>
 #include "behavior/ov_plugin/life_time.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -24,7 +25,7 @@ void OVHoldersTest::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 }
 
 void OVHoldersTest::TearDown() {
@@ -139,7 +140,7 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 }
 
 void OVHoldersTestOnImportedNetwork::TearDown() {

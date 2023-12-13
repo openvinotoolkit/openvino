@@ -8,6 +8,7 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -42,8 +43,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        std::shared_ptr<ngraph::Function> function = ngraph::builder::subgraph::makeConvPoolRelu(
-                {4, 3, 6, 8}, ngraph::element::Type_t::u8);
+        std::shared_ptr<ngraph::Function> function = ov::test::utils::make_conv_pool_relu({4, 3, 6, 8}, ov::element::u8);
         InferenceEngine::CNNNetwork cnnNetwork(function);
         executableNetwork = ie->LoadNetwork(cnnNetwork, target_device, config);
     }

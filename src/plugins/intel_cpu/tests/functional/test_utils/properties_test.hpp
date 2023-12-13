@@ -7,7 +7,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 class OVClassConfigTestCPU : public ::testing::Test {
 public:
@@ -16,6 +16,6 @@ public:
 
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        model = ngraph::builder::subgraph::makeConvPoolRelu();
+        model = ov::test::utils::make_conv_pool_relu();
     }
 };

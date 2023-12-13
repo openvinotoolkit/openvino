@@ -32,7 +32,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in,
     if (!filter_weights.empty()) {
         filter_weights_node = std::make_shared<ov::op::v0::Constant>(type, filter_weights_shape, filter_weights);
     } else {
-        auto tensor = create_and_fill_tensor(type, filter_weights_shape);
+        auto tensor = create_and_fill_tensor(type, filter_weights_shape, 9, 1);
         filter_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
     }
 
@@ -49,7 +49,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in,
             biases_weights_node =
                 std::make_shared<ov::op::v0::Constant>(type, ov::Shape{1, num_out_channels, 1, 1}, biases_weights);
         } else {
-            auto tensor = create_and_fill_tensor(type, ov::Shape{1, num_out_channels, 1, 1});
+            auto tensor = create_and_fill_tensor(type, ov::Shape{1, num_out_channels, 1, 1}, 9, 1);
             biases_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
         }
 
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in_data,
             biases_weights_node =
                 std::make_shared<ov::op::v0::Constant>(type, ov::Shape{1, num_out_channels, 1, 1}, biases_weights);
         } else {
-            auto tensor = create_and_fill_tensor(type, ov::Shape{1, num_out_channels, 1, 1});
+            auto tensor = create_and_fill_tensor(type, ov::Shape{1, num_out_channels, 1, 1}, 9, 1);
             biases_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
         }
 
