@@ -1120,7 +1120,7 @@ public:
                 input_info("begin"),
                 input_info("end"),
                 input_info("stride"),
-                {}, {}, {0, 1, 0}, {}, {}, {})
+                {}, {}, {1, 0, 0}, {}, {}, {})
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1154,7 +1154,7 @@ public:
                 input_info("begin"),
                 input_info("end"),
                 input_info("stride"),
-                {}, {}, {}, {0, 1, 0}, {}, {})
+                {}, {}, {}, {1, 0, 0}, {}, {})
         );
 
         ExecutionConfig config = get_test_default_config(engine);
