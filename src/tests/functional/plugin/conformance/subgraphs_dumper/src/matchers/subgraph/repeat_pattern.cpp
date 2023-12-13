@@ -269,7 +269,7 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
     while (it != matched_nodes_pattern.end()) {
         std::vector<size_t> matched_nodes;
         if (it != matched_nodes_pattern.begin()) {
-            if ((std::prev(it)->size() - it->size()) >= 2) {
+            if ((std::prev(it)->size() - it->size()) > 0) {
                 matched_nodes = *it;
             }
         } else {
