@@ -39,14 +39,78 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(
     const std::shared_ptr<ov::Node> scale,
     const bool casual);
 
-TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStatic) {
-    const PartialShape query_key_value_mask_scale_shape{32, 32, 32};
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBasic) {
+    const PartialShape query_shape{1, 32, 32};
+    const PartialShape key_shape{1, 32, 32};
+    const PartialShape value_shape{1, 32, 32};
+    const PartialShape attention_mask_shape{1, 32, 32};
+    const PartialShape scale_shape{1};
 
-    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, value_shape);
+    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, attention_mask_shape);
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, scale_shape);
+    const auto casual = false;
+    {
+        const auto scaled_dot_product_attention =
+            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, casual);
+
+        model = std::make_shared<ov::Model>(NodeVector{scaled_dot_product_attention},
+                                            ParameterVector{query, key, value, attention_mask, scale});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+
+    {
+        const auto scaled_dot_product_attention =
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual);
+        model_ref = std::make_shared<ov::Model>(NodeVector{scaled_dot_product_attention},
+                                                ParameterVector{query, key, value, attention_mask, scale});
+    }
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadcastKey) {
+    const PartialShape query_shape{2, 1, 3, 1};
+    const PartialShape key_shape{1, 7, 4, 1};
+    const PartialShape value_shape{2, 7, 4, 1};
+    const PartialShape attention_mask_shape{1, 1, 1, 4};
+    const PartialShape scale_shape{1};
+
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, value_shape);
+    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, attention_mask_shape);
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, scale_shape);
+    const auto casual = false;
+    {
+        const auto scaled_dot_product_attention =
+            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, casual);
+
+        model = std::make_shared<ov::Model>(NodeVector{scaled_dot_product_attention},
+                                            ParameterVector{query, key, value, attention_mask, scale});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+
+    {
+        const auto scaled_dot_product_attention =
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual);
+        model_ref = std::make_shared<ov::Model>(NodeVector{scaled_dot_product_attention},
+                                                ParameterVector{query, key, value, attention_mask, scale});
+    }
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadcastQuery) {
+    const PartialShape query_shape{1, 7, 1, 4};
+    const PartialShape key_shape{2, 1, 1, 4};
+    const PartialShape value_shape{1, 1, 1, 6};
+    const PartialShape attention_mask_shape{1, 1, 3, 1};
+    const PartialShape scale_shape{};
+
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, value_shape);
+    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, attention_mask_shape);
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, scale_shape);
     const auto casual = false;
     {
         const auto scaled_dot_product_attention =
@@ -66,13 +130,17 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStatic) {
 }
 
 TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionDynamic) {
-    const PartialShape query_key_value_mask_scale_shape{-1, -1, -1};
+    const PartialShape query_shape{-1, -1, -1};
+    const PartialShape key_shape{-1, -1, -1};
+    const PartialShape value_shape{-1, -1, -1};
+    const PartialShape attention_mask_shape{-1, -1, -1};
+    const PartialShape scale_shape{};
 
-    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
-    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, query_key_value_mask_scale_shape);
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, value_shape);
+    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, attention_mask_shape);
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, scale_shape);
     const auto casual = false;
     {
         const auto scaled_dot_product_attention =
@@ -152,8 +220,8 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(
         atten_mask = std::make_shared<ov::op::v1::Select>(triu, mask, zero_f);
     }
     scaled_atten = std::make_shared<ov::op::v1::Add>(scaled_atten, atten_mask);
-
     scaled_atten = std::make_shared<ov::op::v8::Softmax>(scaled_atten, -1);
+
     const std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::MatMul>(scaled_atten, value);
     return result;
 }
