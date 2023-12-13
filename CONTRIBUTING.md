@@ -108,7 +108,7 @@ In order to build the project, follow the [build instructions for your specific 
 
 ### 3. Familiarize yourself with the component you'll be working with
 
-Choose the component your Good First Issue is related to. You can run tests to make sure it is working correctly.
+Choose the component your Good First Issue is related to. You can run tests to make sure it works correctly.
 
 ##### APIs
 - [C API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/c)
