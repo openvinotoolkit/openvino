@@ -481,7 +481,23 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                                         << input_inst->get_output_layout().to_short_string()
                                         << " to " << memory->get_layout().to_short_string() << std::endl;
                 }
-                body_network->set_input_data(internal_id.pid, memory);
+
+                auto internal_input_memory = memory;
+                auto iter = std::find_if(_back_edges.begin(), _back_edges.end(), [&](cldnn::loop::backedge_mapping& mapping) {
+                    return (mapping.to == internal_id.pid);
+                });
+                // if internal input memory is in backedge, allocate new memory.
+                // Because internal input memory's data will be updated through backedge process.
+                if (iter != _back_edges.end()) {
+                    internal_input_memory = body_network->get_engine().allocate_memory(memory->get_layout(), false);
+                    internal_input_memory->copy_from(body_network->get_stream(), *memory);
+                    GPU_DEBUG_LOG << "Input memory of internal node(" << internal_id.to_string() << ") is set to new memory("
+                                    << internal_input_memory << ", " << internal_input_memory->get_layout().to_short_string()
+                                    << ") instead of external node(" << external_id.to_string()
+                                    <<")'s memory(" << memory << "," << memory->get_layout().to_short_string() << ")" << std::endl;
+                }
+
+                body_network->set_input_data(internal_id.pid, internal_input_memory);
             } else {
                 OPENVINO_ASSERT(memory != nullptr, "In preprocessing concat input mapping, concat memory should be allocated");
                 auto memory_mapping_info = create_concat_memory_map(*input_map, memory, num_iterations);
@@ -519,7 +535,9 @@ void loop_inst::preprocess_backedge_memory() {
                 backedge_from_prim, backedge_to_prim, backedged_sliced_output, initial_mem, body_network->get_stream());
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with CONCAT_OUTPUT type, backedged_sliced_output("
                             << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
-        } else if (output_mapping.empty() && backedge_to_prim == backedge_from_prim->dependencies().front().first) {
+        // Set backedge mode to SINGLE when backedge_from_prim has multiple users.
+        } else if ((output_mapping.empty() && backedge_to_prim == backedge_from_prim->dependencies().front().first)
+                || (backedge_to_prim->get_users().size() > 1) ) {
             // SINGLE mode, from and to primitives in backedge are connected directly
             backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());
@@ -572,35 +590,6 @@ void loop_inst::preprocess_backedge_memory() {
                 backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem, body_network->get_stream());
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
                             << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
-        }
-
-        if (backedge_to_prim->_node != nullptr) {
-            update_backedge_exec_deps(backedge_to_prim->get_node(), backedge_from_prim->id());
-        }
-    }
-}
-
-void loop_inst::update_backedge_exec_deps(const cldnn::program_node& node, const cldnn::primitive_id& backedge_from_prim_id) {
-    // Add _exec_deps for backedge primitives to prevent early execution in body network
-    // In below topology, input and result has shared memory as they are backedge_to/from.
-    // When op2 executes earlier thant op1, input is updated with op2 result and op1 has wrong input value if there is no proper _exec_deps.
-    // input(backedge_to) ------> op1 ----->
-    //                    |
-    //                    L-----> op2 -----> result (backedge_from)
-    for (auto& user : node.get_users()) {
-        if (user->can_be_optimized()) {
-            // Run until non opt out user
-            update_backedge_exec_deps(*user, backedge_from_prim_id);
-        } else {
-            auto user_primitive_id = user->get_primitive()->id;
-            auto user_primitive = body_network->get_primitive(user_primitive_id);
-
-            const auto backedge_from_prim = body_network->get_primitive(backedge_from_prim_id);
-            if (std::find(backedge_from_prim->_exec_deps.begin(), backedge_from_prim->_exec_deps.end(), user_primitive)
-                != backedge_from_prim->_exec_deps.end()) {
-                backedge_from_prim->_exec_dep_ids.push_back(user_primitive_id);
-                backedge_from_prim->_exec_deps.push_back(user_primitive);
-            }
         }
     }
 }
@@ -670,35 +659,6 @@ loop_inst::typed_primitive_inst(network & network, loop_node const & node)
     _current_iteration_id = node.get_current_iteration_id();
     _condition_id = node.get_execution_condition_id();
     _num_iterations_id = node.get_num_iterations_id();
-}
-
-void loop_inst::save(BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _input_primitive_maps;
-    ob << _output_primitive_maps;
-    ob << _back_edges;
-    ob << _trip_count_id;
-    ob << _initial_execution_id;
-    ob << _current_iteration_id;
-    ob << _condition_id;
-    ob << _num_iterations_id;
-    body_network->save(ob);
-}
-
-void loop_inst::load(BinaryInputBuffer& ib) {
-    parent::load(ib);
-    preproc_memories_done = false,
-    ib >> _input_primitive_maps;
-    ib >> _output_primitive_maps;
-    ib >> _back_edges;
-    ib >> _trip_count_id;
-    ib >> _initial_execution_id;
-    ib >> _current_iteration_id;
-    ib >> _condition_id;
-    ib >> _num_iterations_id;
-    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream(), 0);
-    // set inner network to the new loaded _impl_params from cache.
-    set_inner_networks({body_network});
 }
 
 void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_iteration) {
@@ -843,8 +803,8 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
     char* concat_data = reinterpret_cast<char*>(concatenated_mem->lock(stream, cldnn::mem_lock_type::read));
 
     auto concate_layout = concatenated_mem->get_layout();
-    auto trait = format::traits(concate_layout.format);
-    if (format::is_blocked(concate_layout.format) || concate_layout.data_padding) {
+    auto dims = concat_mem_shape.size();
+    if (!format::is_default_format(concate_layout.format) || dims == 1 || concate_layout.data_padding) {
         // BE CAREFUL: ov::reference::split is extremely slow.
         // If we encounter any case where this code path is executed, we need to optimize it
         ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
@@ -859,14 +819,16 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         auto& lb_at_axis = lower_bounds[axis];
         auto& ub_at_axis = upper_bounds[axis];
 
+        // Format of concat_layout is invalid here : No mixed order
         size_t continuous_size = 1;
-        auto dims_order = trait._order;
-        auto target_axis = std::find(dims_order.begin(), dims_order.end(), axis);
-        for (auto iter = target_axis + 1 ; iter != dims_order.end() ; ++iter) {
-            continuous_size *= ((output_shape.size() > *iter) ? output_shape[*iter] : 1);
+        size_t inner_axis = axis + 1;
+        for (auto iter = inner_axis ; iter < dims ; ++iter) {
+            continuous_size *= ((output_shape.size() > iter) ? output_shape[iter] : 1);
         }
+
         auto strides = ov::Strides(lower_bounds.size(), 1);
-        strides[*(target_axis+1)] = continuous_size;
+        if (inner_axis < dims)
+            strides[inner_axis] = continuous_size;
 
         const auto strides_copy_size = elem_size * continuous_size;
         const auto out_last = std::next(out_data, num_iters);
@@ -874,12 +836,9 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
             auto dst_mem = *out_iter;
             auto slice_ranges = ov::coordinates::slice(concat_mem_shape, lower_bounds, upper_bounds, strides);
             for (const auto& range : slice_ranges) {
-                auto src_index = range.begin_index;
-                for (size_t i = 0; i < range.element_number; src_index += range.step, ++i) {
-                    const auto src_mem = concat_data + src_index * elem_size;
-                    std::memcpy(dst_mem, src_mem, strides_copy_size);
-                    std::advance(dst_mem, strides_copy_size);
-                }
+                const auto src_mem = concat_data + range.begin_index * elem_size;
+                std::memcpy(dst_mem, src_mem, strides_copy_size);
+                std::advance(dst_mem, strides_copy_size);
             }
 
             lb_at_axis += part_length;
@@ -1034,6 +993,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
     if (mapping.type == loop_inst::backedge_memory_mapping::CONCAT_OUTPUT) {
         if (iter == 0) {
             set_memory_in_body_network(body_network, mapping.to_primitive, mapping.initial_mem);
+            GPU_DEBUG_LOG << iter << ") [CONCAT_OUTPUT] Copy data from inintal_mem(" << mapping.initial_mem
+                            << ") to " << mapping.to_primitive->id() << std::endl;
         } else if (iter > 0) {
             if (is_dynamic()) {
                 auto from_id = mapping.from_primitive->id();
@@ -1046,9 +1007,13 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
                 auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
                 if (ev) event_vec = {ev};
+                GPU_DEBUG_LOG << iter << ") [CONCAT_OUTPUT] Copy data from [" << mapping.from_primitive->id() << "(" << from_mem
+                                << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
             } else {
                 auto mem = mapping.concat_mem_mapping->get_sliced_mems().at(iter - 1);
                 set_memory_in_body_network(body_network, mapping.to_primitive, mem);
+                GPU_DEBUG_LOG << iter << ") [CONCAT_OUTPUT] Set memory from concat_mem[" << (iter - 1) << "](" << mem
+                                << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
     } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE_SHARED) {
@@ -1056,7 +1021,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (mapping.from_mem != nullptr) {
                 auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                 if (ev) event_vec = {ev};
-                GPU_DEBUG_LOG << iter << ") Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+                GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
             }
         } else {
             // In dynamic model, output memory is not defined before execution.
@@ -1065,7 +1030,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 mapping.from_mem = mapping.from_primitive->output_memory_ptr();
                 OPENVINO_ASSERT(mapping.from_mem != nullptr, "from_mem should not be null");
                 set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
-                GPU_DEBUG_LOG << iter << ") Set memory from from_mem(" << mapping.from_mem << ") to " << mapping.to_primitive->id() << ")" << std::endl;
+                GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Set memory from from_mem(" << mapping.from_mem
+                                << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
     } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
@@ -1073,9 +1039,10 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
         if (iter == 0) {
             auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
             if (ev) event_vec = {ev};
+            GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
         } else {
             if (is_dynamic()) {
-                // In dynamic model, do not set memory buffer between input and output in inner body network.
+                // In dynamic model, do not swap memory buffer between input and output in inner body network.
                 // Just copy data from input buffer memory to output buffer memory.
                 auto from_id = mapping.from_primitive->id();
                 if (body_network->has_event(from_id)) {
@@ -1085,11 +1052,19 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
                 auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
                 if (ev) event_vec = {ev};
+                GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from [" << mapping.from_primitive->id()
+                            << "(" << from_mem << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
             } else {
                 // In static model, swap memory buffer between output and input in inner body network
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
+                GPU_DEBUG_LOG << iter << ") [SINGLE] Before swap between [" << mapping.from_primitive->id()
+                            << "(" << mapping.from_primitive->output_memory_ptr() << ")] and [" << mapping.to_primitive->id()
+                            << "(" << mapping.to_primitive->output_memory_ptr() << ")]" << std::endl;
                 set_memory_in_body_network(body_network, mapping.to_primitive, std::move(from_mem));
                 set_memory_in_body_network(body_network, mapping.from_primitive, std::move(to_mem));
+                GPU_DEBUG_LOG << iter << ") [SINGLE] After  swap between [" << mapping.from_primitive->id()
+                            << "(" << mapping.from_primitive->output_memory_ptr() << ")] and [" << mapping.to_primitive->id()
+                            << "(" << mapping.to_primitive->output_memory_ptr() << ")]" << std::endl;
             }
         }
     }

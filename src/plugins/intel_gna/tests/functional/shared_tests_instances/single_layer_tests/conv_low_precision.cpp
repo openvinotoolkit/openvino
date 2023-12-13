@@ -29,12 +29,12 @@ using namespace ov::op;
 using namespace ov::opset12;
 using namespace std;
 
-using ConvLowPrecisionTestParams = tuple<InferenceEngine::Precision,  // Network Precision
-                                         string,                      // Target Device
-                                         map<string, string>,         // Configuration
-                                         Shape,                       // Input Shape
-                                         pair<float, float>,          // FQ Min and Max (before conv)
-                                         std::size_t                  // Levels
+using ConvLowPrecisionTestParams = tuple<InferenceEngine::Precision,     // Network Precision
+                                         std::string,                    // Target Device
+                                         map<std::string, std::string>,  // Configuration
+                                         Shape,                          // Input Shape
+                                         pair<float, float>,             // FQ Min and Max (before conv)
+                                         std::size_t                     // Levels
                                          >;
 
 class ConvLowPrecisionTest : public testing::WithParamInterface<ConvLowPrecisionTestParams>,
@@ -44,10 +44,10 @@ class ConvLowPrecisionTest : public testing::WithParamInterface<ConvLowPrecision
     float inputDataResolution = 1.0f;
 
 public:
-    static string getTestCaseName(testing::TestParamInfo<ConvLowPrecisionTestParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<ConvLowPrecisionTestParams> obj) {
         InferenceEngine::Precision netPrecision;
-        string targetDevice;
-        map<string, string> configuration;
+        std::string targetDevice;
+        map<std::string, std::string> configuration;
         Shape inputShape;
         pair<float, float> fqMinMax;
         std::size_t levels = 0;
@@ -129,17 +129,17 @@ TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
 const vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16,
                                                           InferenceEngine::Precision::FP32};
 
-const vector<map<string, string>> configs_1 = {
+const vector<map<std::string, std::string>> configs_1 = {
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
 };
 
-const vector<map<string, string>> configs_2 = {
+const vector<map<std::string, std::string>> configs_2 = {
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
 };
 
-const vector<map<string, string>> configs_3 = {
+const vector<map<std::string, std::string>> configs_3 = {
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},

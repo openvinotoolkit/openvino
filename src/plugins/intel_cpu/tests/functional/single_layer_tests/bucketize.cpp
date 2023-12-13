@@ -3,16 +3,14 @@
 //
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ov_models/builders.hpp"
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::opset3;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using BucketizeCPUParamsTuple = std::tuple<InputShape,   // Data shape
                                            InputShape,   // Buckets shape
@@ -55,18 +53,17 @@ public:
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
         auto data_size = shape_size(targetInputStaticShapes[0]);
-        ov::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
-                                                                                 targetInputStaticShapes[0],
-                                                                                 data_size * 5,
-                                                                                 0,
-                                                                                 10,
-                                                                                 7235346);
-
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = data_size * 5;
+        in_data.resolution = 10;
+        in_data.seed = 7235346;
+        ov::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
         ov::Tensor tensorBucket =
             ov::test::utils::create_and_fill_tensor_unique_sequence(funcInputs[1].get_element_type(),
                                                                     targetInputStaticShapes[1],
@@ -91,14 +88,14 @@ protected:
         std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc) = this->GetParam();
         init_input_shapes({dataShape, bucketsShape});
 
-        auto data = std::make_shared<ngraph::op::Parameter>(inDataPrc, inputDynamicShapes[0]);
+        auto data = std::make_shared<ov::op::v0::Parameter>(inDataPrc, inputDynamicShapes[0]);
         data->set_friendly_name("a_data");
-        auto buckets = std::make_shared<ngraph::op::Parameter>(inBucketsPrc, inputDynamicShapes[1]);
+        auto buckets = std::make_shared<ov::op::v0::Parameter>(inBucketsPrc, inputDynamicShapes[1]);
         buckets->set_friendly_name("b_buckets");
-        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, netPrc, with_right_bound);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize),
-                                                      ngraph::ParameterVector{data, buckets},
-                                                      "Bucketize");
+        auto bucketize = std::make_shared<ov::op::v3::Bucketize>(data, buckets, netPrc, with_right_bound);
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(bucketize),
+                                               ov::ParameterVector{data, buckets},
+                                               "Bucketize");
     }
 };
 
@@ -109,11 +106,11 @@ TEST_P(BucketizeLayerCPUTest, CompareWithRefs) {
 namespace {
 
 const std::vector<ov::test::InputShape> dataShapesDynamic = {
-    {{ngraph::Dimension(1, 10), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+    {{ov::Dimension(1, 10), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
      {{1, 20, 20}, {3, 16, 16}, {10, 16, 16}}},
-    {{ngraph::Dimension(1, 10), 3, 50, 50}, {{1, 3, 50, 50}, {2, 3, 50, 50}, {10, 3, 50, 50}}}};
+    {{ov::Dimension(1, 10), 3, 50, 50}, {{1, 3, 50, 50}, {2, 3, 50, 50}, {10, 3, 50, 50}}}};
 
-const std::vector<ov::test::InputShape> bucketsShapesDynamic = {{{ngraph::Dimension::dynamic()}, {{5}, {20}, {100}}}};
+const std::vector<ov::test::InputShape> bucketsShapesDynamic = {{{ov::Dimension::dynamic()}, {{5}, {20}, {100}}}};
 
 const std::vector<ov::test::ElementType> inPrc = {ov::element::f32, ov::element::i64, ov::element::i32};
 const std::vector<ov::test::ElementType> outPrc = {ov::element::i64, ov::element::i32};
@@ -142,4 +139,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsBucketize_left_Dynamic,
                          BucketizeLayerCPUTest::getTestCaseName);
 
 }  // namespace
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

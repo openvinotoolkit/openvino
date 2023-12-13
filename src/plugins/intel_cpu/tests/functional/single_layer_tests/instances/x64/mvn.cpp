@@ -6,16 +6,12 @@
 #include "shared_test_classes/single_layer/mvn.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include <ov_models/builders.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace MVN {
 namespace {
 
@@ -179,6 +175,38 @@ const auto Mvn4DStatic = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mvn4DStatic, MvnLayerCPUTest::getTestCaseName);
 
+// test cases of tails process of block layout with f32 precision.
+// could cover SSE41 code path on SSE41 platform(currrent bf16 cases are skipped on non-avx512 machine)
+const std::vector<ov::Shape>& inputShapesStatic_4D_CTails() {
+    static const std::vector<ov::Shape> inputShapesStatic_4D = {
+        {1, 3, 2, 2},
+        {1, 4, 5, 5},
+        {1, 7, 2, 5},
+    };
+    return inputShapesStatic_4D;
+}
+
+ov::AnyMap additionalConfigCTails = {
+        {ov::hint::inference_precision.name(), ov::element::f32}
+};
+
+const auto Mvn4DStaticCTails = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_4D_CTails())),
+               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(emptyReductionAxes()),
+               ::testing::Values(false),
+               ::testing::ValuesIn(normalizeVariance),
+               ::testing::ValuesIn(epsilon())),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+       ::testing::Values(emptyFusingSpec),
+       ::testing::Values(ElementType::f32),
+       ::testing::Values(ElementType::f32),
+       ::testing::Values(additionalConfigCTails));
+
+INSTANTIATE_TEST_SUITE_P(CompareWithRefs_Mvn4D_Static_CTails, MvnLayerCPUTest, Mvn4DStaticCTails, MvnLayerCPUTest::getTestCaseName);
+// end
+
 const auto Mvn5DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D())),
@@ -219,6 +247,7 @@ const auto MvnSmallSpatial = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MvnSmallSpatial, MvnLayerCPUTest, MvnSmallSpatial, MvnLayerCPUTest::getTestCaseName);
 
-} // namespace
-} // namespace MVN
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace MVN
+}  // namespace test
+}  // namespace ov

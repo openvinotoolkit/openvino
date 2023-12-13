@@ -6,6 +6,7 @@
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
@@ -14,6 +15,7 @@
 #include "transformations/snippets/x64/op/store_convert.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
@@ -59,6 +61,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(NgramNode, ov::intel_cpu)
         NGRAPH_OP_X64(MHANode, ov::intel_cpu)
         NGRAPH_OP_X64(InteractionNode, ov::intel_cpu)
+        NGRAPH_OP_X64(ScaledDotProductAttentionWithKVCache, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -137,7 +140,6 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(Brgemm, ov::snippets::op)
-        NGRAPH_OP(Buffer, ov::snippets::op)
         NGRAPH_OP(BroadcastLoad, ov::snippets::op)
         NGRAPH_OP(BroadcastMove, ov::snippets::op)
         NGRAPH_OP(ConvertSaturation, ov::snippets::op)
@@ -146,10 +148,12 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(HorizonMax, ov::snippets::op)
         NGRAPH_OP(HorizonSum, ov::snippets::op)
         NGRAPH_OP(Kernel, ov::snippets::op)
+        NGRAPH_OP(IntermediateMemoryBuffer, ov::snippets::op)
         NGRAPH_OP(Load, ov::snippets::op)
         NGRAPH_OP(LoadReshape, ov::snippets::op)
         NGRAPH_OP(LoopBegin, ov::snippets::op)
         NGRAPH_OP(LoopEnd, ov::snippets::op)
+        NGRAPH_OP(NewMemoryBuffer, ov::snippets::op)
         NGRAPH_OP(Nop, ov::snippets::op)
         NGRAPH_OP(PowerStatic, ov::snippets::op)
         NGRAPH_OP(Scalar, ov::snippets::op)
@@ -157,12 +161,16 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Subgraph, ov::snippets::op)
         NGRAPH_OP(VectorBuffer, ov::snippets::op)
         NGRAPH_OP(RankNormalization, ov::snippets::op)
+        NGRAPH_OP(PerfCountBegin, ov::snippets::op)
+        NGRAPH_OP(PerfCountEnd, ov::snippets::op)
         NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
+        NGRAPH_OP_X64(PerfCountRdtscBegin, ov::intel_cpu)
+        NGRAPH_OP_X64(PerfCountRdtscEnd, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;

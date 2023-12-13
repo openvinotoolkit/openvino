@@ -5,7 +5,7 @@
 #include "ov_lpt_models/elementwise.hpp"
 
 #include "low_precision/layer_transformation.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace ov::pass::low_precision;
@@ -16,9 +16,9 @@ namespace subgraph {
 
 namespace {
 
-std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeWithNames(
+std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeWithNames(
         const Output<Node>& parent,
-        const ngraph::element::Type precision,
+        const ov::element::Type precision,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::string name) {
     auto fq = ngraph::builder::subgraph::makeFakeQuantize(parent, precision, fqOnData);
@@ -32,9 +32,9 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeWithNames(
 
 } // namespace
 
-std::shared_ptr<ngraph::Function> ElementwiseFunction::getOriginalSubgraphWithConvolutions(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvolutions(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const bool broadcast,
         const std::string& elementWiseType,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore1,
@@ -44,7 +44,7 @@ std::shared_ptr<ngraph::Function> ElementwiseFunction::getOriginalSubgraphWithCo
         const ngraph::builder::subgraph::Convolution& convolution2,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter2,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter) {
-    ngraph::PartialShape inputShape2 = inputShape;
+    ov::PartialShape inputShape2 = inputShape;
 
     if (broadcast) {
         inputShape2[2] = 1;
@@ -52,16 +52,16 @@ std::shared_ptr<ngraph::Function> ElementwiseFunction::getOriginalSubgraphWithCo
     }
 
     auto makeBranch = [&](
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const size_t index,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore,
         const ngraph::builder::subgraph::Convolution& convolution,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter) ->
-            std::pair<std::shared_ptr<ngraph::opset1::Parameter>, std::shared_ptr<ngraph::Node>> {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+            std::pair<std::shared_ptr<ov::opset1::Parameter>, std::shared_ptr<ov::Node>> {
+        const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
         input->set_friendly_name("input" + std::to_string(index));
-        std::shared_ptr<ngraph::Node> parent = input;
+        std::shared_ptr<ov::Node> parent = input;
 
         if (!fqOnDataBefore.empty()) {
             parent = makeFakeQuantizeWithNames(parent, precision, fqOnDataBefore, "fakeQuantizeBefore" + std::to_string(index));
@@ -82,12 +82,12 @@ std::shared_ptr<ngraph::Function> ElementwiseFunction::getOriginalSubgraphWithCo
     const auto branch1 = makeBranch(precision, inputShape, 1, fqOnDataBefore1, convolution1, fqOnDataAfter1);
     const auto branch2 = makeBranch(precision, inputShape, 2, fqOnDataBefore2, convolution2, fqOnDataAfter2);
 
-    std::shared_ptr<ngraph::Node> result;
+    std::shared_ptr<ov::Node> result;
     if (elementWiseType == "add") {
-        result = std::make_shared<ngraph::opset1::Add>(branch1.second, branch2.second);
+        result = std::make_shared<ov::opset1::Add>(branch1.second, branch2.second);
         result->set_friendly_name("add");
     } else if (elementWiseType == "multiply") {
-        result = std::make_shared<ngraph::opset1::Multiply>(branch1.second, branch2.second);
+        result = std::make_shared<ov::opset1::Multiply>(branch1.second, branch2.second);
         result->set_friendly_name("multiply");
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "not supported element-wise operation type " << elementWiseType;
@@ -97,7 +97,7 @@ std::shared_ptr<ngraph::Function> ElementwiseFunction::getOriginalSubgraphWithCo
         result = makeFakeQuantizeWithNames(result, precision, fqOnDataAfter, "fakeQuantizeAfter");
 
         // we need a some operation to move dequantization operations away from FakeQuantize to avoid cleanup fuse
-        result = std::make_shared<ngraph::opset1::MaxPool>(
+        result = std::make_shared<ov::opset1::MaxPool>(
             result,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
@@ -107,11 +107,11 @@ std::shared_ptr<ngraph::Function> ElementwiseFunction::getOriginalSubgraphWithCo
         result->set_friendly_name("maxPool");
     }
 
-    result = std::make_shared<ngraph::opset1::Result>(result);
+    result = std::make_shared<ov::opset1::Result>(result);
     result->set_friendly_name("result");
 
-    ngraph::ResultVector results{ std::dynamic_pointer_cast<ngraph::opset1::Result>(result) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ branch1.first, branch2.first }, "AddTransformation");
+    ov::ResultVector results{ std::dynamic_pointer_cast<ov::opset1::Result>(result) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ branch1.first, branch2.first }, "AddTransformation");
 }
 
 }  // namespace subgraph

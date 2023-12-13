@@ -25,13 +25,16 @@ struct Evaluate : element::NoAction<bool> {
                              const Shape& grid_shape,
                              const GridSample::Attributes& attributes) {
         using namespace ov::element;
-        return IfTypeOf<f32>::apply<EvalByGridType>(grid.get_element_type(),
-                                                    output.data<T>(),
-                                                    data.data<const T>(),
-                                                    grid,
-                                                    data_shape,
-                                                    grid_shape,
-                                                    attributes);
+        return IF_TYPE_OF(eval_by_grid_type,
+                          OV_PP_ET_LIST(f32),
+                          EvalByGridType,
+                          grid.get_element_type(),
+                          output.data<T>(),
+                          data.data<const T>(),
+                          grid,
+                          data_shape,
+                          grid_shape,
+                          attributes);
     }
 
 private:
@@ -80,9 +83,7 @@ void GridSample::validate_and_infer_types() {
                               "The element type of the grid input tensor must be a floating point type.");
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto out_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }
@@ -102,13 +103,16 @@ bool GridSample::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     outputs[0].set_shape(out_shape);
 
     using namespace ov::element;
-    return IfTypeOf<f32>::apply<Evaluate>(inputs[0].get_element_type(),
-                                          outputs[0],
-                                          inputs[0],
-                                          inputs[1],
-                                          inputs[0].get_shape(),
-                                          inputs[1].get_shape(),
-                                          m_attributes);
+    return IF_TYPE_OF(v9_GridSample_evaluate,
+                      OV_PP_ET_LIST(f32),
+                      Evaluate,
+                      inputs[0].get_element_type(),
+                      outputs[0],
+                      inputs[0],
+                      inputs[1],
+                      inputs[0].get_shape(),
+                      inputs[1].get_shape(),
+                      m_attributes);
 }
 
 bool GridSample::has_evaluate() const {

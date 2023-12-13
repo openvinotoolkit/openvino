@@ -14,6 +14,18 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+// Snippets performance count mode
+// Disabled - default, w/o perf count for snippets
+// Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf count data for each thread.
+// BackendSpecific - perf count provided by backend. This is for device specific requirment.
+// For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read RDTSC register is implemented,
+// which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and perf count end execution, on ICX. This mode only support single thread.
+enum PerfCountMode {
+    Disabled,
+    Chrono,
+    BackendSpecific,
+};
+
 class Config {
 public:
     // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
@@ -21,6 +33,7 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
+    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
     // Minimal advised work amount for parallel execution.
@@ -29,6 +42,9 @@ public:
     // Minimal advised work amount that should be processed during one call of the executable produced by Subgraph::generate
     // Set by a backend, should be large enough to compensate for the kernel call overheads
     size_t m_min_kernel_work_amount = 256;
+    // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
+    // False if all Buffers will have uniqie ID and offsets in the Linear IR
+    bool m_are_buffers_optimized = true;
 };
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
@@ -47,7 +63,7 @@ public:
     LinearIR() = default;
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
     std::shared_ptr<LinearIR> clone() const;
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
@@ -109,7 +125,6 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
