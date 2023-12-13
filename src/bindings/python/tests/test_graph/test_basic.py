@@ -25,9 +25,10 @@ from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
 from openvino.runtime.utils.types import get_element_type
+from tests.utils.helpers import generate_model_with_memory
 
 
-def test_graph_function_api():
+def test_graph_api():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=Type.f32, name="B")
@@ -39,33 +40,33 @@ def test_graph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = Layout("NC")
     assert parameter_a.layout == Layout("NC")
-    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
+    model = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
 
-    function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
+    model.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
-    ordered_ops = function.get_ordered_ops()
+    ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
-    assert len(function.get_ops()) == 6
-    assert function.get_output_size() == 1
-    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in function.inputs]
-    assert ["Result"] == [output.get_node().get_type_name() for output in function.outputs]
-    assert function.input(0).get_node().friendly_name == "A"
-    assert function.output(0).get_node().get_type_name() == "Result"
-    assert function.input(tensor_name="A").get_node().friendly_name == "A"
-    assert function.output().get_node().get_type_name() == "Result"
-    assert function.get_output_op(0).get_type_name() == "Result"
-    assert function.get_output_element_type(0) == parameter_a.get_element_type()
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert (function.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
-    assert len(function.get_parameters()) == 3
-    results = function.get_results()
+    assert len(model.get_ops()) == 6
+    assert model.get_output_size() == 1
+    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in model.inputs]
+    assert ["Result"] == [output.get_node().get_type_name() for output in model.outputs]
+    assert model.input(0).get_node().friendly_name == "A"
+    assert model.output(0).get_node().get_type_name() == "Result"
+    assert model.input(tensor_name="A").get_node().friendly_name == "A"
+    assert model.output().get_node().get_type_name() == "Result"
+    assert model.get_output_op(0).get_type_name() == "Result"
+    assert model.get_output_element_type(0) == parameter_a.get_element_type()
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert (model.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
+    assert len(model.get_parameters()) == 3
+    results = model.get_results()
     assert len(results) == 1
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
     results[0].layout = Layout("NC")
     assert results[0].layout.to_string() == Layout("NC")
-    assert function.get_friendly_name() == "TestModel"
+    assert model.get_friendly_name() == "TestModel"
 
 
 @pytest.mark.parametrize(
@@ -143,6 +144,8 @@ def test_convert_to_bool(destination_type, input_data):
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64),
+        pytest.param(Type.f32, (-8, 8), np.int32, np.float32),
+        pytest.param(Type.f64, (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -554,12 +557,7 @@ def test_multiple_outputs():
 
 
 def test_sink_model_ctor():
-    input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
-    rv = ops.read_value(input_data, "var_id_667", np.float32, [2, 2])
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
-    res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    model = generate_model_with_memory(input_shape=[2, 2], data_type=np.float32)
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
@@ -570,7 +568,7 @@ def test_sink_model_ctor():
     assert len(model.get_ops()) == 5
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
-    assert model.get_output_element_type(0) == input_data.get_element_type()
+    assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
     assert list(model.get_output_shape(0)) == [2, 2]
     assert (model.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
     assert len(model.get_parameters()) == 1

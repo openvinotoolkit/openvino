@@ -35,7 +35,7 @@ protected:
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
         auto constant = ngraph::builder::makeConstant(ngPrc, {1, inputSize}, std::vector<size_t>{1});
         auto mul1 = ngraph::builder::makeEltwise(input[0], constant, ngraph::helpers::EltwiseTypes::ADD);
-        auto sigmoid1 = std::make_shared<ngraph::opset1::Sigmoid>(mul1);
+        auto sigmoid1 = std::make_shared<ov::opset1::Sigmoid>(mul1);
         auto mul2 = ngraph::builder::makeEltwise(input[0], sigmoid1, ngraph::helpers::EltwiseTypes::MULTIPLY);
         auto fake3 = ngraph::builder::makeFakeQuantize(sigmoid1,
                                                        ngPrc,
@@ -46,7 +46,7 @@ protected:
                                                        {minMaxFq.first},
                                                        {minMaxFq.second});
         auto mul3 = ngraph::builder::makeEltwise(mul2, fake3, ngraph::helpers::EltwiseTypes::ADD);
-        auto result = std::make_shared<ngraph::opset7::Result>(mul3);
+        auto result = std::make_shared<ov::op::v0::Result>(mul3);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "fq_fusion_with_sigmoid");
     }
 

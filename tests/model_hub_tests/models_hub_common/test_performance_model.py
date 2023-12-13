@@ -3,17 +3,20 @@
 
 
 import sys
+import traceback
 import time
 from enum import Enum
-import traceback
 import pytest
 from openvino.runtime.utils.types import openvino_to_numpy_types_map
+import models_hub_common.utils as utils
+import models_hub_common.constants as const
+
 
 import numpy as np
-from models_hub_common.multiprocessing_utils import multiprocessing_run
 import openvino as ov
-
-# noinspection PyUnresolvedReferences
+import pytest
+from models_hub_common.multiprocessing_utils import multiprocessing_run
+from openvino.runtime.utils.types import openvino_to_numpy_types_map
 
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results
@@ -45,29 +48,24 @@ class Status(Enum):
     LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR = 9
 
 
+class ModelResults:
+    def __init__(self):
+        self.infer_mean_time = 0.0
+        self.infer_variance = 0.0
+
+
 class Results:
     def __init__(self):
-        self.converted_infer_time = 0.0
-        self.converted_model_time_variance = 0.0
-        self.read_model_infer_time = 0.0
-        self.read_model_infer_time_variance = 0.0
+        self.converted_model_results = ModelResults()
+        self.read_model_results = ModelResults()
         self.infer_time_ratio = 0.0
         self.error_message = ''
         self.status = None
 
 
-def wrap_timer(func, args):
-    t0 = time.time()
-    retval = func(*args)
-    t1 = time.time()
-    return retval, t1 - t0
-
-
 class TestModelPerformance:
     infer_timeout = 600
     threshold_ratio = 0.1
-    num_heat_runs = 100
-    num_measure_runs = 500
     threshold_var = 10.0
 
     def load_model(self, model_name, model_link):
@@ -118,78 +116,73 @@ class TestModelPerformance:
             inputs_info.append((param.get_node().get_friendly_name(), input_shape, param.get_element_type()))
         return inputs_info
 
-    def get_converted_model(self, model_path: str):
-        return ov.convert_model(model_path)
-
     def get_read_model(self, model_path: str):
         core = ov.Core()
         return core.read_model(model=model_path)
 
-    def infer_model(self, ov_model, inputs):
-        infer_step_t0 = time.time()
-        # heat run
-        for _ in range(0, TestModelPerformance.num_heat_runs):
-            ov_model(inputs)
-        # measure
-        results = []
-        for _ in range(0, TestModelPerformance.num_measure_runs):
-            t0 = time.time()
-            ov_model(inputs)
-            t1 = time.time()
-            results.append(t1 - t0)
-        mean = np.mean(results)
-        var = np.std(results, ddof=1) * 100 / mean
-        infer_step_t1 = time.time()
-        print('inference measurement done in {} secs'.format(infer_step_t1 - infer_step_t0))
-        return mean, var
+    def heat_hardware(self, ov_model, inputs) -> None:
+        _, heat_n_repeats, _ = utils.measure(utils.nano_secs(const.runtime_heat_duration), ov_model, (inputs,))
+        print('heat done in {} repeats'.format(heat_n_repeats))
+
+    def measure_inference(self, ov_model, inputs) -> ModelResults:
+        time_slices, infer_n_repeats, real_runtime = utils.measure(utils.nano_secs(const.runtime_measure_duration),
+                                                                   ov_model,
+                                                                   (inputs,))
+        print('measurement done in {} repeats'.format(infer_n_repeats))
+        infer_throughput = float(infer_n_repeats * (10 ** 9)) / real_runtime
+        infer_mean_time_ns = np.mean(time_slices)
+        infer_mean_time = infer_mean_time_ns / (10 ** 9)
+        infer_variance = (np.std(time_slices, ddof=1) * 100) / infer_mean_time_ns
+        utils.print_stat('model time infer {} secs', infer_mean_time)
+        utils.print_stat('model time infer var {}', infer_variance)
+        utils.print_stat('model time infer throughput {}', infer_throughput)
+        results = ModelResults()
+        results.infer_mean_time = infer_mean_time
+        results.infer_variance = infer_variance
+        return results
+
+    def infer_model(self, ov_model, inputs) -> ModelResults:
+        self.heat_hardware(ov_model, inputs)
+        return self.measure_inference(ov_model, inputs)
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
         return core.compile_model(model, ie_device)
 
-    def _run(self, model_name, model_link, ie_device):
+    def __run(self, model_name, model_link, ie_device):
         results = Results()
         results.status = None
         try:
-            print("Load the model {} (url: {})".format(model_name, model_link))
             results.status = Status.LOAD_MODEL
-            model_obj, timedelta = wrap_timer(self.load_model, (model_name, model_link))
-            print('Model {} loaded in {} secs'.format(model_name, timedelta))
-            print("Retrieve inputs info")
+            model_obj = utils.call_with_timer('Load model', self.load_model, (model_name, model_link))
             results.status = Status.GET_INPUTS_INFO
-            inputs_info, timedelta = wrap_timer(self.get_inputs_info, (model_obj,))
-            print('Got inputs info in {} secs'.format(timedelta))
-            print("Prepare input data")
+            inputs_info = utils.call_with_timer('Retrieve model inputs', self.get_inputs_info, (model_obj,))
             results.status = Status.PREPARE_INPUTS
             inputs = self.prepare_inputs(inputs_info)
-            print("Convert the model into ov::Model")
             results.status = Status.GET_CONVERTED_MODEL
-            converted_model = self.compile_model(self.get_converted_model(model_obj), ie_device)
-            print("read the model into ov::Model")
+            model = utils.call_with_timer('Convert model', ov.convert_model, (model_obj,))
+            converted_model = utils.call_with_timer('Compile converted model', self.compile_model, (model, ie_device))
             results.status = Status.GET_READ_MODEL
-            read_model = self.compile_model(self.get_read_model(model_obj), ie_device)
-            print("Infer the converted model")
+            model = utils.call_with_timer('Read model', self.get_read_model, (model_obj,))
+            read_model = utils.call_with_timer('Compile read model', self.compile_model, (model, ie_device))
             results.status = Status.INFER_CONVERTED_MODEL
-            converted_model_time, converted_model_time_variance = self.infer_model(converted_model, inputs)
-            print('converted model time infer {}'.format(converted_model_time))
-            print('converted model time infer var {}'.format(converted_model_time_variance))
-            print("Infer read model")
+            results.converted_model_results = utils.call_with_timer('Infer converted model',
+                                                                    self.infer_model,
+                                                                    (converted_model, inputs))
             results.status = Status.INFER_READ_MODEL
-            read_model_time, read_model_time_variance = self.infer_model(read_model, inputs)
-            print('read model time infer {}'.format(read_model_time))
-            print('read model time infer var {}'.format(read_model_time_variance))
+            results.read_model_results = utils.call_with_timer('Infer read model',
+                                                               self.infer_model,
+                                                               (read_model, inputs))
 
-            infer_time_ratio = converted_model_time/read_model_time
+            infer_time_ratio = (results.converted_model_results.infer_mean_time /
+                                results.read_model_results.infer_mean_time)
+            utils.print_stat('infer ratio converted_model_time/read_model_time {}', infer_time_ratio)
 
-            results.converted_infer_time = converted_model_time
-            results.converted_model_time_variance = converted_model_time_variance
-            results.read_model_infer_time = read_model_time
-            results.read_model_infer_time_variance = read_model_time_variance
             results.infer_time_ratio = infer_time_ratio
 
             if abs(infer_time_ratio - 1) > TestModelPerformance.threshold_ratio:
-                if (read_model_time_variance > TestModelPerformance.threshold_var
-                        or converted_model_time_variance > TestModelPerformance.threshold_var):
+                if (results.read_model_results.infer_variance > TestModelPerformance.threshold_var
+                        or results.converted_model_results.infer_variance > TestModelPerformance.threshold_var):
                     results.status = Status.LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR
                     results.error_message = "too large ratio {} with large variance".format(infer_time_ratio)
                 else:
@@ -200,15 +193,16 @@ class TestModelPerformance:
         except:
             ex_type, ex_value, tb = sys.exc_info()
             results.error_message = "{tb}\n{ex_type}: {ex_value}".format(tb=''.join(traceback.format_tb(tb)),
-                                                             ex_type=ex_type.__name__, ex_value=ex_value)
+                                                                         ex_type=ex_type.__name__, ex_value=ex_value)
         return results
 
     def run(self, model_name, model_link, ie_device):
         self.result = Results()
         t0 = time.time()
-        self.result = multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
+        self.result = multiprocessing_run(self.__run, [model_name, model_link, ie_device], model_name,
+                                          self.infer_timeout)
         t1 = time.time()
-        print('test running time {}'.format(t1 - t0))
+        utils.print_stat('test run time {} secs', (t1 - t0))
         if self.result.status == Status.OK:
             return
         err_message = "\n{func} running failed: \n{msg}".format(func=model_name, msg=self.result.error_message)

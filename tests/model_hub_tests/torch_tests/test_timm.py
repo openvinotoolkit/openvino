@@ -2,19 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
+import pytest
 import timm
 import torch
-import pytest
-from torch_utils import TestTorchConvertModel, process_pytest_marks
 from models_hub_common.constants import hf_hub_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list
+
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
 def filter_timm(timm_list: list) -> list:
     unique_models = set()
     filtered_list = []
     ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium", "big",
-                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l", "xl"}
+                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l",
+                  "xl"}
     for name in sorted(timm_list):
         # first: remove datasets
         name_parts = name.split(".")
@@ -65,7 +68,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",
                                       "vit_base_patch8_224.augreg_in21k",
-                                      "beit_base_patch16_224.in22k_ft_in22k"])
+                                      "beit_base_patch16_224.in22k_ft_in22k",
+                                      "sequencer2d_l.in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.run(name, None, ie_device)

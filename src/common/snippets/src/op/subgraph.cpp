@@ -34,15 +34,14 @@
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
-#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
-#include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
+#include "snippets/lowered/pass/insert_perf_count.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -350,7 +349,8 @@ VectorDims Subgraph::infer_master_shape() {
 std::shared_ptr<lowered::LinearIR>
 Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops ||
+        (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
@@ -428,12 +428,19 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
+    // We have to call MarkLoops before backend markup passes
+    // because these passes can update subtensor but not insert Loop (e.g. when loop increment is equal to the corresponding dim)
+    // If MarkLoops is called on such LIR, it inserts Eltwise-like loops which might not reflect backend expectations
+    // It should be fixed by ticket 113666
+    lowered::pass::PassPipeline markup_pipeline;
+    markup_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
+    markup_pipeline.run(linear_ir);
+
     // Ticket: 113666
     // TODO: Make pass pipeline with backend passes more flexible
     backend_passes_pre_common.run(linear_ir);
 
     lowered::pass::PassPipeline common_pipeline;
-    common_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
     common_pipeline.register_pass<lowered::pass::FuseLoops>();
     common_pipeline.register_pass<lowered::pass::SplitLoops>();
@@ -453,19 +460,11 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
-    lowered::pass::PassPipeline buffer_pipeline;
-    buffer_pipeline.register_pass<lowered::pass::IdentifyBuffers>();
-    buffer_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
-    buffer_pipeline.register_pass(buffer_allocation_pass);
-    buffer_pipeline.run(linear_ir);
-
     lowered::pass::PassPipeline final_pipeline;
+    final_pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
+    final_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
-    final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
-
-    lowering_result.buffer_scratchpad_size = buffer_allocation_pass->get_scratchpad_size();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
@@ -495,6 +494,10 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+    if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
+        lowered::pass::InsertPerfCount perf_count_pass;
+        perf_count_pass.run(linear_ir);
+    }
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();
@@ -528,16 +531,6 @@ void Subgraph::print() const {
         }
         remark(13) << std::endl;
     }
-}
-
-
-void Subgraph::serialize() const {
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_model(body_ptr());
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
-    std::cout << m_model << std::endl;
 }
 
 } // namespace op

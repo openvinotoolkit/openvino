@@ -30,7 +30,7 @@ beomi/exKcBERT-kowiki,exbert,skip,Load problem
 bert-base-uncased,bert
 bigscience/bloom-560m,bloom
 Bono93/basic-cnn-example,simplecnn,skip,Load problem
-caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr,xfail,Unsupported op prim::Constant
+caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr
 camembert-base,camembert
 CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,xfail,Tracing problem
 CEBaB/bert-base-uncased.CEBaB.causalm.ambiance.2-class.exclusive.seed_42,bert_causalm,skip,Load problem
@@ -65,17 +65,17 @@ EleutherAI/pythia-6.9b,gpt_neox
 facebook/bart-large-mnli,bart
 facebook/convnextv2-tiny-22k-384,convnextv2
 facebook/detr-resnet-50,detr
-facebook/dinov2-base,dinov2,skip,Load problem
+facebook/dinov2-base,dinov2
 facebook/dpr-question_encoder-single-nq-base,dpr
-facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
+facebook/encodec_24khz,encodec
 facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
-facebook/mms-tts-eng,vits,skip,Load problem
-facebook/musicgen-small,musicgen,skip,Load problem
+facebook/mms-tts-eng,vits,xfail,Accuracy failed: results cannot be broadcasted
+facebook/musicgen-small,musicgen
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
@@ -104,7 +104,7 @@ google/mobilebert-uncased,mobilebert
 google/mobilenet_v1_0.75_192,mobilenet_v1
 google/mt5-base,mt5
 google/owlvit-base-patch32,owlvit
-google/pix2struct-docvqa-base,pix2struct,skip,Load problem
+google/pix2struct-docvqa-base,pix2struct
 google/realm-orqa-nq-openqa,realm,skip,Load problem
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas
@@ -168,7 +168,7 @@ HJHGJGHHG/GAU-Base-Full,gau,skip,Load problem
 huggingface/autoformer-tourism-monthly,autoformer,skip,Load problem
 huggingface/informer-tourism-monthly,informer,skip,Load problem
 huggingface/time-series-transformer-tourism-monthly,time_series_transformer,skip,Load problem
-HuggingFaceM4/tiny-random-idefics,idefics,skip,Load problem
+HuggingFaceM4/tiny-random-idefics,idefics,xfail,tracing error: Please check correctness of provided example_input (eval was correct but trace failed with incommatible tuples and tensors)
 HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
 HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
 HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
@@ -243,12 +243,12 @@ microsoft/conditional-detr-resnet-50,conditional_detr
 microsoft/deberta-base,deberta
 microsoft/git-large-coco,git,skip,Load problem
 microsoft/layoutlm-base-uncased,layoutlm
-microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
+microsoft/layoutlmv2-base-uncased,layoutlmv2,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
-microsoft/speecht5_tts,speecht5,skip,Load problem
+microsoft/speecht5_tts,speecht5,xfail,Tracing error: hangs with no error (probably because of infinite while inside generate)
 microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
@@ -294,6 +294,7 @@ openai-gpt,openai-gpt
 OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
 openmmlab/upernet-convnext-small,upernet,skip,Load problem
 openMUSE/clip-vit-large-patch14-text-enc,clip_text_model,skip,Load problem
+OpenVINO/opt-125m-gptq,opt
 PatrickHaller/ngme-llama-264M,ngme,skip,Load problem
 patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,encoder_decoder,skip,Load problem
 paulhindemith/test-zeroshot,test-zeroshot,skip,Load problem
@@ -316,7 +317,7 @@ sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
 Salesforce/blip2-flan-t5-xl,blip-2,skip,Load problem
-Salesforce/blip-image-captioning-large,blip,skip,Load problem
+Salesforce/blip-image-captioning-large,blip
 Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
 SamLowe/roberta-base-go_emotions,roberta
 sanchit-gandhi/enhanced_direct_s2st_en_to_es,speech-to-speech,skip,Load problem

@@ -114,11 +114,12 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
+    bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
     task_executor_config.update_executor_config(task_executor_config._streams,
                                                 1,
                                                 task_executor_config._threadPreferredCoreType,
-                                                false);
+                                                enable_cpu_pinning);
 
     return task_executor_config;
 }
@@ -658,7 +659,7 @@ void program::mark_if_constant(program_node& node) {
 
 // mark if the node is in data flow assuming that all dependencies are marked properly
 void program::mark_if_data_flow(program_node& node) {
-    if (node.is_type<mutable_data>() || node.is_type<input_layout>()) {
+    if (node.is_type<mutable_data>() || node.is_type<input_layout>() || node.is_type<read_value>()) {
         node.data_flow = true;
     } else {
         node.data_flow = false;
@@ -1216,19 +1217,17 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
-void program::dump_program(const char* stage,
-                           bool with_full_info,
-                           std::function<bool(program_node const&)> const& filter) const {
+void program::dump_program(const char* stage, bool with_full_info) const {
     std::string path = get_dir_path(_config);
     if (path.empty() || !with_full_info) {
         return;
     }
 
     std::ofstream graph(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".graph");
-    dump_graph_init(graph, *this, filter);
+    dump_graph_init(graph, *this);
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".info");
-    dump_graph_info(graph, *this, filter);
+    dump_graph_info(graph, *this);
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".order");
     dump_graph_processing_order(graph, *this);
@@ -1681,4 +1680,246 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 void program::cancel_compilation_context() {
     if (_compilation_context != nullptr)
         _compilation_context->cancel();
+}
+
+void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
+    ob << nodes_map.size();
+    for (auto& node : nodes_map) {
+        ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
+
+        if (node.second->is_type<data>() && node.second->as<data>().get_primitive()->mem == nullptr) {
+            auto& data_node = node.second->as<data>();
+            if (data_node.get_attached_memory_ptr() == nullptr) {
+                ob << false;
+                continue;
+            } else {
+                node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
+            }
+        }
+        ob << true;
+
+        ob << node.second->desc;
+
+        if (node.second->is_type<mutable_data>()) {
+            mutable_datas_ptrs[node.second->as<mutable_data>().get_attached_memory_ptr()].push_back(node.second.get());
+        }
+    }
+
+    std::list<std::pair<primitive_id, primitive_id>> output_sharing_mutable_datas;
+    for (auto item : mutable_datas_ptrs) {
+        if (item.second.size() != 2)
+            continue;
+
+        output_sharing_mutable_datas.push_back({item.second[0]->id(), item.second[1]->id()});
+    }
+
+    ob << output_sharing_mutable_datas.size();
+    for (auto& shared_mem_pair : output_sharing_mutable_datas) {
+        ob << shared_mem_pair.first;
+        ob << shared_mem_pair.second;
+    }
+
+    for (auto& node : nodes_map) {
+        ob << node.first;
+        node.second->save(ob);
+        ob << node.second->get_dependant_shape_of_nodes().size();
+        for (auto& dep_node : node.second->get_dependant_shape_of_nodes()) {
+            ob << dep_node->id();
+        }
+    }
+
+    ob << inputs.size();
+    for (auto& input : inputs) {
+        ob << input->id();
+    }
+
+    ob << outputs.size();
+    for (auto& output : outputs) {
+        ob << output->id();
+    }
+
+    ob << _is_body_program;
+    ob << _can_be_optimized;
+    get_processing_order().save(ob);
+
+    {
+        auto& kernels_cache = get_kernels_cache();
+        std::vector<primitive_id> impl_ids;
+        for (auto& node : get_processing_order()) {
+            if (node->get_selected_impl() != nullptr) {
+                impl_ids.emplace_back(node->id());
+                kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
+            }
+        }
+        ob << kernels_cache;
+        ob << impl_ids;
+        for (auto& impl_id : impl_ids) {
+            if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
+                ob << true;
+                auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+                ob.setKernelImplParams(params.get());
+                ob << get_node_ptr(impl_id)->selected_impl;
+            } else {
+                ob << false;
+                ob << get_node_ptr(impl_id)->selected_impl;
+            }
+            ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
+        }
+    }
+
+    ob << optimized_out.size();
+    for (auto& opt_prim : optimized_out) {
+        ob << opt_prim;
+    }
+
+    ob << prim_info.size();
+    for (auto& p_info : prim_info) {
+        ob << p_info.original_id;
+        ob << p_info.type_id;
+        ob << p_info.c_dependencies;
+        ob << p_info.c_users;
+        ob << p_info.c_fused_ids;
+        ob << p_info.output_layout;
+        ob << p_info.layout_str;
+        ob << p_info.kernel_id;
+        ob << make_data(&p_info.runtime_precision, sizeof(data_types));
+        ob << p_info.is_cpu;
+        ob << p_info.exec_id;
+    }
+}
+
+void program::load(cldnn::BinaryInputBuffer& ib) {
+    init_program();
+
+    size_t num_nodes;
+    ib >> num_nodes;
+    bool is_valid_data_node;
+    for (size_t i = 0; i < num_nodes; ++i) {
+        ib >> is_valid_data_node;
+        if (!is_valid_data_node)
+            continue;
+
+        std::shared_ptr<cldnn::primitive> prim;
+        ib >> prim;
+        get_or_create(prim);
+    }
+
+    size_t num_output_sharing_mutable_datas;
+    ib >> num_output_sharing_mutable_datas;
+    for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {
+        primitive_id md_id1, md_id2;
+        ib >> md_id1;
+        ib >> md_id2;
+
+        auto& md_node1 = get_node(md_id1).as<mutable_data>();
+        auto& md_node2 = get_node(md_id2).as<mutable_data>();
+
+        md_node2.typed_desc()->mem = md_node1.typed_desc()->mem;
+        md_node2.replace_memory(md_node2.typed_desc()->mem);
+    }
+
+    for (size_t i = 0; i < num_nodes; ++i) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        auto& p_node = get_node(prim_id);
+        p_node.load(ib);
+        size_t num_dep_nodes;
+        ib >> num_dep_nodes;
+        for (size_t i = 0; i < num_dep_nodes; ++i) {
+            ib >> prim_id;
+            auto& dep_node = get_node(prim_id);
+            p_node.add_dependant_shape_of_node(&dep_node);
+        }
+    }
+
+    ib >> num_nodes;
+    inputs.clear();
+    for (size_t i = 0; i < num_nodes; ++i) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        auto& p_node = get_node(prim_id);
+        inputs.emplace_back(&p_node);
+    }
+
+    ib >> num_nodes;
+    outputs.clear();
+    for (size_t i = 0; i < num_nodes; ++i) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        auto& p_node = get_node(prim_id);
+        outputs.emplace_back(&p_node);
+    }
+
+    ib >> _is_body_program;
+    ib >> _can_be_optimized;
+
+    get_processing_order().load(ib, *this);
+
+    {
+        auto& kernels_cache = get_kernels_cache();
+        ib >> kernels_cache;
+
+        std::vector<primitive_id> impl_ids;
+        ib >> impl_ids;
+
+        for (auto& impl_id : impl_ids) {
+            auto& p_node = get_node(impl_id);
+
+            bool is_onednn;
+            ib >> is_onednn;
+            if (is_onednn) {
+                auto params = p_node.get_kernel_impl_params();
+                ib.setKernelImplParams(params.get());
+                ib >> p_node.selected_impl;
+            } else {
+                ib >> p_node.selected_impl;
+            }
+
+            std::vector<std::string> cached_kernel_ids;
+            ib >> cached_kernel_ids;
+            p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
+        }
+    }
+
+    size_t optimized_out_size;
+    ib >> optimized_out_size;
+    optimized_out.clear();
+    for (size_t i = 0; i < optimized_out_size; i++) {
+        primitive_id opt_prim;
+        ib >> opt_prim;
+        optimized_out.emplace_back(opt_prim);
+    }
+
+    size_t prims_info_size;
+    ib >> prims_info_size;
+    prim_info.clear();
+    for (size_t i = 0; i < prims_info_size; i++) {
+        primitive_id original_id;
+        std::string type_id;
+        primitive::primitive_id_arr c_dependencies;
+        primitive::primitive_id_arr c_users;
+        primitive::primitive_id_arr c_fused_ids;
+        layout output_layout;
+        std::string layout_str;
+        std::string kernel_id;
+        data_types runtime_precision;
+        bool is_cpu;
+        int exec_id;
+
+        ib >> original_id;
+        ib >> type_id;
+        ib >> c_dependencies;
+        ib >> c_users;
+        ib >> c_fused_ids;
+        ib >> output_layout;
+        ib >> layout_str;
+        ib >> kernel_id;
+        ib >> make_data(&runtime_precision, sizeof(data_types));
+        ib >> is_cpu;
+        ib >> exec_id;
+        primitive_info p_info(original_id, type_id, c_dependencies, c_users, c_fused_ids,
+                              output_layout, layout_str, kernel_id, runtime_precision, is_cpu, exec_id);
+        prim_info.emplace_back(p_info);
+    }
 }

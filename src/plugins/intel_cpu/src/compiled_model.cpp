@@ -15,11 +15,6 @@
 #include "serialize.h"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
-#define FIX_62820 0
-#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-#    include <threading/ie_tbb_streams_executor.hpp>
-#endif
-
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
@@ -71,20 +66,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        m_task_executor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
-#else
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
-#endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
-        m_callback_executor = std::make_shared<ImmediateSerialExecutor>();
-#else
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
-#endif
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -261,7 +247,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
-            streams);  // ov::optimal_number_of_infer_requests has no negative values
+            streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(

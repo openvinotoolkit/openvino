@@ -275,14 +275,4 @@ void reorder_inst::update_output_memory() {
     }
     _mem_allocated = false;
 }
-
-void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _req_reinterpr;
-}
-
-void reorder_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-    ib >> _req_reinterpr;
-}
 }  // namespace cldnn

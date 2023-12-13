@@ -4,7 +4,7 @@
 
 #include <fstream>
 
-#include <ov_models/subgraph_builders.hpp>
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include <base/behavior_test_utils.hpp>
 #include "behavior/plugin/life_time.hpp"
 
@@ -31,7 +31,7 @@ namespace BehaviorTestsDefinitions {
         std::tie(target_device, order) = this->GetParam();
         APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
     }
 
     void release_order_test(std::vector<int> order, const std::string &target_device,
@@ -109,7 +109,7 @@ namespace BehaviorTestsDefinitions {
     void HoldersTestOnImportedNetwork::SetUp() {
         target_device = this->GetParam();
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
     }
 

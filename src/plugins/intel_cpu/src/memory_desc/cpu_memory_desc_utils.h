@@ -7,7 +7,8 @@
 #include <onednn/dnnl.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include <ie_layouts.h>
 #include <ie_blob.h>
 #include <openvino/runtime/so_ptr.hpp>
@@ -42,11 +43,11 @@ public:
     static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc);
 
     /**
-     * @brief Converts InferenceEngine::TensorDesc to CpuBlockedMemoryDesc
-     * @param desc InferenceEngine::TensorDesc to be converted
-     * @return converted CpuBlockedMemoryDesc
+     * @brief Converts MemoryDesc to BlockedMemoryDesc
+     * @param desc MemoryDesc to be converted
+     * @return converted BlockedMemoryDesc
      */
-    static CpuBlockedMemoryDesc convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
+    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
 
     /**
      * @brief Builds CpuBlockedMemoryDesc for given ov::ITensor
@@ -55,19 +56,13 @@ public:
      */
     static std::shared_ptr<CpuBlockedMemoryDesc> generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @brief Converts InferenceEngine::TensorDesc to DnnlBlockedMemoryDesc
      * @param desc InferenceEngine::TensorDesc to be converted
      * @return converted DnnlBlockedMemoryDesc
      */
     static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
-
-    /**
-     * @brief Converts MemoryDesc to BlockedMemoryDesc
-     * @param desc MemoryDesc to be converted
-     * @return converted BlockedMemoryDesc
-     */
-    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
 
     /**
      * @brief Creates InferenceEngine::Blob from Memory with the memory reuse
@@ -89,6 +84,7 @@ public:
      * @return converted InferenceEngine::TensorDesc
      */
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     static constexpr Dim DEFAULT_DUMMY_VAL = 64;
 

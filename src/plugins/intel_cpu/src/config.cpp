@@ -343,11 +343,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streamExecutorConfig._streams_changed = true;
     }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: multi-stream execution has functional issues on ARM target
-    streamExecutorConfig._streams = 1;
-    streamExecutorConfig._streams_changed = true;
-#endif
     this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -383,8 +378,6 @@ void Config::updateProperties() {
 
     _config.insert({ov::device::id.name(), device_id});
 
-    _config.insert({ov::num_streams.name(), std::to_string(streamExecutorConfig._streams)});
-    _config.insert({ov::inference_num_threads.name(), std::to_string(streamExecutorConfig._threads)});
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
 

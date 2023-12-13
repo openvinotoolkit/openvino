@@ -8,5 +8,5 @@ torchvision
 transformers
 pytest
 tensorflow-addons; python_version <= '3.10'
-jax; sys_platform == "linux"
-jaxlib; sys_platform == "linux"
+jax; sys_platform == "linux" and platform_machine == "x86_64" # https://jax.readthedocs.io/en/latest/installation.html#pip-installation-cpu - wheels are for "x86_64" only
+jaxlib; sys_platform == "linux" and platform_machine == "x86_64" # https://jax.readthedocs.io/en/latest/installation.html#pip-installation-cpu - wheels are for "x86_64" only
