@@ -16,7 +16,6 @@
 
 using namespace CPUTestUtils;
 
-
 namespace ov {
 namespace test {
 using namespace ov::test::utils;
@@ -92,7 +91,7 @@ protected:
 
         ov::ParameterVector paramVec;
         std::vector<std::shared_ptr<ov::Node>> inputNodes;
-        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (secondaryInputType == utils::InputLayerType::PARAMETER) {
             for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
                 paramVec.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecisions[i], inputDynamicShapes[i]));
                 inputNodes.push_back(paramVec.back());
@@ -116,8 +115,9 @@ protected:
             std::vector<size_t> constShape(targetStaticShapes[0][0].size(), 1);
             constShape[1] = targetStaticShapes[0][0][1];
             auto fq = ngraph::builder::makeFakeQuantize(eltwiseOps[eltwiseOps.size() - 1],
-                                                        ::ngraph::element::Type(::ngraph::element::Type_t::f32),
-                                                        256, constShape);
+                                                        ov::element::Type(ov::element::f32),
+                                                        256,
+                                                        constShape);
 
             eltwiseOps.push_back(makeEltwise(fq, inputNodes[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
 

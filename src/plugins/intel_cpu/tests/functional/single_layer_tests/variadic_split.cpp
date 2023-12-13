@@ -61,7 +61,7 @@ protected:
         std::tie(inputShapes, axis, lengthsPerInfer, lengthsType, netPrecision, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
+        selectedType += std::string("_") + ov::element::Type(netPrecision).to_string();
 
         std::vector<InputShape> shapesToInit{inputShapes};
         if (lengthsType == ov::test::utils::InputLayerType::PARAMETER) {

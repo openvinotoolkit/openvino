@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-
+#include "common_test_utils/node_builders/activation.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 using InputShape = ov::test::InputShape;
 using ElementType = ov::element::Type_t;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 //   ┌────────┐
 //   │ Param  │
@@ -52,7 +52,7 @@ class ShapeOfAnyLayoutCPUTest : public testing::WithParamInterface<ShapeOfAnyLay
                             virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ShapeOfAnyLayoutCPUTestParamsSet> obj) {
-        SubgraphTestsDefinitions::ShapeOfAnyLayoutParams basicParamsSet;
+        ShapeOfAnyLayoutParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
         ElementType netPr;
@@ -97,10 +97,10 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
         //make a stub eltwise node to enforce layout, since ShapeOf just mimic any input layout
-        auto eltwise = ngraph::builder::makeActivation(params[0], inType, ov::test::utils::ActivationTypes::Relu);
+        auto eltwise = utils::make_activation(params[0], inType, ov::test::utils::ActivationTypes::Relu);
         eltwise->get_rt_info() = makeCPUInfo(eltwiseInFmts, eltwiseOutFmts, {});
 
-        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(eltwise, ngraph::element::i32);
+        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(eltwise, ov::element::i32);
 
         function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
     }
@@ -197,5 +197,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf4dAnyLayoutTest, ShapeOfAnyLayoutCPUTest,
                          params4dDynamic, ShapeOfAnyLayoutCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf5dAnyLayoutTest, ShapeOfAnyLayoutCPUTest,
                          params5dDynamic, ShapeOfAnyLayoutCPUTest::getTestCaseName);
-} // namespace
-} // namespace SubgraphTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

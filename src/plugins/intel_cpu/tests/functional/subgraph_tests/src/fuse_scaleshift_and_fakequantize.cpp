@@ -5,6 +5,7 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace test {
@@ -29,10 +30,10 @@ public:
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
-                << "_Scale=" << ngraph::vector_to_string(scaleShift.first)
-                << "_Shift=" << ngraph::vector_to_string(scaleShift.second) << "_Intervals=";
+                << "_Scale=" << ov::util::vector_to_string(scaleShift.first)
+                << "_Shift=" << ov::util::vector_to_string(scaleShift.second) << "_Intervals=";
         for (const auto& vecInt : quantizeIntervals) {
-            results << ngraph::vector_to_string(vecInt) << ",";
+            results << ov::util::vector_to_string(vecInt) << ",";
         }
 
         results << "targetDevice=" << targetName;
