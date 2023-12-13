@@ -319,7 +319,7 @@ void MatrixNmsLayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
     }
-    auto nms = std::make_shared<opset8::MatrixNms>(params[0], params[1], m_attrs);
+    auto nms = std::make_shared<ov::op::v8::MatrixNms>(params[0], params[1], m_attrs);
 
     function = std::make_shared<Function>(nms, params, "MatrixNMS");
 }

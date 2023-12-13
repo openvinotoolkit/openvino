@@ -111,7 +111,7 @@ ov::runtime::Tensor generate(const ov::element::Type& elemType,
 }
 } // namespace Activation
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::HardSigmoid>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -136,7 +136,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>&
     return Activation::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::PRelu>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::PRelu>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -163,7 +163,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::PRelu>& node,
     }
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Selu>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::Selu>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -182,7 +182,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Selu>& node,
     }
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::DetectionOutput>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::DetectionOutput>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -209,7 +209,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::DetectionOutp
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -334,7 +334,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
 }
 
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::GatherTree>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -366,49 +366,49 @@ ov::runtime::Tensor generate(const ov::element::Type& elemType,
 }
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalAnd>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::LogicalAnd>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalNot>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::LogicalNot>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalOr>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::LogicalOr>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalXor>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::LogicalXor>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::ReduceLogicalAnd>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v1::ReduceLogicalOr>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -462,7 +462,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign>& node,
     }
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v4::Proposal>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -482,14 +482,14 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::BatchNormInference>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::BatchNormInference>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return ov::test::utils::create_and_fill_tensor_consistently(elemType, targetShape, 3, 0, 1);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::GRUSequence>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::GRUSequence>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -521,7 +521,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& no
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::EmbeddingSegmentsSum>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -625,7 +625,7 @@ ov::runtime::Tensor generate_unique_possibilities(const ov::Shape &targetShape) 
     return tensor;
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronTopKROIs>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -642,7 +642,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalD
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::RNNSequence>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -655,7 +655,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>&
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v8::Softmax>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
@@ -693,7 +693,7 @@ ov::runtime::Tensor generate(const
 }
 
 ov::runtime::Tensor generate(const
-                             std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& node,
+                             std::shared_ptr<ov::op::v3::ScatterNDUpdate>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {

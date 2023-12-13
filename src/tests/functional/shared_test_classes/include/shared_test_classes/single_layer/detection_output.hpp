@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::ostream& operator <<(std::ostream& os, const ngraph::op::DetectionOutputAttrs& inputShape);
+std::ostream& operator <<(std::ostream& os, const ov::op::v0::DetectionOutput::Attributes& inputShape);
 
 enum {
     idxLocation,
@@ -62,7 +62,7 @@ using DetectionOutputParams = std::tuple<
 class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, virtual public LayerTestsUtils::LayerTestsCommon {
   public:
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj);
-    ngraph::op::DetectionOutputAttrs attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
     std::vector<InferenceEngine::SizeVector> inShapes;
     void GenerateInputs() override;
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,

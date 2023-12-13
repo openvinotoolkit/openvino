@@ -21,7 +21,7 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
-    ngraph::op::PadMode,
+    ov::op::PadMode,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     PadTransformationParam

@@ -58,7 +58,7 @@ void MultipleInputTest::SetUp() {
     auto fake_add4 = ngraph::builder::makeFakeQuantize(add4, ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
         { 5 * minInput }, { 5 * maxInput }, { 5 * minInput }, { 5 * maxInput });
 
-    auto result = std::make_shared<ngraph::opset7::Result>(fake_add4);
+    auto result = std::make_shared<ov::op::v0::Result>(fake_add4);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
 }
 

@@ -36,7 +36,7 @@ using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                 
                                        int32_t,                                    // background_class
                                        int32_t,                                    // keep_top_k
                                        ngraph::element::Type,                      // Output type
-                                       ngraph::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
+                                       ov::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
                                        InputboolVar,                               // Sort result across batch, normalized
                                        bool,                                       // make output shape static
                                        std::string>;

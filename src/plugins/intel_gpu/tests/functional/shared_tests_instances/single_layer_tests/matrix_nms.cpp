@@ -18,17 +18,17 @@ const std::vector<std::vector<ov::Shape>> inStaticShapeParams = {{{3, 100, 4}, {
 
 const auto inputPrecisions = InputPrecisions{ov::element::f32, ov::element::i32, ov::element::f32};
 
-const std::vector<op::v8::MatrixNms::SortResultType> sortResultType = {op::v8::MatrixNms::SortResultType::CLASSID,
-                                                                       op::v8::MatrixNms::SortResultType::SCORE,
-                                                                       op::v8::MatrixNms::SortResultType::NONE};
+const std::vector<ov::op::v8::MatrixNms::SortResultType> sortResultType = {ov::op::v8::MatrixNms::SortResultType::CLASSID,
+                                                                       ov::op::v8::MatrixNms::SortResultType::SCORE,
+                                                                       ov::op::v8::MatrixNms::SortResultType::NONE};
 const std::vector<element::Type> outType = {element::i32, element::i64};
 const std::vector<TopKParams> topKParams = {TopKParams{-1, 5}, TopKParams{100, -1}};
 const std::vector<ThresholdParams> thresholdParams = {ThresholdParams{0.0f, 2.0f, 0.0f},
                                                       ThresholdParams{0.1f, 1.5f, 0.2f}};
 const std::vector<int> backgroudClass = {-1, 1};
 const std::vector<bool> normalized = {true, false};
-const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
-                                                                     op::v8::MatrixNms::DecayFunction::LINEAR};
+const std::vector<ov::op::v8::MatrixNms::DecayFunction> decayFunction = {ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN,
+                                                                     ov::op::v8::MatrixNms::DecayFunction::LINEAR};
 
 const std::vector<bool> outStaticShape = {true};   // only be true as gpu plugin not support nms with internal dynamic yet.
 

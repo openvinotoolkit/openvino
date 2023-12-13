@@ -28,7 +28,7 @@ protected:
     void Validate() override;
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& inputInfo) const override;
 
-    static std::shared_ptr<ngraph::opset9::Constant> CreateConst(const std::vector<size_t>& input_shape,
+    static std::shared_ptr<ov::op::v0::Constant> CreateConst(const std::vector<size_t>& input_shape,
                                                                  const ::ngraph::element::Type& precision,
                                                                  bool use_1_as_first_dimension);
     template <typename T>

@@ -33,19 +33,19 @@ void PermuteConcatConcatPermute::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
 
-    auto input_param = std::make_shared<ngraph::opset9::Parameter>(ngPrc, ngraph::Shape{input_shape});
+    auto input_param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape{input_shape});
     std::vector<size_t> permute_param = {1, 0};
     auto permute_params =
-        ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{permute_param.size()}, permute_param);
-    auto permute_1 = std::make_shared<ngraph::opset9::Transpose>(input_param, permute_params);
+        ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{permute_param.size()}, permute_param);
+    auto permute_1 = std::make_shared<ov::op::v1::Transpose>(input_param, permute_params);
 
     auto const_input_1 = CreateConst(input_shape, ngPrc, false);
-    auto concat_1 = std::make_shared<ngraph::opset9::Concat>(ngraph::OutputVector{const_input_1, permute_1}, 0);
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{const_input_1, permute_1}, 0);
 
     auto const_input_2 = CreateConst(input_shape, ngPrc, true);
-    auto concat_2 = std::make_shared<ngraph::opset9::Concat>(ngraph::OutputVector{concat_1, const_input_2}, 0);
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{concat_1, const_input_2}, 0);
 
-    auto permute_2 = std::make_shared<ngraph::opset9::Transpose>(concat_2, permute_params);
+    auto permute_2 = std::make_shared<ov::op::v1::Transpose>(concat_2, permute_params);
 
     function = std::make_shared<ngraph::Function>(permute_2,
                                                   ngraph::ParameterVector{input_param},
@@ -53,7 +53,7 @@ void PermuteConcatConcatPermute::SetUp() {
     range_ = InferenceEngine::details::product(input_shape);
 }
 
-std::shared_ptr<ngraph::opset9::Constant> PermuteConcatConcatPermute::CreateConst(
+std::shared_ptr<ov::op::v0::Constant> PermuteConcatConcatPermute::CreateConst(
     const std::vector<size_t>& input_shape,
     const ::ngraph::element::Type& precision,
     bool use_1_as_first_dimension) {
@@ -75,7 +75,7 @@ std::shared_ptr<ngraph::opset9::Constant> PermuteConcatConcatPermute::CreateCons
     const auto const_input_shape = ngraph::Shape{const_input_shape_vec};
     auto const_input_values_size = InferenceEngine::details::product(const_input_shape_vec);
     auto const_input_values = std::vector<size_t>(const_input_values_size, 0);
-    return ngraph::opset9::Constant::create(precision, const_input_shape, const_input_values);
+    return ov::op::v0::Constant::create(precision, const_input_shape, const_input_values);
 }
 
 void PermuteConcatConcatPermute::Validate() {

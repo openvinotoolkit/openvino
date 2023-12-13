@@ -31,15 +31,15 @@ void RollLayerTest::SetUp() {
     std::tie(inputShapes, inputPrecision, shift, axes, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ngraph::ParameterVector paramVector;
-    auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
+    auto paramData = std::make_shared<ov::op::v0::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
-    auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
+    auto shiftNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
+    auto axesNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 
-    auto roll = std::make_shared<ngraph::op::v7::Roll>(paramVector[0], shiftNode, axesNode);
+    auto roll = std::make_shared<ov::op::v7::Roll>(paramVector[0], shiftNode, axesNode);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roll)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "roll");
 }
 }  // namespace LayerTestsDefinitions

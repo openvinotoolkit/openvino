@@ -109,7 +109,7 @@ void PSROIPoolingLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(coordsShape))};
-    std::shared_ptr<ngraph::Node> psroiPooling = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0],
+    std::shared_ptr<ngraph::Node> psroiPooling = std::make_shared<ov::op::v0::PSROIPooling>(params[0],
                                                                                                 params[1],
                                                                                                 outputDim,
                                                                                                 groupSize_,
@@ -117,7 +117,7 @@ void PSROIPoolingLayerTest::SetUp() {
                                                                                                 spatialBinsX_,
                                                                                                 spatialBinsY_,
                                                                                                 mode_);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroiPooling)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(psroiPooling)};
     function = std::make_shared<ngraph::Function>(results, params, "psroi_pooling");
 }
 }  // namespace LayerTestsDefinitions

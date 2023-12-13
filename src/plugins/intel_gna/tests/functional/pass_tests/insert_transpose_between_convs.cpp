@@ -68,8 +68,8 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape_2d))};
 
         auto pattern1 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, inputShape);
-        auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, inputShape);
+        auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         size_t num_out_channels = 8;
         size_t kernal_size = 8;
@@ -92,8 +92,8 @@ protected:
 
         ngraph::Shape pattern2_shape = {1, 1, 1, num_out_channels * out_height * out_width};
         auto pattern2 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, pattern2_shape);
-        auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv1, pattern2, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, pattern2_shape);
+        auto reshape2 = std::make_shared<ov::opset1::Reshape>(conv1, pattern2, false);
 
         std::vector<float> filter_weights_2 =
             ov::test::utils::generate_float_numbers(num_out_channels * kernal_size, -0.2f, 0.2f);
@@ -113,10 +113,10 @@ protected:
 
         ngraph::Shape pattern3_shape = {1, num_out_channels * out_height * out_width};
         auto pattern3 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, pattern3_shape);
-        auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(conv2, pattern3, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, pattern3_shape);
+        auto reshape3 = std::make_shared<ov::opset1::Reshape>(conv2, pattern3, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape3)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBetweenConvs");
     }
 };
@@ -164,8 +164,8 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape_2d))};
 
         auto pattern1 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, inputShape);
-        auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, inputShape);
+        auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         size_t num_out_channels = 8;
         size_t kernal_size = 8;
@@ -200,8 +200,8 @@ protected:
 
         ngraph::Shape pattern2_shape = {1, 1, 1, num_out_channels * out_height * out_width};
         auto pattern2 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, pattern2_shape);
-        auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(pool, pattern2, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, pattern2_shape);
+        auto reshape2 = std::make_shared<ov::opset1::Reshape>(pool, pattern2, false);
 
         std::vector<float> filter_weights_2 =
             ov::test::utils::generate_float_numbers(num_out_channels * kernal_size, -0.2f, 0.2f);
@@ -221,10 +221,10 @@ protected:
 
         ngraph::Shape pattern3_shape = {1, num_out_channels * out_height * out_width};
         auto pattern3 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, pattern3_shape);
-        auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(conv2, pattern3, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, pattern3_shape);
+        auto reshape3 = std::make_shared<ov::opset1::Reshape>(conv2, pattern3, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape3)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBetweenConvs");
     }
 };

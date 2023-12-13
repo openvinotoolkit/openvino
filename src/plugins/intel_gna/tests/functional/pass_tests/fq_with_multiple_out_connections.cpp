@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -53,32 +54,31 @@ protected:
         const ngraph::Shape shape = {1, 128};
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
 
-        auto pattern1 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{3},
-                                                                   ngraph::Shape{1, 2, 64});
-        auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);
+        auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
+                                                               ngraph::Shape{3},
+                                                               ngraph::Shape{1, 2, 64});
+        auto reshape1 = std::make_shared<ov::opset8::Reshape>(params[0], pattern1, false);
 
-        auto relu1 = std::make_shared<ngraph::opset8::Relu>(reshape1);
+        auto relu1 = std::make_shared<ov::opset8::Relu>(reshape1);
 
         auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
         auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
-        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(relu1,
-                                                                 lowNode,
-                                                                 highNode,
-                                                                 lowNode,
-                                                                 highNode,
-                                                                 std::numeric_limits<uint16_t>::max());
+        auto fq = std::make_shared<ov::opset8::FakeQuantize>(relu1,
+                                                             lowNode,
+                                                             highNode,
+                                                             lowNode,
+                                                             highNode,
+                                                             std::numeric_limits<uint16_t>::max());
 
-        auto pattern2 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{shape.size()},
-                                                                   shape);
-        auto reshape2 = std::make_shared<ngraph::opset8::Reshape>(fq, pattern2, false);
+        auto pattern2 =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape.size()}, shape);
+        auto reshape2 = std::make_shared<ov::opset8::Reshape>(fq, pattern2, false);
 
-        auto relu2 = std::make_shared<ngraph::opset8::Relu>(fq);
-        auto reshape3 = std::make_shared<ngraph::opset8::Reshape>(relu2, pattern2, false);
+        auto relu2 = std::make_shared<ov::opset8::Relu>(fq);
+        auto reshape3 = std::make_shared<ov::opset8::Reshape>(relu2, pattern2, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(reshape2),
-                                     std::make_shared<ngraph::opset8::Result>(reshape3)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2),
+                                     std::make_shared<ov::op::v0::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "FQFusionWithMultipleWeights");
     }
 };

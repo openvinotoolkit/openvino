@@ -3,7 +3,7 @@
 //
 
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ngraph {
 namespace builder {

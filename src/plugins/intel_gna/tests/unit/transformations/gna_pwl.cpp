@@ -11,6 +11,7 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "transformations/pwl_approximation.hpp"
 
 using namespace ov::intel_gna::common;
@@ -21,7 +22,7 @@ template <typename T>
 struct Function {};
 
 template <>
-struct Function<ngraph::opset9::Sigmoid> {
+struct Function<ov::opset9::Sigmoid> {
     static std::function<double(double)> get_function() {
         return [](const double x) {
             return 0.5 * (1.0 + std::tanh(x / 2.0));
@@ -30,7 +31,7 @@ struct Function<ngraph::opset9::Sigmoid> {
 };
 
 template <>
-struct Function<ngraph::opset9::Tanh> {
+struct Function<ov::opset9::Tanh> {
     static std::function<double(double)> get_function() {
         return [](const double x) {
             return std::tanh(x);
@@ -39,7 +40,7 @@ struct Function<ngraph::opset9::Tanh> {
 };
 
 template <>
-struct Function<ngraph::opset9::SoftSign> {
+struct Function<ov::opset9::SoftSign> {
     static std::function<double(double)> get_function() {
         return [](const double x) {
             return x / (1.0 + std::abs(x));
@@ -48,7 +49,7 @@ struct Function<ngraph::opset9::SoftSign> {
 };
 
 template <>
-struct Function<ngraph::opset9::Log> {
+struct Function<ov::opset9::Log> {
     static std::function<double(double)> get_function() {
         return [](const double x) {
             return std::log(x);
@@ -57,7 +58,7 @@ struct Function<ngraph::opset9::Log> {
 };
 
 template <>
-struct Function<ngraph::opset9::Exp> {
+struct Function<ov::opset9::Exp> {
     static std::function<double(double)> get_function() {
         return [](const double x) {
             return std::exp(x);
@@ -66,7 +67,7 @@ struct Function<ngraph::opset9::Exp> {
 };
 
 template <>
-struct Function<ngraph::opset9::Power> {
+struct Function<ov::opset9::Power> {
     static std::function<double(double)> get_function(double exp) {
         return [exp](const double x) {
             return std::pow(x, exp);
@@ -75,13 +76,12 @@ struct Function<ngraph::opset9::Power> {
 };
 
 template <typename T>
-using Enable =
-    std::enable_if<std::is_same<T, ngraph::opset9::Sigmoid>::value || std::is_same<T, ngraph::opset9::Tanh>::value ||
-                       std::is_same<T, ngraph::opset9::SoftSign>::value ||
-                       std::is_same<T, ngraph::opset9::Log>::value || std::is_same<T, ngraph::opset9::Exp>::value,
-                   int>;
+using Enable = std::enable_if<std::is_same<T, ov::opset9::Sigmoid>::value || std::is_same<T, ov::opset9::Tanh>::value ||
+                                  std::is_same<T, ov::opset9::SoftSign>::value ||
+                                  std::is_same<T, ov::opset9::Log>::value || std::is_same<T, ov::opset9::Exp>::value,
+                              int>;
 template <typename T>
-using EnableWithExtraArg = std::enable_if<std::is_same<T, ngraph::opset9::Power>::value, int>;
+using EnableWithExtraArg = std::enable_if<std::is_same<T, ov::opset9::Power>::value, int>;
 
 template <typename T>
 class GnaPWlTestsFixture {
@@ -152,9 +152,9 @@ template <typename T>
 template <typename U>
 inline std::shared_ptr<ngraph::Function> GnaPWlTestsFixture<T>::create_activation_function(
     const ngraph::Shape& input_shape) {
-    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+    auto input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, input_shape);
     auto f = std::make_shared<T>(input_params);
-    auto result = std::make_shared<ngraph::opset8::Result>(f);
+    auto result = std::make_shared<ov::op::v0::Result>(f);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
@@ -163,10 +163,10 @@ template <typename U>
 inline std::shared_ptr<ngraph::Function> GnaPWlTestsFixture<T>::create_activation_function(
     const ngraph::Shape& input_shape,
     double exp) {
-    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
-    auto exponents = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {exp});
+    auto input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, input_shape);
+    auto exponents = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {exp});
     auto f = std::make_shared<T>(input_params, exponents);
-    auto result = std::make_shared<ngraph::opset8::Result>(f);
+    auto result = std::make_shared<ov::op::v0::Result>(f);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
@@ -242,37 +242,37 @@ inline void GnaPWlTestsFixture<T>::validate_results(const std::vector<float>& in
 }
 
 TEST(GnaPwlTest, Sigmoid) {
-    GnaPWlTestsFixture<ngraph::opset9::Sigmoid> test_instance({1, 100}, -10.0, 10.0, 1.0);
+    GnaPWlTestsFixture<ov::opset9::Sigmoid> test_instance({1, 100}, -10.0, 10.0, 1.0);
     test_instance.run();
 }
 
 TEST(GnaPwlTest, Tanh) {
-    GnaPWlTestsFixture<ngraph::opset9::Tanh> test_instance({1, 32}, -5.0, 5.0, 1.0);
+    GnaPWlTestsFixture<ov::opset9::Tanh> test_instance({1, 32}, -5.0, 5.0, 1.0);
     test_instance.run();
 }
 
 TEST(GnaPwlTest, Exp) {
-    GnaPWlTestsFixture<ngraph::opset9::Exp> test_instance({1, 32}, -std::log2(INT16_MAX), std::log10(INT16_MAX), 1.0);
+    GnaPWlTestsFixture<ov::opset9::Exp> test_instance({1, 32}, -std::log2(INT16_MAX), std::log10(INT16_MAX), 1.0);
     test_instance.run();
 }
 
 TEST(GnaPwlTest, SoftSign) {
-    GnaPWlTestsFixture<ngraph::opset9::SoftSign> test_instance({1, 32}, -10, 10, 1.0);
+    GnaPWlTestsFixture<ov::opset9::SoftSign> test_instance({1, 32}, -10, 10, 1.0);
     test_instance.run();
 }
 
 TEST(GnaPwlTest, Log) {
-    GnaPWlTestsFixture<ngraph::opset9::Log> test_instance({1, 32}, 0.001, 2981, 1.0);
+    GnaPWlTestsFixture<ov::opset9::Log> test_instance({1, 32}, 0.001, 2981, 1.0);
     test_instance.run();
 }
 
 TEST(GnaPwlTest, Power) {
     for (float exp = 1; exp <= 2.2; exp += 0.1) {
-        GnaPWlTestsFixture<ngraph::opset9::Power> test_instance({1, 32},
-                                                                AreFpEq(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
-                                                                16,
-                                                                exp,
-                                                                1.0);
+        GnaPWlTestsFixture<ov::opset9::Power> test_instance({1, 32},
+                                                            AreFpEq(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
+                                                            16,
+                                                            exp,
+                                                            1.0);
         test_instance.run();
     }
 }

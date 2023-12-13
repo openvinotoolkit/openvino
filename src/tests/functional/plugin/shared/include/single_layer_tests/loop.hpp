@@ -47,19 +47,19 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     const auto shape = ngraph::Shape{ieShape};
     const auto scalarShape = ngraph::Shape{};
 
-    auto start = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
 
     // Loop body
-    auto b_data = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::boolean, scalarShape);
+    auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto b_cond = std::make_shared<ov::op::v0::Parameter>(ngraph::element::boolean, scalarShape);
 
     auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {b_cond, b_data},   // | passthrough body, no data changes
             ngraph::ParameterVector {b_cond, b_data});  // | input -> output
 
-    auto loop = std::make_shared<ngraph::opset5::Loop>(count, icond);
+    auto loop = std::make_shared<ov::op::v5::Loop>(count, icond);
     loop->set_function(body);
     loop->set_special_body_ports({-1, 0});
     loop->set_invariant_input(b_cond, icond);
@@ -91,20 +91,20 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     const auto shape = ngraph::Shape{ieShape};
     const auto scalarShape = ngraph::Shape{};
 
-    auto start = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
 
     // Loop body
-    auto b_data = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, scalarShape, true);
-    auto b_iter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, scalarShape);
+    auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto b_cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, scalarShape);
 
     auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {b_cond, b_data},
             ngraph::ParameterVector {b_data, b_iter});
 
-    auto loop = std::make_shared<ngraph::opset5::Loop>(count, icond);
+    auto loop = std::make_shared<ov::op::v5::Loop>(count, icond);
     loop->set_function(body);
     loop->set_special_body_ports({1, 0});
     loop->set_invariant_input(b_data, start);

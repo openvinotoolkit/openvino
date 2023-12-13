@@ -56,11 +56,11 @@ namespace LayerTestsDefinitions {
         auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
         auto ngInBucketsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inBucketsPrc);
         auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
-        auto data = std::make_shared<ngraph::op::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
+        auto data = std::make_shared<ov::op::v0::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
         data->set_friendly_name("a_data");
-        auto buckets = std::make_shared<ngraph::op::Parameter>(ngInBucketsPrc, ngraph::Shape(bucketsShape));
+        auto buckets = std::make_shared<ov::op::v0::Parameter>(ngInBucketsPrc, ngraph::Shape(bucketsShape));
         buckets->set_friendly_name("b_buckets");
-        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
+        auto bucketize = std::make_shared<ov::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
+        function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
     }
 } // namespace LayerTestsDefinitions

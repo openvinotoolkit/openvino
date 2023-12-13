@@ -15,10 +15,10 @@ namespace LayerTestsDefinitions {
 
 class ConcatTransformationTestValues {
 public:
-    std::shared_ptr<ngraph::opset1::Constant> input_constant1;
+    std::shared_ptr<ov::op::v0::Constant> input_constant1;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ngraph::builder::subgraph::DequantizationOperations dequantization1;
-    std::shared_ptr<ngraph::opset1::Constant> input_constant2;
+    std::shared_ptr<ov::op::v0::Constant> input_constant2;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
     ngraph::builder::subgraph::DequantizationOperations dequantization2;
 };

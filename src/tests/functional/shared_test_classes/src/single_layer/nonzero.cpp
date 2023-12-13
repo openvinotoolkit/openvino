@@ -29,11 +29,11 @@ void NonZeroLayerTest::SetUp() {
     configuration.insert(additionalConfig.cbegin(), additionalConfig.cend());
 
     const auto& precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    const auto& paramNode = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto& paramNode = std::make_shared<ov::op::v0::Parameter>(precision, ngraph::Shape(inputShape));
 
-    auto nonZeroOp = std::make_shared<ngraph::opset3::NonZero>(paramNode->output(0));
+    auto nonZeroOp = std::make_shared<ov::op::v3::NonZero>(paramNode->output(0));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(nonZeroOp)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(nonZeroOp)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramNode}, "non_zero");
 }
 }  // namespace LayerTestsDefinitions

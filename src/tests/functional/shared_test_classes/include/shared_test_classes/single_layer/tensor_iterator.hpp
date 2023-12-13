@@ -25,7 +25,7 @@ using TensorIteratorParams = typename std::tuple<
         size_t,                                   // sequence axis
         float,                                    // clip
         ngraph::helpers::TensorIteratorBody,      // body type
-        ngraph::op::RecurrentSequenceDirection,   // direction
+        ov::op::RecurrentSequenceDirection,   // direction
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 

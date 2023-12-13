@@ -42,8 +42,8 @@ TEST_P(ExecGraphRemoveParameterNode, RemoveParameterNode) {
   //         out   //
   auto input = make_shared<Parameter>(type, shape);
   auto input2 = make_shared<Parameter>(type, shape);
-  auto mul = make_shared<ngraph::op::v1::Multiply>(input2, input);
-  auto sum = make_shared<ngraph::op::v1::Add>(mul, input);
+  auto mul = make_shared<ov::op::v1::Multiply>(input2, input);
+  auto sum = make_shared<ov::op::v1::Add>(mul, input);
 
   auto function = std::make_shared<ngraph::Function>(
       ngraph::NodeVector{sum}, ngraph::ParameterVector{input2, input},

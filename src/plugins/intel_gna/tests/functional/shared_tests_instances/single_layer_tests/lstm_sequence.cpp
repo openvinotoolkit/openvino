@@ -77,23 +77,23 @@ protected:
                                    params[0]->get_partial_shape()[1].get_min_length());
         std::shared_ptr<ngraph::Node> seq_length =
             ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
-        auto lstm_sequence = std::make_shared<ngraph::opset8::LSTMSequence>(params[0],
-                                                                            params[1],
-                                                                            params[2],
-                                                                            seq_length,
-                                                                            weightsNode,
-                                                                            reccurrenceWeightsNode,
-                                                                            biasNode,
-                                                                            hidden_size,
-                                                                            direction,
-                                                                            activations_alpha,
-                                                                            activations_beta,
-                                                                            activations,
-                                                                            clip);
+        auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0],
+                                                                        params[1],
+                                                                        params[2],
+                                                                        seq_length,
+                                                                        weightsNode,
+                                                                        reccurrenceWeightsNode,
+                                                                        biasNode,
+                                                                        hidden_size,
+                                                                        direction,
+                                                                        activations_alpha,
+                                                                        activations_beta,
+                                                                        activations,
+                                                                        clip);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(lstm_sequence->output(0)),
-                                     std::make_shared<ngraph::opset8::Result>(lstm_sequence->output(1)),
-                                     std::make_shared<ngraph::opset8::Result>(lstm_sequence->output(2))};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
+                                     std::make_shared<ov::op::v0::Result>(lstm_sequence->output(1)),
+                                     std::make_shared<ov::op::v0::Result>(lstm_sequence->output(2))};
         function = std::make_shared<ngraph::Function>(results, params, "lstm_sequence");
 
         bool is_pure_sequence = m_mode == SequenceTestsMode::PURE_SEQ;

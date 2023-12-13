@@ -4,9 +4,9 @@
 
 #include "ov_lpt_models/gather.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 namespace ngraph {

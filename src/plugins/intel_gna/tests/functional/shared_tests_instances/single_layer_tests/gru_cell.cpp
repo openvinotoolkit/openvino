@@ -69,19 +69,19 @@ protected:
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
         auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
-        auto gru_cell = std::make_shared<ngraph::opset8::GRUCell>(params[0],
-                                                                  params[1],
-                                                                  weightsNode,
-                                                                  reccurrenceWeightsNode,
-                                                                  biasNode,
-                                                                  hidden_size,
-                                                                  activations,
-                                                                  activations_alpha,
-                                                                  activations_beta,
-                                                                  clip,
-                                                                  linear_before_reset);
+        auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(params[0],
+                                                              params[1],
+                                                              weightsNode,
+                                                              reccurrenceWeightsNode,
+                                                              biasNode,
+                                                              hidden_size,
+                                                              activations,
+                                                              activations_alpha,
+                                                              activations_beta,
+                                                              clip,
+                                                              linear_before_reset);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0))};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0))};
         function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
         if (should_decompose) {
             ngraph::pass::Manager m;

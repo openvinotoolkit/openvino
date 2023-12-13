@@ -17,7 +17,7 @@
 #include "transformations/init_node_info.hpp"
 
 using namespace ngraph;
-using namespace ngraph::opset7;
+using namespace ov::opset1;
 
 namespace LayerTestsDefinitions {
 
@@ -99,7 +99,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transposeInOrder = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(filter), std::end(filter), 1ull, std::multiplies<size_t>());
         auto filterWeights =
@@ -118,7 +118,7 @@ protected:
                                                   numGroups,
                                                   false,
                                                   filterWeights);
-        auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto transposeOutOrder = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
         auto lastOp = std::make_shared<Transpose>(dwsc, transposeOutOrder);
 
         if (model == modelType::TranspDWSCBiasTransp) {

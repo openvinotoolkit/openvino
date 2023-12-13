@@ -466,9 +466,9 @@ void ExecGraphUniqueNodeNames::SetUp() {
     auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(split->outputs(), 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 

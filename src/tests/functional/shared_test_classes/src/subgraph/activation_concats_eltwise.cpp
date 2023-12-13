@@ -52,8 +52,8 @@ void ActivationConcatsEltwise::SetUp() {
 
     auto eltw = ngraph::builder::makeEltwise(concat_1, concat_2, ngraph::helpers::EltwiseTypes::ADD);
 
-    auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({1, inputSize + concatSize}));
-    auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(eltw, reshape_pattern, false);
+    auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({1, inputSize + concatSize}));
+    auto final_reshape = std::make_shared<ov::op::v1::Reshape>(eltw, reshape_pattern, false);
     function = std::make_shared<ngraph::Function>(final_reshape, input, "ActivationConcatsEltwise");
 }
 }  // namespace SubgraphTestsDefinitions

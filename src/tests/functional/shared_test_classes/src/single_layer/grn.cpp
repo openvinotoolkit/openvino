@@ -37,8 +37,8 @@ void GrnLayerTest::SetUp() {
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, bias, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    auto grn = std::make_shared<ngraph::opset1::GRN>(paramsIn[0], bias);
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(grn) };
+    auto grn = std::make_shared<ov::op::v0::GRN>(paramsIn[0], bias);
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(grn) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "Grn");
 }
 }  // namespace LayerTestsDefinitions

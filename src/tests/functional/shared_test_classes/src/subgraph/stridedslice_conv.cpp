@@ -81,7 +81,7 @@ void SliceConvTest::SetUp() {
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     function = std::make_shared<ngraph::Function>(conv, params, "StridedSliceConvTest");
 }

@@ -20,13 +20,13 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        auto param0 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape(1, 1024));
-        auto reshape = std::make_shared<ngraph::opset8::Reshape>(
-            param0,
-            std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                       ngraph::Shape{4},
-                                                       ngraph::Shape{1, 1, 1, 1024}),
-            false);
+        auto param0 = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape(1, 1024));
+        auto reshape =
+            std::make_shared<ov::op::v1::Reshape>(param0,
+                                                  std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
+                                                                                         ngraph::Shape{4},
+                                                                                         ngraph::Shape{1, 1, 1, 1024}),
+                                                  false);
         param0->set_friendly_name("input");
         auto conv1 = ngraph::builder::makeConvolution(reshape,
                                                       ngraph::element::Type_t::f32,
@@ -37,7 +37,7 @@ public:
                                                       {1, 1},
                                                       ngraph::op::PadType::EXPLICIT,
                                                       4);
-        auto result = std::make_shared<ngraph::opset8::Result>(conv1);
+        auto result = std::make_shared<ov::op::v0::Result>(conv1);
         gnaSimpleNetwork =
             std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0});
         gnaSimpleNetwork->set_friendly_name("GnaSingleConv");

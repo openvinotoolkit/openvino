@@ -41,7 +41,7 @@ void ReduceSumTransformation::SetUp() {
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceSum>(
+    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceSum>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

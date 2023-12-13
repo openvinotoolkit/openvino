@@ -45,25 +45,25 @@ namespace snippets {
         std::tie(netPrecision, inputShape0, inputShape1, targetDevice) = this->GetParam();
 
         auto shape = ngraph::Shape{inputShape0};
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shape);
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shape);
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
+        auto input2 = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
 
         auto shapeMM = ngraph::Shape{inputShape1};
-        auto input3 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shapeMM);
+        auto input3 = std::make_shared<ov::op::v0::Parameter>(netPrecision, shapeMM);
 
-        auto add    = std::make_shared<ngraph::opset1::Add>(input1, input2);
-        auto mm     = std::make_shared<ngraph::opset1::MatMul>(add, input3);
+        auto add    = std::make_shared<ov::op::v1::Add>(input1, input2);
+        auto mm     = std::make_shared<ov::op::v0::MatMul>(add, input3);
 
         std::vector<float> vals(ngraph::shape_size(shape));
         for (int i = 0; i < vals.size(); i++) {
             vals[i] = static_cast<float>(i)*vals.size();
         }
 
-        auto c0 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shape);
-        auto add2    = std::make_shared<ngraph::opset1::Subtract>(mm, c0);
+        auto c0 = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
+        auto add2    = std::make_shared<ov::op::v1::Subtract>(mm, c0);
 
-        auto add3    = std::make_shared<ngraph::opset1::Multiply>(add, add2);
-        auto result = std::make_shared<ngraph::opset1::Result>(add3);
+        auto add3    = std::make_shared<ov::op::v1::Multiply>(add, add2);
+        auto result = std::make_shared<ov::op::v0::Result>(add3);
 
         function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{result},

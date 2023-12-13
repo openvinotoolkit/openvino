@@ -71,7 +71,7 @@ protected:
             ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
         auto eltwise = ngraph::builder::makeEltwise(constant, params[0], ngraph::helpers::EltwiseTypes::ADD);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwise)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
         function = std::make_shared<ngraph::Function>(results, params, "InputConstAdd");
     }
 

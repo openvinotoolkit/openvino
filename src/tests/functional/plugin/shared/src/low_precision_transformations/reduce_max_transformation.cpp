@@ -41,7 +41,7 @@ void ReduceMaxTransformation::SetUp() {
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMax>(
+    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMax>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

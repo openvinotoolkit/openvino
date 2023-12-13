@@ -55,7 +55,7 @@ protected:
         auto reshape_pattern_size = ngraph::Shape{inputShape.size()};
         auto reshape_pattern = ngraph::builder::makeConstant(ov::element::i64, reshape_pattern_size, inputShape);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto input_reshape = std::make_shared<ngraph::opset9::Reshape>(params[0], reshape_pattern, false);
+        auto input_reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshape_pattern, false);
 
         const std::vector<size_t> filterSize{1, 1};
         const std::vector<size_t> strides{1, 1};
@@ -102,7 +102,7 @@ protected:
                                                                   numOutChannels,
                                                                   false,
                                                                   weights2_values);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset9::Result>(convolution_node2)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(convolution_node2)};
         function = std::make_shared<ngraph::Function>(results, params, "CropAfterConvolutionTest");
     }
 };

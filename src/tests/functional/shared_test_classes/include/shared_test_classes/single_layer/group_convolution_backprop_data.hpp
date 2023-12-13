@@ -24,7 +24,7 @@ using  groupConvBackpropDataSpecificParams = std::tuple<
     InferenceEngine::SizeVector,        // dilations
     size_t,                             // num output channels
     size_t,                             // num groups
-    ngraph::op::PadType>;               // padding type
+    ov::op::PadType>;               // padding type
 using  groupConvBackpropDataLayerTestParamsSet = std::tuple<
         groupConvBackpropDataSpecificParams,
         InferenceEngine::Precision,     // Network precision
@@ -52,7 +52,7 @@ using  groupConvBackpropSpecificParams = std::tuple<
     InferenceEngine::SizeVector,        // dilations
     size_t,                             // num output channels
     size_t,                             // num groups
-    ngraph::op::PadType,                // padding type
+    ov::op::PadType,                // padding type
     std::vector<ptrdiff_t>>;            // output padding
 using  groupConvBackpropLayerTestParamsSet = std::tuple<
         groupConvBackpropSpecificParams,

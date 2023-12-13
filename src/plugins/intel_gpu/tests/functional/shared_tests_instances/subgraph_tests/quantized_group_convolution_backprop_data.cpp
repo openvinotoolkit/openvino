@@ -36,7 +36,7 @@ const auto quantGroupConvBackpropData2DParams = ::testing::Combine(
         ::testing::ValuesIn(dilations2D),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::AUTO),
+        ::testing::Values(ov::op::PadType::AUTO),
         ::testing::ValuesIn(levels),
         ::testing::ValuesIn(granularity)
 );
@@ -65,7 +65,7 @@ const auto quantGroupConvBackpropData3DParams = ::testing::Combine(
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::AUTO),
+        ::testing::Values(ov::op::PadType::AUTO),
         ::testing::ValuesIn(levels),
         ::testing::ValuesIn(granularity)
 );

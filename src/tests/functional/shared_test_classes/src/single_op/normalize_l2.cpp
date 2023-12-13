@@ -14,7 +14,7 @@ namespace test {
 std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerTestParams>& obj) {
     std::vector<int64_t> axes;
     float eps;
-    ngraph::op::EpsMode eps_mode;
+    ov::op::EpsMode eps_mode;
     std::vector<InputShape> shapes;
     ov::element::Type model_type;
     std::string targetDevice;
@@ -45,7 +45,7 @@ void NormalizeL2LayerTest::SetUp() {
     std::vector<InputShape> shapes;
     std::vector<int64_t> axes;
     float eps;
-    ngraph::op::EpsMode eps_mode;
+    ov::op::EpsMode eps_mode;
     ov::element::Type model_type;
     std::tie(axes, eps, eps_mode, shapes, model_type, targetDevice) = this->GetParam();
     init_input_shapes(shapes);

@@ -10,12 +10,13 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 
 namespace testing {
 namespace {
 
-using GraphInputs = std::vector<std::shared_ptr<ngraph::opset8::Parameter>>;
+using GraphInputs = std::vector<std::shared_ptr<ov::op::v0::Parameter>>;
 using GraphOutputs = ngraph::OutputVector;
 
 struct Graph {
@@ -31,7 +32,7 @@ std::shared_ptr<ngraph::Function> Graph::createFunction() {
                    outputs.end(),
                    std::back_inserter(results),
                    [](ngraph::Output<ngraph::Node> output) {
-                       return std::make_shared<ngraph::opset8::Result>(output);
+                       return std::make_shared<ov::op::v0::Result>(output);
                    });
 
     ngraph::ParameterVector params(inputs.begin(), inputs.end());
@@ -48,7 +49,7 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
     Operations outputs;
 
     for (int i = 0; i < n_inputs; ++i) {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::Shape{1, 3, 64});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{1, 3, 64});
         inputs.push_back(input);
         outputs.push_back(input);
     }
@@ -56,8 +57,8 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
     {
         Operations new_outputs;
         for (auto output : outputs) {
-            auto add_bias = ngraph::opset8::Constant::create(ngraph::element::i64, {1, 1, 1}, {2});
-            auto add_operation = std::make_shared<ngraph::opset8::Add>(output, add_bias);
+            auto add_bias = ov::op::v0::Constant::create(ngraph::element::i64, {1, 1, 1}, {2});
+            auto add_operation = std::make_shared<ov::opset8::Add>(output, add_bias);
             new_outputs.push_back(add_operation);
         }
         outputs.swap(new_outputs);
@@ -65,7 +66,7 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
 
     if (has_concat) {
         auto concat_operation =
-            std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector(outputs.begin(), outputs.end()), 0);
+            std::make_shared<ov::opset8::Concat>(ngraph::OutputVector(outputs.begin(), outputs.end()), 0);
         outputs = {concat_operation};
     }
 
@@ -73,8 +74,8 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
         Operations new_outputs;
         for (auto output : outputs) {
             for (int i = 0; i < n_outputs; ++i) {
-                auto add_bias = ngraph::opset8::Constant::create(ngraph::element::i64, {1, 1, 1}, {3});
-                auto add_operation = std::make_shared<ngraph::opset8::Add>(output, add_bias);
+                auto add_bias = ov::op::v0::Constant::create(ngraph::element::i64, {1, 1, 1}, {3});
+                auto add_operation = std::make_shared<ov::opset8::Add>(output, add_bias);
                 new_outputs.push_back(add_operation);
             }
         }

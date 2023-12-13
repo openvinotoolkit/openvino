@@ -43,9 +43,9 @@ void RegionYoloLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, classes, coords, num_regions, do_softmax, mask, start_axis, end_axis, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);
-    auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(param, coords, classes, num_regions, do_softmax, mask, start_axis, end_axis);
-    function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(region_yolo), ngraph::ParameterVector{param}, "RegionYolo");
+    auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape);
+    auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(param, coords, classes, num_regions, do_softmax, mask, start_axis, end_axis);
+    function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(region_yolo), ngraph::ParameterVector{param}, "RegionYolo");
 }
 
 } // namespace LayerTestsDefinitions

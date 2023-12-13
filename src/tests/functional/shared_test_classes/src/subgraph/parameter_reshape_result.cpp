@@ -35,9 +35,9 @@ void ParamReshapeResult::SetUp() {
     auto shape = inputShape;
     shape[shape.size() - 2] *= 2;
     shape[shape.size() - 1] /= 2;
-    auto reshape_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+    auto reshape_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
         ngraph::Shape{shape.size()}, shape);
-    auto reshape = std::make_shared<ngraph::opset8::Reshape>(params[0], reshape_const, false);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshape_const, false);
 
     function = std::make_shared<ngraph::Function>(reshape, params, "ParamReshapeResult");
 }

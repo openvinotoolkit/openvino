@@ -81,14 +81,14 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     blankIndex = std::min(blankIndex, C - 1);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ngraph::op::v6::CTCGreedyDecoderSeqLen>(
+    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ov::op::v6::CTCGreedyDecoderSeqLen>(
             ngraph::builder::makeCTCGreedyDecoderSeqLen(paramsIn[0], sequenceLenNode,
                                                         blankIndex, mergeRepeated, ngIdxPrc));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results;
     for (int i = 0; i < ctcGreedyDecoderSeqLen->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoderSeqLen");
 }

@@ -45,11 +45,11 @@ void ReverseSequenceLayerTest::SetUp() {
     auto secondaryInput = ngraph::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
     OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        paramsIn.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondaryInput));
     }
 
-    auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reverse)};
+    auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reverse)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "ReverseSequence");
 }
 

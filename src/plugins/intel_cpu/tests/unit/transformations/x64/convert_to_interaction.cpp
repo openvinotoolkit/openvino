@@ -25,12 +25,12 @@ using namespace testing;
 using namespace ov::intel_cpu;
 using namespace ov;
 
-static std::shared_ptr<opset8::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
-    auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
-    auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
-    return std::make_shared<opset8::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+static std::shared_ptr<ov::op::v0::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
+    auto input_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
+    auto input_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
+    auto output_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
+    auto output_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
+    return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
 }
 
 static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputShape, bool intraFQ = false, bool postFQ = false) {
@@ -55,24 +55,24 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
         features.push_back(sparse_feat);
         inputsParams.push_back(sparse_input);
     }
-    auto shapeof = std::make_shared<opset8::ShapeOf>(dense_feature);
-    auto gather_batch_indices =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{0});
-    auto gather_batch_axis =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{}, 0);
-    auto gather_batch = std::make_shared<opset8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
+    auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(dense_feature);
+    auto gather_batch_indices =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+    auto gather_batch_axis =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{}, 0);
+    auto gather_batch = std::make_shared<ov::op::v8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
 
-    auto gather_feature_indices =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{1});
-    auto gather_feature_axis =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{1}, 0);
-    auto gather_feature = std::make_shared<opset8::Gather>(shapeof, gather_feature_indices, gather_feature_axis);
+    auto gather_feature_indices =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+    auto gather_feature_axis =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{1}, 0);
+    auto gather_feature = std::make_shared<ov::op::v8::Gather>(shapeof, gather_feature_indices, gather_feature_axis);
 
-    auto reshape_dim2 = std::make_shared<opset1::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto reshape_shape = std::make_shared<opset1::Concat>(NodeVector{gather_batch, reshape_dim2, gather_feature}, 0);
+    auto reshape_dim2 = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto reshape_shape = std::make_shared<ov::op::v0::Concat>(NodeVector{gather_batch, reshape_dim2, gather_feature}, 0);
 
-    auto concat1 = std::make_shared<opset1::Concat>(features, 1);
-    auto reshape = std::make_shared<opset1::Reshape>(concat1, reshape_shape, true);
+    auto concat1 = std::make_shared<ov::op::v0::Concat>(features, 1);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(concat1, reshape_shape, true);
     std::vector<int32_t> transpose1_value = {0, 2, 1};
-    auto transpose1_shape =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{3}, transpose1_value);
-    auto transpose1 = std::make_shared<opset1::Transpose>(reshape, transpose1_shape);
-    auto matmul = std::make_shared<opset1::MatMul>(reshape, transpose1);
+    auto transpose1_shape =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, transpose1_value);
+    auto transpose1 = std::make_shared<ov::op::v1::Transpose>(reshape, transpose1_shape);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, transpose1);
     std::shared_ptr<ov::Node> inter = nullptr;
     if (intraFQ) {
         inter = createFQ(matmul);
@@ -80,11 +80,11 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
         inter = matmul;
     }
     std::vector<int32_t> transpose2_value = {1, 2, 0};
-    auto transpose2_shape =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{3}, transpose2_value);
-    auto transpose2 = std::make_shared<opset1::Transpose>(inter, transpose2_shape);
+    auto transpose2_shape =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, transpose2_value);
+    auto transpose2 = std::make_shared<ov::op::v1::Transpose>(inter, transpose2_shape);
     std::vector<int32_t> reshape2_value = {729, -1};
-    auto reshape2_shape =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{2}, reshape2_value);
-    auto reshape2 = std::make_shared<opset1::Reshape>(transpose2, reshape2_shape, true);
+    auto reshape2_shape =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, reshape2_value);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(transpose2, reshape2_shape, true);
 
     std::vector<int32_t> gather_indices_value;
     for (int i = 1; i < 27; i++) {
@@ -92,29 +92,29 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
             gather_indices_value.push_back(i * 27 + j);
         }
     }
-    auto gather_indices =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{351}, gather_indices_value);
-    auto gather_axis =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{}, 0);
-    auto gather = std::make_shared<opset8::Gather>(reshape2, gather_indices, gather_axis);
-    auto reshape3_dim1 = std::make_shared<opset1::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto reshape3_shape = std::make_shared<opset1::Concat>(NodeVector{reshape3_dim1, gather_batch}, 0);
-    auto reshape3 = std::make_shared<opset1::Reshape>(gather, reshape3_shape, true);
+    auto gather_indices =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{351}, gather_indices_value);
+    auto gather_axis =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{}, 0);
+    auto gather = std::make_shared<ov::op::v8::Gather>(reshape2, gather_indices, gather_axis);
+    auto reshape3_dim1 = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto reshape3_shape = std::make_shared<ov::op::v0::Concat>(NodeVector{reshape3_dim1, gather_batch}, 0);
+    auto reshape3 = std::make_shared<ov::op::v1::Reshape>(gather, reshape3_shape, true);
 
     std::vector<int32_t> transpose3_value = {1, 0};
-    auto transpose3_shape =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{2}, transpose3_value);
-    auto transpose3 = std::make_shared<opset1::Transpose>(reshape3, transpose3_shape);
+    auto transpose3_shape =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, transpose3_value);
+    auto transpose3 = std::make_shared<ov::op::v1::Transpose>(reshape3, transpose3_shape);
 
     std::vector<int32_t> reshape4_value = {-1, 351};
-    auto reshape4_shape =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{2}, reshape4_value);
-    auto reshape4 = std::make_shared<opset1::Reshape>(transpose3, reshape4_shape, true);
-    auto concat2 = std::make_shared<opset1::Concat>(NodeVector{dense_feature, reshape4}, 1);
+    auto reshape4_shape =  std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, reshape4_value);
+    auto reshape4 = std::make_shared<ov::op::v1::Reshape>(transpose3, reshape4_shape, true);
+    auto concat2 = std::make_shared<ov::op::v0::Concat>(NodeVector{dense_feature, reshape4}, 1);
     std::shared_ptr<ov::Model> model;
     if (postFQ) {
-        auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-5.12978f});
-        auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{5.08965f});
-        auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-128});
-        auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{127});
-        auto fq = std::make_shared<ov::op::TypeRelaxed<opset8::FakeQuantize>>(
-            opset8::FakeQuantize(concat2, input_low, input_high, output_low, output_high, 256),
+        auto input_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-5.12978f});
+        auto input_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{5.08965f});
+        auto output_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-128});
+        auto output_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{127});
+        auto fq = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::FakeQuantize>>(
+            ov::op::v0::FakeQuantize(concat2, input_low, input_high, output_low, output_high, 256),
             element::i8);
         model = std::make_shared<ov::Model>(fq, inputsParams, "interaction");
     } else {

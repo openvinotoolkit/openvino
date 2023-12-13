@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 using spaceToDepthParamsTuple = typename std::tuple<
         std::vector<size_t>,                            // Input shape
         InferenceEngine::Precision,                     // Input precision
-        ngraph::opset3::SpaceToDepth::SpaceToDepthMode, // Mode
+        ov::op::v0::SpaceToDepth::SpaceToDepthMode, // Mode
         std::size_t,                                    // Block size
         std::string>;                                   // Device name>
 

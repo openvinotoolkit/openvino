@@ -24,13 +24,13 @@ std::shared_ptr<ngraph::Function> getFunction2() {
 
     auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
     auto add = ngraph::builder::makeEltwise(split->output(0), in2add, ngraph::helpers::EltwiseTypes::ADD);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(add);
+    auto relu1 = std::make_shared<ov::op::v0::Relu>(add);
 
     auto in2mult = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
     auto mult = ngraph::builder::makeEltwise(split->output(1), in2mult, ngraph::helpers::EltwiseTypes::MULTIPLY);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(mult);
+    auto relu2 = std::make_shared<ov::op::v0::Relu>(mult);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 3);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 3);
     concat->get_output_tensor(0).set_names({"concat"});
 
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");

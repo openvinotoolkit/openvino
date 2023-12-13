@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutputAttrs& attrs) {
+std::ostream& operator <<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
     result << "Classes=" << attrs.num_classes << "_";
     result << "backgrId=" << attrs.background_label_id << "_";
     result << "topK="  << attrs.top_k << "_";
@@ -30,7 +30,7 @@ std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutpu
 std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
-    ngraph::op::DetectionOutputAttrs attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
     size_t batch;
     std::string targetDevice;
     std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = obj.param;
@@ -164,7 +164,7 @@ void DetectionOutputLayerTest::SetUp() {
     else
         OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions

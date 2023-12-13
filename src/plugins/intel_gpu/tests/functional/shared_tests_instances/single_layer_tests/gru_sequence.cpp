@@ -27,9 +27,9 @@ namespace {
     std::vector<bool> linear_before_reset = {true, false};
     std::vector<float> clip{0.f};
     std::vector<float> clip_non_zeros{0.7f};
-    std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                                                     ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                                     ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL
+    std::vector<ov::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSequenceDirection::FORWARD,
+                                                                     ov::op::RecurrentSequenceDirection::REVERSE,
+                                                                     ov::op::RecurrentSequenceDirection::BIDIRECTIONAL
     };
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};

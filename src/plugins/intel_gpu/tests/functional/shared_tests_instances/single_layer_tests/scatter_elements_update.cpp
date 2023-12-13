@@ -9,7 +9,6 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::opset3;
 
 namespace {
 // map<inputShape, map<indicesShape, axis>>

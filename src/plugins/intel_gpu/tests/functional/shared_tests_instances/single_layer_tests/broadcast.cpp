@@ -96,7 +96,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast2D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy2D),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
-                                           ::testing::Values(ngraph::op::BroadcastType::NUMPY),
+                                           ::testing::Values(ov::op::BroadcastType::NUMPY),
                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_2d_static)),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),

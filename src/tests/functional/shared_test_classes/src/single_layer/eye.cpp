@@ -51,7 +51,7 @@ void EyeLayerTest::SetUp() {
     col_num = eye_par[1];
     shift = eye_par[2];
 
-    std::shared_ptr<ngraph::op::v9::Eye> eye_operation;
+    std::shared_ptr<ov::op::v9::Eye> eye_operation;
 
     auto rows_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, input_shapes[0], &row_num);
     rows_const->set_friendly_name("rows");
@@ -66,13 +66,13 @@ void EyeLayerTest::SetUp() {
                                                                       out_batch_shape.data());
         batch_shape_par->set_friendly_name("batchShape");
         eye_operation =
-            std::make_shared<ngraph::op::v9::Eye>(rows_const, cols_const, diag_const, batch_shape_par, net_precision);
+            std::make_shared<ov::op::v9::Eye>(rows_const, cols_const, diag_const, batch_shape_par, net_precision);
     } else {
-        eye_operation = std::make_shared<ngraph::op::v9::Eye>(rows_const, cols_const, diag_const, net_precision);
+        eye_operation = std::make_shared<ov::op::v9::Eye>(rows_const, cols_const, diag_const, net_precision);
     }
     // Without this call the eye operation will be calculated by CPU and substituted by Constant operator
     ov::pass::disable_constant_folding(eye_operation);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eye_operation)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eye_operation)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "eye");
 }
 }  // namespace LayerTestsDefinitions

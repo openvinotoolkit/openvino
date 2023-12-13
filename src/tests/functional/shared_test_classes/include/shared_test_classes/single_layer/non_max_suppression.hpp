@@ -14,7 +14,7 @@ namespace testing {
 namespace internal {
 
 template <>
-inline void PrintTo(const ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value, ::std::ostream* os) {}
+inline void PrintTo(const ::ov::op::v5::NonMaxSuppression::BoxEncodingType& value, ::std::ostream* os) {}
 
 }  // namespace internal
 }  // namespace testing
@@ -36,7 +36,7 @@ using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st an
                              float,             // IOU threshold
                              float,             // Score threshold
                              float,             // Soft NMS sigma
-                             ngraph::op::v5::NonMaxSuppression::BoxEncodingType,  // Box encoding
+                             ov::op::v5::NonMaxSuppression::BoxEncodingType,  // Box encoding
                              bool,                                                // Sort result descending
                              ngraph::element::Type,                               // Output type
                              std::string>;                                        // Device name

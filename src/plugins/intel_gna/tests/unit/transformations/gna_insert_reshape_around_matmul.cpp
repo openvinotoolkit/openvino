@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <numeric>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -23,8 +23,8 @@ struct InsertReshapeAroundMatmulTest {
                                                    const ngraph::Shape& constant_shape) {
         std::vector<size_t> data(ngraph::shape_size(constant_shape));
         std::iota(std::begin(data), std::end(data), 1);
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::i64, constant_shape, data);
-        return std::make_shared<ngraph::opset8::Add>(input, constant);
+        auto constant = ov::op::v0::Constant::create(ngraph::element::i64, constant_shape, data);
+        return std::make_shared<ov::opset8::Add>(input, constant);
     }
 
     static std::shared_ptr<ngraph::Node> CreateMatmul(std::shared_ptr<ngraph::Node> input,
@@ -32,9 +32,9 @@ struct InsertReshapeAroundMatmulTest {
                                                       const ngraph::Shape& permutation_shape) {
         std::vector<size_t> data(ngraph::shape_size(matmul_constant_shape));
         std::iota(std::begin(data), std::end(data), 1);
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::i64, matmul_constant_shape, data);
+        auto constant = ov::op::v0::Constant::create(ngraph::element::i64, matmul_constant_shape, data);
         std::shared_ptr<ngraph::Node> node;
-        node = std::make_shared<ngraph::opset8::MatMul>(input, constant);
+        node = std::make_shared<ov::op::v0::MatMul>(input, constant);
 
         if (ADD) {
             std::vector<size_t> add_constant_shape(2, 1);
@@ -52,28 +52,28 @@ struct InsertReshapeAroundMatmulTest {
             }
 
             auto constant_add =
-                ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{add_constant_shape}, data);
+                ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{add_constant_shape}, data);
             if (ADD_FIRST_INPUT_NOT_CONSTANT) {
-                node = std::make_shared<ngraph::opset8::Add>(node, constant_add);
+                node = std::make_shared<ov::opset8::Add>(node, constant_add);
             } else {
-                node = std::make_shared<ngraph::opset8::Add>(constant_add, node);
+                node = std::make_shared<ov::opset8::Add>(constant_add, node);
             }
         }
 
         if (FQ) {
-            node = std::make_shared<ngraph::opset8::FakeQuantize>(
+            node = std::make_shared<ov::opset8::FakeQuantize>(
                 node,
-                ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-0.1}),
-                ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {0.1}),
-                ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-0.1}),
-                ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                ov::op::v0::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                ov::op::v0::Constant::create(ngraph::element::f32, {1}, {0.1}),
                 255);
         }
 
         if (TRANSPOSE) {
-            node = std::make_shared<ngraph::opset8::Transpose>(
+            node = std::make_shared<ov::opset8::Transpose>(
                 node,
-                ngraph::opset8::Constant::create(ngraph::element::i64, {permutation_shape.size()}, permutation_shape));
+                ov::op::v0::Constant::create(ngraph::element::i64, {permutation_shape.size()}, permutation_shape));
         }
 
         return node;
@@ -82,11 +82,11 @@ struct InsertReshapeAroundMatmulTest {
     static std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& input_shape,
                                                             const ngraph::Shape& matmul_constant_shape,
                                                             const ngraph::Shape& permutation_shape = ngraph::Shape()) {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
-        auto before = std::make_shared<ngraph::opset8::Relu>(input);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, input_shape);
+        auto before = std::make_shared<ov::opset8::Relu>(input);
         auto matmul = CreateMatmul(before, matmul_constant_shape, permutation_shape);
-        auto after = std::make_shared<ngraph::opset8::Relu>(matmul);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ngraph::opset8::Result>(after)},
+        auto after = std::make_shared<ov::opset8::Relu>(matmul);
+        return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ov::op::v0::Result>(after)},
                                                   ngraph::ParameterVector{input});
     }
 
@@ -96,19 +96,19 @@ struct InsertReshapeAroundMatmulTest {
         const ngraph::Shape& matmul_constant_shape,
         const ngraph::Shape& reshape_after_shape,
         const ngraph::Shape& permutation_shape = ngraph::Shape()) {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
-        auto before = std::make_shared<ngraph::opset8::Relu>(input);
-        auto reshape_before_constant = ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                                        ngraph::Shape{reshape_before_shape.size()},
-                                                                        reshape_before_shape);
-        auto reshape_before = std::make_shared<ngraph::opset8::Reshape>(before, reshape_before_constant, false);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, input_shape);
+        auto before = std::make_shared<ov::opset8::Relu>(input);
+        auto reshape_before_constant = ov::op::v0::Constant::create(ngraph::element::i64,
+                                                                    ngraph::Shape{reshape_before_shape.size()},
+                                                                    reshape_before_shape);
+        auto reshape_before = std::make_shared<ov::opset8::Reshape>(before, reshape_before_constant, false);
         auto matmul = CreateMatmul(reshape_before, matmul_constant_shape, permutation_shape);
-        auto reshape_after_constant = ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                                       ngraph::Shape{reshape_after_shape.size()},
-                                                                       reshape_after_shape);
-        auto reshape_after = std::make_shared<ngraph::opset8::Reshape>(matmul, reshape_after_constant, false);
-        auto after = std::make_shared<ngraph::opset8::Relu>(reshape_after);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ngraph::opset8::Result>(after)},
+        auto reshape_after_constant = ov::op::v0::Constant::create(ngraph::element::i64,
+                                                                   ngraph::Shape{reshape_after_shape.size()},
+                                                                   reshape_after_shape);
+        auto reshape_after = std::make_shared<ov::opset8::Reshape>(matmul, reshape_after_constant, false);
+        auto after = std::make_shared<ov::opset8::Relu>(reshape_after);
+        return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ov::op::v0::Result>(after)},
                                                   ngraph::ParameterVector{input});
     }
 };  // struct InsertReshapeAroundMatmulTest

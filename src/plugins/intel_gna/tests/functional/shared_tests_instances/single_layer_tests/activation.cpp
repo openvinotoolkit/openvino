@@ -33,15 +33,14 @@ protected:
             threshold = 1.0;
         }
 
-        const auto inputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
-                                                                                    ngraph::Shape{inputShape.size()},
-                                                                                    inputShape);
-        const auto inputReshape = std::make_shared<ngraph::opset1::Reshape>(params[0], inputReshapePattern, false);
+        const auto inputReshapePattern =
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape);
+        const auto inputReshape = std::make_shared<ov::opset1::Reshape>(params[0], inputReshapePattern, false);
         const auto activation =
             ngraph::builder::makeActivation(inputReshape, ngPrc, activationType, shapes.second, constantsValue);
         const auto outputReshapePattern =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inputDims);
-        const auto outputReshape = std::make_shared<ngraph::opset1::Reshape>(activation, outputReshapePattern, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, inputDims);
+        const auto outputReshape = std::make_shared<ov::opset1::Reshape>(activation, outputReshapePattern, false);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{outputReshape}, params);
     }

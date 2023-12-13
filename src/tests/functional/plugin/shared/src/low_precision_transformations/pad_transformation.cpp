@@ -15,7 +15,7 @@ namespace LayerTestsDefinitions {
 std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::op::PadMode padMode;
+    ov::op::PadMode padMode;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
@@ -25,14 +25,14 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
            << "_" << param.fakeQuantize << "_"
            << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
-           << padMode << "_" << (padMode == ngraph::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
+           << padMode << "_" << (padMode == ov::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
     return result.str();
 }
 
 void PadTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::op::PadMode mode;
+    ov::op::PadMode mode;
     ov::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
     std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = this->GetParam();

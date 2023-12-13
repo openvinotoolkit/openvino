@@ -18,9 +18,9 @@ const std::vector<std::vector<int64_t>> axes = {
 };
 const std::vector<float> eps = {1e-7f, 1e-6f, 1e-5f, 1e-4f};
 
-const std::vector<ngraph::op::EpsMode> epsMode = {
-        ngraph::op::EpsMode::ADD,
-        ngraph::op::EpsMode::MAX,
+const std::vector<ov::op::EpsMode> epsMode = {
+        ov::op::EpsMode::ADD,
+        ov::op::EpsMode::MAX,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2,

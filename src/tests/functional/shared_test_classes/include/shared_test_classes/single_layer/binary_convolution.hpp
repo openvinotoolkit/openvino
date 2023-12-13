@@ -22,7 +22,7 @@ using binConvSpecificParams = std::tuple<
     std::vector<ptrdiff_t>,         // Pads end
     InferenceEngine::SizeVector,    // Dilations
     size_t,                         // Num Output channels
-    ngraph::op::PadType,            // Padding type
+    ov::op::PadType,            // Padding type
     float>;                         // Padding value
 
 using binaryConvolutionTestParamsSet = std::tuple<

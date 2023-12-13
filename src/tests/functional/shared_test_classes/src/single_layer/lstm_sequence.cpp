@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
         std::vector<float> activations_alpha;
         std::vector<float> activations_beta;
         float clip;
-        ngraph::op::RecurrentSequenceDirection direction;
+        ov::op::RecurrentSequenceDirection direction;
         InputLayerType WRBType;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
@@ -59,12 +59,12 @@ namespace LayerTestsDefinitions {
         std::vector<float> activations_alpha;
         std::vector<float> activations_beta;
         float clip;
-        ngraph::op::RecurrentSequenceDirection direction;
+        ov::op::RecurrentSequenceDirection direction;
         InputLayerType WRBType;
         InferenceEngine::Precision netPrecision;
         std::tie(m_mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction,
                  WRBType, netPrecision, targetDevice) = this->GetParam();
-        size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
+        size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         m_max_seq_len = seq_lengths;
         std::vector<ov::Shape> inputShapes = {
                 {{batch, seq_lengths, input_size}, {batch, num_directions, hidden_size}, {batch, num_directions, hidden_size},
@@ -116,16 +116,16 @@ namespace LayerTestsDefinitions {
 
         auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0], params[1], params[2], seq_lengths_node, W, R, B, hidden_size, direction,
                 std::vector<float>{}, std::vector<float>{}, activations, clip);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(1)),
-                                     std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(2))};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
+                                     std::make_shared<ov::op::v0::Result>(lstm_sequence->output(1)),
+                                     std::make_shared<ov::op::v0::Result>(lstm_sequence->output(2))};
         function = std::make_shared<ngraph::Function>(results, params, "lstm_sequence");
         bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
         if (!is_pure_sequence) {
             ngraph::pass::Manager manager;
-            if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.run_passes(function);

@@ -9,9 +9,9 @@ namespace LayerTestsDefinitions {
 std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<GridSampleParams>& obj) {
     InferenceEngine::SizeVector dataShape;
     InferenceEngine::SizeVector gridShape;
-    decltype(ngraph::op::v9::GridSample::Attributes::align_corners) alignCorners;
-    decltype(ngraph::op::v9::GridSample::Attributes::mode) mode;
-    decltype(ngraph::op::v9::GridSample::Attributes::padding_mode) paddingMode;
+    decltype(ov::op::v9::GridSample::Attributes::align_corners) alignCorners;
+    decltype(ov::op::v9::GridSample::Attributes::mode) mode;
+    decltype(ov::op::v9::GridSample::Attributes::padding_mode) paddingMode;
     InferenceEngine::Precision inDataPrc;
     InferenceEngine::Precision inGridPrc;
     std::string targetDevice;
@@ -33,9 +33,9 @@ std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<Gr
 void GridSampleLayerTest::SetUp() {
     InferenceEngine::SizeVector dataShape;
     InferenceEngine::SizeVector gridShape;
-    decltype(ngraph::op::v9::GridSample::Attributes::align_corners) alignCorners;
-    decltype(ngraph::op::v9::GridSample::Attributes::mode) mode;
-    decltype(ngraph::op::v9::GridSample::Attributes::padding_mode) paddingMode;
+    decltype(ov::op::v9::GridSample::Attributes::align_corners) alignCorners;
+    decltype(ov::op::v9::GridSample::Attributes::mode) mode;
+    decltype(ov::op::v9::GridSample::Attributes::padding_mode) paddingMode;
     InferenceEngine::Precision inDataPrc;
     InferenceEngine::Precision inGridPrc;
 
@@ -44,13 +44,13 @@ void GridSampleLayerTest::SetUp() {
 
     auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
     auto ngInGridPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inGridPrc);
-    auto data = std::make_shared<ngraph::op::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
-    auto grid = std::make_shared<ngraph::op::Parameter>(ngInGridPrc, ngraph::Shape(gridShape));
-    auto gridSample = std::make_shared<ngraph::op::v9::GridSample>(
+    auto data = std::make_shared<ov::op::v0::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
+    auto grid = std::make_shared<ov::op::v0::Parameter>(ngInGridPrc, ngraph::Shape(gridShape));
+    auto gridSample = std::make_shared<ov::op::v9::GridSample>(
         data,
         grid,
-        ngraph::op::v9::GridSample::Attributes(alignCorners, mode, paddingMode));
-    function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(gridSample),
+        ov::op::v9::GridSample::Attributes(alignCorners, mode, paddingMode));
+    function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(gridSample),
                                                   ngraph::ParameterVector{data, grid},
                                                   "GridSample");
 }

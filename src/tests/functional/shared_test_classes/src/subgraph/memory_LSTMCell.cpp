@@ -13,7 +13,6 @@
 #include "ov_models/builders.hpp"
 
 using namespace ngraph;
-using namespace opset7;
 
 namespace ov {
 namespace test {

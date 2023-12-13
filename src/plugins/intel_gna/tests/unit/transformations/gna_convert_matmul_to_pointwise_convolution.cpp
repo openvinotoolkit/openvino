@@ -12,6 +12,7 @@
 #include <tuple>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "ov_models/builders.hpp"
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 
@@ -22,12 +23,12 @@ namespace {
 struct Graph {
     std::shared_ptr<ngraph::Function> createFunction();
 
-    std::shared_ptr<ngraph::opset7::Parameter> input_params;
+    std::shared_ptr<ov::op::v0::Parameter> input_params;
     std::shared_ptr<ngraph::op::Op> output;
 };
 
 std::shared_ptr<ngraph::Function> Graph::createFunction() {
-    auto result = std::make_shared<ngraph::opset7::Result>(output);
+    auto result = std::make_shared<ov::op::v0::Result>(output);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
@@ -84,8 +85,8 @@ private:
 
 Graph CreateBaseDecorator::build() {
     Graph graph;
-    graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_data_shape_);
-    graph.output = ngraph::opset7::Constant::create(ngraph::element::i64, input_const_shape_, {1});
+    graph.input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, input_data_shape_);
+    graph.output = ov::op::v0::Constant::create(ngraph::element::i64, input_const_shape_, {1});
     return graph;
 }
 
@@ -98,17 +99,12 @@ protected:
     void updateGraph(Graph&) override;
 };
 
-std::shared_ptr<ngraph::opset7::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
-    auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-    auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-    auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-    auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-    return std::make_shared<ngraph::opset7::FakeQuantize>(parent_node,
-                                                          input_low,
-                                                          input_high,
-                                                          output_low,
-                                                          output_high,
-                                                          11);
+std::shared_ptr<ov::opset7::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
+    auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+    auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+    auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+    return std::make_shared<ov::opset7::FakeQuantize>(parent_node, input_low, input_high, output_low, output_high, 11);
 }
 
 void CreateFakeQuantize::updateGraph(Graph& graph) {
@@ -124,7 +120,7 @@ protected:
 };
 
 void CreateMatMul::updateGraph(Graph& graph) {
-    auto matmul_node = std::make_shared<ngraph::opset7::MatMul>(graph.input_params, graph.output);
+    auto matmul_node = std::make_shared<ov::opset7::MatMul>(graph.input_params, graph.output);
     graph.output = matmul_node;
 }
 
@@ -149,7 +145,7 @@ void CreateAdd<ONE_DIMENSIONAL, ONE_CHANNEL>::updateGraph(Graph& graph) {
     }
 
     auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
-    auto add_node = std::make_shared<ngraph::opset7::Add>(graph.output, bias);
+    auto add_node = std::make_shared<ov::opset7::Add>(graph.output, bias);
     graph.output = add_node;
 }
 
@@ -181,17 +177,17 @@ template <bool ADD_CONST_FAKEQUANTIZE_NODE, bool INSERT_ADD_NODE, bool ONE_CHANN
 Graph createReferenceGraph() {
     Graph graph;
 
-    graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, ngraph::Shape{16, 8});
-    auto constant_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8, 8}, {1});
+    graph.input_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{16, 8});
+    auto constant_node = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{8, 8}, {1});
 
-    auto const_reshape_before = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
-                                                                           ngraph::Shape{4},
-                                                                           ngraph::Shape{1, 1, 16, 8});
-    auto reshape_before = std::make_shared<ngraph::opset7::Reshape>(graph.input_params, const_reshape_before, false);
+    auto const_reshape_before = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
+                                                                       ngraph::Shape{4},
+                                                                       ngraph::Shape{1, 1, 16, 8});
+    auto reshape_before = std::make_shared<ov::opset7::Reshape>(graph.input_params, const_reshape_before, false);
 
     auto const_transpose_before =
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
-    auto transpose_before = std::make_shared<ngraph::opset7::Transpose>(reshape_before, const_transpose_before);
+        ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+    auto transpose_before = std::make_shared<ov::opset7::Transpose>(reshape_before, const_transpose_before);
 
     std::shared_ptr<ngraph::op::Op> parent_node = constant_node;
     if (std::is_same<std::integral_constant<bool, ADD_CONST_FAKEQUANTIZE_NODE>,
@@ -199,18 +195,18 @@ Graph createReferenceGraph() {
         parent_node = createFakeQuantizeNode(constant_node);
     }
 
-    auto weights_reshape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
-                                                                            ngraph::Shape{4},
-                                                                            ngraph::Shape{8, 8, 1, 1});
-    auto weights_reshaped = std::make_shared<ngraph::opset7::Reshape>(parent_node, weights_reshape_const, false);
+    auto weights_reshape_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
+                                                                        ngraph::Shape{4},
+                                                                        ngraph::Shape{8, 8, 1, 1});
+    auto weights_reshaped = std::make_shared<ov::opset7::Reshape>(parent_node, weights_reshape_const, false);
 
-    auto conv_node = std::make_shared<ngraph::opset7::Convolution>(transpose_before,
-                                                                   weights_reshaped,
-                                                                   ngraph::Strides{1, 1},
-                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                   ngraph::Strides{1, 1},
-                                                                   ngraph::op::PadType::VALID);
+    auto conv_node = std::make_shared<ov::opset7::Convolution>(transpose_before,
+                                                               weights_reshaped,
+                                                               ngraph::Strides{1, 1},
+                                                               ngraph::CoordinateDiff{0, 0},
+                                                               ngraph::CoordinateDiff{0, 0},
+                                                               ngraph::Strides{1, 1},
+                                                               ngraph::op::PadType::VALID);
 
     parent_node = conv_node;
     if (std::is_same<std::integral_constant<bool, INSERT_ADD_NODE>, std::integral_constant<bool, true>>::value) {
@@ -221,7 +217,7 @@ Graph createReferenceGraph() {
         }
 
         auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
-        auto add_node = std::make_shared<ngraph::opset7::Add>(parent_node, bias);
+        auto add_node = std::make_shared<ov::opset7::Add>(parent_node, bias);
         parent_node = add_node;
     }
 
@@ -231,13 +227,12 @@ Graph createReferenceGraph() {
     }
 
     auto const_transpose_after =
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
-    auto transpose_after = std::make_shared<ngraph::opset7::Transpose>(parent_node, const_transpose_after);
+        ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+    auto transpose_after = std::make_shared<ov::opset7::Transpose>(parent_node, const_transpose_after);
 
-    auto const_reshape_after = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
-                                                                          ngraph::Shape{2},
-                                                                          ngraph::Shape{16, 8});
-    graph.output = std::make_shared<ngraph::opset7::Reshape>(transpose_after, const_reshape_after, false);
+    auto const_reshape_after =
+        std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, ngraph::Shape{16, 8});
+    graph.output = std::make_shared<ov::opset7::Reshape>(transpose_after, const_reshape_after, false);
 
     return graph;
 }

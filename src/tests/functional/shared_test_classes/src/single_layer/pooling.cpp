@@ -17,8 +17,8 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
-    ngraph::op::PadType padType;
-    ngraph::op::RoundingType roundingType;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
     bool excludePad;
     std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = poolParams;
 
@@ -59,8 +59,8 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
-    ngraph::op::PadType padType;
-    ngraph::op::RoundingType roundingType;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
     bool excludePad;
     std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = poolParams;
 
@@ -81,7 +81,7 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
     result << "S" << ov::test::utils::vec2str(stride) << "_";
     result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
     result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
-    if (padType == ngraph::op::PadType::EXPLICIT) {
+    if (padType == ov::op::PadType::EXPLICIT) {
         result << "Rounding=" << roundingType << "_";
     }
     result << "AutoPad=" << padType << "_";
@@ -104,8 +104,8 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
-    ngraph::op::PadType padType;
-    ngraph::op::RoundingType roundingType;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
     ngraph::element::Type indexElementType;
     int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
@@ -138,8 +138,8 @@ void PoolingLayerTest::SetUp() {
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
-    ngraph::op::PadType padType;
-    ngraph::op::RoundingType roundingType;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
     bool excludePad;
     std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = poolParams;
 
@@ -158,7 +158,7 @@ void PoolingLayerTest::SetUp() {
                                                                          poolType);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
 
@@ -170,8 +170,8 @@ void GlobalPoolingLayerTest::SetUp() {
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
-    ngraph::op::PadType padType;
-    ngraph::op::RoundingType roundingType;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
     bool excludePad;
     std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = poolParams;
 
@@ -192,7 +192,7 @@ void GlobalPoolingLayerTest::SetUp() {
                                                                          poolType);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
 
@@ -203,8 +203,8 @@ void MaxPoolingV8LayerTest::SetUp() {
     std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
-    ngraph::op::PadType padType;
-    ngraph::op::RoundingType roundingType;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
     ngraph::element::Type indexElementType;
     int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
@@ -219,10 +219,10 @@ void MaxPoolingV8LayerTest::SetUp() {
     const auto maxPoolV8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
     ngraph::ResultVector results;
     if (maxPoolV8_second_output_is_supported) {
-        results = {std::make_shared<ngraph::opset3::Result>(maxPool->output(0)),
-                   std::make_shared<ngraph::opset3::Result>(maxPool->output(1))};
+        results = {std::make_shared<ov::op::v0::Result>(maxPool->output(0)),
+                   std::make_shared<ov::op::v0::Result>(maxPool->output(1))};
     } else {
-        results = { std::make_shared<ngraph::opset3::Result>(maxPool->output(0)) };
+        results = { std::make_shared<ov::op::v0::Result>(maxPool->output(0)) };
     }
     function = std::make_shared<ngraph::Function>(results, params, "MaxPoolV8");
 }

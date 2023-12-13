@@ -46,7 +46,7 @@ void MultipleInputScaleTest::SetUp() {
 
     auto add = ngraph::builder::makeEltwise(fc1, fc2, ngraph::helpers::EltwiseTypes::ADD);
 
-    auto result = std::make_shared<ngraph::opset7::Result>(add);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
     function = std::make_shared<ngraph::Function>(result, input, "multiple_input_scale");
     functionRefs = ngraph::clone_function(*function);
 }

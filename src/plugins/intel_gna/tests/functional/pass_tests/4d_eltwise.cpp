@@ -57,18 +57,18 @@ protected:
 
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, outFormShapes1);
-        auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, outFormShapes1);
+        auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         auto constant1 = ngraph::builder::makeConstant<float>(ngPrc, {1, 1, 1, 12}, {}, true);
         auto eltwise = ngraph::builder::makeEltwise(reshape1, constant1, eltwiseType);
 
         std::vector<size_t> outFormShapes2 = {1, 72};
         auto pattern2 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, outFormShapes2);
-        auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(eltwise, pattern2, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, outFormShapes2);
+        auto reshape2 = std::make_shared<ov::opset1::Reshape>(eltwise, pattern2, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape2)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};
         function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dBroadcast");
     }
 };
@@ -106,19 +106,19 @@ protected:
                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72})};
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, outFormShapes1);
-        auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, outFormShapes1);
+        auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
-        auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(params[1], pattern1, false);
+        auto reshape2 = std::make_shared<ov::opset1::Reshape>(params[1], pattern1, false);
 
         auto eltwise = ngraph::builder::makeEltwise(reshape1, reshape2, eltwiseType);
 
         std::vector<size_t> outFormShapes2 = {1, 72};
         auto pattern2 =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, outFormShapes2);
-        auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(eltwise, pattern2, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, outFormShapes2);
+        auto reshape3 = std::make_shared<ov::opset1::Reshape>(eltwise, pattern2, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape3)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dMultipleInput");
     }
 };

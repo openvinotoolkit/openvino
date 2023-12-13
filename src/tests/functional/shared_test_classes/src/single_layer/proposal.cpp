@@ -153,7 +153,7 @@ void ProposalLayerTest::SetUp() {
     params[1]->set_friendly_name("b_boxes");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(
+    auto proposal = std::dynamic_pointer_cast<ov::op::v4::Proposal>(
              ngraph::builder::makeProposal(params[0], params[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
@@ -172,8 +172,8 @@ void ProposalLayerTest::SetUp() {
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results{
-        std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
-        std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
+        std::make_shared<ov::op::v0::Result>(proposal->output(0)),
+        std::make_shared<ov::op::v0::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 

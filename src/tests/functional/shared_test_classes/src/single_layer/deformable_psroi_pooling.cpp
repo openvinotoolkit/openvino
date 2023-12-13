@@ -97,7 +97,7 @@ namespace LayerTestsDefinitions {
         if (offsetsShape.empty()) { // Test without optional third input (offsets)
             params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(roisShape))};
-            defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(params[0],
+            defomablePSROIPooling = std::make_shared<ov::op::v1::DeformablePSROIPooling>(params[0],
                                                                                                 params[1],
                                                                                                 outputDim,
                                                                                                 spatialScale_,
@@ -111,7 +111,7 @@ namespace LayerTestsDefinitions {
             params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(roisShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(offsetsShape))};
-            defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(params[0],
+            defomablePSROIPooling = std::make_shared<ov::op::v1::DeformablePSROIPooling>(params[0],
                                                                                                 params[1],
                                                                                                 params[2],
                                                                                                 outputDim,
@@ -124,7 +124,7 @@ namespace LayerTestsDefinitions {
                                                                                                 part_size);
         }
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(defomablePSROIPooling)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(defomablePSROIPooling)};
         function = std::make_shared<ngraph::Function>(results, params, "deformable_psroi_pooling");
     }
 }  // namespace LayerTestsDefinitions

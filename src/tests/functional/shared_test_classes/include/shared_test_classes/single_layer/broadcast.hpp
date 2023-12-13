@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 using BroadcastParamsTuple = typename std::tuple<
         InferenceEngine::SizeVector,       // target shape
         ngraph::AxisSet,                   // axes mapping
-        ngraph::op::BroadcastType,         // broadcast mode
+        ov::op::BroadcastType,         // broadcast mode
         InferenceEngine::SizeVector,       // Input shape
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name

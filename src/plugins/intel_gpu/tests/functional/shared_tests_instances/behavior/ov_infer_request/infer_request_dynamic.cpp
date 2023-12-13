@@ -23,7 +23,7 @@ std::shared_ptr<ngraph::Function> getFunction1() {
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
 
-    auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu = std::make_shared<ov::op::v0::Relu>(params[0]);
     relu->get_output_tensor(0).set_names({"relu"});
 
     return std::make_shared<ngraph::Function>(relu, params, "SimpleActivation");

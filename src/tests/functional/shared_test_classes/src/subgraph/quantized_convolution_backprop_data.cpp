@@ -15,7 +15,7 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
     ov::Shape inputShapes;
     std::string targetDevice;
     std::tie(groupConvBackpropDataParams, element_type, inputShapes, targetDevice) = obj.param;
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     ov::Shape kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;

@@ -71,13 +71,13 @@ void RandomUniformLayerTest::SetUp() {
 
     auto min_value = createConstant(randomUniformParams.precision, randomUniformParams.min_value);
     auto max_value = createConstant(randomUniformParams.precision, randomUniformParams.max_value);
-    auto random_uniform = std::make_shared<ngraph::op::v8::RandomUniform>(shape_of,
+    auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(shape_of,
                                                                           min_value,
                                                                           max_value,
                                                                           precision,
                                                                           global_seed,
                                                                           op_seed);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(random_uniform)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(random_uniform)};
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{input}, "random_uniform");
 }
