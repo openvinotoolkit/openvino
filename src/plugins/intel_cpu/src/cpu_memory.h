@@ -4,18 +4,16 @@
 
 #pragma once
 
-#include "ie_layouts.h"
-#include "memory_desc/cpu_memory_desc.h"
+#include "cpu_shape.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <onednn/dnnl.h>
-#include <cpu_shape.h>
-
 #include "memory_desc/dnnl_memory_desc.h"
 
-#include <string>
+#include <onednn/dnnl.h>
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
 /**
