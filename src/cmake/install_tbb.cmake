@@ -84,9 +84,6 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBBROOT AND TBBROOT MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
-    ov_cpack_add_component(tbb HIDDEN)
-    list(APPEND core_components tbb)
-
     if(TBBROOT MATCHES ${TEMP})
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
@@ -130,6 +127,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(TBB_LIB_INSTALL_DIR "runtime/3rdparty/tbb/lib" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_custom)
+        ov_cpack_add_component(tbb HIDDEN)
+        list(APPEND core_components tbb)
+
         # for custom TBB we need to install it to our package
         # to simplify life for our customers
         set(IE_TBBROOT_INSTALL "runtime/3rdparty/tbb")
@@ -185,6 +185,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(TBB_LIB_INSTALL_DIR "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_downloaded)
+        ov_cpack_add_component(tbb HIDDEN)
+        list(APPEND core_components tbb)
+
         if(WIN32)
             set(_ov_tbb_libs_path "${TBBROOT}/bin")
         else()
