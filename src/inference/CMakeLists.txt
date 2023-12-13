@@ -222,7 +222,8 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION ${OV_CPACK_INCLUDEDIR}
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)
