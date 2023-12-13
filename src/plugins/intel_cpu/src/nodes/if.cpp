@@ -23,6 +23,11 @@ If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryP
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->getShape().getElementsCount();
+
+    // Backup dstMemPtrs
+    for (auto& ptr : dstMemPtrs) {
+        backupDstMemPtrs.push_back(ptr->getDescPtr()->clone());
+    }
 }
 
 void If::PortMapHelper::execute(dnnl::stream& strm) {
@@ -44,9 +49,7 @@ void If::PortMapHelper::redefineTo() {
         auto newShape = srcMemPtr->getStaticDims();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
             // Only the shape is updated, the memory type remains unchanged
-            auto memDesc = dstMemPtrs[j]->getDescPtr();
-            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(memDesc->getPrecision(), Shape(newShape));
-            dstMemPtrs[j]->redefineDesc(desc);
+            dstMemPtrs[j]->redefineDesc(backupDstMemPtrs[j]->cloneWithNewDims(newShape));
         }
 
         size = srcMemPtr->getShape().getElementsCount();
