@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/input_info.hpp>
+#include "openvino/core/preprocess/input_info.hpp"
 
 class InputInfo : public Napi::ObjectWrap<InputInfo> {
 public:

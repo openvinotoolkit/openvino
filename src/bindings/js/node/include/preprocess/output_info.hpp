@@ -4,7 +4,7 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/output_info.hpp>
+#include "openvino/core/preprocess/output_info.hpp"
 
 class OutputInfo : public Napi::ObjectWrap<OutputInfo> {
 public:

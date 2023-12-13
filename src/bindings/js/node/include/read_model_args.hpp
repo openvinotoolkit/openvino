@@ -2,7 +2,7 @@
 
 #include <napi.h>
 
-#include <openvino/runtime/core.hpp>
+#include "openvino/runtime/core.hpp"
 
 struct ReadModelArgs {
     std::string model_path;

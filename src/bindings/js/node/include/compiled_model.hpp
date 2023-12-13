@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-#include <openvino/runtime/compiled_model.hpp>
+#include "openvino/runtime/compiled_model.hpp"
 
 class CompiledModelWrap : public Napi::ObjectWrap<CompiledModelWrap> {
 public:

@@ -3,9 +3,9 @@
 
 #include "preprocess/resize_algorithm.hpp"
 
-#include <iostream>
-#include <openvino/runtime/core.hpp>
 #include <typeinfo>
+
+#include "openvino/runtime/core.hpp"
 
 Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
     Napi::Object enumObj = Napi::Object::New(info.Env());

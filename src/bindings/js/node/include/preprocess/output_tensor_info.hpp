@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/output_tensor_info.hpp>
+#include "openvino/core/preprocess/output_tensor_info.hpp"
 
 class OutputTensorInfo : public Napi::ObjectWrap<OutputTensorInfo> {
 public:

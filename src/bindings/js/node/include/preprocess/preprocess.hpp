@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-#include <openvino/openvino.hpp>
+#include "openvino/openvino.hpp"
 
 #include "preprocess/resize_algorithm.hpp"
 #include "preprocess/pre_post_process_wrap.hpp"

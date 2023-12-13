@@ -3,15 +3,15 @@
 
 #pragma once
 
-#include <openvino/core/shape.hpp>
-#include <openvino/core/type/element_type.hpp>
-#include <openvino/runtime/compiled_model.hpp>
-#include <openvino/runtime/tensor.hpp>
+#include <napi.h>
 
 #include "element_type.hpp"
 #include "errors.hpp"
 #include "helper.hpp"
-#include "napi.h"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 class TensorWrap : public Napi::ObjectWrap<TensorWrap> {
 public:

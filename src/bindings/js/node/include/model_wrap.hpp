@@ -5,11 +5,10 @@
 
 #include <napi.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/runtime/core.hpp>
-
 #include "compiled_model.hpp"
 #include "errors.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/core.hpp"
 #include "tensor.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {
@@ -50,7 +49,7 @@ public:
      * @param info contains passed arguments.
      * Empty info array:
      * @param info Gets a single input of a model. If a model has more than one input, this method
-     * throws ov::Exception. 
+     * throws ov::Exception.
      * One param of type string:
      * @param info[0] Gets input of a model identified by tensor_name.
      * One param of type int:
@@ -63,7 +62,7 @@ public:
      * @param info contains passed arguments.
      * Empty info array:
      * @param info Gets a single output of a model. If a model has more than one output, this method
-     * throws ov::Exception. 
+     * throws ov::Exception.
      * One param of type string:
      * @param info[0] Gets output of a model identified by tensor_name.
      * One param of type int:

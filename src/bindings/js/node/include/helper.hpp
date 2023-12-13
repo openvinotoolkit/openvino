@@ -4,12 +4,12 @@
 #pragma once
 #include <napi.h>
 
-#include <openvino/core/type/element_type.hpp>
-#include <openvino/openvino.hpp>
 #include <unordered_set>
 #include <variant>
 
 #include "element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/openvino.hpp"
 
 typedef enum {
     js_array,
@@ -86,9 +86,10 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 
 /** @brief  A template specialization for TargetType ov::preprocess::ResizeAlgorithm */
 template <>
-ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
-                               const size_t idx,
-                               const std::vector<napi_types>& acceptable_types);
+ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types);
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>
@@ -96,9 +97,10 @@ ov::Any js_to_cpp<ov::Any>(const Napi::Value, const std::vector<napi_types>& acc
 
 /** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
 template <>
-std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
-                               const size_t idx,
-                               const std::vector<napi_types>& acceptable_types);
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types);
 
 /**
  * @brief  Template function to convert C++ data types into Javascript data types

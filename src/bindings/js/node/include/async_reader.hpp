@@ -5,9 +5,8 @@
 
 #include <napi.h>
 
-#include <openvino/runtime/core.hpp>
-
 #include "model_wrap.hpp"
+#include "openvino/runtime/core.hpp"
 #include "read_model_args.hpp"
 
 class ReaderWorker : public Napi::AsyncWorker {

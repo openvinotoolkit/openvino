@@ -4,7 +4,7 @@
 #pragma once
 #include <napi.h>
 
-#include <openvino/runtime/infer_request.hpp>
+#include "openvino/runtime/infer_request.hpp"
 
 class InferRequestWrap : public Napi::ObjectWrap<InferRequestWrap> {
 public:

@@ -4,10 +4,10 @@
 #pragma once
 
 #include <napi.h>
-#include <openvino/core/partial_shape.hpp>
 
 #include "errors.hpp"
 #include "helper.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 class PartialShapeWrap : public Napi::ObjectWrap<PartialShapeWrap> {
 public:
@@ -43,5 +43,5 @@ public:
     Napi::Value get_dimensions(const Napi::CallbackInfo& info);
 
 private:
-    ov::PartialShape _partial_shape;       
+    ov::PartialShape _partial_shape;
 };

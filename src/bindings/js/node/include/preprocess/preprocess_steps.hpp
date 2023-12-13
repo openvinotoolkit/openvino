@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/preprocess_steps.hpp>
+#include "openvino/core/preprocess/preprocess_steps.hpp"
 
 
 class PreProcessSteps : public Napi::ObjectWrap<PreProcessSteps> {
