@@ -127,6 +127,7 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
     if (start_op_vec.size() < 2 || ordered_ops.size() < 3) {
         return {{}};
     }
+    is_recursive_extraction = true;
     // prepare node vectors contains potential patterns from start_node to output
     // first one is biggest subgraph, last one is smallest one
     auto pattern_cnt = start_op_vec.size();
@@ -311,7 +312,7 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
         }
         if (is_extract_body) {
             for (const auto& matched_node_idx : matched_nodes) {
-                auto matched_node = ordered_ops[matched_node_idx];
+                const auto& matched_node = ordered_ops[matched_node_idx];
                 if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(matched_node)) {
                     auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node);
                     auto ti_body = ti->get_function();
