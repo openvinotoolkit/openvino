@@ -144,7 +144,7 @@ Use the issue description and locally built OpenVINO to complete the task. Remem
 
 Follow our [Good Pull Request guidelines](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_PR.md).
 
-### 5. Wait for review
+### 5. Wait for a review
 
 We'll make sure to review your Pull Request as soon as possible and provide you with our feedback. You can expect a merge once your changes are validated with automatic tests and approved by maintainers.
 
