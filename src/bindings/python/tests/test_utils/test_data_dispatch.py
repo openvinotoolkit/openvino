@@ -7,8 +7,8 @@ import pytest
 import numpy as np
 
 from tests.utils.helpers import generate_relu_compiled_model
-from openvino import Model, Type, Shape, Core, Tensor
-from openvino.runtime import ConstOutput
+
+from openvino import Type, Shape, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"

@@ -17,9 +17,6 @@ from openvino import (
     Type,
     Tensor,
 )
-from openvino.runtime import ProfilingInfo
-from openvino.preprocess import PrePostProcessor
-
 from tests import skip_need_mock_op
 from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
 

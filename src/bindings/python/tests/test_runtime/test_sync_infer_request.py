@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Iterable
+from contextlib import nullcontext as does_not_raise
 from copy import deepcopy
 import numpy as np
 import os
@@ -14,18 +14,17 @@ import openvino.runtime.opset13 as ops
 from openvino import (
     Core,
     CompiledModel,
-    InferRequest,
     Model,
     Layout,
     PartialShape,
     Shape,
     Type,
     Tensor,
+    compile_model,
 )
 from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
-from tests import skip_need_mock_op
 from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
 
 
@@ -990,3 +989,35 @@ def test_infer_request_share_memory(device, share_inputs, share_outputs, is_posi
     else:
         assert not out_tensor_shares
         assert results[0].flags["OWNDATA"] is True
+
+
+def test_output_result_to_input():
+    def create_model_1():
+        param1 = ops.parameter(Shape([1, 1]), Type.i32)
+        param1.set_friendly_name("input_1")
+        add = ops.add(param1, ops.constant([1], Type.i32))
+        add1 = ops.add(param1, ops.constant([[5]], Type.i32))
+        model = Model([add, add1], [param1])
+        model.output(0).tensor.set_names({"output_1_1"})
+        model.output(1).tensor.set_names({"outputs_1_2"})
+        return model
+
+    def create_model_2():
+        param1 = ops.parameter(Shape([1, 1]), Type.i32)
+        param1.set_friendly_name("output_1_1")
+        param2 = ops.parameter(Shape([1, 1]), Type.i32)
+        param2.set_friendly_name("outputs_1_2")
+
+        add = ops.add(param1, param2)
+        model = Model([add], [param1, param2])
+        model.output(0).tensor.set_names({"output_2_1"})
+        return model
+
+    model_1 = create_model_1()
+    model_2 = create_model_2()
+    compiled_1, compiled_2 = compile_model(model_1), compile_model(model_2)
+    input_data = np.array([[1]])
+    result_1 = compiled_1(input_data, share_inputs=False)
+    with does_not_raise():
+        result_2 = compiled_2(result_1, share_inputs=False)
+    assert np.array_equal(result_2[0], [[8]])
