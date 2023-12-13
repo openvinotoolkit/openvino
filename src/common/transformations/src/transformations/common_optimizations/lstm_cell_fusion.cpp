@@ -74,7 +74,7 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
             return false;
 
         if (B_shape[0] != 1)
-                return false;
+            return false;
 
         size_t hidden_size = WR_shape[0] / 4;
 

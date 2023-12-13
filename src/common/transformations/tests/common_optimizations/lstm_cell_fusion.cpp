@@ -21,7 +21,6 @@
 using namespace ov;
 
 TEST_F(TransformationTestsF, LSTMCellFusion) {
-    size_t batch = 1;
     size_t input_size = 3;
     size_t hidden_size = 2;
     {
