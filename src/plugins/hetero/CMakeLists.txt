@@ -47,6 +47,10 @@ if(ENABLE_TESTS)
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
         ov_set_threading_interface_for(${OBJ_NAME})
+
+        target_compile_definitions(${OBJ_NAME}
+            PRIVATE
+                USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API)
     endif()
 
     add_subdirectory(tests)
