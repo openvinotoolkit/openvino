@@ -287,6 +287,10 @@ Type fundamental_type_for(const Type& type) {
         return from<element_type_traits<Type_t::f32>::value_type>();
     case Type_t::f64:
         return from<element_type_traits<Type_t::f64>::value_type>();
+    case Type_t::f8e4m3:
+        return from<element_type_traits<Type_t::f8e4m3>::value_type>();
+    case Type_t::f8e5m2:
+        return from<element_type_traits<Type_t::f8e5m2>::value_type>();
     case Type_t::i4:
         return from<element_type_traits<Type_t::i4>::value_type>();
     case Type_t::i8:
