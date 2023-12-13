@@ -41,7 +41,7 @@ body:
           Any materials related to the task, such as operator specifications,
           discussions, guides.
       value: |
-          - [Contributing roadmap - start here!](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_ROADMAP.md)
+          - [Contribution guide - start here!](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
     validations:
       required: true
 
