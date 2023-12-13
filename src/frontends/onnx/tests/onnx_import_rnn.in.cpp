@@ -21,7 +21,6 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
