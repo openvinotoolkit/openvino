@@ -31,13 +31,13 @@ class FakeQuantizeWithNotOptimalTransformationTestValues {
 public:
     class Values {
     public:
-        ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
-        ngraph:: builder::subgraph::DequantizationOperations::Convert convertOnData;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnData;
-        ngraph:: builder::subgraph::Constant constantOnWeights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationAfter;
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+        ngraph::builder::subgraph::DequantizationOperations::Convert convertOnData;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ngraph::builder::subgraph::Constant constantOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
     TestTransformationParams params;
     Values actual;

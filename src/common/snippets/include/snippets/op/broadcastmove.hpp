@@ -20,7 +20,7 @@ class BroadcastMove : public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 
-    BroadcastMove(const Output<Node>& x, ov::PartialShape output_shape);
+    BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension);
     BroadcastMove() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -28,7 +28,8 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void validate_and_infer_types() override;
-    ov::PartialShape get_output_shape() {return output_shape;}
+    const ov::Dimension& get_bcast_dimension() {return bcast_dimension;}
+    void set_bcast_dimension(ov::Dimension new_dim) {bcast_dimension = std::move(new_dim);}
     // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,
     // but have identical shapeInfer semantics. In order to avoid code duplication,
     // we created dummy ShapeInfer classes that are essentially instantiations
@@ -38,7 +39,7 @@ public:
     };
 
 protected:
-    ov::PartialShape output_shape;
+    ov::Dimension bcast_dimension;
 };
 
 } // namespace op

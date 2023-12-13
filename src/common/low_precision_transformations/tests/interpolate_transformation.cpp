@@ -27,7 +27,7 @@ using namespace ngraph::builder::subgraph;
 
 class interpAttributes {
 public:
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     std::string mode;
     bool align_corners;
     bool antialias;
@@ -36,7 +36,7 @@ public:
 
     interpAttributes() = default;
 
-    interpAttributes(const ngraph::AxisSet& axes,
+    interpAttributes(const ov::AxisSet& axes,
         const std::string& mode,
         const bool& align_corners,
         const bool& antialias,
@@ -206,7 +206,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -233,7 +233,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -260,7 +260,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -287,7 +287,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -314,7 +314,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "linear",
             false,
             false,
@@ -341,7 +341,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{1, 2, 3},
+            ov::AxisSet{1, 2, 3},
             "nearest",
             false,
             false,
@@ -368,7 +368,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             true,
             false,
@@ -395,7 +395,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
