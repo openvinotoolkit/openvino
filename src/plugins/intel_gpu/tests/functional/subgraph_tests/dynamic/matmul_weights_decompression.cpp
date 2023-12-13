@@ -192,7 +192,11 @@ protected:
             mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
         }
 
-        auto scale_tensor = ov::test::utils::create_and_fill_tensor(data_precision, scaleshift_const_shape, 1, -0.5, 30000);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -0.5;
+        in_data.range = 1;
+        in_data.resolution = 30000;
+        auto scale_tensor = ov::test::utils::create_and_fill_tensor(data_precision, scaleshift_const_shape, in_data);
         for (size_t i = 0; i < scale_tensor.get_size(); i++) {
             if (data_precision == ov::element::f16)
                 scale_tensor.data<ov::float16>()[i] /= ov::float16(16.f);
@@ -270,9 +274,11 @@ protected:
           const auto& model_inputs = function->inputs();
           for (size_t i = 0; i < model_inputs.size(); ++i) {
                 const auto& model_input = model_inputs[i];
-                ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(),
-                                                                            target_input_static_shapes[i],
-                                                                            2, -1, 10000);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 10000;
+                ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), target_input_static_shapes[i], in_data);
                 inputs.insert({model_input.get_node_shared_ptr(), tensor});
           }
     }

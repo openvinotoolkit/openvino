@@ -105,21 +105,28 @@ void EltwiseLayerTest::SetUp() {
         parameters.push_back(param);
     } else {
         ov::Shape shape = inputDynamicShapes.back().get_max_shape();
+        ov::test::utils::InputGenerateData in_data;
         switch (eltwise_type) {
             case EltwiseTypes::DIVIDE:
             case EltwiseTypes::MOD:
             case EltwiseTypes::FLOOR_MOD: {
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, 8, 2);
+                in_data.start_from = 2;
+                in_data.range = 8;
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
                 break;
             }
             case EltwiseTypes::POWER: {
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, 2, 1);
+                in_data.start_from = 1;
+                in_data.range = 2;
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
                 break;
             }
             default: {
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, 9, 1);
+                in_data.start_from = 1;
+                in_data.range = 9;
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
             }
         }

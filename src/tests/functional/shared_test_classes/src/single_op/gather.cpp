@@ -104,7 +104,10 @@ void Gather7LayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     int axis_dim = targetStaticShapes[0][0][axis < 0 ? axis + targetStaticShapes[0][0].size() : axis];
-    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, indices_shape, axis_dim - 1);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = axis_dim - 1;
+    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, indices_shape, in_data);
     auto indices_node = std::make_shared<ov::op::v0::Constant>(indices_node_tensor);
     auto axis_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape(), {axis});
 
@@ -132,7 +135,10 @@ void Gather8LayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     int axis_dim = targetStaticShapes[0][0][axis < 0 ? axis + targetStaticShapes[0][0].size() : axis];
-    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, indices_shape, 2 * axis_dim, -axis_dim);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -axis_dim;
+    in_data.range = 2 * axis_dim;
+    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, indices_shape, in_data);
     auto indices_node = std::make_shared<ov::op::v0::Constant>(indices_node_tensor);
     auto axis_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape(), {axis});
 

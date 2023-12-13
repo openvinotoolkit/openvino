@@ -459,7 +459,7 @@ std::string get_hostname(void) {
 #endif
     }
     return cHostName;
-}
+}  // namespace PostgreSQLHelpers
 
 void add_pair(std::map<std::string, std::string>& keyValues, const std::string& key, const std::string& value) {
     size_t dPos;

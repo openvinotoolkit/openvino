@@ -63,11 +63,11 @@ public:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0U) {
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                       targetInputStaticShapes[i],
-                                                       2560,
-                                                       0,
-                                                       256);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 2560;
+                in_data.resolution = 256;
+                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else if (i == 1U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto* dataPtr = tensor.data<int64_t>();

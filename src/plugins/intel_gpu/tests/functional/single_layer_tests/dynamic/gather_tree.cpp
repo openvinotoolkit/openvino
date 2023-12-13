@@ -113,11 +113,11 @@ protected:
         const auto& funcInputs = function->inputs();
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = (i == 2 || i == 3) ? maxBeamIndex / 2 : 0;
+            in_data.range = maxBeamIndex;
             auto tensor =
-                ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(),
-                                                        targetInputStaticShapes[i],
-                                                        maxBeamIndex,
-                                                        (i == 2 || i == 3) ? maxBeamIndex / 2 : 0);
+                ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
         }
     }

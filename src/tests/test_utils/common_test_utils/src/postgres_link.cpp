@@ -474,7 +474,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 std::stringstream sstr;
                 sstr << "DELETE FROM test_results_temp WHERE tr_id=" << this->testId;
                 auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-                CHECK_PGRESULT(pgresult, "Cannot remove waste results", return);
+                CHECK_PGRESULT(pgresult, "Cannot remove waste results", return );
 
                 this->testId = 0;
                 testDictionary.clear();
@@ -557,7 +557,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
              << ", run_count=" << test_suite.test_to_run_count() << ", total_count=" << test_suite.total_test_count()
              << " WHERE sr_id=" << this->testSuiteId;
         auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return);
+        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
         this->testSuiteId = 0;
 
         if (reportingLevel == REPORT_LVL_FAST) {
@@ -641,13 +641,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "UPDATE runs SET end_time=NOW() WHERE run_id=" << this->testRunId << " AND end_time<NOW()";
         auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return);
+        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return );
 
         sstr.str("");
         sstr.clear();
         sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
         pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return);
+        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return );
     }
 
     /* Prohobit creation outsize of class, need to make a Singleton */

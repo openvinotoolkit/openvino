@@ -78,8 +78,11 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
-                                                             range, startFrom, resolution);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = startFrom;
+            in_data.range = range;
+            in_data.resolution = resolution;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }

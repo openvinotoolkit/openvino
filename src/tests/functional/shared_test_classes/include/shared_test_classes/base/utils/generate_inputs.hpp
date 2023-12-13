@@ -13,6 +13,9 @@ namespace ov {
 namespace test {
 namespace utils {
 
+void set_const_ranges(double _min, double _max);
+void reset_const_ranges();
+
 using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::runtime::Tensor(
         const std::shared_ptr<ov::Node>& node,
         size_t port,

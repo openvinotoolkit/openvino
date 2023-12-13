@@ -85,7 +85,11 @@ protected:
         ov::Tensor data_tensor;
         const auto& dataPrecision = funcInputs[0].get_element_type();
         const auto& dataShape = targetInputStaticShapes.front();
-        data_tensor = ov::test::utils::create_and_fill_tensor(dataPrecision, dataShape, 10, 0, 1000);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10;
+        in_data.resolution = 1000;
+        data_tensor = ov::test::utils::create_and_fill_tensor(dataPrecision, dataShape, in_data);
 
         const auto& coordsET = funcInputs[1].get_element_type();
         auto coordsTensor = ov::Tensor{ coordsET, targetInputStaticShapes[1] };

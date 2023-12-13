@@ -807,7 +807,12 @@ protected:
 
                 inputs.insert({param, tensor});
             } else {
-                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), input_shape, 10, 0, 128);
+                ov::test::utils::InputGenerateData inGenData;
+                inGenData.range         = 10;
+                inGenData.start_from    = 0;
+                inGenData.resolution    = 128;
+                inGenData.seed          = 1;
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), input_shape, inGenData);
                 inputs.insert({param, tensor});
             }
         }

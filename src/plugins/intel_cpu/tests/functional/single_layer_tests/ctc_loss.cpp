@@ -134,7 +134,11 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), dataShape, 10, 0, 10);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 10;
+                in_data.resolution = 10;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), dataShape, in_data);
             } else if (i == 1) {
                 tensor = ov::Tensor{funcInput.get_element_type(), {shapeN}};
                 if (funcInput.get_element_type() == ElementType::i32) {

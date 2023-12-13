@@ -71,21 +71,21 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& modelInputs = function->inputs();
-        auto condTensor = ov::test::utils::create_and_fill_tensor(modelInputs[0].get_element_type(),
-                                                                  targetInputStaticShapes[0],
-                                                                  3,
-                                                                  -1,
-                                                                  2);
-        auto thenTensor = ov::test::utils::create_and_fill_tensor(modelInputs[1].get_element_type(),
-                                                                  targetInputStaticShapes[1],
-                                                                  10,
-                                                                  -10,
-                                                                  2);
-        auto elseTensor = ov::test::utils::create_and_fill_tensor(modelInputs[2].get_element_type(),
-                                                                  targetInputStaticShapes[2],
-                                                                  10,
-                                                                  0,
-                                                                  2);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -1;
+        in_data.range = 3;
+        in_data.resolution = 2;
+        auto condTensor = ov::test::utils::create_and_fill_tensor(modelInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+
+        in_data.start_from = -10;
+        in_data.range = 10;
+        in_data.resolution = 2;
+        auto thenTensor = ov::test::utils::create_and_fill_tensor(modelInputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
+
+        in_data.start_from = 0;
+        in_data.range = 10;
+        in_data.resolution = 2;
+        auto elseTensor = ov::test::utils::create_and_fill_tensor(modelInputs[2].get_element_type(), targetInputStaticShapes[2], in_data);
         inputs.insert({modelInputs[0].get_node_shared_ptr(), condTensor});
         inputs.insert({modelInputs[1].get_node_shared_ptr(), thenTensor});
         inputs.insert({modelInputs[2].get_node_shared_ptr(), elseTensor});

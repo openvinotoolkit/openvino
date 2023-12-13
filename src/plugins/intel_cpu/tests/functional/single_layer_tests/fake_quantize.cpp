@@ -131,10 +131,10 @@ protected:
         ASSERT_EQ(funcInputs.size(), 1);
         const auto& funcInput = funcInputs[0];
         ov::Tensor tensor;
-        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                         targetInputStaticShapes[0],
-                                                         inDataHighBounds - inDataLowBounds,
-                                                         inDataLowBounds);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = inDataLowBounds;
+        in_data.range = inDataHighBounds - inDataLowBounds;
+        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 

@@ -180,7 +180,11 @@ protected:
                 dataPtr[2] = 1.0f;
                 if (tensor.get_size() == 4) dataPtr[3] = 1.0f;
             } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

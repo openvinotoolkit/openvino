@@ -16,9 +16,21 @@ namespace {
 void generate_data(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& data_inputs, const std::vector<ov::Output<ov::Node>>& model_inputs,
     const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     data_inputs.clear();
-    auto tensor_bool = ov::test::utils::create_and_fill_tensor(model_inputs[0].get_element_type(), targetInputStaticShapes[0], 3, -1, 2);
-    auto tensor0 = ov::test::utils::create_and_fill_tensor(model_inputs[1].get_element_type(), targetInputStaticShapes[1], 10, -10, 2);
-    auto tensor1 = ov::test::utils::create_and_fill_tensor(model_inputs[2].get_element_type(), targetInputStaticShapes[2], 10, 0, 2);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 3;
+    in_data.resolution = 2;
+    auto tensor_bool = ov::test::utils::create_and_fill_tensor(model_inputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+
+    in_data.start_from = -10;
+    in_data.range = 10;
+    in_data.resolution = 2;
+    auto tensor0 = ov::test::utils::create_and_fill_tensor(model_inputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
+
+    in_data.start_from = 0;
+    in_data.range = 10;
+    in_data.resolution = 2;
+    auto tensor1 = ov::test::utils::create_and_fill_tensor(model_inputs[2].get_element_type(), targetInputStaticShapes[2], in_data);
     data_inputs.insert({model_inputs[0].get_node_shared_ptr(), tensor_bool});
     data_inputs.insert({model_inputs[1].get_node_shared_ptr(), tensor0});
     data_inputs.insert({model_inputs[2].get_node_shared_ptr(), tensor1});

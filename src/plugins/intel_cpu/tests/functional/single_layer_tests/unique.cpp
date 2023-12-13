@@ -123,15 +123,11 @@ protected:
             ov::runtime::Tensor tensor;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
-                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(),
-                                                targetInputStaticShapes[0].end(),
-                                                1,
-                                                std::multiplies<size_t>());
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                       targetInputStaticShapes[0],
-                                                       range,
-                                                       -range / 2,
-                                                       1);
+                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<size_t>());
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -range / 2;
+                in_data.range = range;
+                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
