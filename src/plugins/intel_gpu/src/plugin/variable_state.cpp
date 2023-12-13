@@ -9,6 +9,7 @@
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <memory>
 
@@ -45,6 +46,7 @@ void VariableState::set() {
 
 void VariableState::set_layout(const cldnn::layout& new_layout) {
     m_layout = new_layout;
+    GPU_DEBUG_TRACE_DETAIL << "Update state layout to " << new_layout.to_short_string() << std::endl;
     update_device_buffer();
 }
 
