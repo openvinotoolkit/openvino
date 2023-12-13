@@ -456,7 +456,7 @@ The behavior depends on specific parameters of the operations and hardware confi
 
    While working on the fine tuned model, inference may give an inaccurcy and performance drop on GPU due to the selected winograd convolutions. This issue can be fixed via disabling winograd convolutions, by running the code below:
 
-   .. code::
+   .. code:: bash
 
       compiled_model = core.compile_model(ov_model, device_name=devStr1, config={ "GPU_DISABLE_WINOGRAD_CONVOLUTION": True })
 
