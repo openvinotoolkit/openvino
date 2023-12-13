@@ -13,7 +13,7 @@ namespace test {
 
 typedef std::tuple<
         ov::Shape,
-        std::map<std::string, std::string>   // Device config
+        ov::AnyMap   // Device config
 > AnyLayoutTestParamsSet;
 
 
@@ -22,13 +22,13 @@ public:
     static std::string getTestCaseName(::testing::TestParamInfo<AnyLayoutTestParamsSet> obj) {
         std::ostringstream result;
         ov::Shape shape;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(shape, additionalConfig) = obj.param;
         result << "shape=" << shape;
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -52,7 +52,7 @@ protected:
 
     void Run() {
         ov::Shape shape;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(shape, additionalConfig) = GetParam();
         auto shape_size = ov::shape_size(shape);
 
@@ -73,11 +73,7 @@ protected:
 
         // Load model
         Core core;
-        ov::AnyMap configure;
-        for (auto& item : additionalConfig) {
-            configure.insert({item.first, item.second});
-        }
-        auto compiled_model = core.compile_model(function, "CPU", configure);
+        auto compiled_model = core.compile_model(function, "CPU", additionalConfig);
 
         // Infer
         auto infer_req = compiled_model.create_infer_request();
@@ -104,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(AnyLayoutOnInputsAndOutputs,
                          AnyLayoutOnInputsAndOutputs,
                          ::testing::Combine(
                              ::testing::ValuesIn(AnyLayoutOnInputsAndOutputsParams),
-                             ::testing::ValuesIn({cpuEmptyPluginConfig, cpuFP16PluginConfig})),
+                             ::testing::ValuesIn({cpu_empty_plugin_config, cpu_f16_plugin_config})),
                          AnyLayoutOnInputsAndOutputs::getTestCaseName);
 
 }  // namespace test

@@ -22,7 +22,7 @@ using PadLayerCPUTestParamSet = std::tuple<
         float,                                          // argPadValue
         ov::op::PadMode,                                // padMode
         CPUSpecificParams,
-        std::map<std::string, std::string>              //  cpu device config
+        ov::AnyMap                                      //  cpu device config
 >;
 
 class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamSet>,
@@ -36,7 +36,7 @@ public:
         ov::op::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams, additionalConfig) = obj.param;
 
         std::ostringstream results;
@@ -57,7 +57,7 @@ public:
         if (!additionalConfig.empty()) {
             results << "_PluginConf";
             for (auto& item : additionalConfig) {
-                results << "_" << item.first << "=" << item.second;
+                results << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -90,7 +90,7 @@ protected:
         ov::op::PadMode padMode;
         ElementType dataType;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams, additionalConfig) = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -165,9 +165,9 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::i8
 };
 
-const std::vector<std::map<std::string, std::string>> deviceConfig = {
-    cpuEmptyPluginConfig,
-    cpuFP16PluginConfig
+const std::vector<ov::AnyMap> deviceConfig = {
+    cpu_empty_plugin_config,
+    cpu_f16_plugin_config
 };
 
 const std::vector<ov::test::utils::InputLayerType> inputLayerTypes = {

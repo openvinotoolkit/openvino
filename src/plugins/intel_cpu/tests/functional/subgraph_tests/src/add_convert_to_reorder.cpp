@@ -72,7 +72,7 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16.to_string()});
+    configuration.insert({ov::hint::inference_precision(ov::element::f16)});
     BuildGraph(ngraph::element::i8);
     run();
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);

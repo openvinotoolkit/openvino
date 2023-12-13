@@ -31,7 +31,7 @@ using DeconvLayerCPUTestParamsSet = std::tuple<DeconvSpecParams,
                                                ElementType,
                                                fusingSpecificParams,
                                                CPUSpecificParams,
-                                               std::map<std::string, std::string>>;
+                                               ov::AnyMap>;
 
 class DeconvolutionLayerCPUTest : public testing::WithParamInterface<DeconvLayerCPUTestParamsSet>,
                                   virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -42,7 +42,7 @@ public:
         ElementType prec;
         fusingSpecificParams fusingParams;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = obj.param;
 
         ngraph::op::PadType padType;
@@ -88,7 +88,7 @@ public:
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -187,7 +187,7 @@ protected:
         DeconvInputData inputData;
         fusingSpecificParams fusingParams;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = this->GetParam();
 
         InputShape inputShape;
@@ -200,11 +200,12 @@ protected:
 
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        if (configuration.count(ov::hint::inference_precision.name()) &&
+                configuration[ov::hint::inference_precision.name()].as<ov::element::Type>() == ov::element::bf16) {
             inType = outType = prec = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else if (configuration.count(ov::hint::inference_precision.name()) &&
-                configuration[ov::hint::inference_precision.name()] == ov::element::f16) {
+                configuration[ov::hint::inference_precision.name()].as<ov::element::Type>() == ov::element::f16) {
             inType = outType = prec = ElementType::f16;
             rel_threshold = 0.00001f;
         } else {
@@ -260,9 +261,6 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         fusingScaleShift
 };
 
-const std::map<std::string, std::string> cpuEmptyPluginConfig;
-const std::map<std::string, std::string>cpuBF16PluginConfig = { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16,
-                                                                  InferenceEngine::PluginConfigParams::YES } };
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
 
 /* ============= Deconvolution params (planar layout) ============= */
@@ -345,7 +343,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
@@ -355,7 +353,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
@@ -365,7 +363,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTes
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
@@ -375,7 +373,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTes
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution (Planar 3D) ============= */
@@ -430,7 +428,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
@@ -440,7 +438,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
@@ -450,7 +448,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTes
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
@@ -460,7 +458,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTes
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution (Blocked 2D) ============= */
@@ -538,7 +536,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx2_2D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
@@ -548,7 +546,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BF16_AMX_NO_FUSING, DeconvolutionLayerCPUTest,
@@ -558,7 +556,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BF16_AMX_NO_FUSING, DeconvolutionL
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_amx})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP16, DeconvolutionLayerCPUTest,
@@ -568,7 +566,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP16, DeconvolutionLayerCPUTest
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
         ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
-        ::testing::Values(cpuFP16PluginConfig)),
+        ::testing::Values(cpu_f16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING, DeconvolutionLayerCPUTest,
@@ -578,7 +576,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING, DeconvolutionL
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
         ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
-        ::testing::Values(cpuFP16PluginConfig)),
+        ::testing::Values(cpu_f16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_INT8_AMX, DeconvolutionLayerCPUTest,
@@ -588,7 +586,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_INT8_AMX, DeconvolutionLayerCPUTes
         ::testing::Values(ElementType::i8),
         ::testing::ValuesIn({emptyFusingSpec, fusingClampRoundAddRelu}),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_amx})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
@@ -598,7 +596,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTe
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx2_2D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
@@ -608,7 +606,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTe
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP16, DeconvolutionLayerCPUTest,
@@ -618,7 +616,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP16, DeconvolutionLayerCPUTe
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
-        ::testing::Values(cpuFP16PluginConfig)),
+        ::testing::Values(cpu_f16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 
@@ -694,7 +692,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
@@ -704,7 +702,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 
@@ -715,7 +713,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_BF16_AMX_NO_FUSING, DeconvolutionL
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_amx})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP16, DeconvolutionLayerCPUTest,
@@ -725,7 +723,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP16, DeconvolutionLayerCPUTest
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_3D_nspc_brgconv_amx})),
-        ::testing::Values(cpuFP16PluginConfig)),
+        ::testing::Values(cpu_f16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 
@@ -736,7 +734,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING, DeconvolutionL
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
         ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_3D_nspc_brgconv_amx})),
-        ::testing::Values(cpuFP16PluginConfig)),
+        ::testing::Values(cpu_f16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 
@@ -747,7 +745,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_INT8_AMX, DeconvolutionLayerCPUTes
         ::testing::Values(ElementType::i8),
         ::testing::ValuesIn({emptyFusingSpec, fusingClampRoundAddRelu}),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_amx})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
@@ -757,7 +755,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTe
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
@@ -767,7 +765,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTe
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP16, DeconvolutionLayerCPUTest,
@@ -777,7 +775,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP16, DeconvolutionLayerCPUTe
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
-        ::testing::Values(cpuFP16PluginConfig)),
+        ::testing::Values(cpu_f16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 
@@ -800,7 +798,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx2_2D_1x1})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
@@ -810,7 +808,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx2_2D_1x1})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Reorder + Deconvolution ============= */
@@ -830,7 +828,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reorder_Deconv_2D, DeconvolutionLayerCPUTest,
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution auto padding tests ============= */
@@ -875,7 +873,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D, conv_avx512_2D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 const std::vector<DeconvInputData> inputs_3D_AutoPadding = {
@@ -912,7 +910,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D, conv_avx512_3D})),
-        ::testing::Values(cpuEmptyPluginConfig)),
+        ::testing::Values(cpu_empty_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 const auto deconvParams_AutoPadding_2D_AMX = ::testing::Combine(
@@ -939,7 +937,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_AMX_BF16, DeconvolutionLaye
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv_amx})),
-        ::testing::Values(cpuBF16PluginConfig)),
+        ::testing::Values(cpu_bf16_plugin_config)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 } // namespace

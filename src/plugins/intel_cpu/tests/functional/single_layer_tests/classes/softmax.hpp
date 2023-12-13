@@ -19,7 +19,7 @@ typedef std::tuple<ElementType,    // netPrecision
                    SoftMaxConfig,  // softmaxTestConfig
                    std::string,    // targetDevice
                    CPUSpecificParams,
-                   std::map<std::string, std::string>> //device_config
+                   ov::AnyMap> //device_config
     softmaxCPUTestParams;
 
 class SoftMaxLayerCPUTest : public testing::WithParamInterface<softmaxCPUTestParams>,

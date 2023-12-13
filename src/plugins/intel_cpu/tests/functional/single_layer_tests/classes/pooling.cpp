@@ -18,7 +18,7 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     utils::PoolingTypes poolType;
@@ -56,7 +56,7 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     if (!additionalConfig.empty()) {
         results << "_PluginConf";
             for (auto& item : additionalConfig) {
-                results << "_" << item.first << "=" << item.second;
+                results << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -74,7 +74,7 @@ void PoolingLayerCPUTest::SetUp() {
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -126,7 +126,7 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
     std::vector<size_t> kernel, stride, dilation;
@@ -157,7 +157,7 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     if (!additionalConfig.empty()) {
         results << "_PluginConf";
         for (auto& item : additionalConfig) {
-            results << "_" << item.first << "=" << item.second;
+            results << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
 
@@ -172,7 +172,7 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 

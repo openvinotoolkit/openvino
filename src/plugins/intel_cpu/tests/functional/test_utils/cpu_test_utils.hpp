@@ -177,6 +177,7 @@ const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 const std::map<std::string, std::string> cpuFP16PluginConfig =
         {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}};
+const ov::AnyMap cpu_empty_plugin_config = {};
 const ov::AnyMap cpu_f16_plugin_config = {{ov::hint::inference_precision(ov::element::f16)}};
 const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
 

@@ -16,7 +16,7 @@ std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<so
     ElementType inType;
     SoftMaxConfig config;
     std::string targetDevice;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = obj.param;
 
     std::ostringstream result;
@@ -34,7 +34,7 @@ std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<so
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto& item : additionalConfig) {
-            result << "_" << item.first << "=" << item.second;
+            result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
 
@@ -45,7 +45,7 @@ void SoftMaxLayerCPUTest::SetUp() {
     ElementType inType;
     SoftMaxConfig config;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 

@@ -39,11 +39,11 @@ public:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (ov::element::bf16 == (inType = outType = this->GetParam())) {
-            configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
+            configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         } else if (ov::element::bf16 == (inType = outType = this->GetParam())) {
-            configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+            configuration.insert({ov::hint::inference_precision(ov::element::f16)});
         } else {
-            configuration.insert({ov::hint::inference_precision.name(), ov::element::f32});
+            configuration.insert({ov::hint::inference_precision(ov::element::f32)});
         }
 
         const ov::Shape inputShape = {1, 3, 3, 11};

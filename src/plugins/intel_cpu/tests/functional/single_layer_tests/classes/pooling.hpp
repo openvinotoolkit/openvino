@@ -22,14 +22,14 @@ using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              bool,
                                              CPUSpecificParams,
                                              fusingSpecificParams,
-                                             std::map<std::string, std::string>>;
+                                             ov::AnyMap>;
 
 
 using maxPoolV8LayerCpuTestParamsSet = std::tuple<maxPoolV8SpecificParams,
         InputShape,
         ElementType,
         CPUSpecificParams,
-        std::map<std::string, std::string>>;
+        ov::AnyMap>;
 
 class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
                             virtual public SubgraphBaseTest, public CpuTestWithFusing {

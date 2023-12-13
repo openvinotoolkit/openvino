@@ -46,7 +46,7 @@ protected:
         function = std::make_shared<ov::Model>(avgpool, ov::ParameterVector{param});
     }
 
-    void TearDown() override {
+    void checkResult() {
         auto exec_model = compiledModel.get_runtime_model();
 
         int eltwise_nodes_found = 0;
@@ -69,6 +69,7 @@ protected:
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs) {
     run();
+    checkResult();
 }
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs_FP16) {
@@ -76,9 +77,10 @@ TEST_F(GatherAddAvgpool, smoke_CompareWithRefs_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16.to_string()});
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
     run();
+    checkResult();
 }
 
 }  // namespace test
