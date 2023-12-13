@@ -13,7 +13,8 @@ class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
     jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
         ov::element::Type exec_prc = ov::element::bf16) : jit_emitter(host, host_isa, exec_prc) {
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
+            !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             prepare_table();
     }
 
