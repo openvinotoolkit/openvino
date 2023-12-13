@@ -799,8 +799,22 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     auto B = beam_idx.size(0);
     size_t L0 = 0;
 
-    if (hidden_state_k) {
-        auto block_desc = hidden_state_k->getDescPtr()->as<CpuBlockedMemoryDesc>();
+    if (m_k_state->is_reset_state()) {
+        std::vector<size_t> order =
+            m_config.config.permute_axes.empty() ? std::vector<size_t>{0, 1, 2, 3} : m_config.config.permute_axes;
+
+        auto&& init_graph_k_dims = getParentEdgeAt(4)->getMemory().getStaticDims();
+        L0 = init_graph_k_dims.at(order.at(2));
+        B = init_graph_k_dims.at(order.at(0)); // TODO (BS): may be sanity check that init_graph B == cur_k B is just enough?
+    } else if (m_v_state->is_reset_state()) {
+        std::vector<size_t> order =
+            m_config.config.permute_axes.empty() ? std::vector<size_t>{0, 1, 2, 3} : m_config.config.permute_axes;
+
+        auto&& init_graph_v_dims = getParentEdgeAt(5)->getMemory().getStaticDims();
+        L0 = init_graph_v_dims.at(order.at(2));
+        B = init_graph_v_dims.at(order.at(0));
+    } else if (hidden_state_k) {
+        auto block_desc = hidden_state_k->getDescWithType<BlockedMemoryDesc>();
         L0 = block_desc->getShape().getStaticDims()[1];
     }
     // resize buffer
@@ -812,12 +826,12 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
         PlainTensor new_beam_table_k, new_beam_table_v;
         new_beam_table_k.reset(new_hidden_state_k);
         new_beam_table_v.reset(new_hidden_state_v);
-        if (L0 > 0) {
+        if (L0 > 0 && !(m_k_state->is_reset_state() || m_v_state->is_reset_state())) {
             beam_table_k.reset(hidden_state_k);
             beam_table_v.reset(hidden_state_v);
             for (size_t b = 0; b < B; b++) {
-                memcpy(&new_beam_table_k.at<int32_t>({b}), &beam_table_k.at<int32_t>({b}), sizeof(int32_t) * L0);
-                memcpy(&new_beam_table_v.at<int32_t>({b}), &beam_table_v.at<int32_t>({b}), sizeof(int32_t) * L0);
+                std::memcpy(&new_beam_table_k.at<int32_t>({b}), &beam_table_k.at<int32_t>({b}), sizeof(int32_t) * L0);
+                std::memcpy(&new_beam_table_v.at<int32_t>({b}), &beam_table_v.at<int32_t>({b}), sizeof(int32_t) * L0);
             }
         }
         m_k_state->assign_hidden_state(new_hidden_state_k);
@@ -844,6 +858,19 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
         beam_table_k.reset(hidden_state_k);
         beam_table_v.reset(hidden_state_v);
     }
+
+    if (m_k_state->is_reset_state()) {
+        auto init_graph_k_mem = getParentEdgeAt(4)->getMemoryPtr();
+        auto&& shape = init_graph_k_mem->getShape();
+        // rebuild beam table according to the shape
+    }
+
+    if (m_v_state->is_reset_state()) {
+        auto init_graph_v_mem = getParentEdgeAt(5)->getMemoryPtr();
+        auto&& shape = init_graph_v_mem->getShape();
+        // rebuild beam table according to the shape
+    }
+
     // first token
     if (L0 == 0) {
         for (size_t b = 0; b < B; b++) {
@@ -919,8 +946,17 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     };
     auto internal_mem_k = m_k_state->internal_state_mem();
     auto internal_mem_v = m_v_state->internal_state_mem();
-    if (internal_mem_k) {
-        auto block_desc = internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>();
+
+    if (m_k_state->is_reset_state()) {
+        auto&& init_graph_k_dims = getParentEdgeAt(4)->getMemory().getStaticDims();
+        L0 = init_graph_k_dims.at(order.at(2));
+        B = init_graph_k_dims.at(order.at(0)); // TODO (BS): may be sanity check that init_graph B == cur_k B is just enough?
+    } else if (m_v_state->is_reset_state()) {
+        auto&& init_graph_v_dims = getParentEdgeAt(5)->getMemory().getStaticDims();
+        L0 = init_graph_v_dims.at(order.at(2));
+        B = init_graph_v_dims.at(order.at(0));
+    } else if (internal_mem_k) {
+        auto block_desc = internal_mem_k->getDescWithType<BlockedMemoryDesc>();
         L0 = block_desc->getShape().getStaticDims()[reverse_order[2]];
     }
 
@@ -940,7 +976,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         new_pastv.reset(new_internal_mem_v);
         new_pastk = new_pastk.permute(order);
         new_pastv = new_pastv.permute(order);
-        if (L0 > 0) {
+        if (L0 > 0 && !(m_k_state->is_reset_state() || m_v_state->is_reset_state())) {
             past_k.reset(internal_mem_k);
             past_v.reset(internal_mem_v);
             past_k = past_k.permute(order);
@@ -966,6 +1002,23 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         internal_mem_k->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
     internal_mem_k->redefineDesc(mem_desc);
     internal_mem_v->redefineDesc(mem_desc);
+
+    if (m_k_state->is_reset_state()) {
+        auto init_graph_k_mem = getParentEdgeAt(4)->getMemoryPtr();
+        auto&& shape = init_graph_k_mem->getShape();
+        if (!shape.hasZeroDims()) {
+            //copy from init_graph_k_mem to the state
+        }
+    }
+
+    if (m_v_state->is_reset_state()) {
+        auto init_graph_v_mem = getParentEdgeAt(5)->getMemoryPtr();
+        auto&& shape = init_graph_v_mem->getShape();
+        if (!shape.hasZeroDims()) {
+            //copy from init_graph_v_mem to the state
+        }
+    }
+
     if (!past_k) {
         past_k.reset(internal_mem_k);
         past_v.reset(internal_mem_v);

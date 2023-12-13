@@ -286,45 +286,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 void VariableStateKVcache::reset_impl() {
-    auto internal_state_desc = to_static(m_dense_internal_desc);
-    auto&& state_dims = internal_state_desc->getShape().getStaticDims();
-    auto&& order = m_dense_internal_desc->getOrder();
-
-    const size_t size_B = state_dims[order.at(0)];
-    const size_t size_L = state_dims[order.at(2)];
-
-    if (m_internal_mem) {
-        // only reset desc, reuse allocated memory
-        auto block_internal_desc = internal_state_desc->as<CpuBlockedMemoryDesc>();
-        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(block_internal_desc->getPrecision(),
-            block_internal_desc->getShape(),
-            block_internal_desc->getBlockDims(),
-            order,
-            0,
-            VectorDims{},
-            m_internal_mem->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
-        m_internal_mem->redefineDesc(mem_desc);
-        mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
-            Shape{size_B, size_L},
-            VectorDims{size_B, size_L},
-            VectorDims{0, 1},
-            0,
-            VectorDims{},
-            m_hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
-        m_hidden_state->redefineDesc(mem_desc);
-    } else {
-        // 1. reset internal state
-        m_internal_mem = std::make_shared<Memory>(get_engine(), internal_state_desc);
-        m_internal_mem->nullify();
-
-        // 2. reset hidden state
-        auto hidden_state_desc =
-            std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
-        m_hidden_state = std::make_shared<Memory>(get_engine(), hidden_state_desc);
-        m_hidden_state->nullify();
-        m_hidden_state_max_size = 0;
-        m_internal_mem_max_size = 0;
-    }
+    //nothing to do
 }
 
 void VariableStateKVcache::commit_impl() {
