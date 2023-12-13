@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 /**
  * @file lpt_visibility.hpp

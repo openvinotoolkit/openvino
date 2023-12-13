@@ -26,15 +26,15 @@ using namespace ov::pass;
 namespace {
 class ActualValues {
 public:
-    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 class ExpectedValues {
 public:
     element::Type fakeQuantizeOnDataOutPrecision;
-    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 class FakeQuantizePrecisionSelectionTransformationTestValues {

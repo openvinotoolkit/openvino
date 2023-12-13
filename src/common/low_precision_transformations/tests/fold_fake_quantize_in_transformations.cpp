@@ -28,7 +28,7 @@ public:
     public:
         std::vector<float> constValues;
         ov::element::Type constPrecision;
-        ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantize;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
         ov::element::Type fqOutPrecision;
     };
 
@@ -90,10 +90,10 @@ public:
                                                                         testValues.actual.fqOutPrecision);
         fq = ov::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                             testValues.roundValues);
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
         actualFunction = std::make_shared<ov::Model>(
             results,
-            parameter ? ngraph::ParameterVector{parameter} : ngraph::ParameterVector{},
+            parameter ? ov::ParameterVector{parameter} : ov::ParameterVector{},
             "FoldFakeQuantizeFunction");
 
         referenceFunction =

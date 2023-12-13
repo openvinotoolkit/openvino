@@ -126,8 +126,8 @@ public:
         std::shared_ptr<ov::Node> input = nullptr);
 
     static std::shared_ptr<ov::Node> makeDequantizationSubtract(
-        const ngraph::Output<ov::Node>& parent,
-        const ngraph::Output<ov::Node>& subtract_constant);
+        const ov::Output<ov::Node>& parent,
+        const ov::Output<ov::Node>& subtract_constant);
 
     static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ov::Node>& node,
         const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());

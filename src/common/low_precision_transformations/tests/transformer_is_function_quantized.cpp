@@ -27,8 +27,8 @@ namespace {
 
 class TestValues {
 public:
-    ngraph:: builder::subgraph::FakeQuantizeOnData fqOnData;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const TestValues& testValue) {

@@ -24,7 +24,7 @@ public:
     ov::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ov::op::v0::Constant> weights;
-    ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     bool isAsymmetricOnWeights;
 };
 

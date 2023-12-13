@@ -29,7 +29,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::builder::subgraph::Constant weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };

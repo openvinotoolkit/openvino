@@ -43,8 +43,7 @@ endif()
 add_library(${TARGET_NAME} INTERFACE)
 
 target_include_directories(${TARGET_NAME} INTERFACE
-    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
+    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 

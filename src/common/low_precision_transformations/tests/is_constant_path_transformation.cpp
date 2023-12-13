@@ -112,10 +112,10 @@ TEST(LPT, isConstantPathConvParentDqTransformation) {
     const auto conv = std::make_shared<ov::opset1::Convolution>(
         input,
         weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
     const auto dqAfterConv = makeDequantization(conv, DequantizationOperations{ {}, {}, {0.1f} });
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(dqAfterConv);
@@ -129,10 +129,10 @@ TEST(LPT, isConstantPathGroupConvParentDqTransformation) {
     const auto groupConv = std::make_shared<ov::opset1::GroupConvolution>(
         input,
         weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
     const auto dqAfterGroupConv = makeDequantization(groupConv, DequantizationOperations{ {}, {}, {0.1f} });
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(dqAfterGroupConv);
