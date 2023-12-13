@@ -15,7 +15,7 @@ macro(ov_cpack_settings)
 
         # filter out some components, which are not needed to be wrapped to npm package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # because in case of VCPKG | CONAN | BREW | CONDA-FORGE distributions, python is either not needed or installed separately
+           # python is not required for NPM package
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # skip all extra components, left only requirement libs, like tbb
            NOT item STREQUAL "tbb_dev"
