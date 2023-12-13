@@ -55,14 +55,10 @@ def test_string_tensor_data_warning():
     ("init_type"),
     [
         (ov.Type.string),
-        # (str),
-        # (bytes),
-        # (np.str_),
-        # (np.bytes_),
-        # (np.dtype("<U8")),
-        # (np.dtype(">U4")),
-        # (np.dtype("|S6")),
-        # (np.float32)
+        (str),
+        (bytes),
+        (np.str_),
+        (np.bytes_),
     ],
 )
 def test_empty_string_tensor(init_type):
@@ -114,6 +110,16 @@ def test_init_with_numpy(string_data):
 
 
 @pytest.mark.parametrize(
+    ("init_type"),
+    [
+        (ov.Type.string),
+        (str),
+        (bytes),
+        (np.str_),
+        (np.bytes_),
+    ],
+)
+@pytest.mark.parametrize(
     ("init_shape"),
     [
         (ov.Shape()),
@@ -134,8 +140,8 @@ def test_init_with_numpy(string_data):
         (np.array([["#text@", "больше текста"]])),  # "<U"
     ],
 )
-def test_empty_tensor_copy_from(init_shape, string_data):
-    tensor = ov.Tensor(ov.Type.string, init_shape)
+def test_empty_tensor_copy_from(init_type, init_shape, string_data):
+    tensor = ov.Tensor(init_type, init_shape)
     assert tensor.element_type == ov.Type.string
     tensor.copy_from(string_data)
     # Encoded:
@@ -201,6 +207,16 @@ def test_populate_fails_type_check(string_data):
 
 
 @pytest.mark.parametrize(
+    ("init_type"),
+    [
+        (ov.Type.string),
+        (str),
+        (bytes),
+        (np.str_),
+        (np.bytes_),
+    ],
+)
+@pytest.mark.parametrize(
     ("init_shape", "string_data"),
     [
         (ov.Shape([3]), np.array(["text", "abc", "openvino"]).astype(np.bytes_)),
@@ -222,8 +238,8 @@ def test_populate_fails_type_check(string_data):
         (DataGetter.STRINGS),
     ],
 )
-def test_empty_tensor_populate(init_shape, string_data, data_getter):
-    tensor = ov.Tensor(ov.Type.string, init_shape)
+def test_empty_tensor_populate(init_type, init_shape, string_data, data_getter):
+    tensor = ov.Tensor(init_type, init_shape)
     assert tensor.element_type == ov.Type.string
     if data_getter == DataGetter.BYTES:
         tensor.bytes_data = string_data

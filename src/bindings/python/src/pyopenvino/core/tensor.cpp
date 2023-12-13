@@ -126,25 +126,27 @@ void regclass_Tensor(py::module m) {
     cls.def(py::init<const ov::element::Type, const std::vector<size_t>>(), py::arg("type"), py::arg("shape"));
 
     cls.def(py::init([](py::dtype& np_dtype, std::vector<size_t>& shape) {
-                return ov::Tensor(Common::dtype_to_ov_type().at(py::str(np_dtype)), shape);
+                return ov::Tensor(Common::type_helpers::get_ov_type(np_dtype), shape);
             }),
             py::arg("type"),
             py::arg("shape"));
 
     cls.def(py::init([](py::object& np_literal, std::vector<size_t>& shape) {
-                return ov::Tensor(Common::dtype_to_ov_type().at(py::str(py::dtype::from_args(np_literal))), shape);
+                auto dtype = py::dtype::from_args(np_literal);
+                return ov::Tensor(Common::type_helpers::get_ov_type(dtype), shape);
             }),
             py::arg("type"),
             py::arg("shape"));
 
     cls.def(py::init([](py::dtype& np_dtype, const ov::Shape& shape) {
-                return ov::Tensor(Common::dtype_to_ov_type().at(py::str(np_dtype)), shape);
+                return ov::Tensor(Common::type_helpers::get_ov_type(np_dtype), shape);
             }),
             py::arg("type"),
             py::arg("shape"));
 
     cls.def(py::init([](py::object& np_literal, const ov::Shape& shape) {
-                return ov::Tensor(Common::dtype_to_ov_type().at(py::str(py::dtype::from_args(np_literal))), shape);
+                auto dtype = py::dtype::from_args(np_literal);
+                return ov::Tensor(Common::type_helpers::get_ov_type(dtype), shape);
             }),
             py::arg("type"),
             py::arg("shape"));
@@ -293,7 +295,7 @@ void regclass_Tensor(py::module m) {
 
             For tensors with string element type, returns a numpy array of bytes
             without any decoding.
-            To change the underlaying data use `string_data`/`bytes_data` properties
+            To change the underlaying data use `str_data`/`bytes_data` properties
             or the `copy_from` function.
             Warning: Data of string type is always a copy of underlaying memory!
 
@@ -324,7 +326,7 @@ void regclass_Tensor(py::module m) {
             Warning: Data of string type is always a copy of underlaying memory!
 
             Setter fills underlaying Tensor's memory by copying strings from `other`.
-            `other` must have the same size (elements number) as the Tensor.
+            `other` must have the same size (number of elements) as the Tensor.
             Tensor's shape is not changed by performing this operation!
         )");
 
@@ -352,7 +354,7 @@ void regclass_Tensor(py::module m) {
             Warning: Data of string type is always a copy of underlaying memory!
 
             Setter fills underlaying Tensor's memory by copying strings from `other`.
-            `other` must have the same size (elements number) as the Tensor.
+            `other` must have the same size (number of elements) as the Tensor.
             Tensor's shape is not changed by performing this operation!
         )");
 

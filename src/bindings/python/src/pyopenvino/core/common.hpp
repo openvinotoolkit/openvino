@@ -40,9 +40,19 @@ constexpr size_t min_bitwidth = sizeof(int8_t) * CHAR_BIT;
 
 }; // namespace values
 
+// Helpers for dtypes and OpenVINO types
+namespace type_helpers {
+
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
+py::dtype get_dtype(const ov::element::Type& ov_type);
+
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
+
+ov::element::Type get_ov_type(const py::array& array);
+
+ov::element::Type get_ov_type(py::dtype& dtype);
+}
 
 // Helpers for string types and numpy arrays of strings
 namespace string_helpers {
@@ -63,8 +73,6 @@ void fill_string_tensor_data(ov::Tensor& tensor, py::array& array);
 namespace array_helpers {
 
 bool is_contiguous(const py::array& array);
-
-ov::element::Type get_ov_type(const py::array& array);
 
 std::vector<size_t> get_shape(const py::array& array);
 

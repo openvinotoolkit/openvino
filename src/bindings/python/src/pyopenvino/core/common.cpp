@@ -14,6 +14,9 @@
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
 namespace Common {
+
+namespace type_helpers {
+
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     static const std::map<ov::element::Type, py::dtype> ov_type_to_dtype_mapping = {
         {ov::element::f16, py::dtype("float16")},
@@ -38,6 +41,10 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     return ov_type_to_dtype_mapping;
 }
 
+py::dtype get_dtype(const ov::element::Type& ov_type) {
+    return ov_type_to_dtype().at(ov_type);
+}
+
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     static const std::map<std::string, ov::element::Type> dtype_to_ov_type_mapping = {
         {"float16", ov::element::f16},
@@ -59,6 +66,24 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     };
     return dtype_to_ov_type_mapping;
 }
+
+ov::element::Type get_ov_type(const py::array& array) {
+    char ctype = array.dtype().kind();
+    if (ctype == 'U' || ctype == 'S') {
+        return ov::element::string;
+    }
+    return dtype_to_ov_type().at(py::str(array.dtype()));
+}
+
+ov::element::Type get_ov_type(py::dtype& dtype) {
+    char ctype = dtype.kind();
+    if (ctype == 'U' || ctype == 'S') {
+        return ov::element::string;
+    }
+    return dtype_to_ov_type().at(py::str(dtype));
+}
+
+};  // namespace type_helpers
 
 namespace containers {
 const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
@@ -196,14 +221,6 @@ bool is_contiguous(const py::array& array) {
     return C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
 }
 
-ov::element::Type get_ov_type(const py::array& array) {
-    char ctype = array.dtype().kind();
-    if (ctype == 'U' || ctype == 'S') {
-        return ov::element::string;
-    }
-    return Common::dtype_to_ov_type().at(py::str(array.dtype()));
-}
-
 std::vector<size_t> get_shape(const py::array& array) {
     return std::vector<size_t>(array.shape(), array.shape() + array.ndim());
 }
@@ -263,7 +280,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     }
     // Get actual dtype from OpenVINO type:
     auto ov_type = t.get_element_type();
-    auto dtype = Common::ov_type_to_dtype().at(ov_type);
+    auto dtype = Common::type_helpers::get_dtype(ov_type);
     // Return the array as a view:
     if (is_shared) {
         if (ov_type.bitwidth() < Common::values::min_bitwidth) {
@@ -284,16 +301,16 @@ template <>
 ov::op::v0::Constant create_copied(py::array& array) {
     // Do not copy data from the array, only return empty tensor based on type.
     if (array.size() == 0) {
-        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+        return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array));
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
-        array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
+        array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
     }
     // Create actual Constant and a constructor is copying data.
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
-    return ov::op::v0::Constant(array_helpers::get_ov_type(array),
+    return ov::op::v0::Constant(type_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
                                 array.ndim() == 0 ? array.data() : array.data(0));
 }
@@ -315,7 +332,7 @@ ov::op::v0::Constant create_shared(py::array& array) {
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
-        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
+        return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
@@ -329,7 +346,7 @@ ov::op::v0::Constant create_shared(ov::Tensor& tensor) {
 template <>
 ov::Tensor create_copied(py::array& array) {
     // Create actual Tensor.
-    auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+    auto tensor = ov::Tensor(type_helpers::get_ov_type(array), array_helpers::get_shape(array));
     // If size of an array is equal to 0, the array is empty.
     // Alternative could be `array.nbytes()`.
     // Do not copy data from it, only return empty tensor based on type.
@@ -338,11 +355,11 @@ ov::Tensor create_copied(py::array& array) {
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
-        array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
+        array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
     }
     // Special case with string data type of kind "S"(bytes_) or "U"(str_).
     // pass through check for other string types like bytes and str.
-    if (array_helpers::get_ov_type(array) == ov::element::string) {
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
         string_helpers::fill_string_tensor_data(tensor, array);
         return tensor;
     }
@@ -355,7 +372,7 @@ ov::Tensor create_copied(py::array& array) {
 
 template <>
 ov::Tensor create_shared(py::array& array) {
-    if (array_helpers::get_ov_type(array) == ov::element::string) {
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
         OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
     }
     // Check if passed array has C-style contiguous memory layout.
@@ -363,7 +380,7 @@ ov::Tensor create_shared(py::array& array) {
     if (array_helpers::is_contiguous(array)) {
         // If ndim of py::array is 0, array is a numpy scalar.
         // If size of an array is equal to 0, the array is empty.
-        return ov::Tensor(array_helpers::get_ov_type(array),
+        return ov::Tensor(type_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
                           (array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0));
     }
@@ -372,11 +389,11 @@ ov::Tensor create_shared(py::array& array) {
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
-    if (array_helpers::get_ov_type(array) == ov::element::string) {
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
         OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
     }
 
-    auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
+    auto element_type = (type == ov::element::undefined) ? Common::type_helpers::get_ov_type(array.dtype()) : type;
 
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
@@ -385,11 +402,11 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node>& port) {
-    if (array_helpers::get_ov_type(array) == ov::element::string) {
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
         OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
     }
 
-    auto array_type = array_helpers::get_ov_type(array);
+    auto array_type = type_helpers::get_ov_type(array);
     auto array_shape_size = ov::shape_size(array_helpers::get_shape(array));
     auto port_element_type = port.get_element_type();
     auto port_shape_size = ov::shape_size(port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape());
