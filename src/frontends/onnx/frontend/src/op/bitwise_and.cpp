@@ -17,7 +17,6 @@ OutputVector bitwise_and(const Node &node) {
   OPENVINO_ASSERT(inputs.size() == 2);
   return {std::make_shared<v13::BitwiseAnd>(inputs[0], inputs[1])};
 }
-
 } // namespace set_1
 } // namespace op
 } // namespace onnx_import
