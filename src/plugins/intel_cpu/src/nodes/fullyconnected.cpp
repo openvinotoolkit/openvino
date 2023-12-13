@@ -719,10 +719,14 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
+    // todo:
+    const auto weiBlockedDesc = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
     if (decompressionMultiplyPtr)
-        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, !weightsNonTransposed);
+        // dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, !weightsNonTransposed);
+        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, weiBlockedDesc->getOrder()[0] == 0);
     if (decompressionSubtractPtr)
-        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, !weightsNonTransposed);
+        // dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, !weightsNonTransposed);
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, weiBlockedDesc->getOrder()[0] == 0);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
