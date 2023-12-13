@@ -234,9 +234,9 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
 }
 
 ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (key == ov::supported_properties) {
         std::vector<std::string> properties{
+            OPENVINO_SUPPRESS_DEPRECATED_START
             CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
             CONFIG_KEY(CPU_BIND_THREAD),
             CONFIG_KEY(CPU_THREADS_NUM),
@@ -247,12 +247,12 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
             CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
             CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
+            OPENVINO_SUPPRESS_DEPRECATED_END
             ov::num_streams.name(),
             ov::inference_num_threads.name(),
             ov::internal::threads_per_stream.name(),
             ov::affinity.name(),
         };
-        OPENVINO_SUPPRESS_DEPRECATED_END
         return properties;
     } else if (key == ov::affinity) {
         switch (_threadBindingType) {
