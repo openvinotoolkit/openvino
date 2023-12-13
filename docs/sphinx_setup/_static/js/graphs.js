@@ -268,7 +268,6 @@ class Modal {
         });
     }
     static getUnitDescription(unit) {
-            console.log(unit)
             switch (unit) {
                 case 'msec.':
                     return '(lower is better)';
