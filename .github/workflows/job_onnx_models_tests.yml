@@ -114,7 +114,7 @@ jobs:
       - name: Use common parent directory for models
         run: |
           if [[ ! -d "${MODELS_PATH}/models_data/model_zoo/msft" ]]; then
-            ln -s ${MODELS_PATH}/msft ${MODELS_PATH}/models_data/model_zoo/msft
+            ln -s ${MODELS_PATH}/msft ${MODELS_PATH}/models_data/model_zoo/MSFT
           fi
           
           if [[ ! -d "${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo" ]]; then

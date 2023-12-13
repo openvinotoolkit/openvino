@@ -159,7 +159,7 @@ if len(zoo_models) > 0:
     if tests.MODEL_ZOO_XFAIL:
         import_xfail_list = [
             # ONNX Model Zoo
-            (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
+            (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_cpu"),
 
             # Model MSFT
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
