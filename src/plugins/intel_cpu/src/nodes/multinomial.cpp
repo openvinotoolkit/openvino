@@ -68,42 +68,6 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
                          ref_any);
 }
 
-std::string Multinomial::getPrimitiveDescriptorType() const {
-    std::string str_type;
-    auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
-
-    impl_desc_type type = impl_desc_type::undef;
-    if (selectedPrimitiveDesc) {
-        type = selectedPrimitiveDesc->getImplementationType();
-    }
-
-    if (type == impl_desc_type::unknown)
-        str_type += "unknown_";
-    if ((type & impl_desc_type::jit) == impl_desc_type::jit)
-        str_type += "jit_";
-    if ((type & impl_desc_type::ref) == impl_desc_type::ref)
-        str_type += "ref_";
-    if ((type & impl_desc_type::avx512) == impl_desc_type::avx512)
-        str_type += "avx512_";
-    if ((type & impl_desc_type::avx2) == impl_desc_type::avx2)
-        str_type += "avx2_";
-    if ((type & impl_desc_type::sse42) == impl_desc_type::sse42)
-        str_type += "sse42_";
-    if ((type & impl_desc_type::any) == impl_desc_type::any)
-        str_type += "any_";
-
-    if (str_type.empty())
-        str_type += "undef_";
-
-    if (selectedPrimitiveDesc) {
-        str_type += m_output_precision.get_type_name();
-    } else {
-        str_type.pop_back();
-    }
-
-    return str_type;
-}
-
 bool Multinomial::needShapeInfer() const {
     return !(m_const_inputs[NUM_SAMPLES_PORT] && m_const_batch);
 }

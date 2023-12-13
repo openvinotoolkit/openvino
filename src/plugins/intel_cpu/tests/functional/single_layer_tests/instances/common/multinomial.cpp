@@ -11,8 +11,6 @@ namespace {
 
 using ov::test::MultinomialLayerTest;
 
-std::vector<std::pair<uint64_t, uint64_t>> global_op_seed = {{1ul, 2ul}, {0ul, 0ul}};
-
 std::vector<float> probs_4x4_f32 = {0.00001f,
                                     0.001f,
                                     0.1f,
@@ -53,61 +51,69 @@ std::vector<ov::bfloat16> probs_1x3_bf16_log = {ov::bfloat16(3.0f), ov::bfloat16
 
 std::vector<int> num_samples_scalar_i32 = {1};
 std::vector<int64_t> num_samples_1x1_i64 = {2};
-std::vector<int64_t> num_samples_scalar_i64 = {3};
 
-const std::vector<ov::Tensor> probs = {ov::Tensor(ov::element::f32, {4, 4}, probs_4x4_f32.data()),
-                                       ov::Tensor(ov::element::f16, {2, 3}, probs_2x3_f16.data()),
-                                       ov::Tensor(ov::element::bf16, {1, 3}, probs_1x3_bf16.data())};
+const auto probs = testing::Values(ov::Tensor(ov::element::f32, {4, 4}, probs_4x4_f32.data()),
+                                   ov::Tensor(ov::element::f16, {2, 3}, probs_2x3_f16.data()),
+                                   ov::Tensor(ov::element::bf16, {1, 3}, probs_1x3_bf16.data()));
 
-const std::vector<ov::Tensor> probs_log = {ov::Tensor(ov::element::f32, {4, 4}, probs_4x4_f32_log.data()),
-                                           ov::Tensor(ov::element::f16, {2, 3}, probs_2x3_f16_log.data()),
-                                           ov::Tensor(ov::element::bf16, {1, 3}, probs_1x3_bf16_log.data())};
+const auto probs_log = testing::Values(ov::Tensor(ov::element::f32, {4, 4}, probs_4x4_f32_log.data()),
+                                       ov::Tensor(ov::element::f16, {2, 3}, probs_2x3_f16_log.data()),
+                                       ov::Tensor(ov::element::bf16, {1, 3}, probs_1x3_bf16_log.data()));
 
-const std::vector<ov::Tensor> num_samples = {ov::Tensor(ov::element::i32, {}, num_samples_scalar_i32.data()),
-                                             ov::Tensor(ov::element::i64, {1}, num_samples_1x1_i64.data()),
-                                             ov::Tensor(ov::element::i64, {}, num_samples_scalar_i64.data())};
+const auto num_samples = testing::Values(ov::Tensor(ov::element::i32, {}, num_samples_scalar_i32.data()),
+                                         ov::Tensor(ov::element::i64, {1}, num_samples_1x1_i64.data()));
 
-const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32};
+const auto convert_type = testing::Values(ov::test::ElementType::i32, ov::test::ElementType::i64);
 
-const std::vector<bool> with_replacement = {
-    // true,
-    false};
+const auto with_replacement = testing::Values(true, false);
 
-const auto params_static = ::testing::Combine(::testing::Values("static"),
-                                              ::testing::ValuesIn(probs),
-                                              ::testing::ValuesIn(num_samples),
-                                              ::testing::ValuesIn(convert_type),
-                                              ::testing::ValuesIn(with_replacement),
-                                              ::testing::Values(false),  // log_probs
-                                              ::testing::ValuesIn(global_op_seed),
-                                              ::testing::Values(ov::test::utils::DEVICE_CPU));
+const auto log_probs_true = testing::Values(true);
+const auto log_probs_false = testing::Values(false);
 
-const auto params_static_log = ::testing::Combine(::testing::Values("static"),
-                                                  ::testing::ValuesIn(probs_log),
-                                                  ::testing::ValuesIn(num_samples),
-                                                  ::testing::ValuesIn(convert_type),
-                                                  ::testing::ValuesIn(with_replacement),
-                                                  ::testing::Values(true),  // log_probs
-                                                  ::testing::ValuesIn(global_op_seed),
-                                                  ::testing::Values(ov::test::utils::DEVICE_CPU));
+const auto test_type_static = testing::Values("static");
+const auto test_type_dynamic = testing::Values("dynamic");
 
-const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
-                                               ::testing::ValuesIn(probs),
-                                               ::testing::ValuesIn(num_samples),
-                                               ::testing::ValuesIn(convert_type),
-                                               ::testing::ValuesIn(with_replacement),
-                                               ::testing::Values(false),  // log_probs
-                                               ::testing::ValuesIn(global_op_seed),
-                                               ::testing::Values(ov::test::utils::DEVICE_CPU));
+// NOTE:  (0,0) seeds are skipped (ticket 126095)
+const auto global_op_seed =
+    testing::Values(std::pair<uint64_t, uint64_t>{1ul, 2ul}, std::pair<uint64_t, uint64_t>{0ul, 0ul});
 
-const auto params_dynamic_log = ::testing::Combine(::testing::Values("dynamic"),
-                                                   ::testing::ValuesIn(probs_log),
-                                                   ::testing::ValuesIn(num_samples),
-                                                   ::testing::ValuesIn(convert_type),
-                                                   ::testing::ValuesIn(with_replacement),
-                                                   ::testing::Values(true),  // log_probs
-                                                   ::testing::ValuesIn(global_op_seed),
-                                                   ::testing::Values(ov::test::utils::DEVICE_CPU));
+const auto device_cpu = testing::Values(ov::test::utils::DEVICE_CPU);
+
+const auto params_static = ::testing::Combine(test_type_static,
+                                              probs,
+                                              num_samples,
+                                              convert_type,
+                                              with_replacement,
+                                              log_probs_false,
+                                              global_op_seed,
+                                              device_cpu);
+
+const auto params_static_log = ::testing::Combine(test_type_static,
+                                                  probs_log,
+                                                  num_samples,
+                                                  convert_type,
+                                                  with_replacement,
+                                                  log_probs_true,
+                                                  global_op_seed,
+                                                  device_cpu);
+
+const auto params_dynamic = ::testing::Combine(test_type_dynamic,
+                                               probs,
+                                               num_samples,
+                                               convert_type,
+                                               with_replacement,
+                                               log_probs_false,
+                                               global_op_seed,
+                                               device_cpu);
+
+const auto params_dynamic_log = ::testing::Combine(test_type_dynamic,
+                                                   probs_log,
+                                                   num_samples,
+                                                   convert_type,
+                                                   with_replacement,
+                                                   log_probs_true,
+                                                   global_op_seed,
+                                                   device_cpu);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialStatic,
                          MultinomialLayerTest,

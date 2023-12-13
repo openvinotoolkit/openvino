@@ -21,7 +21,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    std::string getPrimitiveDescriptorType() const override;
 
     bool created() const override;
 
