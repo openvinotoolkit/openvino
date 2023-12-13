@@ -177,7 +177,7 @@ void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const
     if (!evaluate_once) {
         for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (ptr_increments[idx] != 0)
-                h->add(data_ptr_regs[idx], wa_increment * ptr_increments[idx] * data_sizes[idx]);
+                h->add(data_ptr_regs[idx], ptr_increments[idx]);
         }
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
@@ -186,7 +186,7 @@ void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const
 
     for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
-            h->add(data_ptr_regs[idx], finalization_offsets[idx] * data_sizes[idx]);
+            h->add(data_ptr_regs[idx], finalization_offsets[idx]);
     }
 }
 

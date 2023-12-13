@@ -155,7 +155,6 @@ void LoopEnd::update(const lowered::RuntimeConfig::LoopDescriptor& descriptor) {
     set_increment(descriptor.increment);
     set_ptr_increments(descriptor.ptr_increments);
     set_finalization_offsets(descriptor.finalization_offsets);
-    set_evaluate_once(descriptor.work_amount < 2 * descriptor.increment);
 }
 
 void LoopEnd::validate_and_infer_types() {

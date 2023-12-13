@@ -101,7 +101,7 @@ private:
      * @return True if needed otherwise returns False
      */
     inline static bool is_first_iter_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-        return loop_info->get_first_iter_handler() != nullptr && (loop_info->get_work_amount() > loop_info->get_increment() || loop_info->is_dynamic());
+        return loop_info->get_first_iter_handler() != nullptr && (loop_info->get_work_amount() >= loop_info->get_increment() || loop_info->is_dynamic());
     }
     /**
      * @brief Check if vector loop is needed

@@ -9,6 +9,13 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+bool RuntimeConfig::contains(size_t loop_id, LoopDescriptor::Type type) const {
+    OPENVINO_ASSERT(loops.count(loop_id) > 0, "LoopId has not been found!");
+    auto& loop_descriptors = loops.at(loop_id);
+    return std::find_if(loop_descriptors.cbegin(), loop_descriptors.cend(),
+                        [&type](const RuntimeConfig::LoopDescriptor& desc) { return desc.type == type; }) != loop_descriptors.cend();
+}
+
 std::vector<RuntimeConfig::LoopDescriptor>::iterator RuntimeConfig::get_loop_desc_it(size_t loop_id, RuntimeConfig::LoopDescriptor::Type type) {
     OPENVINO_ASSERT(loops.count(loop_id) > 0, "LoopId has not been found!");
     auto& loop_descriptors = loops.at(loop_id);

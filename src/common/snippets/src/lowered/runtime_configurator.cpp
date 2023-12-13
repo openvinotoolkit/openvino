@@ -84,7 +84,7 @@ void RuntimeConfigurator::update_loop_descriptors(const LinearIR::LoopManagerPtr
             init_vector_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_tail_loop_needed(loop_info)) {
-            auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tile);
+            auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tail);
             OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "Vector Loop Descriptor has not been found!");
             init_tail_loop_descriptor(loop_info, loop_id, *desc_it);
             // Inner splited Loop update
@@ -163,14 +163,15 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
     const auto vector_needed = vector_desc_it != m_config.loops.at(loop_id).end() && vector_desc_it->work_amount > 0;
     const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
     const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
-                                    vector_needed ? vector_desc_it->work_amount : loop_info->get_work_amount() % loop_info->get_increment();
+                                    vector_needed ? vector_desc_it->work_amount % loop_info->get_increment()
+                                                  : loop_info->get_work_amount() % loop_info->get_increment();
     const auto skip_evaluation = !is_wa_dynamic && tail_loop_desc.work_amount == 0;
 
     tail_loop_desc.work_amount = target_work_amount;
     tail_loop_desc.increment = loop_info->is_dynamic() ? 1 : tail_loop_desc.work_amount;
     tail_loop_desc.ptr_increments.resize(loop_ports.size());
     tail_loop_desc.finalization_offsets.resize(loop_ports.size());
-    tail_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::Tile;
+    tail_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::Tail;
 
     if (skip_evaluation) {
         std::for_each(tail_loop_desc.ptr_increments.begin(), tail_loop_desc.ptr_increments.end(), [](int64_t& value) { value = 0; });
@@ -196,9 +197,9 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
 }
 
 void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager,
-                                                             const LinearIR::LoopManager::LoopInfoPtr& outer_splited_loop_info,
-                                                             const RuntimeConfig::LoopDescriptor& outer_splited_tail_loop_desc,
-                                                             size_t outer_loop_id) {
+                                                                   const LinearIR::LoopManager::LoopInfoPtr& outer_splited_loop_info,
+                                                                   const RuntimeConfig::LoopDescriptor& outer_splited_tail_loop_desc,
+                                                                   size_t outer_loop_id) {
     if (!outer_splited_loop_info->get_outer_splited_loop())
         return;
 
@@ -235,7 +236,7 @@ void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearI
         splited_tail_loop_desc.increment = std::min(inner_vector_dest_it->increment, tail_size);
         splited_tail_loop_desc.ptr_increments = inner_vector_dest_it->ptr_increments;
         splited_tail_loop_desc.finalization_offsets = inner_vector_dest_it->finalization_offsets;
-        splited_tail_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::SplitedTile;
+        splited_tail_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::SplitedTail;
         // rescale offsets
         for (auto& offset : splited_tail_loop_desc.finalization_offsets) {
             offset = offset / static_cast<int64_t>(inner_vector_dest_it->work_amount) * static_cast<int64_t>(splited_tail_loop_desc.work_amount);

@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -28,14 +29,14 @@ bool OptimizeLoopSingleEvaluation::run(LinearIR& linear_ir) {
             //         and perform pointer increments through finalization offsets
             // *3* vector loop(s) + one tail loop
             //      => vector as usual, tail depends on outer loop, see *1* and *2*
-            if (loop_end->get_work_amount() >= 2 * loop_end->get_increment())
+            if (utils::is_dynamic_vdim(loop_end->get_work_amount()) ||
+                loop_end->get_work_amount() >= 2 * loop_end->get_increment())
                 continue;
 
             auto new_finalization_offsets = loop_end->get_finalization_offsets();
             const auto& ptr_increments = loop_end->get_ptr_increments();
-            const auto work_amount_incr = static_cast<int64_t>(loop_end->get_increment());
             for (size_t i = 0; i < new_finalization_offsets.size(); i++) {
-                new_finalization_offsets[i] += ptr_increments[i] * work_amount_incr;
+                new_finalization_offsets[i] += ptr_increments[i];
             }
             loop_end->set_finalization_offsets(new_finalization_offsets);
             loop_end->set_ptr_increments(std::vector<int64_t>(new_finalization_offsets.size(), 0));

@@ -25,7 +25,7 @@ public:
      * @brief Describes Loops - the simple copy of LoopManager::LoopInfo without loop ports
      */
     struct LoopDescriptor {
-        enum Type { First, Vector, Tile, SplitedTile };
+        enum Type { First, Vector, Tail, SplitedTail };
         LoopDescriptor() = default;
         LoopDescriptor(size_t wa, size_t inc, std::vector<int64_t> ptr_incs = {}, std::vector<int64_t> final_offs = {}, Type type = Type::Vector)
             : work_amount(wa), increment(inc), ptr_increments(ptr_incs), finalization_offsets(final_offs), type(type) {}
@@ -39,6 +39,13 @@ public:
     // [loop_id -> loop descriptors]
     using LoopMap = std::map<size_t, std::vector<LoopDescriptor>>;
 
+    /**
+     * @brief Check if config contains the LoopDescriptor by Loop ID and Type of descriptor.
+     * @param loop_id the corresponding loop ID
+     * @param type the type of Loop
+     * @return True if the loop descriptor has been found. Otherwise returns False
+     */
+    bool contains(size_t loop_id, LoopDescriptor::Type type) const;
     /**
      * @brief Find the LoopDescriptor and its ordered index by Loop ID and Type of descriptor
      * @param loop_id the corresponding loop ID
