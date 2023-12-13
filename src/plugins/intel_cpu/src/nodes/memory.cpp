@@ -705,16 +705,11 @@ void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
         config.inConfs.push_back(std::move(inPortConfig));
     }
 
-    auto node = m_sdpaNode.lock();
-    // retrieve the internal precision and axis order from the SDPA node
-    auto kv_precision = node->getKVCachePrecision();
-
     PortConfig outPortConfig;
-    // TODO(BS): 0 will be crash, because SDPA does not really accept init data, -1 should be ok
-    outPortConfig.inPlace(-1);
+    outPortConfig.inPlace(0);
     outPortConfig.constant(false);
     // layout for fake memory obj, the child sdpa also does not use it
-    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(kv_precision, shape));
+    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
     config.outConfs.push_back(std::move(outPortConfig));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
@@ -761,6 +756,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 
     auto node = m_sdpaNode.lock();
     // retrieve the internal precision and axis order from the SDPA node
+    OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
     VectorDims order = {0, 1, 2, 3};
     if (!node->getKVCacheOrder().empty())

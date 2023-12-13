@@ -310,7 +310,7 @@ void VariableStateKVcache::reset_impl() {
             VectorDims{0, 1},
             0,
             VectorDims{},
-            m_hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());        
+            m_hidden_state->getDescPtr()->as<CpuBlockedMemoryDesc>()->getStrides());
         m_hidden_state->redefineDesc(mem_desc);
     } else {
         // 1. reset internal state

@@ -840,9 +840,13 @@ void Graph::Allocate() {
     //resolve inplace dead end nodes
     for (const auto& edge : graphEdges) {
         if (edge->getStatus() == Edge::Status::Uninitialized) {
-            if (one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) &&
+                edge->inPlace(Edge::LOOK_UP)) {
                 edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-            } else if (one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
+                edge->inPlace(Edge::LOOK_DOWN)) {
                 edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
             }
         }
