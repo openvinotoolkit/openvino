@@ -141,6 +141,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                         }
                         return;
                     } else {
+                        std::cout << "MATCH!" << std::endl;
                         auto matched_ops = std::get<3>(m_model_comparator->is_subgraph(extracted_model, cached_model.first));
                         auto cached_model_op_cnt =
                             cached_model.first->get_ops().size() - cached_model.second.get_input_info().size() -
@@ -149,8 +150,10 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                             extracted_model->get_ops().size() - input_info.size() - extracted_model->get_results().size();
                         if (matched_ops.size() > 0.75 * extracted_model_op_cnt) {
                             if (cached_model_op_cnt > extracted_model_op_cnt) {
+                                std::cout << "SCENARIO_1!" << std::endl;
                                 return;
                             }
+                            std::cout << "SCENARIO_2!" << std::endl;
                             m_graph_cache.erase(cached_model.first);
                             break;
                         }
