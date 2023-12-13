@@ -44,8 +44,8 @@ TEST_P(ExecGraphNmsTransformLastNode, CheckIfCanBeInfered) {
   float in_boxes[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   float in_scores[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-  auto boxes = std::make_shared<opset5::Parameter>(element::f32, boxes_shape);
-  auto scores = std::make_shared<opset5::Parameter>(element::f32, scores_shape);
+  auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, boxes_shape);
+  auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, scores_shape);
   auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
   auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
   auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
@@ -53,7 +53,7 @@ TEST_P(ExecGraphNmsTransformLastNode, CheckIfCanBeInfered) {
                                                                                   iou_threshold, score_threshold,
                                                                                   opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i64);
   ngraph::ResultVector results {
-      std::make_shared<opset5::Result>(nms->output(0)),
+      std::make_shared<ov::op::v0::Result>(nms->output(0)),
   };
 
   auto f = std::make_shared<Function>(results, ParameterVector{boxes, scores}, "NMS");

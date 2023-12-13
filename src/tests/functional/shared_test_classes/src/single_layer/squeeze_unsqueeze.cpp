@@ -42,14 +42,14 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     std::shared_ptr<ngraph::Node> op;
 
     if (axesVector.empty() && opType == ngraph::helpers::SqueezeOpType::SQUEEZE) {
-        op = std::make_shared<ngraph::opset1::Squeeze>(params.front());
+        op = std::make_shared<ov::op::v0::Squeeze>(params.front());
     } else {
         OPENVINO_SUPPRESS_DEPRECATED_START
         op = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(op)};
+    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
     function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
 }
 } // namespace LayerTestsDefinitions

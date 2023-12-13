@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -75,15 +76,15 @@ protected:
         auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, weights);
         auto wLowNode = ngraph::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMin});
         auto wHighNode = ngraph::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMax});
-        auto wFq = std::make_shared<ngraph::opset8::FakeQuantize>(constant,
-                                                                  wLowNode,
-                                                                  wHighNode,
-                                                                  wLowNode,
-                                                                  wHighNode,
-                                                                  std::numeric_limits<uint8_t>::max() - 1);
-        auto matmul = std::make_shared<ngraph::opset8::MatMul>(params[0], wFq, false, true);
+        auto wFq = std::make_shared<ov::opset8::FakeQuantize>(constant,
+                                                              wLowNode,
+                                                              wHighNode,
+                                                              wLowNode,
+                                                              wHighNode,
+                                                              std::numeric_limits<uint8_t>::max() - 1);
+        auto matmul = std::make_shared<ov::opset8::MatMul>(params[0], wFq, false, true);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(matmul)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "PerchannelQuantTest");
     }
 };

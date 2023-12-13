@@ -18,7 +18,7 @@
 #include "transformations/init_node_info.hpp"
 
 using namespace ngraph;
-using namespace opset1;
+using namespace ov::opset1;
 
 namespace LayerTestsDefinitions {
 
@@ -130,7 +130,7 @@ protected:
         Strides maxpoolStrides{maxpoolStride};
 
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto transposeInOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transposeInOrder = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights =
@@ -146,7 +146,7 @@ protected:
                                              numOutChannels,
                                              false,
                                              filterWeights);
-        auto transposeOutOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto transposeOutOrder = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
         auto biasWeights = ov::test::utils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);

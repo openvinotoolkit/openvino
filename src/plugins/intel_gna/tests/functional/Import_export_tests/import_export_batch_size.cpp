@@ -38,8 +38,8 @@ protected:
             ov::test::utils::generate_float_numbers(2048 * inputShape[1], -0.1f, 0.1f),
             false);
 
-        auto matmul_1 = std::make_shared<ngraph::op::MatMul>(params[0], mul_const_1);
-        auto sigmoid_1 = std::make_shared<ngraph::op::Sigmoid>(matmul_1);
+        auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(params[0], mul_const_1);
+        auto sigmoid_1 = std::make_shared<ov::op::v0::Sigmoid>(matmul_1);
 
         auto mul_const_2 =
             ngraph::builder::makeConstant<float>(ngPrc,
@@ -47,7 +47,7 @@ protected:
                                                  ov::test::utils::generate_float_numbers(2048 * 3425, -0.1f, 0.1f),
                                                  false);
 
-        auto matmul_2 = std::make_shared<ngraph::op::MatMul>(sigmoid_1, mul_const_2);
+        auto matmul_2 = std::make_shared<ov::op::v0::MatMul>(sigmoid_1, mul_const_2);
 
         function = std::make_shared<ngraph::Function>(matmul_2, params, "ExportImportNetwork");
     }
