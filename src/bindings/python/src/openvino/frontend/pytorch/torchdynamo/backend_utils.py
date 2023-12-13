@@ -13,8 +13,8 @@ def _get_device(options) -> Optional[Any]:
     core = Core()
     device = "CPU"
 
-    if "device_id" in options:
-        device = options["device_id"]
+    if "device" in options:
+        device = options["device"]
     else:
         device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
 
@@ -27,11 +27,20 @@ def _get_device(options) -> Optional[Any]:
 
     return device
 
+def _is_cache_dir_in_config(options) -> Optional[Any]:
+    if "config" in options:
+        cfg = options["config"]
+        if "CACHE_DIR" in cfg:
+            return True
+    return False
+
 
 def _get_cache_dir(options) -> Optional[Any]:
     cache_dir = "./cache"
     if options is not None and "cache_dir" in options:
         cache_dir = options["cache_dir"]
+    if _is_cache_dir_in_config(options):
+        cache_dir = options["config"]["CACHE_DIR"]
     else:
         cache_dir_env = os.getenv("OPENVINO_TORCH_CACHE_DIR")
         if cache_dir_env is not None:
@@ -44,6 +53,7 @@ def _get_model_caching(options) -> Optional[Any]:
         return options["model_caching"]
     else:
         return os.getenv("OPENVINO_TORCH_MODEL_CACHING")
+
 
 def _get_config(options) -> Optional[Any]:
     if options is not None and "config" in options:
