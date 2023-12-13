@@ -267,7 +267,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         }
     } else if (key == ov::num_streams) {
         return decltype(ov::num_streams)::value_type{_streams};
-    OPENVINO_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
         switch (_threadBindingType) {
         case IStreamsExecutor::ThreadBindingType::NONE:
