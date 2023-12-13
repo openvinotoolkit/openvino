@@ -3,6 +3,7 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/runtime/properties.hpp"
 
 // define a matcher if all the elements of subMap are contained in the map.
 MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are contained in the map.") {
@@ -218,3 +219,121 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoLoadExeNetworkFailedTest,
                          AutoLoadExeNetworkFailedTest,
                          ::testing::ValuesIn(testConfigsAutoLoadFailed),
                          AutoLoadExeNetworkFailedTest::getTestCaseName);
+
+using PropertyTestParams = std::tuple<std::string,                  // virtual device name to load network
+                                      std::string,                  // device priority
+                                      std::map<std::string, bool>,  // if supported property
+                                      ov::AnyMap>;                  // optional property and its expected value
+
+class CompiledModelPropertyMockTest : public tests::AutoTest, public ::testing::TestWithParam<PropertyTestParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<PropertyTestParams> obj) {
+        std::string deviceName;
+        std::string devicePriorities;
+        std::map<std::string, bool> isSupportProperty;
+        ov::AnyMap properties;
+        std::tie(deviceName, devicePriorities, isSupportProperty, properties) = obj.param;
+        std::ostringstream result;
+        result << "_virtual_device_" << deviceName;
+        result << "_loadnetwork_to_device_" << devicePriorities;
+        for (auto& property : properties) {
+            result << "_property_" << property.first;
+            bool isSupport = isSupportProperty[property.first];
+            if (isSupport)
+                result << "_isSupport_No_";
+            else
+                result << "_isSupport_Yes_";
+            result << "_expectedValue_" << property.second.as<std::string>();
+        }
+        return result.str();
+    }
+
+    void SetUp() override {
+        std::string deviceName;
+        std::string devicePriorities;
+        ov::AnyMap properties;
+        std::map<std::string, bool> isSupportProperty;
+        std::tie(deviceName, devicePriorities, isSupportProperty, properties) = GetParam();
+        std::vector<std::string> availableDevs = {"CPU", "GPU"};
+        ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault(Return(mockExeNetwork));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrNe(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault(Return(mockExeNetworkActual));
+        std::vector<ov::PropertyName> supported_props = {};
+        for (auto& property : properties) {
+            bool isSupport = isSupportProperty[property.first];
+            if (isSupport) {
+                supported_props.push_back(property.first);
+                auto value = property.second.as<std::string>();
+                ON_CALL(*mockIExeNet.get(), get_property(StrEq(property.first)))
+                    .WillByDefault(RETURN_MOCK_VALUE(value));
+                ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(property.first)))
+                    .WillByDefault(RETURN_MOCK_VALUE(value));
+            } else {
+                ON_CALL(*mockIExeNet.get(), get_property(StrEq(property.first)))
+                    .WillByDefault(Throw(ov::Exception{"unsupported property"}));
+                ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(property.first)))
+                    .WillByDefault(Throw(ov::Exception{"unsupported property"}));
+            }
+        }
+        ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::supported_properties.name())))
+            .WillByDefault(Return(ov::Any(supported_props)));
+        ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::supported_properties.name())))
+            .WillByDefault(Return(ov::Any(supported_props)));
+    }
+};
+
+TEST_P(CompiledModelPropertyMockTest, compiledModelGetPropertyNoThrow) {
+    std::string deviceName;
+    std::string devicePriorities;
+    ov::AnyMap properties;
+    std::map<std::string, bool> isSupportProperty;
+    std::tie(deviceName, devicePriorities, isSupportProperty, properties) = GetParam();
+    if (deviceName.find("AUTO") != std::string::npos)
+        plugin->set_device_name("AUTO");
+    if (deviceName.find("MULTI") != std::string::npos)
+        plugin->set_device_name("MULTI");
+    std::shared_ptr<ov::ICompiledModel> autoExecNetwork;
+    ASSERT_NO_THROW(autoExecNetwork = plugin->compile_model(model, {ov::device::priorities(devicePriorities)}));
+    for (auto& property : properties) {
+        auto result = autoExecNetwork->get_property(property.first).as<std::string>();
+        EXPECT_EQ(result, property.second.as<std::string>());
+    }
+}
+const std::vector<PropertyTestParams> testCompiledModelProperty = {
+    PropertyTestParams{"AUTO",
+                       "CPU,GPU",
+                       {{ov::loaded_from_cache.name(), true}},
+                       {{ov::loaded_from_cache.name(), true}}},
+    PropertyTestParams{"AUTO",
+                       "CPU,GPU",
+                       {{ov::loaded_from_cache.name(), true}},
+                       {{ov::loaded_from_cache.name(), false}}},
+    PropertyTestParams{"AUTO",
+                       "CPU,GPU",
+                       {{ov::loaded_from_cache.name(), false}},
+                       {{ov::loaded_from_cache.name(), false}}},
+    PropertyTestParams{"MULTI",
+                       "CPU,GPU",
+                       {{ov::loaded_from_cache.name(), true}},
+                       {{ov::loaded_from_cache.name(), true}}},
+    PropertyTestParams{"MULTI",
+                       "CPU,GPU",
+                       {{ov::loaded_from_cache.name(), true}},
+                       {{ov::loaded_from_cache.name(), false}}},
+    PropertyTestParams{"MULTI",
+                       "CPU,GPU",
+                       {{ov::loaded_from_cache.name(), false}},
+                       {{ov::loaded_from_cache.name(), false}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoCompiledModelPropertyMockTest,
+                         CompiledModelPropertyMockTest,
+                         ::testing::ValuesIn(testCompiledModelProperty),
+                         CompiledModelPropertyMockTest::getTestCaseName);
