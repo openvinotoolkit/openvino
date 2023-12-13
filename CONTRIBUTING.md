@@ -106,7 +106,7 @@ You can start with the following links:
 
 In order to build the project, follow the [build instructions for your specific OS](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
-### 3. Familiarize yourself with component you'll be working with
+### 3. Familiarize yourself with the component you'll be working with
 
 Choose the component your Good First Issue is related to. You can run tests to make sure it is working correctly.
 
