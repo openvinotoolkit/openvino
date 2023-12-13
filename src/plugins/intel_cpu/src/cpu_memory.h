@@ -380,9 +380,9 @@ public:
 
     using StringMemoryMngrPtr = std::shared_ptr<StringMemoryMngr>;
 
-    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const OvString* data = nullptr);
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data = nullptr);
 
-    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const OvString* data = nullptr) : StringMemory(engine, desc.clone(), data) {}
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const void* data = nullptr) : StringMemory(engine, desc.clone(), data) {}
 
     StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryMngrPtr& manager)
         : m_engine(engine), m_mem_desc(desc), m_manager(manager) {}

@@ -923,7 +923,10 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
             auto ext_tensor_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(input);
             auto actualDesc = edgeMemory->getDescPtr();
 
-            if (!actualDesc->isCompatible(*ext_tensor_desc)) {
+            if (actualDesc->getPrecision() == element::string) {
+                StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
+                edgeMemory->load(ext_mem);
+            } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
                 edgeMemory->load(ext_mem, false);
             } else {
@@ -1002,7 +1005,10 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
+        if (actualDesc->getPrecision() == element::string) {
+            StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
+            outBloMem.load(intr_blob);
+        } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {

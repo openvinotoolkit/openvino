@@ -274,7 +274,7 @@ void MemoryMngrRealloc::destroy(void *ptr) {
 
 /////////////// StringMemory ///////////////
 
-StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const OvString* data) : m_engine(engine), m_mem_desc(desc) {
+StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data) : m_engine(engine), m_mem_desc(desc) {
     m_manager = std::make_shared<StringMemoryMngr>();
 
     if (!m_mem_desc->isDefined()) {
@@ -285,7 +285,8 @@ StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc
     const auto string_size = m_mem_desc->getShape().getElementsCount();
 
     if (data != nullptr) {
-        m_manager->setExtStringBuff(const_cast<OvString *>(data), string_size);
+        auto not_const_data = const_cast<void *>(data);
+        m_manager->setExtStringBuff(reinterpret_cast<OvString *>(not_const_data), string_size);
     } else {
         m_manager->resize(string_size);
     }
@@ -296,6 +297,12 @@ StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noe
 }
 
 void StringMemory::load(const IMemory& src, bool ftz) const {
+    try {
+        auto str_mem = dynamic_cast<const StringMemory &>(src);
+    } catch (...) {
+        OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
+    }
+
     transferData(src, *this, false);
 }
 
