@@ -26,7 +26,13 @@ struct Evaluate : public element::NoAction<bool> {
         out.set_shape(out_shape);
 
         using namespace ov::element;
-        return IfTypeOf<i32, i64>::apply<EvalByOutType>(out.get_element_type(), in_data, out, in_shape);
+        return IF_TYPE_OF(non_zero_out_type,
+                          OV_PP_ET_LIST(i32, i64),
+                          EvalByOutType,
+                          out.get_element_type(),
+                          in_data,
+                          out,
+                          in_shape);
     }
 
 private:
@@ -114,12 +120,14 @@ bool NonZero::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     auto& output = outputs[0];
     using namespace ov::element;
     const auto& input_shape = input.get_shape();
-    return IfTypeOf<boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64>::apply<non_zero::Evaluate>(
-        input.get_element_type(),
-        input,
-        input_shape,
-        input_shape.size(),
-        output);
+    return IF_TYPE_OF(v3_NonZero_evaluate,
+                      OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
+                      non_zero::Evaluate,
+                      input.get_element_type(),
+                      input,
+                      input_shape,
+                      input_shape.size(),
+                      output);
 }
 
 bool NonZero::has_evaluate() const {

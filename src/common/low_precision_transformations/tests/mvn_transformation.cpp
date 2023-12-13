@@ -41,7 +41,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::AxisSet reductionAxes;
+    ov::AxisSet reductionAxes;
     bool normalizeVariance;
     TestTransformationParams params;
     Actual actual;
