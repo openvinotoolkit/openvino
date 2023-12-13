@@ -91,7 +91,7 @@ product better:
 
 This section lists all the necessary steps required to set up your environment, build OpenVINO locally, and run tests for specific components. It's a perfect place to start when you have just picked a Good First Issue and are wondering how to start working on it.
 
-Keep in mind that we are here to help - **do not hesitate to ask the development team if something is not clear**. Such questions allow up to keep improving our documentation.
+Keep in mind that we are here to help - **do not hesitate to ask the development team if something is not clear**. Such questions allow us to keep improving our documentation.
 
 ### 1. Prerequisites 
 
