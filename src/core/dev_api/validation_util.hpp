@@ -77,6 +77,7 @@ Tensor make_tensor_of_min_value(const element::Type_t et);
 ///
 /// \return true if auto padding was applied successfully (all needed informations such as
 ///         spatial dims are known), false otherwise.
+OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
 OPENVINO_API bool try_apply_auto_padding(const PartialShape& image_shape,
                                          const Shape& filter_shape,
                                          const Strides& filter_strides,
@@ -109,6 +110,7 @@ OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list
 /// \brief Infers the output batch shape for convolution forward propagation.
 ///
 /// \return Infered output shape.
+OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
 OPENVINO_API PartialShape infer_convolution_forward(const Node* node,
                                                     const PartialShape& data_batch_shape,
                                                     const Strides& data_dilation,
@@ -119,6 +121,7 @@ OPENVINO_API PartialShape infer_convolution_forward(const Node* node,
                                                     const Strides& filter_dilation);
 
 /// \brief Infers image paddings.
+OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
 OPENVINO_API void infer_auto_padding(const Shape& image_shape,
                                      const Shape& filter_shape,
                                      const Strides& filter_strides,
