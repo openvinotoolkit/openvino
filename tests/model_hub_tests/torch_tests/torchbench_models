@@ -5,9 +5,9 @@ LearningToPaint,None
 Super_SloMo,None,xfail,Unsupported ops aten::l1_loss aten::mse_loss
 #alexnet,None - Already tested by torchvision tests
 basic_gnn_edgecnn,None,xfail,Accuracy validation failed
-basic_gnn_gcn,None,xfail,Unsupported ops aten::pow_ aten::scatter_add_
-basic_gnn_gin,None,xfail,Unsupported op aten::scatter_add_
-basic_gnn_sage,None,xfail,Unsupported op aten::scatter_add_
+basic_gnn_gcn,None,xfail,Unsupported ops aten::pow_
+basic_gnn_gin,None
+basic_gnn_sage,None
 #cm3leon_generate,None,skip,No install.py is found
 dcgan,None
 demucs,None
