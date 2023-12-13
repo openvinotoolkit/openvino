@@ -25,7 +25,6 @@ Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Gu
 and do inference with a sample image. 
 
 **Table of contents:**
---
 
 - `Prerequisites <#prerequisites>`__
 - `Imports <#imports>`__
@@ -43,8 +42,10 @@ and do inference with a sample image.
 - `Async inference pipeline <#async-inference-pipeline>`__
 - `Integration preprocessing to model <#integration-preprocessing-to-model>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 Install required packages:
 
@@ -71,8 +72,10 @@ The notebook uses utility functions. The cell below will download the
         filename="notebook_utils.py",
     );
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -90,8 +93,10 @@ Imports
     # OpenVINO modules
     import openvino as ov
 
-Settings 
---------------------------------------------------
+Settings
+--------
+
+
 
 Define model related variables and create corresponding directories:
 
@@ -113,12 +118,14 @@ Define model related variables and create corresponding directories:
     
     openvino_ir_path = ir_model_dir / f"{model_name}.xml"
     
-    tf_model_url = "https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1?tf-hub-format=compressed"
+    tf_model_url = "https://www.kaggle.com/models/tensorflow/mask-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1?tf-hub-format=compressed"
     
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
-Download Model from TensorFlow Hub 
-----------------------------------------------------------------------------
+Download Model from TensorFlow Hub
+----------------------------------
+
+
 
 Download archive with TensorFlow Instance Segmentation model
 (`mask_rcnn_inception_resnet_v2_1024x1024 <https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1>`__)
@@ -149,8 +156,10 @@ archive:
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
-Convert Model to OpenVINO IR 
-----------------------------------------------------------------------
+Convert Model to OpenVINO IR
+----------------------------
+
+
 
 OpenVINO Model Optimizer Python API can be used to convert the
 TensorFlow model to OpenVINO IR.
@@ -175,11 +184,15 @@ when the model is run in the future.
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
-Test Inference on the Converted Model 
--------------------------------------------------------------------------------
+Test Inference on the Converted Model
+-------------------------------------
 
-Select inference device 
------------------------------------------------------------------
+
+
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -206,31 +219,35 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load the Model
+~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     openvino_ir_model = core.read_model(openvino_ir_path)
     compiled_model = core.compile_model(model=openvino_ir_model, device_name=device.value)
 
-Get Model Information 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Get Model Information
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Mask R-CNN with Inception ResNet V2 instance segmentation model has one
 input - a three-channel image of variable size. The input tensor shape
 is ``[1, height, width, 3]`` with values in ``[0, 255]``.
 
 Model output dictionary contains a lot of tensors, we will use only 5 of
-them: 
-
-- ``num_detections``: A ``tf.int`` tensor with only one value, the number of detections ``[N]``.
-- ``detection_boxes``: A ``tf.float32`` tensor of shape ``[N, 4]`` containing bounding box coordinates in the following order: ``[ymin, xmin, ymax, xmax]``.
-- ``detection_classes``: A ``tf.int`` tensor of shape ``[N]`` containing detection class index from the label file.
-- ``detection_scores``: A ``tf.float32`` tensor of shape ``[N]`` containing detection scores.
-- ``detection_masks``: A ``[batch, max_detections, mask_height, mask_width]`` tensor.
-
-  Note that apixel-wise sigmoid score converter is applied to the detection masks.
+them: - ``num_detections``: A ``tf.int`` tensor with only one value, the
+number of detections ``[N]``. - ``detection_boxes``: A ``tf.float32``
+tensor of shape ``[N, 4]`` containing bounding box coordinates in the
+following order: ``[ymin, xmin, ymax, xmax]``. - ``detection_classes``:
+A ``tf.int`` tensor of shape ``[N]`` containing detection class index
+from the label file. - ``detection_scores``: A ``tf.float32`` tensor of
+shape ``[N]`` containing detection scores. - ``detection_masks``: A
+``[batch, max_detections, mask_height, mask_width]`` tensor. Note that a
+pixel-wise sigmoid score converter is applied to the detection masks.
 
 For more information about model inputs, outputs and their formats, see
 the `model overview page on TensorFlow
@@ -290,8 +307,10 @@ the first (and highest) detection score.
        <ConstOutput: names[proposal_boxes_normalized, final_anchors] shape[1,?,..8] type: f32>
 
 
-Get an Image for Test Inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Get an Image for Test Inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Load and save an image:
 
@@ -336,7 +355,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7efe84247640>
+    <matplotlib.image.AxesImage at 0x7f53cb91bca0>
 
 
 
@@ -344,8 +363,10 @@ Read the image, resize and convert it to the input shape of the network:
 .. image:: 120-tensorflow-instance-segmentation-to-openvino-with-output_files/120-tensorflow-instance-segmentation-to-openvino-with-output_25_1.png
 
 
-Perform Inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Perform Inference
+~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -391,8 +412,10 @@ be extracted from the result. For further model result visualization
     image_detections_num: [100.]
 
 
-Inference Result Visualization 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Inference Result Visualization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Define utility functions to visualize the inference results
 
@@ -631,24 +654,29 @@ original test image:
 .. image:: 120-tensorflow-instance-segmentation-to-openvino-with-output_files/120-tensorflow-instance-segmentation-to-openvino-with-output_39_0.png
 
 
-Next Steps 
-----------------------------------------------------
+Next Steps
+----------
+
+
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
 
-Async inference pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Async inference pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-The key advantage of the Async API is that when a device is busy with
-inference, the application can perform other tasks in parallel (for
-example, populating inputs or scheduling other requests) rather than
-wait for the current inference to complete first. To understand how to
-perform async inference using openvino, refer to the `Async API
+The key advantage of the Async
+API is that when a device is busy with inference, the application can
+perform other tasks in parallel (for example, populating inputs or
+scheduling other requests) rather than wait for the current inference to
+complete first. To understand how to perform async inference using
+openvino, refer to the `Async API
 tutorial <115-async-api-with-output.html>`__.
 
-Integration preprocessing to model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Integration preprocessing to model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing

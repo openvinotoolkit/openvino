@@ -17,6 +17,10 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 namespace {
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
@@ -26,9 +30,9 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
                           public testing::WithParamInterface<ConcurrencyTestParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv(),
-                   ngraph::builder::subgraph::makeTIwithLSTMcell()};
+        fn_ptrs = {ov::test::utils::make_split_multi_conv_concat(),
+                   ov::test::utils::make_multi_single_conv(),
+                   ov::test::utils::make_ti_with_lstm_cell()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcurrencyTestParams>& obj) {
@@ -144,7 +148,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
 TEST(canSwapTensorsBetweenInferRequests, inputs) {
     std::vector<ov::Tensor> ref;
     std::vector<ov::Tensor> input_tensors;
-    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    auto fn = ov::test::utils::make_split_multi_conv_concat();
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -218,7 +222,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
-    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ov::element::f32);
+    auto fn = ov::test::utils::make_detection_output(ov::element::f32);
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -257,7 +261,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
-    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ov::element::f32);
+    auto fn = ov::test::utils::make_detection_output(ov::element::f32);
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -283,7 +287,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     std::vector<ov::Tensor> ref;
     std::vector<ov::Tensor> input_tensors;
     std::vector<ov::Tensor> output_tensors;
-    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    auto fn = ov::test::utils::make_split_multi_conv_concat();
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));

@@ -72,24 +72,22 @@ protected:
 
         auto matmul_in_shape = firstInConst ? ngraph::Shape{inputShape / 8, 8} : ngraph::Shape{8, inputShape / 8};
         auto pattern =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, matmul_in_shape);
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, matmul_in_shape);
+        auto reshape = std::make_shared<ov::opset1::Reshape>(params[0], pattern, false);
 
         std::shared_ptr<ngraph::Node> weights_node;
         if (firstInConst) {
             std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
-            weights_node =
-                std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0]}, weights);
+            weights_node = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0]}, weights);
         } else {
             std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
-            weights_node =
-                std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
+            weights_node = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
         }
 
         auto matmul = firstInConst ? std::make_shared<ov::op::v0::MatMul>(weights_node, reshape, false, false)
                                    : std::make_shared<ov::op::v0::MatMul>(reshape, weights_node, false, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matmul)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBeforeMatmul");
     }
 };
@@ -164,24 +162,23 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputShape})};
         auto matmul_in_shape = ngraph::Shape{inputShape / 8, 8};
         auto pattern =
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, matmul_in_shape);
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, matmul_in_shape);
+        auto reshape = std::make_shared<ov::opset1::Reshape>(params[0], pattern, false);
 
         std::vector<float> data =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(matmul_in_shape), -0.2f, 0.2f);
-        auto concat_const = std::make_shared<ngraph::opset1::Constant>(ngPrc, matmul_in_shape, data);
+        auto concat_const = std::make_shared<ov::op::v0::Constant>(ngPrc, matmul_in_shape, data);
         ngraph::OutputVector concat_chunks{reshape, concat_const};
-        auto concat = std::make_shared<ngraph::opset7::Concat>(concat_chunks, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(concat_chunks, 0);
 
         std::shared_ptr<ngraph::Node> weights_node;
         std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0] * 2, -0.2f, 0.2f);
-        weights_node =
-            std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
+        weights_node = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
 
         auto matmul = firstInConst ? std::make_shared<ov::op::v0::MatMul>(weights_node, concat, false, false)
                                    : std::make_shared<ov::op::v0::MatMul>(concat, weights_node, false, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matmul)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBeforeConcatConcat");
     }
 };
