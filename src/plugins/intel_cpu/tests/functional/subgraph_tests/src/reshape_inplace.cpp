@@ -64,11 +64,11 @@ protected:
                 }
             } else {
                 if (funcInput.get_element_type().is_real()) {
-                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                           targetInputStaticShapes[i],
-                                                           10,
-                                                           0,
-                                                           1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                 } else {
                     tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }

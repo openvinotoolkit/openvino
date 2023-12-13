@@ -20,9 +20,23 @@ namespace ov {
 namespace test {
 namespace utils {
 
-double ConstRanges::max = std::numeric_limits<double>::min();
-double ConstRanges::min = std::numeric_limits<double>::max();
-bool ConstRanges::is_defined = false;
+namespace {
+struct {
+    double max = 0;
+    double min = 0;
+    bool is_defined = false;
+} const_range;
+}  // namespace
+
+void set_const_ranges(double _min, double _max) {
+    const_range.max = _max;
+    const_range.min = _min;
+    const_range.is_defined = true;
+}
+
+void reset_const_ranges() {
+    const_range.is_defined = false;
+}
 
 namespace {
 
@@ -43,6 +57,10 @@ namespace {
  *
  * All the generated numbers completely fit into the data type without truncation
  */
+
+using ov::test::utils::InputGenerateData;
+
+
 static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
     inGenData.range = 8;
     inGenData.resolution = 32;
@@ -53,6 +71,17 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData;
+
+    if (const_range.is_defined) {
+        auto min_orig = inGenData.start_from;
+        auto max_orig = inGenData.start_from + inGenData.range * inGenData.resolution;
+        auto min_ref = const_range.min;
+        auto max_ref = const_range.max;
+        if (min_orig < min_ref || min_orig == 0)
+            inGenData.start_from = min_ref;
+        inGenData.range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - inGenData.start_from) - inGenData.start_from;
+    }
+
     if (elemType.is_real()) {
         set_real_number_generation_data(inGenData);
     }
@@ -67,8 +96,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
         const auto& range = ranges.at(elemType.is_real());
         inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
     }
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range,
-                                                   inGenData.start_from, inGenData.resolution, inGenData.seed);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
 namespace Activation {
@@ -79,7 +107,7 @@ ov::runtime::Tensor generate(const ov::element::Type& elemType,
         inGenData.range = 15;
         inGenData.start_from = 0;
     }
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 } // namespace Activation
 
@@ -89,10 +117,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>&
                              const ov::Shape& targetShape) {
     switch (port) {
         case 1: {
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 0, 0.2f);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0.2;
+            in_data.range = 0;
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
         }
         case 2: {
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 0, 0.5f);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0.5;
+            in_data.range = 0;
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
         }
         default: {
             return Activation::generate(elemType, targetShape);
@@ -110,9 +144,15 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::PRelu>& node,
         case 1: {
             auto name = node->input(1).get_node()->get_friendly_name();
             if (0 == name.compare("leakySlope")) {
-                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 0, 0.01f, 100);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0.01;
+                in_data.range = 0;
+                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
             } else if (0 == name.compare("negativeSlope")) {
-                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 0, -0.01f, 100);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -0.01;
+                in_data.range = 0;
+                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
             } else {
                 return Activation::generate(elemType, targetShape);
             }
@@ -166,7 +206,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::DetectionOutp
             inGenData.resolution = 10;
             break;
     }
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize>& node,
@@ -225,7 +265,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize>
             inGenData.resolution = 1.0f;
             inGenData.seed = seed;
 
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
         }
     }
 }
@@ -307,19 +347,22 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree>& 
             InputGenerateData inGenData;
             inGenData.start_from = maxBeamIndx / 2;
             inGenData.range = maxBeamIndx;
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
         }
         default:
             InputGenerateData inGenData;
             inGenData.range = maxBeamIndx;
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
     }
 }
 
 namespace LogicalOp {
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return create_and_fill_tensor(elemType, targetShape, 2, 0);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 2;
+    return create_and_fill_tensor(elemType, targetShape, in_data);
 }
 }
 
@@ -373,7 +416,12 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& n
     switch (port) {
         case 0: {
             auto data_size = shape_size(targetShape);
-            return create_and_fill_tensor(elemType, targetShape, data_size * 5, 0, 10, 7235346);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = data_size * 5;
+            in_data.resolution = 10;
+            in_data.seed = 7235346;
+            return create_and_fill_tensor(elemType, targetShape, in_data);
         }
         case 1: {
             return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
@@ -446,8 +494,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::GRUSequence>&
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
-        unsigned int m_max_seq_len = 10;
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10; // max_seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -457,12 +507,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& no
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
-        unsigned int m_max_seq_len = 10;
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10; // max_seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     if (port == 3 && node->input(0).get_partial_shape().is_static()) {
-        auto seq_len = node->input(0).get_shape()[1];
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, seq_len);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = node->input(0).get_shape()[1]; // seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -593,8 +647,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>&
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
-        unsigned int m_max_seq_len = 10;
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10; // max_seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -769,8 +825,7 @@ ov::runtime::Tensor generate(const
         in_gen_data.start_from = 0;
         in_gen_data.resolution = 20;
     }
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_gen_data.range,
-                                                   in_gen_data.start_from, in_gen_data.resolution, in_gen_data.seed);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_gen_data);
 }
 
 namespace comparison {
@@ -972,7 +1027,7 @@ ov::runtime::Tensor generate(const
                              const ov::Shape& targetShape) {
     if (port == 0) {
         InputGenerateData inGenData(-5, 10, 7, 222);
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -983,7 +1038,7 @@ ov::runtime::Tensor generate(const
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData(1, 0, 1, 1);
-    auto tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    auto tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 
     if (0 == port || 1 == port) {
 #define CASE(X) case X: { \
@@ -1017,7 +1072,7 @@ ov::runtime::Tensor generate(const
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData(1, 0, 1, 1);
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
 ov::runtime::Tensor generate(const
@@ -1031,7 +1086,7 @@ ov::runtime::Tensor generate(const
         inGenData.range = 200;
         inGenData.resolution = 2;
     }
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
 ov::runtime::Tensor generate(const
@@ -1041,7 +1096,7 @@ ov::runtime::Tensor generate(const
                              const ov::Shape& targetShape) {
     if (port == 1) {
         InputGenerateData inGenData(0, 1, 1000, 1);
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -1053,7 +1108,7 @@ ov::runtime::Tensor generate(const
                              const ov::Shape& targetShape) {
     if (port == 1) {
         InputGenerateData inGenData(0, 1, 1000, 1);
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -1065,7 +1120,7 @@ ov::runtime::Tensor generate(const
                              const ov::Shape& targetShape) {
     if (port == 1) {
         InputGenerateData inGenData(0, 1, 1000, 1);
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
