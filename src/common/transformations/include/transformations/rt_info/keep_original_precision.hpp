@@ -18,7 +18,8 @@ TRANSFORMATIONS_API void remove_keep_original_precision_attribute(const std::sha
 
 TRANSFORMATIONS_API bool has_keep_original_precision_attribute(const std::shared_ptr<const Node>& node);
 
-TRANSFORMATIONS_API const KeepOriginalPrecision& get_keep_original_precision_attribute(const std::shared_ptr<const Node>& node);
+TRANSFORMATIONS_API const KeepOriginalPrecision& get_keep_original_precision_attribute(
+    const std::shared_ptr<const Node>& node);
 
 /**
  * @ingroup ie_runtime_attr_api

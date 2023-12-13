@@ -11,8 +11,8 @@
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/multinomial.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -59,7 +59,6 @@ ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov:
     manager.register_pass<pass::KeepNodeInOriginalPrecision<op::v8::RandomUniform, op::v13::Multinomial>>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_to_convert, type_to_fuse_map{}, true, false);
     manager.run_passes(m_model);
-
 
     for (auto node : m_model->get_ordered_ops()) {
         m_nodes.push_back(node);
