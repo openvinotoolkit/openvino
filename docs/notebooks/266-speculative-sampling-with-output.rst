@@ -35,6 +35,7 @@ available at openvino.ai
 
 **Table of contents:**
 
+
 -  `Prerequisites <#prerequisites>`__
 
    -  `Select inference device <#select-inference-device>`__
@@ -71,7 +72,7 @@ useful modules.
 .. code:: ipython3
 
     %pip install -q --upgrade pip
-    %pip install -q --upgrade transformers torch gradio openvino accelerate onnx onnxruntime ipywidgets
+    %pip install -q --upgrade transformers torch gradio openvino accelerate onnx ipywidgets --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Select inference device
