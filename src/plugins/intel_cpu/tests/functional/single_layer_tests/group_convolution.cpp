@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/group_convolution.hpp"
+#include "shared_test_classes/single_op/group_convolution.hpp"
 
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -15,7 +15,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-using groupConvSpecificParams = LayerTestsDefinitions::groupConvSpecificParams;
+using groupConvSpecificParams = ov::test::groupConvSpecificParams;
 
 typedef std::tuple<groupConvSpecificParams,
                    ElementType,
@@ -23,9 +23,9 @@ typedef std::tuple<groupConvSpecificParams,
                    ElementType,  // Output precision
                    InputShape,   // Input shapes
                    std::string>
-    groupConvLayerTestParamsSet;
+    groupConvLayerTestsParamsSet;
 
-typedef std::tuple<groupConvLayerTestParamsSet, CPUSpecificParams, fusingSpecificParams, ov::AnyMap>
+typedef std::tuple<groupConvLayerTestsParamsSet, CPUSpecificParams, fusingSpecificParams, ov::AnyMap>
     groupConvLayerCPUTestParamsSet;
 
 class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
@@ -33,7 +33,7 @@ class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupCon
                                      public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
-        groupConvLayerTestParamsSet basicParamsSet;
+        groupConvLayerTestsParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         ov::AnyMap additionalConfig;
@@ -156,7 +156,7 @@ protected:
     void SetUp() override {
         rel_threshold = 1e-4f;
 
-        groupConvLayerTestParamsSet basicParamsSet;
+        groupConvLayerTestsParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         ov::AnyMap additionalConfig;
@@ -1383,12 +1383,12 @@ std::vector<groupConvLayerCPUTestParamsSet> makeSingleGroupConvCPUTestCases(
         ov::AnyMap config;
         std::tie(config, fusingParams) = configRelatedParams;
 
-        groupConvLayerTestParamsSet basicParamsSet(specificParams,
-                                                   ElementType::f32,
-                                                   ElementType::undefined,
-                                                   ElementType::undefined,
-                                                   inputShapes,
-                                                   ov::test::utils::DEVICE_CPU);
+        groupConvLayerTestsParamsSet basicParamsSet(specificParams,
+                                                    ElementType::f32,
+                                                    ElementType::undefined,
+                                                    ElementType::undefined,
+                                                    inputShapes,
+                                                    ov::test::utils::DEVICE_CPU);
 
         for (auto& item : CPUParams) {
             for (auto& fusingParam : fusingParams) {

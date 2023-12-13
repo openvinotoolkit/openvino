@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/convolution_backprop_data.hpp"
+#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpu_shape.h"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -19,7 +18,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-using DeconvSpecParams = LayerTestsDefinitions::convBackpropDataSpecificParams;
+using DeconvSpecParams = ov::test::convBackpropDataSpecificParams;
 
 using DeconvInputData = std::tuple<InputShape,                          // data shape
                                    ov::test::utils::InputLayerType,     // 'output_shape' input type
