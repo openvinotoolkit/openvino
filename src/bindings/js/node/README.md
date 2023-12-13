@@ -4,21 +4,18 @@
 
 - [include](./include/) - header files for current API.
 - [lib](./lib/) - TypeScript sources for current API.
-- [scripts](./scripts/) - scripts for installation and initialization.
 - [src](./src/) - C++ sources for current API.
 - [tests](./tests/) - tests directory for current API.
 
 ## Build
 
 - Make sure that all submodules are updated `git submodule update --init --recursive`
-- Build **openvino** with flag `-DENABLE_JS=ON`
-- From build directory run `cmake -DCOMPONENT=ov_node_addon -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin/ -P cmake_install.cmake`
-- Copy openvino shared libraries into `src/bindings/js/node/bin`:
-  `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2023.3.0 ../src/bindings/js/node/bin`
-  `cp ../bin/intel64/Release/libopenvino_ir_frontend.so.2330 ../src/bindings/js/node/bin`
-  `cp ../bin/intel64/Release/libopenvino.so.2330 ../src/bindings/js/node/bin`
-  `cp ../bin/intel64/Release/libopenvino.so.2023.3.0 ../src/bindings/js/node/bin`
-- Now you can install dependencies packages `npm install`
+- Create build dir `mkdir build && cd build`
+- To get binaries for openvinojs-node package run:
+  `cmake -DCPACK_GENERATOR=NPM -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin ..`
+  `make --jobs=$(nproc --all) install`
+- Go to npm package folder `cd ../src/bindings/js/node`
+- Now you can install dependencies packages and transpile ts to js code. Run `npm install`
 - Run tests `npm run test` to make sure that **openvinojs-node** built successfully
 
 ## Usage
