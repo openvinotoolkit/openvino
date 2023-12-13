@@ -32,7 +32,6 @@ def test_dtype_ovtype_conversion(dtype_string, dtype, ovtype):
     if hasattr(dtype, "kind"):
         ovtype.to_dtype() == np.bytes_
     elif issubclass(dtype, (str, np.str_)):
-        print(dtype, "AHA")
         ovtype.to_dtype() == np.bytes_
     else:
         assert ovtype.to_dtype() == dtype
