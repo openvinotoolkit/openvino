@@ -48,6 +48,32 @@ you can decide how to proceed:
          :align: center
          :alt: OpenVINO workflow diagram for performance
 
+OpenVINO uses the following fFunctions for reading, converting, and saving models:
+
+* ``read_model``
+
+  * Creates an ov.Model from a file.
+  * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+  * OpenVINO files are read directly while other formats are converted automatically.
+
+* ``compile_model``
+
+  * Creates an ov.CompiledModel from a file or ov.Model object.
+  * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+  * OpenVINO files are read directly while other formats are converted automatically.
+
+* ``convert_model``
+
+  * Creates an ov.Model from a file or Python memory object.
+  * Supported file formats: ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite.
+  * Supported framework objects: PaddlePaddle, TensorFlow and PyTorch.
+  * This method is only available in the Python API.
+
+* ``save_model``
+
+  * Saves an ov.Model to OpenVINO IR format.
+  * Compresses weights to FP16 by default. 
+  * This method is only available in the Python API.
 
 
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`

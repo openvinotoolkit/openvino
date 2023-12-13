@@ -3,7 +3,8 @@
 Convert TensorFlow and PyTorch Models
 ==============================================
 
-In OpenVINO you can load a model in different formats. The examples below show how TensorFlow and PyTorch models. The models are loaded, converted to OpenVINO format, and compiled for inferencing in just several lines of code.
+In OpenVINO you can load a model in different formats. 
+The examples below show how TensorFlow and PyTorch models. The models are loaded, converted to OpenVINO format, and compiled for inferencing in just several lines of code.
 
 .. tab-set::
 
