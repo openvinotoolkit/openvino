@@ -4,7 +4,7 @@
 
 OpenVINO™ is always looking for opportunities to improve and your contributions 
 play a big role in this process. There are several ways you can make the 
-product better:
+product better.
 
 # Table of Contents
 1. [Forms of contribution](#Forms-of-contribution)
