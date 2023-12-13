@@ -104,7 +104,7 @@ You can start with the following links:
 
 ### 2. Building the project
 
-In order to build the project, please follow the [build instructions for your specific OS](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
+In order to build the project, follow the [build instructions for your specific OS](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
 ### 3. Familiarize yourself with component you'll be working with
 
