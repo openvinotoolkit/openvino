@@ -173,30 +173,29 @@ ModelComparator::match(const std::shared_ptr<ov::Model> &model,
     return {false, {}};
 }
 
-std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>>
+std::vector<std::vector<size_t>>
 ModelComparator::get_matched_op_patterns(const ov::NodeVector& ordered_ops) {
-    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>> matched_nodes;
+    std::vector<std::vector<size_t>> matched_nodes;
     for (size_t node_idx = 0; node_idx < ordered_ops.size(); ++node_idx) {
         bool is_matched = false;
-        for (auto& matched_node : matched_nodes) {
-            if (match(matched_node.first, ordered_ops[node_idx])) {
-                matched_node.second.push_back(node_idx);
+        for (auto& matched_node_idx : matched_nodes) {
+            if (match(ordered_ops[matched_node_idx.front()], ordered_ops[node_idx])) {
+                matched_node_idx.push_back(node_idx);
                 is_matched = true;
                 break;
             }
         }
         if (!is_matched && !ov::util::is_node_to_skip(ordered_ops[node_idx])) {
-            matched_nodes.insert({ordered_ops[node_idx], {node_idx}});
+            matched_nodes.push_back({node_idx});
         }
     }
-    std::vector<std::shared_ptr<ov::Node>> to_remove;
-    for (auto& matched_node : matched_nodes) {
-        if (matched_node.second.size() < 2) {
-            to_remove.push_back(matched_node.first);
-        }
+    std::sort(matched_nodes.begin(), matched_nodes.end(),
+             [](const std::vector<size_t>& a, const std::vector<size_t>& b){ return a.size() > b.size(); });
+    if (matched_nodes.empty()) {
+        return matched_nodes;
     }
-    for (const auto& node_to_remove : to_remove) {
-        matched_nodes.erase(node_to_remove);
+    while (matched_nodes.rbegin()->size() == 1) {
+        matched_nodes.pop_back();
     }
     return matched_nodes;
 }

@@ -47,8 +47,8 @@ public:
                 const std::map<std::string, InputInfo> &in_info,
                 const std::map<std::string, InputInfo> &in_info_ref);
 
-    // { op_pattern, {matched_node_id}}
-    std::unordered_map<std::shared_ptr<ov::Node>, std::vector<size_t>>
+    // {{matched_node_id}}
+    std::vector<std::vector<size_t>>
     get_matched_op_patterns(const ov::NodeVector& ordered_nodes);
 
     // { op_name_subgraph, op_name_graph}

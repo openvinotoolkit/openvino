@@ -262,13 +262,23 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>> extracted_patterns;
     auto ordered_ops = model->get_ordered_ops();
     auto op_cnt = ordered_ops.size();
-    auto matched_nodes = model_comparator->get_matched_op_patterns(ordered_ops);
+    auto matched_nodes_pattern = model_comparator->get_matched_op_patterns(ordered_ops);
 
-    for (const auto& matched_node : matched_nodes) {
-        if (matched_node.second.size() < 2) {
+    auto it = matched_nodes_pattern.begin();
+    while (it != matched_nodes_pattern.end()) {
+        std::vector<size_t> matched_nodes;
+        if (it != matched_nodes_pattern.begin()) {
+            if ((std::prev(it)->size() - it->size()) >= 2) {
+                matched_nodes = *it;
+            }
+        } else {
+            matched_nodes = *it;
+        }
+        ++it;
+        if (matched_nodes.size() < 2) {
             continue;
         }
-        for (auto& nodes_vector : get_patterns_by_nodes(matched_node.second, ordered_ops)) {
+        for (auto& nodes_vector : get_patterns_by_nodes(matched_nodes, ordered_ops)) {
             try {
                 if (nodes_vector.size() < 1) {
                     continue;
@@ -300,23 +310,28 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
             }
         }
         if (is_extract_body) {
-            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(matched_node.first)) {
-                auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node.first);
-                auto ti_body = ti->get_function();
-                auto secondary_patterns = find_repeat_patterns(ti_body, is_save_borders_only);
-                update_extractor_cache(extracted_patterns, secondary_patterns);
-            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(matched_node.first)) {
-                auto loop = ov::as_type_ptr<ov::op::v5::Loop>(matched_node.first);
-                auto loop_body = loop->get_function();
-                auto secondary_patterns = find_repeat_patterns(loop_body, is_save_borders_only);
-                update_extractor_cache(extracted_patterns, secondary_patterns);
-            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(matched_node.first)) {
-                auto if_op = ov::as_type_ptr<ov::op::v8::If>(matched_node.first);
-                std::vector<std::shared_ptr<ov::Model>> bodies;
-                for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
-                    auto if_body = if_op->get_function(i);
-                    auto secondary_patterns = find_repeat_patterns(if_body, is_save_borders_only);
+            for (const auto& matched_node_idx : matched_nodes) {
+                auto matched_node = ordered_ops[matched_node_idx];
+                if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(matched_node)) {
+                    auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node);
+                    auto ti_body = ti->get_function();
+                    auto secondary_patterns = find_repeat_patterns(ti_body, is_save_borders_only);
                     update_extractor_cache(extracted_patterns, secondary_patterns);
+                } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(matched_node)) {
+                    auto loop = ov::as_type_ptr<ov::op::v5::Loop>(matched_node);
+                    auto loop_body = loop->get_function();
+                    auto secondary_patterns = find_repeat_patterns(loop_body, is_save_borders_only);
+                    update_extractor_cache(extracted_patterns, secondary_patterns);
+                } else if (std::dynamic_pointer_cast<ov::op::v8::If>(matched_node)) {
+                    auto if_op = ov::as_type_ptr<ov::op::v8::If>(matched_node);
+                    std::vector<std::shared_ptr<ov::Model>> bodies;
+                    for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
+                        auto if_body = if_op->get_function(i);
+                        auto secondary_patterns = find_repeat_patterns(if_body, is_save_borders_only);
+                        update_extractor_cache(extracted_patterns, secondary_patterns);
+                    }
+                } else {
+                    break;
                 }
             }
         }
