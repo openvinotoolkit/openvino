@@ -445,10 +445,17 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
+    // read_value/assign nodes are supposed to always use variable memory
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
         std::string variable_id = stateful_prim->variable_id();
         auto variable = get_network().get_variable(variable_id);
         variable.set_layout(actual_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": use variable memory " << variable.get_memory()
+                               << " (size=" << variable.get_memory()->size() << ")" << std::endl;
+        // For nodes that can be optimized, variable memory is used as output memory
+        // so there is no need for output memory reallocation
+        if (can_be_optimized())
+            return ev;
     }
 
     // Update output layout with respect to FC's fake alignment
