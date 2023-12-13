@@ -12,7 +12,7 @@
 class ReaderWorker : public Napi::AsyncWorker {
 public:
     /**
-     * @brief Constructs ReaderWorker from the Napi::Env.
+     * @brief Constructs ReaderWorker class that is responisible for reading the model asynchronously.
      * @param info contains passed arguments. Can be empty.
      */
     ReaderWorker(const Napi::Env& env, ReadModelArgs* args)

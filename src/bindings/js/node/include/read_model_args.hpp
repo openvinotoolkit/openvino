@@ -4,6 +4,9 @@
 
 #include "openvino/runtime/core.hpp"
 
+/**
+ * @brief This struct retrieves data from Napi::CallbackInfo.
+ */
 struct ReadModelArgs {
     std::string model_path;
     std::string bin_path;
