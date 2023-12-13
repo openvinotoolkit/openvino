@@ -18,7 +18,7 @@
 #include "snippets/pass/set_softmax_ports.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/align_element_types.hpp"
-#include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/pass/reduce_to_snippets_reduce.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -45,6 +45,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
+#include "snippets/lowered/pass/validate_shapes.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -410,6 +411,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
             manager.register_pass<snippets::pass::SoftmaxDecomposition>();
         }
     }
+    manager.register_pass<snippets::pass::ReduceToSnippetsReduce>();
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();

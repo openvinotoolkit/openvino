@@ -167,6 +167,23 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return false;
     };
 
+    // TODO: Reduce is supported only in TPP. However, we can support selected reduces in general pipeline
+    // check this before merge
+    auto is_supported_reduce_op = [](const std::shared_ptr<const Node> &n) -> bool {
+        // Broadcast is supported only for MHA tokenization where there are needed and special checks
+        if (ov::is_type<const ov::op::v1::ReduceMax>(n) || ov::is_type<const ov::op::v1::ReduceSum>(n)) {
+            const auto& reduce_base = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(n);
+            const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+            if (!reduce_base->get_keep_dims() || !axis_constant)
+                return false;
+            const auto axis_value = axis_constant->cast_vector<int32_t>(1)[0];
+            // Note: Reduction only over the last dimension is currently supported
+            return shape_size(axis_constant->get_shape()) == 1 &&
+                   axis_value == n->get_input_partial_shape(0).rank().get_length() - 1;
+        }
+        return false;
+    };
+
     return is_supported_fq_op(n) ||
            is_supported_unary_eltwise_op(n) ||
            is_supported_binary_eltwise_op(n) ||
@@ -174,7 +191,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
            is_supported_transpose(n) ||
            is_supported_softmax(n) ||
            is_supported_matmul(n) ||
-           is_supported_broadcast_op(n);
+           is_supported_broadcast_op(n) ||
+           is_supported_reduce_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -187,7 +205,9 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
         return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
-                         ov::is_type<const opset1::Broadcast>(n)));
+                         ov::is_type<const opset1::Broadcast>(n) ||
+                         ov::is_type<const opset1::ReduceMax>(n) ||
+                         ov::is_type<const opset1::ReduceSum>(n)));
     };
     const auto&  inputs = n->inputs();
     const auto&  outputs = n->outputs();
