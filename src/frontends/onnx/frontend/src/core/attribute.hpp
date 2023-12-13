@@ -27,11 +27,12 @@ using AttributeProto_AttributeType = decltype(ONNX_NAMESPACE::AttributeProto{}.t
 namespace error {
 namespace attribute {
 namespace detail {
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct Attribute : ngraph_error {
-    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph_error{msg} {}
+
+struct Attribute : ov::Exception {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ov::Exception{msg} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace detail
 
