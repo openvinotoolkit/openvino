@@ -2,36 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/mvn.hpp>
-#include "ov_models/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/mvn.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 using basicGPUMvnParams = std::tuple<
        InputShape,        // Input shapes
-       ElementType,       // Input precision
+       ov::element::Type, // Input precision
        std::vector<int>,  // Reduction axes
        bool,              // Normalize variance
        double>;           // Epsilon
 
 using MvnLayerGPUTestParamSet = std::tuple<
        basicGPUMvnParams,
-       ElementType>; // CNNNetwork input precision
+       ov::element::Type>; // CNNNetwork input precision
 
 class MvnLayerGPUTest : public testing::WithParamInterface<MvnLayerGPUTestParamSet>,
-                       virtual public SubgraphBaseTest {
+                        virtual public ov::test::SubgraphBaseTest {
 public:
    static std::string getTestCaseName(testing::TestParamInfo<MvnLayerGPUTestParamSet> obj) {
        basicGPUMvnParams basicParamsSet;
-       ElementType inputPrecision;
+       ov::element::Type inputPrecision;
        std::tie(basicParamsSet, inputPrecision) = obj.param;
 
        InputShape inputShapes;
-       ElementType netPrecision;
+       ov::element::Type netPrecision;
        std::vector<int> axes;
        bool normalizeVariance;
        double eps;
@@ -56,11 +58,11 @@ protected:
        targetDevice = ov::test::utils::DEVICE_GPU;
 
        basicGPUMvnParams basicParamsSet;
-       ElementType inPrc;
+       ov::element::Type inPrc;
        std::tie(basicParamsSet, inPrc) = this->GetParam();
 
        InputShape inputShapes;
-       ElementType netPrecision;
+       ov::element::Type netPrecision;
        std::vector<int> axes;
        bool normalizeVariance;
        double eps;
@@ -75,7 +77,7 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
 
-       auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
+       auto axesNode = std::make_shared<ov::op::v0::Constant>(axesType, ov::Shape{axes.size()}, axes);
        ov::op::MVNEpsMode nEpsMode = ov::op::MVNEpsMode::INSIDE_SQRT;
        if (eps_mode == "outside_sqrt")
            nEpsMode = ov::op::MVNEpsMode::OUTSIDE_SQRT;
@@ -83,20 +85,17 @@ protected:
 
        rel_threshold = 0.015f;
 
-       ngraph::ResultVector results;
+       ov::ResultVector results;
        for (size_t i = 0; i < mvn->get_output_size(); ++i) {
-           results.push_back(std::make_shared<ngraph::opset1::Result>(mvn->output(i)));
+           results.push_back(std::make_shared<ov::op::v0::Result>(mvn->output(i)));
        }
-       function = std::make_shared<ngraph::Function>(results, params, "MVN");
+       function = std::make_shared<ov::Model>(results, params, "MVN");
    }
 };
 
-TEST_P(MvnLayerGPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(MvnLayerGPUTest, Inference) {
    run();
 }
-
-namespace {
 
 const std::vector<InputShape> inputShapes_1D = {
        {
@@ -205,12 +204,12 @@ const std::vector<int> reduction_axes_12 = {1, 2};
 const std::vector<int> reduction_axes_3 = {3};
 const std::vector<int> reduction_axes_2 = {2};
 
-std::vector<ElementType> inpPrc = {ElementType::i8, ElementType::f16, ElementType::f32};
+std::vector<ov::element::Type> inpPrc = {ov::element::i8, ov::element::f16, ov::element::f32};
 
 const auto Mvn3D = ::testing::Combine(
        ::testing::Combine(
            ::testing::ValuesIn(inputShapes_3D),
-           ::testing::Values(ElementType::f32),
+           ::testing::Values(ov::element::f32),
            ::testing::ValuesIn({reduction_axes_12, reduction_axes_2}),
            ::testing::ValuesIn(normalizeVariance),
            ::testing::ValuesIn(epsilon)),
@@ -221,7 +220,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerGPUTest, Mvn3D, Mv
 const auto Mvn4D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D),
-               ::testing::Values(ElementType::f32),
+               ::testing::Values(ov::element::f32),
                ::testing::ValuesIn({reduction_axes_2, reduction_axes_3, reduction_axes_12, reduction_axes_23, reduction_axes_123}),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon)),
@@ -232,13 +231,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerGPUTest, Mvn4D, Mv
 const auto Mvn5D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D),
-               ::testing::Values(ElementType::f32),
+               ::testing::Values(ov::element::f32),
                ::testing::ValuesIn({reduction_axes_3, reduction_axes_23, reduction_axes_123, reduction_axes_1234}),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon)),
        ::testing::ValuesIn(inpPrc));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerGPUTest, Mvn5D, MvnLayerGPUTest::getTestCaseName);
-
 } // namespace
-} // namespace GPULayerTestsDefinitions

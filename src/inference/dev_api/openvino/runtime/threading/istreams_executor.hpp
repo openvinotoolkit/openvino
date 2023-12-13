@@ -194,6 +194,11 @@ public:
                                     int threads_per_stream,
                                     PreferredCoreType core_type,
                                     bool cpu_pinning);
+        /**
+         * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
+         *        that is, only create one thread with TBB
+         */
+        void set_config_zero_stream();
     };
 
     /**

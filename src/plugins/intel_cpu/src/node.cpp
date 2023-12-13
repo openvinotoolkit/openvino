@@ -23,7 +23,6 @@
 #include "nodes/eltwise.h"
 #include "nodes/matmul.h"
 #include "nodes/fullyconnected.h"
-#include "nodes/generic.h"
 #include "nodes/if.h"
 #include "nodes/input.h"
 #include "nodes/lrn.h"
@@ -855,13 +854,11 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
                        internalBlobs.size());
     }
 
-    const auto &internalBlob = internalBlobs[indx];
+    const auto& internalBlob = internalBlobs[indx];
 
-    auto create = [&] () {
-        // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-        auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
-
-        Memory memory{engine, newDesc, internalBlob->buffer()};
+    auto create = [&]() {
+        auto newDesc = internalBlob->getDescPtr();
+        Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
@@ -872,12 +869,13 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
         const auto& format = intDesc->serializeFormat();
-        const uint64_t data_hash = weightCache->GetHashFunc().hash(
-                internalBlob->buffer(), internalBlob->byteSize());
+        const uint64_t data_hash =
+            weightCache->GetHashFunc().hash(static_cast<const unsigned char*>(internalBlob->getData()),
+                                            internalBlob->getSize());
 
         const std::string string_hash = name + "_" + std::to_string(indx)
                                         + "_" + format
-                                        + "_" + std::to_string(internalBlob->byteSize())
+                                        + "_" + std::to_string(internalBlob->getSize())
                                         + "_" + std::to_string(data_hash);
 
         ptr = *weightCache->findOrCreate(string_hash, create);
@@ -1254,24 +1252,22 @@ bool Node::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
+dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const SizeVector& dims) const {
     switch (dims.size()) {
-        case 0:
-            return InferenceEngine::Layout::SCALAR;
-        case 1:
-            return InferenceEngine::Layout::C;
-        case 2:
-            return InferenceEngine::Layout::NC;
-        case 3:
-            return InferenceEngine::Layout::CHW;
-        case 4:
-            return InferenceEngine::Layout::OIHW;
-        case 5:
-            return isGrouped ? InferenceEngine::Layout::GOIHW : InferenceEngine::Layout::OIDHW;
-        case 6:
-            return isGrouped ? InferenceEngine::Layout::GOIDHW : InferenceEngine::Layout::BLOCKED;
-        default:
-            return InferenceEngine::Layout::BLOCKED;
+    case 1:
+        return dnnl::memory::format_tag::a;
+    case 2:
+        return dnnl::memory::format_tag::ab;
+    case 3:
+        return dnnl::memory::format_tag::abc;
+    case 4:
+        return dnnl::memory::format_tag::abcd;
+    case 5:
+        return dnnl::memory::format_tag::abcde;
+    case 6:
+        return dnnl::memory::format_tag::abcdef;
+    default:
+        OPENVINO_THROW("getWeightsFormatTagByDims doesn't support dims.size() = ", dims.size());
     }
 }
 
@@ -1673,7 +1669,7 @@ void Node::updateLastInputDims() {
     }
 
     for (size_t i = 0; i < lastInputDims.size(); i++)
-        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().getDims();
 }
 
 bool Node::canFuseSimpleOperation(const NodePtr& node) const {

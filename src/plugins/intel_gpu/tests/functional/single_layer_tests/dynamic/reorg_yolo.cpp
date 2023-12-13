@@ -2,68 +2,64 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/reorg_yolo.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/reorg_yolo.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 typedef std::tuple<
-    InputShape,     // Input Shape
-    size_t,         // Stride
-    ElementType,    // Network precision
-    TargetDevice    // Device
+    InputShape,          // Input Shape
+    size_t,              // Stride
+    ov::element::Type,   // Model type
+    std::string          // Device
 > ReorgYoloGPUTestParams;
 
 class ReorgYoloLayerGPUTest : public testing::WithParamInterface<ReorgYoloGPUTestParams>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReorgYoloGPUTestParams> obj) {
-        InputShape inputShape;
+        InputShape shapes;
         size_t stride;
-        ElementType netPrecision;
-        TargetDevice targetDev;
-        std::tie(inputShape, stride, netPrecision, targetDev) = obj.param;
+        ov::element::Type model_type;
+        std::string targetDev;
+        std::tie(shapes, stride, model_type, targetDev) = obj.param;
         std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
-        for (const auto& item : inputShape.second) {
+        result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
+        for (const auto& item : shapes.second) {
             result << ov::test::utils::vec2str(item) << "_";
         }
         result << "stride=" << stride << "_";
-        result << "netPRC=" << netPrecision << "_";
+        result << "modelPRC=" << model_type << "_";
         result << "targetDevice=" << targetDev << "_";
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
+        InputShape shapes;
         size_t stride;
-        ElementType netPrecision;
-        std::tie(inputShape, stride, netPrecision, targetDevice) = this->GetParam();
+        ov::element::Type model_type;
+        std::tie(shapes, stride, model_type, targetDevice) = this->GetParam();
 
-        init_input_shapes({inputShape});
+        init_input_shapes({shapes});
 
-        auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputDynamicShapes[0]);
-        auto reorg_yolo = std::make_shared<ngraph::op::v0::ReorgYolo>(param, stride);
-        function = std::make_shared<ov::Model>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
-                                               ngraph::ParameterVector{param},
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        auto reorg_yolo = std::make_shared<ov::op::v0::ReorgYolo>(param, stride);
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(reorg_yolo),
+                                               ov::ParameterVector{param},
                                                "ReorgYolo");
     }
 };
 
-TEST_P(ReorgYoloLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(ReorgYoloLayerGPUTest, Inference) {
     run();
 };
-
-namespace {
 
 const std::vector<ov::test::InputShape> inShapesDynamic1 = {
     {{{1, 2}, -1, -1, -1}, {{1, 4, 4, 4}, {1, 8, 4, 4}, {2, 8, 4, 4}}}
@@ -94,4 +90,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride2_DynamicShape, ReorgYoloLay
                          ReorgYoloLayerGPUTest::getTestCaseName);
 
 } // namespace
-} // namespace GPULayerTestsDefinitions

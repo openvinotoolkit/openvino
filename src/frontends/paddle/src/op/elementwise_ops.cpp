@@ -42,15 +42,15 @@ NamedOutputs elementwise_pow(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Power>(node_context);
 }
 
-NamedOutputs elementwise_equal(const NodeContext& node_context) {
+NamedOutputs equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Equal>(node_context);
 }
 
-NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
+NamedOutputs greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
 }
 
-NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
+NamedOutputs not_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::NotEqual>(node_context);
 }
 
@@ -61,10 +61,17 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     if (node_context.has_attribute("axis")) {
         axis = node_context.get_attribute<int>("axis");
     }
+
+    int64_t pd_version = node_context.get_version();
+
+    bool python_div = false;
+    if (pd_version >= 2005000 || pd_version == 0) {
+        python_div = true;
+    }
     return node_context.default_single_output_mapping(
         {std::make_shared<default_opset::Divide>(x,
                                                  y,
-                                                 false,
+                                                 python_div,
                                                  ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, axis))},
         {"Out"});
 }
