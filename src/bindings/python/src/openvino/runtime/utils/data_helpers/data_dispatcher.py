@@ -134,10 +134,10 @@ def _(
 
 @normalize_arrays.register(OVDict)
 def _(
-    inputs: dict,
+    inputs: OVDict,
     is_shared: bool = False,
 ) -> dict:
-    return {k.index: to_c_style(v) if is_shared else v for k, v in inputs.items()}
+    return {i: to_c_style(v) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
 
 
 @normalize_arrays.register(list)
