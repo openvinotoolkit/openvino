@@ -111,7 +111,18 @@ jobs:
           ls -la /mount
           ls -laR ${MODELS_PATH}
 
+      - name: Use common parent directory for models
+        run: |
+          if [[ ! -d "${MODELS_PATH}/models_data/model_zoo/msft" ]]; then
+            ln -s ${MODELS_PATH}/msft ${MODELS_PATH}/models_data/model_zoo/msft
+          fi
+          
+          if [[ ! -d "${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo" ]]; then
+            ln -s {MODELS_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo
+          fi
+          
+          ls -la ${MODELS_PATH}/models_data/model_zoo
+
       - name: ONNX Models Tests
         run: |
-          cp -r ${MODELS_PATH}/msft ${MODELS_PATH}/models_data/model_zoo/
           python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_PATH}/models_data/model_zoo" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
