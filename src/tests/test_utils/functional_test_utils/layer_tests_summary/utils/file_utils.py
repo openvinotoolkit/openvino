@@ -87,5 +87,5 @@ def get_ov_path(script_dir_path: os.path, ov_dir=None, is_bin=False):
     if is_bin:
         ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, 'bin'))
         ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
-        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, [constants.DEBUG_DIR, constants.RELEASE_DIR]))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
     return ov_dir

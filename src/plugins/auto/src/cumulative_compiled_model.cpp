@@ -144,7 +144,14 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-                loaded_from_cache &= (m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name).as<bool>());
+                try {
+                    loaded_from_cache &=
+                        (m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name).as<bool>());
+                } catch (const ov::Exception&) {
+                    LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed",
+                                  m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
+                    return false;
+                }
             }
         }
         return loaded_from_cache;
