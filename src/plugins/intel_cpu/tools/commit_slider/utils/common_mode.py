@@ -96,12 +96,15 @@ class Mode(ABC):
         cfg["serviceConfig"] = {}
         # check prerun-cashed commits
         canReduce, newList = util.getReducedInterval(list, cfg)
-        if canReduce and self.checkIfListBordersDiffer(newList, cfg):
-            self.commonLogger.info(
-                "Initial interval reduced to cashed {c1}..{c2}".format(
-                    c1=newList[0], c2=newList[-1])
-            )
-            list = newList
+        if canReduce:
+            if (self.traversal.isComparative() and
+                self.mode.checkIfListBordersDiffer(newList, cfg) or
+                not self.traversal.isComparative()):
+                self.commonLogger.info(
+                    "Initial interval reduced to cashed {c1}..{c2}".format(
+                        c1=newList[0], c2=newList[-1])
+                )
+                list = newList
         else:
             self.initialDegradationCheck(list, cfg)
         return list
@@ -263,13 +266,16 @@ class Mode(ABC):
                 cfg["cachedPathConfig"]["scheme"] == "optional"):
                 # try to reduce interval by cashed borders
                 canReduce, newList = util.getReducedInterval(curList, cfg)
-                if canReduce and self.mode.checkIfListBordersDiffer(newList, cfg):
-                    self.mode.commonLogger.info(
-                        "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
-                            c1=curList[0], c2=curList[-1],
-                            c1_=newList[0], c2_=newList[-1])
-                    )
-                    curList = newList
+                if canReduce:
+                    if (self.traversal.isComparative() and
+                        self.mode.checkIfListBordersDiffer(newList, cfg) or
+                        not self.traversal.isComparative()):
+                        self.mode.commonLogger.info(
+                            "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
+                                c1=curList[0], c2=curList[-1],
+                                c1_=newList[0], c2_=newList[-1])
+                        )
+                        curList = newList
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
             self.mode.commonLogger.info(
