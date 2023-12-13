@@ -112,12 +112,13 @@ jobs:
           ls -laR ${MODELS_PATH}
 
       - name: Use common parent directory for models
+        continue-on-error: true
         run: |
-          if [[ ! -d "${MODELS_PATH}/models_data/model_zoo/msft" ]]; then
+          if [[ ! -h "${MODELS_PATH}/models_data/model_zoo/MSFT" ]]; then
             ln -s ${MODELS_PATH}/msft ${MODELS_PATH}/models_data/model_zoo/MSFT
           fi
           
-          if [[ ! -d "${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo" ]]; then
+          if [[ ! -h "${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo" ]]; then
             ln -s {MODELS_PATH}/models_data/model_zoo/onnx_model_zoo_* ${MODELS_PATH}/models_data/model_zoo/onnx_model_zoo
           fi
           
