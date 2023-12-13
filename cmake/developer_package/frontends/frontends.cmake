@@ -57,10 +57,10 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common_obj _ov_frontends_hpp)
+    add_dependencies(openvino_frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
-    get_target_property(sources frontend_common_obj SOURCES)
+    get_target_property(sources openvino_frontend_common_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
@@ -220,6 +220,7 @@ macro(ov_add_frontend)
             PUBLIC
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
+                $<TARGET_PROPERTY:openvino::frontend::common,INTERFACE_INCLUDE_DIRECTORIES>
                 ${frontend_root_dir}/src
                 ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -342,6 +343,7 @@ macro(ov_add_frontend)
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
+                    ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
                     FILES_MATCHING PATTERN "*.hpp")
 
             # public target name

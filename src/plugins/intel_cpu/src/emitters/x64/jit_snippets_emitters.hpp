@@ -365,7 +365,6 @@ public:
 
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
-    size_t aux_gprs_count() const override;
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
     static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
@@ -387,30 +386,15 @@ private:
         float beta;
     };
     static void initBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
-    static size_t getBrgIdx(size_t kIdx, size_t nIdx);
 
     void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel, const brgemmCtx& ctx,
                                  Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
                                  size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
                                  size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
-    void emit_N_blocking_loops(size_t k_kernel_id,
-                               const Xbyak::Reg64& input_0, const Xbyak::Reg64& input_1,
-                               const Xbyak::Reg64& input_2, const Xbyak::Reg64& output_0,
-                               const Xbyak::Reg64& work_amount_N) const;
 
-    // Note: K dimension is covered by TWO blocked kernels (with beta = 0 and 1) + 1 for tail
-    static constexpr size_t BRGEMM_K_KERNEL_NUM = 3;
-    static constexpr size_t BRGEMM_N_KERNEL_NUM = 2;
-    std::array<brgemmCtx, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgCtxs;
-    std::array<std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgKernels;
-
-    size_t m_M;
-    size_t m_K, m_K_blk, m_K_tail;
-    size_t m_N, m_N_blk, m_N_tail;
-    size_t m_brg0VnniFactor;
-    bool m_N_blk_loop = false;
-    bool m_K_blk_loop = false;
+    brgemmCtx m_brgCtx;
+    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_brgKernel = nullptr;
 
     bool m_with_scratch = false;
     bool m_with_comp = false;

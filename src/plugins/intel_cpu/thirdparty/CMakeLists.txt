@@ -126,10 +126,12 @@ function(ov_add_onednn)
         # but for this we need to install library files
         install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT ${OV_CPACK_COMP_CORE})
+                COMPONENT ${OV_CPACK_COMP_CORE}
+                ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
         install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
                 DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+                COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+                ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     endif()
 endfunction()
 

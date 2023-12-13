@@ -4,6 +4,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -201,8 +202,8 @@ protected:
         init_input_shapes(inputShapes);
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
 
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "DISABLE"});
+        if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
         }
     }
 };

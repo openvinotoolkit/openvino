@@ -72,11 +72,11 @@ public:
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{
+                ov::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
                 },
-                std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
+                std::vector<std::shared_ptr<ov::op::v0::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
@@ -103,11 +103,11 @@ public:
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{
+                ov::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
                 },
-                std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
+                std::vector<std::shared_ptr<ov::op::v0::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
         };
         referenceFunction = createReferenceFunction(testValues.precisionBefore, shape, testValues.dequantization);

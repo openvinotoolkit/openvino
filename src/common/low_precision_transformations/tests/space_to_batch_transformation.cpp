@@ -11,7 +11,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph/opsets/opset2.hpp>
 #include <low_precision/space_to_batch.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -51,13 +50,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     SpaceToBatchTransformationTestValues> SpaceToBatchTransformationParams;
 
 class SpaceToBatchTransformation : public LayerTransformation, public testing::WithParamInterface<SpaceToBatchTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape input_shape = std::get<0>(GetParam());
+        const ov::PartialShape input_shape = std::get<0>(GetParam());
         const SpaceToBatchTransformationTestValues test_values = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::SpaceToBatchFunction::get(
@@ -84,7 +83,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SpaceToBatchTransformationParams> obj) {
-        const ngraph::PartialShape shape = std::get<0>(obj.param);
+        const ov::PartialShape shape = std::get<0>(obj.param);
         const SpaceToBatchTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -108,7 +107,7 @@ TEST_P(SpaceToBatchTransformation, CompareFunctions) {
 }
 
 namespace testValues {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     {1, 3, 100, 171},
 };
 
