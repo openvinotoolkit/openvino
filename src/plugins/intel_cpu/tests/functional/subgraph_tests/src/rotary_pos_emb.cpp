@@ -14,7 +14,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ie_precision.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
@@ -22,8 +21,10 @@
 
 using namespace CPUTestUtils;
 using namespace ov::gen_pattern;
-using namespace ov::test;
 using namespace ov;
+
+namespace ov {
+namespace test {
 
 static ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
@@ -64,29 +65,29 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const int batch,
     auto Constant585 = cos_sin_cache[1];
 
     // concat KV length
-    auto transpose_Transpose = makeOP<opset1::Transpose>({input, {0, 2, 1, 3}});
-    auto slice_Unsqueeze_426 = makeOP<opset1::Unsqueeze>({pos_id_end, 0});
-    auto ScatterUpdate_152236 = makeOP<opset3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
-    auto slice_Slice = makeOP<opset1::StridedSlice>({Constant582, {0, 0, 0}, ScatterUpdate_152236, {1, 1, 1}},
+    auto transpose_Transpose = makeOP<ov::op::v1::Transpose>({input, {0, 2, 1, 3}});
+    auto slice_Unsqueeze_426 = makeOP<ov::op::v0::Unsqueeze>({pos_id_end, 0});
+    auto ScatterUpdate_152236 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
+    auto slice_Slice = makeOP<ov::op::v1::StridedSlice>({Constant582, {0, 0, 0}, ScatterUpdate_152236, {1, 1, 1}},
                                                     {{"begin_mask", {1, 1, 0}},
                                                      {"end_mask", {1, 1, 0}},
                                                      {"new_axis_mask", {}},
                                                      {"shrink_axis_mask", {}},
                                                      {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze = makeOP<opset1::Squeeze>({slice_Slice, 1});
-    auto squeeze_Squeeze_435 = makeOP<opset1::Squeeze>({squeeze_Squeeze, 0});
-    auto index_441_Gather = makeOP<opset8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
-    auto unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({index_441_Gather, 1});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
+    auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
+    auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
     auto mul_Multiply =
-        makeOP<opset1::Multiply>({transpose_Transpose, unsqueeze_Unsqueeze}, {{"auto_broadcast", "numpy"}});
-    auto size_ShapeOf_448 = makeOP<opset3::ShapeOf>({transpose_Transpose}, {{"output_type", "i32"}});
-    auto size_Gather_450 = makeOP<opset8::Gather>({size_ShapeOf_448, 3, 0}, {{"batch_dims", 0}});
+        makeOP<ov::op::v1::Multiply>({transpose_Transpose, unsqueeze_Unsqueeze}, {{"auto_broadcast", "numpy"}});
+    auto size_ShapeOf_448 = makeOP<ov::op::v3::ShapeOf>({transpose_Transpose}, {{"output_type", "i32"}});
+    auto size_Gather_450 = makeOP<ov::op::v8::Gather>({size_ShapeOf_448, 3, 0}, {{"batch_dims", 0}});
     auto floor_divide_Divide =
-        makeOP<opset1::Divide>({size_Gather_450, 2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto floor_divide_Floor = makeOP<opset1::Floor>({floor_divide_Divide});
-    auto slice_Unsqueeze_452 = makeOP<opset1::Unsqueeze>({floor_divide_Floor, 0});
-    auto ScatterUpdate_152312 = makeOP<opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
-    auto slice_Slice_459 = makeOP<opset1::StridedSlice>(
+        makeOP<ov::op::v1::Divide>({size_Gather_450, 2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+    auto floor_divide_Floor = makeOP<ov::op::v0::Floor>({floor_divide_Divide});
+    auto slice_Unsqueeze_452 = makeOP<ov::op::v0::Unsqueeze>({floor_divide_Floor, 0});
+    auto ScatterUpdate_152312 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
+    auto slice_Slice_459 = makeOP<ov::op::v1::StridedSlice>(
         {transpose_Transpose, ScatterUpdate_152312, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}},
         {{"begin_mask", {1, 1, 1, 0}},
          {"end_mask", {1, 1, 1, 0}},
@@ -101,35 +102,33 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const int batch,
                                          1,
                                      }),
                                      {-1.000000f});
-    auto neg_Multiply = makeOP<opset1::Multiply>({slice_Slice_459, Constant_182988}, {{"auto_broadcast", "numpy"}});
-    auto ScatterUpdate_152368 = makeOP<opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
+    auto neg_Multiply = makeOP<ov::op::v1::Multiply>({slice_Slice_459, Constant_182988}, {{"auto_broadcast", "numpy"}});
+    auto ScatterUpdate_152368 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
     auto slice_Slice2 =
-        makeOP<opset1::StridedSlice>({transpose_Transpose, {0, 0, 0, 0}, ScatterUpdate_152368, {1, 1, 1, 1}},
+        makeOP<ov::op::v1::StridedSlice>({transpose_Transpose, {0, 0, 0, 0}, ScatterUpdate_152368, {1, 1, 1, 1}},
                                      {{"begin_mask", {1, 1, 1, 0}},
                                       {"end_mask", {1, 1, 1, 0}},
                                       {"new_axis_mask", {}},
                                       {"shrink_axis_mask", {}},
                                       {"ellipsis_mask", {}}});
-    auto cat_Concat = makeOP<opset1::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
-    auto ScatterUpdate_152421 = makeOP<opset3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
-    auto slice_Slice_433 = makeOP<opset1::StridedSlice>({Constant585, {0, 0, 0}, ScatterUpdate_152421, {1, 1, 1}},
+    auto cat_Concat = makeOP<ov::op::v0::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
+    auto ScatterUpdate_152421 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
+    auto slice_Slice_433 = makeOP<ov::op::v1::StridedSlice>({Constant585, {0, 0, 0}, ScatterUpdate_152421, {1, 1, 1}},
                                                         {{"begin_mask", {1, 1, 0}},
                                                          {"end_mask", {1, 1, 0}},
                                                          {"new_axis_mask", {}},
                                                          {"shrink_axis_mask", {}},
                                                          {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze_436 = makeOP<opset1::Squeeze>({slice_Slice_433, 1});
-    auto squeeze_Squeeze_437 = makeOP<opset1::Squeeze>({squeeze_Squeeze_436, 0});
-    auto index_446_Gather = makeOP<opset8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
-    auto unsqueeze_Unsqueeze_447 = makeOP<opset1::Unsqueeze>({index_446_Gather, 1});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
+    auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
+    auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
     auto mul_Multiply_463 =
-        makeOP<opset1::Multiply>({cat_Concat, unsqueeze_Unsqueeze_447}, {{"auto_broadcast", "numpy"}});
-    auto add_Add = makeOP<opset1::Add>({mul_Multiply, mul_Multiply_463}, {{"auto_broadcast", "numpy"}});
+        makeOP<ov::op::v1::Multiply>({cat_Concat, unsqueeze_Unsqueeze_447}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = makeOP<ov::op::v1::Add>({mul_Multiply, mul_Multiply_463}, {{"auto_broadcast", "numpy"}});
 
     return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, ov::ParameterVector{input, pos_id_end, pos_ids});
 }
-
-namespace CPULayerTestsDefinitions {
 
 class RoPECPUTestLlama2 : public SubgraphBaseTest {
 public:
@@ -150,8 +149,11 @@ public:
         auto& input_shape = targetInputStaticShapes[0];
         auto seq_length = input_shape[1];
 
-        ov::Tensor t_input =
-            utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, 2, -1.0f, 32768);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -1;
+        in_data.range = 2;
+        in_data.resolution = 32768;
+        ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, in_data);
         ov::Tensor t_position_id_end = create_i32_tensor(ov::Shape({}), position_id_start + seq_length);
         ov::Tensor t_position_ids = create_i32_tensor(ov::Shape({1, seq_length}), position_id_start);
 
@@ -328,4 +330,5 @@ TEST_F(RoPECPUTestChatGLM, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
 }
 
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

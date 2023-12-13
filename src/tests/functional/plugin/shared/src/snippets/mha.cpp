@@ -81,9 +81,12 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
+        ov::test::utils::InputGenerateData in_data;
         // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
-        int start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
-        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, start_from, 256);
+        in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
+        in_data.range = 2;
+        in_data.resolution = 256;
+        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
@@ -101,10 +104,19 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
         ov::Tensor tensor;
         int seed = 0;
         if (name.find("less") != std::string::npos) {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 5 + seed, -2, 10, seed);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -2;
+            in_data.range = 5 + seed;
+            in_data.resolution = 10;
+            in_data.seed = seed;
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
             seed++;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, -1, 256);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -1;
+            in_data.range = 2;
+            in_data.resolution = 256;
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
         }
         inputs.insert({node_input, tensor});
     }

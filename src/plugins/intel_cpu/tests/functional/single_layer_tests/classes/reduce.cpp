@@ -4,16 +4,15 @@
 
 #include "reduce.hpp"
 
+#include "common_test_utils/node_builders/reduce.hpp"
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLayerCPUTestParamSet> obj) {
     basicReduceParams basicParams;
@@ -25,7 +24,7 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     std::vector<int> axes;
     ov::test::utils::OpType opType;
     bool keepDims;
-    ngraph::helpers::ReductionType reductionType;
+    utils::ReductionType reductionType;
     ElementType netPrecision, inPrc, outPrc;
     std::vector<InputShape> inputShapes;
 
@@ -110,10 +109,10 @@ void ReduceCPULayerTest::SetUp() {
     default:
         FAIL() << "Reduce op doesn't support operation type: " << opType;
     }
-    auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-        std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+    auto reductionAxesNode = std::dynamic_pointer_cast<ov::Node>(
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape(shapeAxes), axes));
 
-    const auto reduce = ngraph::builder::makeReduce(params[0], reductionAxesNode, keepDims, reductionType);
+    const auto reduce = utils::make_reduce(params[0], reductionAxesNode, keepDims, reductionType);
 
     // hybrid layouts
     if (inFmts.size() != 0 && outFmts.size() == 0) {
@@ -140,29 +139,29 @@ void ReduceCPULayerTest::SetUp() {
     function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
 }
 
-void ReduceCPULayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void ReduceCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
         if (reductionType == ngraph::helpers::ReductionType::Prod) {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                             targetInputStaticShapes[i],
-                                                             10,
-                                                             5);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 5;
+            in_data.range = 10;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             if (netPrecision == ElementType::f32) {
                 auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
             } else if (netPrecision == ElementType::f16) {
-                auto *rawBlobDataPtr = static_cast<ngraph::float16 *>(tensor.data());
+                auto *rawBlobDataPtr = static_cast<ov::float16 *>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
             } else if (netPrecision == ElementType::bf16) {
-                auto* rawBlobDataPtr = static_cast<ngraph::bfloat16*>(tensor.data());
+                auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
@@ -225,15 +224,15 @@ const std::vector<ov::test::utils::OpType>& opTypes() {
     return opTypes;
 }
 
-const std::vector<ngraph::helpers::ReductionType>& reductionTypes() {
-    static const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
-            ngraph::helpers::ReductionType::Mean,
-            ngraph::helpers::ReductionType::Max,
-            ngraph::helpers::ReductionType::Sum,
-            ngraph::helpers::ReductionType::Min,
-            ngraph::helpers::ReductionType::Prod,
-            ngraph::helpers::ReductionType::L1,
-            ngraph::helpers::ReductionType::L2,
+const std::vector<utils::ReductionType>& reductionTypes() {
+    static const std::vector<utils::ReductionType> reductionTypes = {
+            utils::ReductionType::Mean,
+            utils::ReductionType::Max,
+            utils::ReductionType::Sum,
+            utils::ReductionType::Min,
+            utils::ReductionType::Prod,
+            utils::ReductionType::L1,
+            utils::ReductionType::L2,
     };
     return reductionTypes;
 }
@@ -262,15 +261,16 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32
     return additionalConfig;
 }
 
-const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32() {
-    static const std::vector<ngraph::helpers::ReductionType> reductionTypesInt32 = {
-            ngraph::helpers::ReductionType::Sum,
-            ngraph::helpers::ReductionType::Min,
-            ngraph::helpers::ReductionType::Max,
-            ngraph::helpers::ReductionType::L1,
+const std::vector<utils::ReductionType>& reductionTypesInt32() {
+    static const std::vector<utils::ReductionType> reductionTypesInt32 = {
+            utils::ReductionType::Sum,
+            utils::ReductionType::Min,
+            utils::ReductionType::Max,
+            utils::ReductionType::L1,
     };
     return reductionTypesInt32;
 }
 
 }  // namespace Reduce
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

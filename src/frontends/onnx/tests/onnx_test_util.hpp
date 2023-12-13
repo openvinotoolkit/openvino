@@ -8,8 +8,10 @@
 #include <string>
 #include <vector>
 
-namespace ngraph {
-namespace test {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace tests {
 struct ComparisonResult {
     ComparisonResult() = default;
     ComparisonResult(std::string error) : is_ok{false}, error_message{std::move(error)} {}
@@ -40,5 +42,13 @@ ComparisonResult compare_onnx_models(const std::string& model,
 std::string change_opset_version(const std::string& model,
                                  const std::vector<int64_t>& new_opset_version,
                                  const std::string& domain = "ai.onnx");
+}  // namespace tests
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
+
+namespace ngraph {
+namespace test {
+using namespace ov::frontend::onnx::tests;
 }  // namespace test
 }  // namespace ngraph
