@@ -478,13 +478,16 @@ int get_model_prefer_threads(const int num_streams,
                 model_prefer = proc_type_table[0][ALL_PROC];
             }
 #else
-            bool fp_intensive = has_matmul_with_compressed_weights(model);
+            bool llm_related = has_matmul_with_compressed_weights(model);
+            bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
+            // By default the latency case uses (faster) Big cores only, depending on the compute ratio
+            // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big cores
+            // only cases except LLM.
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (fp_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!fp_intensive && ov::get_number_of_blocked_cores())
+                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
+                               ? ((!llm_related && ov::get_number_of_blocked_cores())
                                       ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
                                       : proc_type_table[0][MAIN_CORE_PROC])
                                : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
