@@ -11,10 +11,9 @@
 #include <vector>
 
 #include "exceptions.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "onnx_common/utils.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
@@ -33,32 +32,32 @@ using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type())
 namespace error {
 namespace tensor {
 OPENVINO_SUPPRESS_DEPRECATED_START
-struct invalid_data_type : ngraph_error {
-    explicit invalid_data_type(TensorProto_DataType type) : ngraph_error{"invalid data type"} {}
+struct invalid_data_type : ov::Exception {
+    explicit invalid_data_type(TensorProto_DataType type) : ov::Exception{"invalid data type"} {}
 };
 
-struct unsupported_data_type : ngraph_error {
-    explicit unsupported_data_type(TensorProto_DataType type) : ngraph_error{"unsupported data type"} {}
+struct unsupported_data_type : ov::Exception {
+    explicit unsupported_data_type(TensorProto_DataType type) : ov::Exception{"unsupported data type"} {}
 };
 
-struct unspecified_name : ngraph_error {
-    unspecified_name() : ngraph_error{"tensor has no name specified"} {}
+struct unspecified_name : ov::Exception {
+    unspecified_name() : ov::Exception{"tensor has no name specified"} {}
 };
 
-struct unspecified_data_type : ngraph_error {
-    unspecified_data_type() : ngraph_error{"tensor has no data type specified"} {}
+struct unspecified_data_type : ov::Exception {
+    unspecified_data_type() : ov::Exception{"tensor has no data type specified"} {}
 };
 
-struct data_type_undefined : ngraph_error {
-    data_type_undefined() : ngraph_error{"data type is not defined"} {}
+struct data_type_undefined : ov::Exception {
+    data_type_undefined() : ov::Exception{"data type is not defined"} {}
 };
 
-struct segments_unsupported : ngraph_error {
-    segments_unsupported() : ngraph_error{"loading segments not supported"} {}
+struct segments_unsupported : ov::Exception {
+    segments_unsupported() : ov::Exception{"loading segments not supported"} {}
 };
 
-struct shape_doesnt_match_data_size : ngraph_error {
-    shape_doesnt_match_data_size() : ngraph_error{"tensor shape doesn't match data size"} {}
+struct shape_doesnt_match_data_size : ov::Exception {
+    shape_doesnt_match_data_size() : ov::Exception{"tensor shape doesn't match data size"} {}
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace tensor
@@ -121,7 +120,7 @@ public:
         if (m_shape == Shape{0}) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
-            // In nGraph a scalar is represented with Shape{} and thus this replacement.
+            // In OpenVINO a scalar is represented with Shape{} and thus this replacement.
             m_shape = Shape{};
         }
     }
@@ -140,7 +139,7 @@ public:
         if (m_tensor_proto->has_segment()) {
             throw error::tensor::segments_unsupported{};
         }
-        throw ngraph::onnx_import::error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
+        throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
     }
 
     const std::string& get_name() const {
@@ -199,7 +198,7 @@ public:
         return m_tensor_proto->data_type();
     }
 
-    std::shared_ptr<ngraph::op::Constant> get_ng_constant() const {
+    std::shared_ptr<ov::op::v0::Constant> get_ng_constant() const {
         if (m_tensor_proto->has_segment()) {
             throw error::tensor::segments_unsupported{};
         }
@@ -209,7 +208,7 @@ public:
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
             return make_ng_constant<float>(element::f32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return make_ng_constant<ngraph::float16>(element::f16);
+            return make_ng_constant<ov::float16>(element::f16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return make_ng_constant<double>(element::f64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
@@ -229,7 +228,7 @@ public:
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
             return make_ng_constant<uint64_t>(element::u64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return make_ng_constant<ngraph::bfloat16>(element::bf16);
+            return make_ng_constant<ov::bfloat16>(element::bf16);
         default:
             throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
         }
@@ -241,19 +240,19 @@ private:
                                           std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value ||
                                           std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const {
-        std::shared_ptr<default_opset::Constant> constant{nullptr};
+    std::shared_ptr<ov::op::v0::Constant> make_ng_constant(const element::Type& type) const {
+        std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         size_t data_size = get_data_size();
         if (has_external_data()) {
             const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
             if (m_mmap_cache) {
                 constant =
-                    std::make_shared<ngraph::op::Constant>(type,
+                    std::make_shared<ov::op::v0::Constant>(type,
                                                            m_shape,
                                                            ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache));
             } else {
                 constant =
-                    std::make_shared<ngraph::op::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
+                    std::make_shared<ov::op::v0::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
             }
             if (constant->get_byte_size() != ov::shape_size(m_shape) * type.size()) {
                 throw error::invalid_external_data(
@@ -261,7 +260,7 @@ private:
                     "' in the model");
             }
         } else if (data_size == shape_size(m_shape)) {
-            constant = std::make_shared<ngraph::op::Constant>(type, m_shape, get_data_ptr());
+            constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, get_data_ptr());
         } else if (data_size == 0 && m_shape.size() == 0) {
             constant = common::make_failsafe_constant(type);
         } else {
@@ -279,12 +278,12 @@ private:
                                           !std::is_same<T, int32_t>::value && !std::is_same<T, int64_t>::value &&
                                           !std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const {
-        std::shared_ptr<default_opset::Constant> constant{nullptr};
+    std::shared_ptr<ov::op::v0::Constant> make_ng_constant(const element::Type& type) const {
+        std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
         auto data_size = data.size();
         if (data_size == shape_size(m_shape)) {
-            constant = std::make_shared<ngraph::op::Constant>(type, m_shape, data);
+            constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, data);
         } else if (data_size == 0 && m_shape.size() == 0) {
             constant = common::make_failsafe_constant(type);
         } else {
@@ -369,10 +368,10 @@ template <>
 std::vector<float> Tensor::get_data() const;
 
 template <>
-std::vector<ngraph::float16> Tensor::get_data() const;
+std::vector<ov::float16> Tensor::get_data() const;
 
 template <>
-std::vector<ngraph::bfloat16> Tensor::get_data() const;
+std::vector<ov::bfloat16> Tensor::get_data() const;
 
 template <>
 std::vector<int8_t> Tensor::get_data() const;
