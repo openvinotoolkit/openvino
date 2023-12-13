@@ -9,14 +9,14 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize('test_input,inplace', [
-    (np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[1, 1], [2, 2]], dtype=np.float32), False),
-    (np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2, 3], dtype=np.float32), False),
-    (np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2], dtype=np.float32), False),
-    (np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[1, 1], [2, 2]], dtype=np.float32), True),
-    (np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2, 3], dtype=np.float32), True),
-    (np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2], dtype=np.float32), True),
-    (np.array([5, 6], dtype=np.float32), np.array([[1, 2], [3, 4]], dtype=np.float32), False),
-    (np.array([5], dtype=np.float32),np.array([[1, 2], [3, 4]], dtype=np.float32), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[1, 1], [2, 2]], dtype=np.float32)), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2, 3], dtype=np.float32)), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2], dtype=np.float32)), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[1, 1], [2, 2]], dtype=np.float32)), True),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2, 3], dtype=np.float32)), True),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2], dtype=np.float32)), True),
+    ((np.array([5, 6], dtype=np.float32), np.array([[1, 2], [3, 4]], dtype=np.float32)), False),
+    ((np.array([5], dtype=np.float32), np.array([[1, 2], [3, 4]], dtype=np.float32)), False),
     ])
 class TestPow(PytorchLayerTest):
     """
@@ -46,7 +46,6 @@ class TestPow(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("inplace", [True, False])
     def test_pow(self, inplace, ie_device, precision, ir_version, test_input):
         self.test_input = test_input
         self._test(*self.create_model(inplace), ie_device, precision,
