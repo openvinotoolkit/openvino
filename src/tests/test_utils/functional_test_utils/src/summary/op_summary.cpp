@@ -141,7 +141,7 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
 }
 
 void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
-    if (!model || model->get_parameters().empty()) {
+    if (!model) {
         return;
     }
     bool isFunctionalGraph = false;
@@ -188,7 +188,7 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const Pa
 }
 
 void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, const bool implStatus) {
-    if (model->get_parameters().empty()) {
+    if (!model || model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false;
