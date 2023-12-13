@@ -25,7 +25,7 @@ public:
         int64_t axis;
         ElementType netPrecision;
         InputShape inputShapes;
-        ov::Shape outIndices;
+        std::vector<size_t> outIndices;
         CPUSpecificParams cpuParams;
         std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = obj.param;
 
