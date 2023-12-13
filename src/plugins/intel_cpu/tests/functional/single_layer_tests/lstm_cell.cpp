@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/lstm_cell.hpp"
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using LSTMCellCpuSpecificParams = typename std::tuple<
         std::vector<InputShape>,           // Shapes
@@ -18,7 +19,7 @@ using LSTMCellCpuSpecificParams = typename std::tuple<
         float,                             // clip
         ElementType,                       // Network precision
         CPUSpecificParams,                 // CPU specific params
-        std::map<std::string, std::string> // Additional config
+        ov::AnyMap // Additional config
 >;
 
 class LSTMCellLayerCPUTest : public testing::WithParamInterface<LSTMCellCpuSpecificParams>,
@@ -31,7 +32,7 @@ public:
         float clip = 0.f;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
 
         std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = obj.param;
 
@@ -57,8 +58,7 @@ public:
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                if (item.second == InferenceEngine::PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
         return result.str();
@@ -72,7 +72,7 @@ protected:
         float clip = 0.f;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         abs_threshold = 0.05;
 
         std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = this->GetParam();
@@ -86,7 +86,8 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][1];
         const size_t inputSize = targetStaticShapes.front()[0][1];
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -100,8 +101,8 @@ protected:
             paramsOuts.push_back(param);
         }
 
-        std::vector<ngraph::Shape> WRB = {{4 * hiddenSize, inputSize}, {4 * hiddenSize, hiddenSize}, {4 * hiddenSize}};
-        auto lstmCellOp = ngraph::builder::makeLSTM(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
+        std::vector<ov::Shape> WRB = {{4 * hiddenSize, inputSize}, {4 * hiddenSize, hiddenSize}, {4 * hiddenSize}};
+        auto lstmCellOp = utils::make_lstm(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
 
         function = makeNgraphFunction(netPrecision, params, lstmCellOp, "LSTMCell");
     }
@@ -114,9 +115,8 @@ TEST_P(LSTMCellLayerCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}}};
+std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::bf16)}},
+                                            {{ov::hint::inference_precision(ov::element::f32)}}};
 
 CPUSpecificParams cpuParams{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"};
 
@@ -201,4 +201,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMCellLayerCPUTest,
                                    ::testing::ValuesIn(additionalConfig)),
                 LSTMCellLayerCPUTest::getTestCaseName);
 } // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

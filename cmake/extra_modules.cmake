@@ -2,38 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(ie_generate_dev_package_config)
-    # dummy check that OpenCV is here
-    find_package(OpenCV QUIET)
-    if(OpenCV_VERSION VERSION_LESS 3.0)
-        set(OpenCV_FOUND OFF)
-    endif()
-
-    # export all targets with prefix and use them during extra modules build
-    export(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} NAMESPACE IE::
-           APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_developer_package_targets.cmake")
-    add_custom_target(ie_dev_targets DEPENDS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS})
-
-    set(PATH_VARS "OpenVINO_SOURCE_DIR")
-    if(ENABLE_SAMPLES OR ENABLE_TESTS)
-        list(APPEND PATH_VARS "gflags_BINARY_DIR")
-        # if we've found system gflags
-        if(gflags_DIR)
-            set(gflags_BINARY_DIR "${gflags_DIR}")
-        endif()
-    endif()
-
-    configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
-                                  "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
-                                  INSTALL_DESTINATION share # not used
-                                  PATH_VARS ${PATH_VARS}
-                                  NO_CHECK_REQUIRED_COMPONENTS_MACRO)
-
-    configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-                   @ONLY)
-endfunction()
-
 function(ov_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
@@ -207,7 +175,6 @@ endfunction()
 
 # this OpenVINODeveloperPackageConfig.cmake is not used during extra modules build
 # since it's generated after modules are configured
-ie_generate_dev_package_config()
 ov_generate_dev_package_config()
 
 # extra modules must be registered after inference_engine library
