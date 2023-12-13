@@ -393,7 +393,7 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
         OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
     }
 
-    auto element_type = (type == ov::element::undefined) ? Common::type_helpers::get_ov_type(array.dtype()) : type;
+    auto element_type = (type == ov::element::undefined) ? Common::type_helpers::get_ov_type(array) : type;
 
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
