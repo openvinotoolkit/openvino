@@ -387,6 +387,11 @@ createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     }
 }
 
+template <typename T>
+static std::vector<T> normalizeDims(const std::vector<T>& dims) {
+    return {std::accumulate(dims.begin(), dims.end() - 1, (T)1, std::multiplies<T>()), dims[dims.size() - 1]};
+}
+
 static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::engine& engine) {
     // use conv1x1 primitive for computation
     if (key.useConv1x1) {
@@ -408,14 +413,12 @@ static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::en
     const auto& weiDims = weiDesc.get_dims();
 
     if (inDims.size() > 2 && weiDims.size() == 2) {
-        dnnl::memory::dims normalizedInDims = {std::accumulate(inDims.begin(), inDims.end() - 1, 1, std::multiplies<size_t>()),
-                                               inDims[inDims.size()-1]};
+        dnnl::memory::dims normalizedInDims = normalizeDims(inDims);
         inDesc = inDesc.reshape(normalizedInDims);
     }
 
     if (outDims.size() > 2 && weiDims.size() == 2) {
-        dnnl::memory::dims normalizedOutDims = {std::accumulate(outDims.begin(), outDims.end() - 1, 1, std::multiplies<size_t>()),
-                                                outDims[outDims.size()-1]};
+        dnnl::memory::dims normalizedOutDims = normalizeDims(outDims);
         outDesc = outDesc.reshape(normalizedOutDims);
     }
 
@@ -671,10 +674,14 @@ void FullyConnected::execute(dnnl::stream strm) {
     auto updateMemoryPtr = [this](int argType) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
-            if (argType == DNNL_ARG_SRC) {
+            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() == 3 ||
+             (getInputShapeAtPort(DATA_ID).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2) ||
+              useConv1x1)) {
                 primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
-            if (argType == DNNL_ARG_DST) {
+            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() == 3 ||
+             (getOutputShapeAtPort(0).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2) ||
+              useConv1x1)) {
                 primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
         }
@@ -706,8 +713,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     //    2D:   [X,Y] [Y,Z] =>   [X,Z]   with    N=X,IC=Y,OC=Z
     //    3D: [B,X,Y] [Y,Z] => [B,X,Z]   with  N=B*X,IC=Y,OC=Z
 
-    VectorDims dims = {std::accumulate(dims_ext.begin(), dims_ext.end() - 1, (Dim)1, std::multiplies<size_t>()),
-                                                dims_ext[dims_ext.size()-1]};
+    VectorDims dims = normalizeDims(dims_ext);
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
@@ -792,8 +798,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
                                               const dnnl::memory::desc &outputDesc) {
     auto create2Dcandidate = [](const dnnl::memory::desc &desc) {
         auto inDims = desc.get_dims();
-        dnnl::memory::dims normalizedInDims = {std::accumulate(inDims.begin(), inDims.end() - 1, 1, std::multiplies<size_t>()),
-                                                inDims[inDims.size() - 1]};
+        dnnl::memory::dims normalizedInDims = normalizeDims(inDims);
 
         return dnnl::memory::desc(normalizedInDims, desc.get_data_type(),
                                   DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
