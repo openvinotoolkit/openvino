@@ -261,19 +261,29 @@ void Input::cloneBlobIfRequired() {
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
         if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
-            memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
-        } else {
-            memory = std::make_shared<Memory>(getEngine(), memDesc);
             if (constOp->get_element_type() == element::string) {
-                auto dst = reinterpret_cast<OvString *>(memory->getData());
+                memory = std::make_shared<StringMemory>(getEngine(), memDesc, constOp->get_data_ptr<element::string>());
+            } else {
+                memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
+            }
+        } else {
+            if (constOp->get_element_type() == element::string) {
+                memory = std::make_shared<StringMemory>(getEngine(), memDesc);
                 auto src = constOp->get_data_ptr<OvString>();
+                auto dst = reinterpret_cast<OvString *>(memory->getData());
                 std::copy(src, src + size, dst);
             } else {
+                memory = std::make_shared<Memory>(getEngine(), memDesc);
                 memcpy(memory->getData(), constOp->get_data_ptr(), constOp->get_byte_size());
             }
         }
 
-        MemoryPtr ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+        MemoryPtr ptr;
+        if (memDesc.getPrecision() == element::string) {
+            ptr = std::make_shared<StringMemory>(getEngine(), memDesc);
+        } else {
+            ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+        }
         ptr->load(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;

@@ -24,7 +24,7 @@ void ProxyMemoryMngr::setMemMngrResize(std::shared_ptr<IMemoryMngr> pMngr) {
     }
 
     m_pMngr = pMngr;
-    m_pMngr->resize(m_size, (*m_setMemPtrs.begin())->getDesc().getPrecision());
+    m_pMngr->resize(m_size);
     notifyUpdate();
 }
 
@@ -38,7 +38,7 @@ void ProxyMemoryMngr::reset() {
     }
 
     m_pMngr = m_pOrigMngr;
-    m_pMngr->resize(m_size, (*m_setMemPtrs.begin())->getDesc().getPrecision());
+    m_pMngr->resize(m_size);
     notifyUpdate();
 }
 
@@ -51,8 +51,8 @@ void ProxyMemoryMngr::setExtBuff(void* ptr, size_t size) {
     notifyUpdate();
 }
 
-bool ProxyMemoryMngr::resize(size_t size, const ov::element::Type& type) {
-    auto res = m_pMngr->resize(size, type);
+bool ProxyMemoryMngr::resize(size_t size) {
+    auto res = m_pMngr->resize(size);
     DEBUG_LOG(this, ", ", m_pMngr, " size ", m_size, " -> ", size, " resized? ", res, " RawPtr ", getRawPtr());
     m_size = size;
     notifyUpdate();

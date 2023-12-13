@@ -26,6 +26,8 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
+using OvString = ov::element_type_traits<ov::element::string>::value_type;
+
 namespace ov {
 namespace intel_cpu {
 SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model)
@@ -173,11 +175,17 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 }
 
 static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
-    auto size = tensor->get_byte_size();
     auto& mem = edge->getMemory();
-    auto memMngr = mem.getMemoryMngr();
-    OPENVINO_ASSERT(memMngr);
-    memMngr->setExtBuff(tensor->data(), size);
+
+    if (tensor->get_element_type() == element::string) {
+        auto memMngr = dynamic_cast<const StringMemory &>(mem).getStringMemoryMngrPtr();
+        OPENVINO_ASSERT(memMngr);
+        memMngr->setExtStringBuff(tensor->data<OvString>(), tensor->get_size());
+    } else {
+        auto memMngr = mem.getMemoryMngr();
+        OPENVINO_ASSERT(memMngr);
+        memMngr->setExtBuff(tensor->data(), tensor->get_byte_size());
+    }
 }
 
 void SyncInferRequest::change_default_ptr() {

@@ -49,7 +49,7 @@ public:
      * @param size - new memory size in bytes
      * @return status whether the memory reallocation was performed
      */
-    virtual bool resize(size_t size, const ov::element::Type& type) = 0;
+    virtual bool resize(size_t size) = 0;
 
     /**
      * @brief Check if the object has control over underlying memory buffer
@@ -66,7 +66,7 @@ public:
     MemoryMngrWithReuse() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size, const ov::element::Type& type) override;
+    bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
 
 private:
@@ -76,7 +76,6 @@ private:
 
     static void release(void *ptr);
     static void destroy(void *ptr);
-    static void delete_str(void *ptr);
 };
 
 class MemoryMngrRealloc : public IMemoryMngr {
@@ -84,7 +83,7 @@ public:
     MemoryMngrRealloc() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size, const ov::element::Type& type) override;
+    bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
 
 private:
@@ -94,7 +93,6 @@ private:
 
     static void release(void *ptr);
     static void destroy(void *ptr);
-    static void delete_str(void *ptr);
 };
 
 class IMemoryMngrObserver : public IMemoryMngr {
@@ -111,7 +109,7 @@ public:
     explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : m_pMemMngr(std::move(mngr)) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size, const ov::element::Type& type) override;
+    bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
@@ -209,11 +207,11 @@ class StaticMemory final : public IMemory {
 public:
     class StaticMemoryMngr : public IMemoryMngrObserver {
     public:
-        explicit StaticMemoryMngr(size_t size, const ov::element::Type& type);
-        StaticMemoryMngr(void* data, size_t size, const ov::element::Type& type);
+        explicit StaticMemoryMngr(size_t size);
+        StaticMemoryMngr(void* data, size_t size);
         void* getRawPtr() const noexcept override;
         void setExtBuff(void* ptr, size_t size) override;
-        bool resize(size_t size, const ov::element::Type& type = ov::element::undefined) override;
+        bool resize(size_t size) override;
         bool hasExtBuffer() const noexcept override;
         void registerMemory(Memory* memPtr) override;
         void unregisterMemory(Memory* memPtr) override;
@@ -355,8 +353,90 @@ private:
     }
 };
 
+class StringMemory : public IMemory {
+public:
+    using OvString = ov::element_type_traits<ov::element::string>::value_type;
+
+    class StringMemoryMngr : public IMemoryMngr {
+    public:
+        StringMemoryMngr() : m_data(nullptr, release) {}
+        OvString* getStringPtr() const noexcept;
+        void setExtStringBuff(OvString* ptr, size_t size);
+        size_t getStrLen() const noexcept;
+
+        void* getRawPtr() const noexcept override;
+        void setExtBuff(void* ptr, size_t size) override;
+        bool resize(size_t size) override;
+        bool hasExtBuffer() const noexcept override;
+
+    private:
+        bool m_use_external_storage = false;
+        size_t m_str_upper_bound = 0lu;
+        std::unique_ptr<OvString, void (*)(OvString *)> m_data;
+
+        static void release(OvString* ptr) {}
+        static void destroy(OvString* ptr);
+    };
+
+    using StringMemoryMngrPtr = std::shared_ptr<StringMemoryMngr>;
+
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const OvString* data = nullptr);
+
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const OvString* data = nullptr) : StringMemory(engine, desc.clone(), data) {}
+
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryMngrPtr& manager)
+        : m_engine(engine), m_mem_desc(desc), m_manager(manager) {}
+
+    bool isAllocated() const noexcept override {
+       return true;
+    }
+
+    const MemoryDesc& getDesc() const override {
+        return *m_mem_desc;
+    }
+
+    MemoryDescPtr getDescPtr() const override {
+        return m_mem_desc;
+    }
+
+    void* getData() const override;
+
+    size_t getSize() const override { // In bytes
+        return m_size;
+    }
+
+    const Shape& getShape() const override {
+        return m_mem_desc->getShape();
+    }
+
+    const VectorDims& getStaticDims() const override {
+        return m_mem_desc->getShape().getStaticDims();
+    }
+
+    void redefineDesc(MemoryDescPtr desc) override;
+
+    void load(const IMemory& src, bool ftz = false) const override;
+
+    MemoryMngrPtr getMemoryMngr() const override;
+
+    StringMemoryMngrPtr getStringMemoryMngrPtr() const {
+        return m_manager;
+    }
+
+    dnnl::memory getPrimitive() const override;
+
+    void nullify() override;
+
+private:
+    dnnl::engine m_engine;
+    MemoryDescPtr m_mem_desc;
+    StringMemoryMngrPtr m_manager;
+    size_t m_size;
+};
+
 using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
+using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
 }   // namespace intel_cpu
 }   // namespace ov

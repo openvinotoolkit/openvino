@@ -6,10 +6,10 @@
 
 #include "cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "utils/bfloat16.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #include "nodes/kernels/x64/jit_kernel.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
 #endif
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;

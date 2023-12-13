@@ -14,9 +14,9 @@ void PartitionedMemoryMngr::setExtBuff(void* ptr, size_t size) {
     m_pMngr->setExtBuff(ptr, size);
 }
 
-bool PartitionedMemoryMngr::resize(size_t size, const ov::element::Type& type) {
+bool PartitionedMemoryMngr::resize(size_t size) {
     m_size = size;
-    return m_pMngr->resize(m_size * m_total_blocks / m_size_blocks, type);
+    return m_pMngr->resize(m_size * m_total_blocks / m_size_blocks);
 }
 
 bool PartitionedMemoryMngr::hasExtBuffer() const noexcept {

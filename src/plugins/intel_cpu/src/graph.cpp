@@ -607,6 +607,23 @@ void Graph::AllocateWithReuse() {
                 erase = true;
                 break;
             }
+
+            // Special allocation for string tensors
+            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation &&
+                    !edge->getParent()->isConstant()) {
+                auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
+                edge->reuse(memory);
+                for (auto& edge_c : cluster) {
+                    if (edge_c->getDesc().getPrecision() == element::string && edge_c->getStatus() == Edge::Status::NeedAllocation &&
+                            !edge_c->getParent()->isConstant()) {
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc());
+                        edge_c->reuse(memory);
+                    }
+                }
+                erase = true;
+                continue;
+            }
+
             // Special allocation for constants
             if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
                 continue;
@@ -699,10 +716,6 @@ void Graph::AllocateWithReuse() {
                 // !! Fallback to individual memory allocation !!
                 // if you like to check infer without reuse just call this function without arguments.
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
-                if (edge->getMemory().getDesc().getPrecision() == element::string) {
-                    auto str_ptr = reinterpret_cast<OvString *>(edge->getMemory().getData());
-                    std::uninitialized_fill_n(str_ptr, edge->getMemory().getSize() / element::string.size(), OvString());
-                }
 
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
                 //       shapes {0}. And it is implicitly converted into {1} tensor.
