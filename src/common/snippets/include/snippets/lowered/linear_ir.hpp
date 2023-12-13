@@ -125,7 +125,6 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
