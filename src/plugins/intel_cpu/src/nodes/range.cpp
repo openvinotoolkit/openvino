@@ -37,15 +37,15 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
-    VectorDims start_dims = op->get_input_shape(RANGE_START);
+    auto start_dims = op->get_input_shape(RANGE_START);
     if (ov::shape_size(start_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has start scalar with more than 1 value");
 
-    VectorDims limit_dims = op->get_input_shape(RANGE_LIMIT);
+    auto limit_dims = op->get_input_shape(RANGE_LIMIT);
     if (ov::shape_size(limit_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has limit scalar with more than 1 value");
 
-    VectorDims delta_dims = op->get_input_shape(RANGE_DELTA);
+    auto delta_dims = op->get_input_shape(RANGE_DELTA);
     if (ov::shape_size(delta_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has delta scalar with more than 1 value");
 

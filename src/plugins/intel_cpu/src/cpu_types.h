@@ -17,6 +17,7 @@ using VectorDims = std::vector<Dim>;
 
 enum class Type {
     Unknown,
+    Generic,
     If,
     Reorder,
     Input,

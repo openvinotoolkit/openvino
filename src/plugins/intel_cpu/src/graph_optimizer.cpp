@@ -2165,10 +2165,11 @@ void GraphOptimizer::FuseBroadcastAndEltwise(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     for (auto &graphNode : graphNodes) {
-        if (graphNode->getTypeStr() != "Broadcast"
+        if (graphNode->getType() != Type::Generic
+                || graphNode->getTypeStr() != "Broadcast"
                 || graphNode->getChildEdges().size() != 1lu
                 || graphNode->getChildEdgeAt(0)->getChild()->getType() != Type::Eltwise)
-            continue;
+                continue;
 
         NodePtr& broadcastNode = graphNode;
         NodePtr eltwiseNode = broadcastNode->getChildEdgeAt(0)->getChild();
