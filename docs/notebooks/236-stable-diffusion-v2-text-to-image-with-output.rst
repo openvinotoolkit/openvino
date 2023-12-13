@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <225-stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <235-controlnet-stable-diffusion-with-output.html>`__.
+ControlNet <./235-controlnet-stable-diffusion/235-controlnet-stable-diffusion.ipynb>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -90,24 +90,25 @@ notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebo
    -  `Text Encoder <#text-encoder>`__
    -  `U-Net <#u-net>`__
    -  `VAE <#vae>`__
-   -  `Prepare Inference
-      Pipeline <#prepare-inference-pipeline>`__
-   -  `Configure Inference
-      Pipeline <#configure-inference-pipeline>`__
-   -  `Run Text-to-Image
-      generation <#run-text-to-image-generation>`__
+   -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+   -  `Run Text-to-Image generation <#run-text-to-image-generation>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 install required packages
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "transformers >= 4.25.1" gradio
+    %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "transformers>=4.25.1" gradio --extra-index-url https://download.pytorch.org/whl/cpu
 
-Stable Diffusion v2 for Text-to-Image Generation 
-------------------------------------------------------------------------------------------
+Stable Diffusion v2 for Text-to-Image Generation
+------------------------------------------------
+
+
 
 To start, let’s look on Text-to-Image process for Stable Diffusion v2.
 We will use `Stable Diffusion
@@ -121,10 +122,11 @@ post <https://stability.ai/blog/stablediffusion2-1-release7-dec-2022>`__
 and original model
 `repository <https://github.com/Stability-AI/stablediffusion>`__.
 
-Stable Diffusion in Diffusers library 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Stable Diffusion in Diffusers library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To work with Stable Diffusion v2, we will use Hugging Face
+To work with Stable Diffusion
+v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
 `StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
@@ -166,8 +168,10 @@ using ``stable-diffusion-2-1``:
     Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]
 
 
-Convert models to OpenVINO Intermediate representation (IR) format 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert models to OpenVINO Intermediate representation (IR) format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -184,8 +188,10 @@ The pipeline consists of three important parts:
 
 Let us convert each part:
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -267,8 +273,10 @@ hidden states.
     Text encoder will be loaded from sd2.1/text_encoder.xml
 
 
-U-Net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+U-Net
+~~~~~
+
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -349,8 +357,10 @@ such use cases required to modify number of input channels.
         del unet
     gc.collect();
 
-VAE 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VAE
+~~~
+
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -466,8 +476,10 @@ RAM (recommended at least 32GB).
     VAE decoder will be loaded from sd2.1/vae_decoder.xml
 
 
-Prepare Inference Pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare Inference Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -534,7 +546,7 @@ but there is some small difference in details:
     import torch
     
     from transformers import CLIPTokenizer
-    from diffusers.pipeline_utils import DiffusionPipeline
+    from diffusers import DiffusionPipeline
     from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
     
     
@@ -871,8 +883,10 @@ but there is some small difference in details:
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure Inference Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -927,8 +941,10 @@ Let us define them and put all components together.
         scheduler=scheduler
     )
 
-Run Text-to-Image generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Text-to-Image generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator
