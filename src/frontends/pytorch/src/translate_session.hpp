@@ -61,7 +61,6 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
-    size_t m_friendly_name_counter = 0;
 };
 
 }  // namespace pytorch
