@@ -56,20 +56,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "$ORIGIN/"
     PREFIX ""
     SUFFIX ".node"
-    BUILD_WITH_INSTALL_RPATH TRUE
-    INSTALL_RPATH_USE_LINK_PATH FALSE
 )
 
-if (CPACK_GENERATOR STREQUAL "NPM")
-    set_target_properties(openvino PROPERTIES 
-        INSTALL_RPATH "$ORIGIN/"
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH_USE_LINK_PATH FALSE
-    ) 
-endif()
+ov_set_install_rpath(${PROJECT_NAME}
+    ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
 
 install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION . COMPONENT ${PROJECT_NAME} ${OV_CPACK_COMP_NPM_EXCLUDE_ALL}

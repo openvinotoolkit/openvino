@@ -41,10 +41,16 @@ endmacro()
 #
 function(ov_set_install_rpath TARGET_NAME lib_install_path)
     if(APPLE AND CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$" OR CPACK_GENERATOR STREQUAL "NPM")
+        if (APPLE)
+            set(RPATH_PREFIX "@loader_path/${dependency_rpath}")
+        else()
+            set(RPATH_PREFIX "$ORIGIN")
+        endif()
+
         unset(rpath_list)
         foreach(dependency_install_path IN LISTS ARGN)
             file(RELATIVE_PATH dependency_rpath "/${lib_install_path}" "/${dependency_install_path}")
-            set(dependency_rpath "@loader_path/${dependency_rpath}")
+            set(dependency_rpath "${RPATH_PREFIX}/${dependency_rpath}")
             list(APPEND rpath_list "${dependency_rpath}")
         endforeach()
 
