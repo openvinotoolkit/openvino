@@ -19,11 +19,11 @@ OutputVector mish(const Node& node) {
     return OutputVector{std::make_shared<default_opset::Mish>(data)};
 }
 
-}  // namespace set_1 
+}  // namespace set_1
 
-}  // namespace op 
+}  // namespace op
 
-}  // namespace onnx_import 
+}  // namespace onnx_import
 
-}  // namespace ngraph 
+}  // namespace ngraph
 OPENVINO_SUPPRESS_DEPRECATED_END
