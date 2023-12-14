@@ -110,7 +110,7 @@ jobs:
           # For running Paddle frontend unit tests
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
-          # For getting rid of SSL issues during model downloading in unit tests
+          # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
 
       - name: Install sccache
@@ -128,7 +128,7 @@ jobs:
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Set SSL_CERT_FILE for model downloading in unit tests
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
