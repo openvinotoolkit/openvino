@@ -1016,6 +1016,18 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // only support bf16 and f32
     if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
         rtPrecision = ov::element::f32;
+
+    size_t H_idx = 1;
+    if (!m_config.config.permute_axes.empty()) {
+        H_idx = m_config.config.permute_axes[1];
+    }
+    const auto& qDims = getInputShapeAtPort(0).getDims();
+    const auto& kDims = getInputShapeAtPort(1).getDims();
+    // if multi-query, enforce fp32 TODO: support BF16
+    if (qDims[H_idx] != kDims[H_idx]) {
+        rtPrecision = ov::element::f32;
+    }
+
     return rtPrecision;
 }
 

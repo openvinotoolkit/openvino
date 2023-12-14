@@ -45,14 +45,14 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
                                           q_ps[i].get_length() % past_kv_ps[i].get_length() == 0,
                                           "shape not compatiable at index ",
                                           i);
-                } else if (i == length_index) {
-                    continue;
-                } else {
-                    NODE_VALIDATION_CHECK(this,
-                                          q_ps[i].compatible(past_kv_ps[i]),
-                                          "shape not compatiable at index ",
-                                          i);
                 }
+            } else if (i == length_index) {
+                continue;
+            } else {
+                NODE_VALIDATION_CHECK(this,
+                                        q_ps[i].compatible(past_kv_ps[i]),
+                                        "shape not compatiable at index ",
+                                        i);
             }
         }
         past_kv_ps[length_index] += q_ps[length_index];
