@@ -17,6 +17,7 @@ namespace pass {
 /**
  * @interface InsertLoops
  * @brief The pass explicitly insert LoadBegin and LoadEnd in Linear IR using LoopManager::LoopInfo from Loop markup algorithm
+ *        Note: The pass removes non Memory-Access loop ports since Loop can have only GPR inputs!
  * @ingroup snippets
  */
 class InsertLoops : public Pass {

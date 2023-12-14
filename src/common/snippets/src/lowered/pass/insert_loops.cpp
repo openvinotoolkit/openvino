@@ -54,6 +54,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
 
     // Remove non MemoryAccess ports since Loop can have only GPR inputs
     filter_ports(loop_entries, loop_exits);
+    loop_info->set_entry_points(loop_entries);
+    loop_info->set_exit_points(loop_exits);
 
     const auto in_out_num = loop_entries.size() + loop_exits.size();
     std::vector<bool> is_incremented;
