@@ -268,7 +268,9 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             }
             break;
         }
-        case ov::element::f32: {
+        case ov::element::f32:
+        case ov::element::i32:
+        case ov::element::u32: {
             if (broadcast) {
                 jit_generator::uni_ld1rw(data.s, ptr_reg, offset);
             } else {
@@ -287,6 +289,14 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                 switch (src_prc) {
                     case ov::element::f16: {
                         fcvtl(data.s4, data.h4);
+                        break;
+                    }
+                    case ov::element::i32: {
+                        scvtf(data.s, data.s);
+                        break;
+                    }
+                    case ov::element::u32: {
+                        ucvtf(data.s, data.s);
                         break;
                     }
                     default:
@@ -310,7 +320,9 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
             ldr(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
             break;
         }
-        case ov::element::f32: {
+        case ov::element::f32:
+        case ov::element::i32:
+        case ov::element::u32: {
             ldr(data, Xbyak_aarch64::ptr(ptr, offset));
             break;
         }
@@ -325,6 +337,14 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
                 switch (src_prc) {
                     case ov::element::f16: {
                         fcvt(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
+                        break;
+                    }
+                    case ov::element::i32: {
+                        scvtf(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::SReg(data.getIdx()));
+                        break;
+                    }
+                    case ov::element::u32: {
+                        ucvtf(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::SReg(data.getIdx()));
                         break;
                     }
                     default:
@@ -351,6 +371,14 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                         fcvtn(data.h4, data.s4);
                         break;
                     }
+                    case ov::element::i32: {
+                        fcvtns(data.s, data.s);
+                        break;
+                    }
+                    case ov::element::u32: {
+                        fcvtnu(data.s, data.s);
+                        break;
+                    }
                     default: {
                         IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
                     }
@@ -368,7 +396,9 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
             str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
             break;
         }
-        case ov::element::f32: {
+        case ov::element::f32:
+        case ov::element::i32:
+        case ov::element::u32: {
             str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
             break;
         }
@@ -392,6 +422,14 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                         fcvt(Xbyak_aarch64::HReg(data.getIdx()), data);
                         break;
                     }
+                    case ov::element::i32: {
+                        fcvtns(data, data);
+                        break;
+                    }
+                    case ov::element::u32: {
+                        fcvtnu(data, data);
+                        break;
+                    }
                     default: {
                         IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
                     }
@@ -409,6 +447,8 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
             str(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
             break;
         }
+        case ov::element::i32:
+        case ov::element::u32:
         case ov::element::f32: {
             str(data, Xbyak_aarch64::ptr(ptr, offset));
             break;
