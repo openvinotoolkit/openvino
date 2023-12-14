@@ -50,7 +50,6 @@ OutputVector NodeContext::as_constant() const {
 
 std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) const {
     ov_node = m_decoder->mark_node(ov_node);
-    m_translate_session->unique_name(ov_node);
     return ov_node;
 }
 
