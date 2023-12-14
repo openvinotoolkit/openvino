@@ -355,3 +355,124 @@ def test_raise_for_packed_types(ov_type, src_dtype):
         _ = ops.constant(data, dtype=ov_type)
 
     assert "All values must be equal to 0 to initialize Constant with type of" in str(err.value)
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f16, np.float16),
+])
+def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
+    from openvino.runtime import opset12 as opset
+    import openvino as ov
+    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344, 100000, -100000], dtype=numpy_dtype)
+
+    compressed_const = opset.constant(data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant")
+    convert = opset.convert(compressed_const, data.dtype)
+    parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
+    add_op = opset.add(parameter, convert)
+    model = ov.Model([add_op], [parameter])
+
+    compiled = ov.compile_model(model)
+    tensor = np.zeros(data.shape, dtype=numpy_dtype)
+    result = compiled(tensor)[0]
+
+    target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
+              0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
+              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625, 448, 512, 512, 57344] \
+        + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
+    target = np.array(target, dtype=numpy_dtype)
+
+    assert np.allclose(result, target)
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f16, np.float16),
+])
+def test_float_to_f8e4m3_constant(ov_type, numpy_dtype):
+    from openvino.runtime import opset12 as opset
+    import openvino as ov
+    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
+
+    compressed_const = opset.constant(data, dtype=ov.Type.f8e4m3, name="f8e4m3_constant")
+    convert = opset.convert(compressed_const, data.dtype)
+    parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
+    add_op = opset.add(parameter, convert)
+    model = ov.Model([add_op], [parameter])
+
+    compiled = ov.compile_model(model)
+    tensor = np.zeros(data.shape, dtype=numpy_dtype)
+    result = compiled(tensor)[0]
+
+    target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
+              0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
+              -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
+              -0.6875, -0.8125, -0.875, -1, 448, 448]
+    target = np.array(target, dtype=numpy_dtype)
+
+    assert np.allclose(result, target)
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f16, np.float16),
+])
+def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
+    from openvino.runtime import opset12 as opset
+    import openvino as ov
+    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344, 100000, -100000], dtype=numpy_dtype)
+
+    compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
+    convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)
+    convert_back = opset.convert(convert_to_fp8, ov_type)
+    parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
+    add_op = opset.add(parameter, convert_back)
+    model = ov.Model([add_op], [parameter])
+
+    compiled = ov.compile_model(model)
+    tensor = np.zeros(data.shape, dtype=numpy_dtype)
+    result = compiled(tensor)[0]
+
+    target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
+              0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
+              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625, 448, 512, 512, 57344] \
+        + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
+    target = np.array(target, dtype=numpy_dtype)
+
+    assert np.allclose(result, target)
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f16, np.float16),
+])
+def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
+    from openvino.runtime import opset12 as opset
+    import openvino as ov
+    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
+
+    compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
+    convert_to_fp8 = opset.convert(compressed_const, Type.f8e4m3)
+    convert_back = opset.convert(convert_to_fp8, ov_type)
+    parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
+    add_op = opset.add(parameter, convert_back)
+    model = ov.Model([add_op], [parameter])
+
+    compiled = ov.compile_model(model)
+    tensor = np.zeros(data.shape, dtype=numpy_dtype)
+    result = compiled(tensor)[0]
+
+    target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
+              0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
+              -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
+              -0.6875, -0.8125, -0.875, -1, 448, 448]
+    target = np.array(target, dtype=numpy_dtype)
+
+    assert np.allclose(result, target)
