@@ -14,28 +14,31 @@
                  unit for inference automatically.
 
 
-This article introduces how Automatic Device Selection works and how to use it for inference.
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   Debugging Auto-Device Plugin <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>
 
 
 .. _how-auto-works:
 
+The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device,
+which does not bind to a specific type of hardware, but rather selects the processing unit
+for inference automatically. It detects available devices, picks the one best-suited for the
+task, and configures its optimization settings. This way, you can write the application once
+and deploy it anywhere.
 
-How AUTO Works
-##############
-
-The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
-which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
-It detects available devices, picks the one best-suited for the task, and configures its optimization settings. 
-This way, you can write the application once and deploy it anywhere.
-
-The selection also depends on your performance requirements, defined by the “hints” configuration API, as well as device priority list limitations, if you choose to exclude some hardware from the process.
+The selection also depends on your performance requirements, defined by the “hints”
+configuration API, as well as device priority list limitations, if you choose to exclude
+some hardware from the process.
 
 The logic behind the choice is as follows:
 
 1. Check what supported devices are available.
 2. Check precisions of the input model (for detailed information on precisions read more on the ``ov::device::capabilities``).
 3. Select the highest-priority device capable of supporting the given model, as listed in the table below.
-4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
+4. If model's precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
 
 
 +----------+-----------------------------------------------------+------------------------------------+
@@ -51,7 +54,18 @@ The logic behind the choice is as follows:
 | 3        | Intel® CPU                                          | FP32, FP16, INT8, BIN              |
 |          | (e.g. Intel® Core™ i7-1165G7)                       |                                    |
 +----------+-----------------------------------------------------+------------------------------------+
+| 4        | Intel® NPU                                          |                                    |
+|          | (e.g. Intel® Core™ Ultra)                           |                                    |
++----------+-----------------------------------------------------+------------------------------------+
 
+.. note:: 
+
+   Note that NPU is currently excluded from the default priority list. To use it for inference, you
+   need to specify it explicitly
+   
+
+How AUTO Works
+##############
 
 To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds.
 What is important, **AUTO starts inference with the CPU of the system by default**, as it provides very low latency and can start inference with no additional delays.
@@ -59,12 +73,19 @@ While the CPU is performing inference, AUTO continues to load the model to the d
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impact inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
-Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage. The models with dynamic input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>` operations will be loaded to the CPU if it is in the candidate list. Otherwise, these models will follow the normal flow and be loaded to the device based on priority.
+Note that if you choose to exclude CPU from the priority list or disable the initial
+CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
+unable to support the initial model compilation stage. The models with dynamic
+input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>` 
+operations will be loaded to the CPU if it is in the candidate list. Otherwise, 
+these models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: _static/images/autoplugin_accelerate.svg
 
 
-This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>` section, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example:
+This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>` 
+section, showing how the first-inference latency (the time it takes to compile the
+model and perform the first inference) is reduced when using AUTO. For example:
 
 
 .. code-block:: sh
@@ -86,8 +107,9 @@ This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app
 Using AUTO
 ##########
 
-Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
-
+Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". 
+It may be defined with no additional parameters, resulting in defaults being used, or configured further with
+the following setup options:
 
 +----------------------------------------------+--------------------------------------------------------------------+
 | Property(C++ version)                        | Values and Description                                             |
@@ -165,6 +187,17 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 |                                              |                                                                    |
 |                                              | The default value is ``true``.                                     |
 +----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::schedule_policy``          | **Values**:                                                        |
+|                                              |                                                                    |
+|                                              | ``ROUND_ROBIN``                                                    |
+|                                              |                                                                    |
+|                                              | ``DEVICE_PRIORITY``                                                |
+|                                              |                                                                    |
+|                                              | Specify the schedule policy of infer request assigned to hardware  |
+|                                              | plugin for AUTO cumulative mode (MULTI).                           |
+|                                              |                                                                    |
+|                                              | The default value is ``DEVICE_PRIORITY``.                          |
++----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
@@ -191,7 +224,6 @@ The code samples on this page assume following import(Python)/using (C++) are in
 
 Device Candidates and Priority
 ++++++++++++++++++++++++++++++
-
 
 The device candidate list enables you to customize the priority and limit the choice of devices available to AUTO.
 

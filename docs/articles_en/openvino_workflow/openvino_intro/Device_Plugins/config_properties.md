@@ -8,28 +8,32 @@
                  properties and configuration values at runtime.
 
 
-The OpenVINO™ toolkit supports inference with several types of devices (processors or accelerators).
-This section provides a high-level description of the process of querying of different device properties and configuration values at runtime.
+This article provides an overview of how to query different device properties
+and configuration values at runtime.
 
 OpenVINO runtime has two types of properties:
 
-- Read only properties which provide information about the devices (such as device name or execution capabilities, etc.)
-  and information about configuration values used to compile the model (``ov::CompiledModel``) .
-- Mutable properties which are primarily used to configure the ``ov::Core::compile_model`` process and affect final 
-  inference on a specific set of devices. Such properties can be set globally per device via ``ov::Core::set_property`` 
-  or locally for particular model in the ``ov::Core::compile_model`` and the ``ov::Core::query_model`` calls.
+- **Read only properties** which provide information about devices, such as device
+  name and execution capabilities, and information about configuration values
+  used to compile the model - ``ov::CompiledModel``.
+- **Mutable properties**, primarily used to configure the ``ov::Core::compile_model``
+  process and affect final inference on a specific set of devices. Such properties 
+  can be set globally per device via ``ov::Core::set_property`` or locally for a
+  particular model in the ``ov::Core::compile_model`` and ``ov::Core::query_model``
+  calls.
 
 
-An OpenVINO property is represented as a named constexpr variable with a given string name and a type. 
-The following example represents a read-only property with a C++ name of ``ov::available_devices``, 
-a string name of ``AVAILABLE_DEVICES`` and a type of ``std::vector<std::string>``:
+An OpenVINO property is represented as a named constexpr variable with a given string
+name and a type. The following example represents a read-only property with the C++ name
+of ``ov::available_devices``, the string name of ``AVAILABLE_DEVICES`` and the type of
+``std::vector<std::string>``:
 
 .. code-block:: sh
    
    static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 
-Refer to the :doc:`Hello Query Device С++ Sample <openvino_inference_engine_samples_hello_query_device_README>` sources and 
+Refer to the :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` sources and 
 the :doc:`Multi-Device execution <openvino_docs_OV_UG_Running_on_multiple_devices>` documentation for examples of using 
 setting and getting properties in user applications.
 
