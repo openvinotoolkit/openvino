@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 'releases/**'
 concurrency:
   # github.ref is not unique in post-commit
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows
@@ -589,7 +590,7 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         shell: cmd
         run: |
