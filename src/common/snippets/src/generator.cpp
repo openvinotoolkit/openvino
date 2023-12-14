@@ -38,7 +38,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
-   lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
     // lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     // lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
 

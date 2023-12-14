@@ -405,32 +405,36 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
     const auto N = get_broadcasted_dim(N_in0, N_in1, n_bcast_flags);
     const auto M = get_broadcasted_dim(M_in0, M_in1, m_bcast_flags);
 
-     libxsmm_bitfield flags{LIBXSMM_MELTW_FLAG_BINARY_NONE};
+    m_compile_flags = LIBXSMM_MELTW_FLAG_BINARY_NONE;
     if (m_bcast_flags.first && n_bcast_flags.first) {
-        flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_0;
+        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_0;
     } else if (m_bcast_flags.first) {
-        flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_0;
+        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_0;
     } else  if (n_bcast_flags.first) {
-        flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_0;
+        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_0;
     }
     if (m_bcast_flags.second && n_bcast_flags.second) {
-        flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_1;
+        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_1;
     } else if (m_bcast_flags.second) {
-        flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_1;
+        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_1;
     } else  if (n_bcast_flags.second) {
-        flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_1;
+        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_1;
     }
     const auto& binary_eltw_tpp = std::dynamic_pointer_cast<tpp::op::BinaryEltwiseTPP>(expr->get_node());
     OPENVINO_ASSERT(binary_eltw_tpp, "Invalid TPP node type detected in BinaryEltwiseTppEmitter");
-    auto op_type = binary_eltw_tpp->get_op_type();
+    m_op_type = binary_eltw_tpp->get_op_type();
     // Note: libxsmm implies column-major layout, so we have to swap M and N here
-    const auto& shape = libxsmm_create_meltw_binary_shape(N, M,
-                                                          io_strides[0], io_strides[1], io_strides[2],
-                                                          io_dtypes[0], io_dtypes[1], io_dtypes[2],
-                                                          dtype_comp);
+    m_shape = libxsmm_create_meltw_binary_shape(N, M,
+                                                io_strides[0], io_strides[1], io_strides[2],
+                                                io_dtypes[0], io_dtypes[1], io_dtypes[2],
+                                                dtype_comp);
+}
+
+uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
     // Note: libxsmm hides memory management from the user, so we don't have to store pointer to compiled kernel to keep it alive.
     // libxsmm will keep the pointer alive until the end of program execution (it doesn't matter whether we save the pointer in the emitter or not)
-    libxsmm_kernel = libxsmm_dispatch_meltw_binary_v2(op_type, shape, flags);
+    const auto libxsmm_kernel = libxsmm_dispatch_meltw_binary_v2(m_op_type, m_shape, m_compile_flags);
+    return reinterpret_cast<uintptr_t>(libxsmm_kernel);
 }
 
 std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
@@ -480,14 +484,19 @@ UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generat
 
     const auto& unary_eltw_tpp = std::dynamic_pointer_cast<tpp::op::UnaryEltwiseTPP>(expr->get_node());
     OPENVINO_ASSERT(unary_eltw_tpp, "Invalid TPP node type detected in UnaryEltwiseTppEmitter");
-    auto op_type = unary_eltw_tpp->get_op_type();
+    m_op_type = unary_eltw_tpp->get_op_type();
     // Note: libxsmm implies column-major layout, so we have to swap M and N here
-    const auto& shape = libxsmm_create_meltw_unary_shape(N, M,
-                                                         io_strides[0], io_strides[1],
-                                                         io_dtypes[0], io_dtypes[1],
-                                                         dtype_comp);
+    m_shape = libxsmm_create_meltw_unary_shape(N, M,
+                                               io_strides[0], io_strides[1],
+                                               io_dtypes[0], io_dtypes[1],
+                                               dtype_comp);
+    m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_NONE;
+}
+
+uintptr_t UnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
     // Note: some operations (e.g. Relu) might require additional flags
-    libxsmm_kernel = libxsmm_dispatch_meltw_unary_v2(op_type, shape, LIBXSMM_MELTW_FLAG_BINARY_NONE);
+    const auto& libxsmm_kernel = libxsmm_dispatch_meltw_unary_v2(m_op_type, m_shape, m_compile_flags);
+    return reinterpret_cast<uintptr_t>(libxsmm_kernel);
 }
 
 
@@ -507,6 +516,13 @@ std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_preci
 void UnaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     OPENVINO_ASSERT(in.size() == 1, "UnaryEltwiseTppEmitter expects 1 input registers, got " + std::to_string(in.size()));
     OPENVINO_ASSERT(out.size() == 1, "UnaryEltwiseTppEmitter expects 1 output register, got " + std::to_string(out.size()));
+}
+
+ReduceTppEmitter::ReduceTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const ov::snippets::lowered::ExpressionPtr& expr)  :
+                                   UnaryEltwiseTppEmitter(h, isa, expr) {
+    m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_REDUCE_ROWS;
 }
 
 

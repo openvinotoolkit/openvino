@@ -443,8 +443,9 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     PassPipeline pipeline;
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     // TODO: remove SoftmaxDecomposition pass
-    pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
-    pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
+    //pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
+    // TODO: Reduce decomposition must be a backend-specific pass, since some backends (e.g.) may provide Reduce emitter
+    //pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();

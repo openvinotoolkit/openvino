@@ -96,6 +96,8 @@ protected:
     // aka leading dimensions
     std::vector<size_t> io_strides{};
     std::vector<snippets::lowered::PortDescriptorPtr> io_port_descriptors{};
+    // compile flags has the same type for all eltwises, so we keep them in the base class
+    libxsmm_bitfield m_compile_flags {0};
 };
 
 class BinaryEltwiseTppEmitter : public EltwiseTppEmitter {
@@ -106,11 +108,12 @@ public:
     size_t get_inputs_num() const override { return 2; }
     static void execute_binary_eltw_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
     uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_binary_eltw_kernel); }
-    uintptr_t get_compiled_kernel_ptr() const override { return reinterpret_cast<uintptr_t>(libxsmm_kernel); }
+    uintptr_t get_compiled_kernel_ptr() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
-    libxsmm_meltwfunction_binary libxsmm_kernel;
+    libxsmm_meltw_binary_shape m_shape;
+    libxsmm_meltw_binary_type m_op_type;
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 };
@@ -123,13 +126,20 @@ public:
     size_t get_inputs_num() const override { return 1; }
     static void execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0);
     uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_unary_eltw_kernel); }
-    uintptr_t get_compiled_kernel_ptr() const override { return reinterpret_cast<uintptr_t>(libxsmm_kernel); }
+    uintptr_t get_compiled_kernel_ptr() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
-    libxsmm_meltwfunction_unary libxsmm_kernel;
+    libxsmm_meltw_unary_shape m_shape;
+    libxsmm_meltw_unary_type m_op_type;
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
 };
 
+class ReduceTppEmitter : public UnaryEltwiseTppEmitter {
+public:
+    ReduceTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                     dnnl::impl::cpu::x64::cpu_isa_t isa,
+                     const ov::snippets::lowered::ExpressionPtr& expr);
+};
 }   // namespace intel_cpu
 }   // namespace ov

@@ -13,6 +13,7 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
+#include "snippets/op/reduce.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -39,9 +40,12 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     auto is_supported_by_tpp = [](const Output<Node>& out) {
         return op::TPPNodeFactory::is_supported(out.get_node_shared_ptr());
     };
-    const auto& unary = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic>(is_supported_by_tpp);
-    const auto& binary = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(is_supported_by_tpp);
-    auto supported_eltwise = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unary, binary});
+    // const auto& unary = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic>(is_supported_by_tpp);
+    // const auto& binary = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(is_supported_by_tpp);
+    // auto supported_eltwise = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unary, binary});
+    auto supported_eltwise = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
+                                                          ov::op::util::BinaryElementwiseArithmetic,
+                                                          ov::snippets::op::ReduceBase>(is_supported_by_tpp);
 
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
