@@ -25,6 +25,6 @@ class StepProvider(BaseStepProvider):
         cfg = config[action_name]
         self.executor = ClassProvider.provide(action_name, config=cfg)
 
-    def execute(self, data=None):
-        self.out_data = self.executor.get_refs(input_data=data)
+    def execute(self):
+        self.out_data = self.executor.get_refs()
 

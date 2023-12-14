@@ -402,7 +402,6 @@ def prepare_test_info(request, instance):
         'os': os.getenv('os', 'Undefined'),
         'framework': '',
         'network': network_name,
-        'batch': getattr(instance, 'batch'),
         'inputsize': '',
         'dynamismType': '',
         # TODO: remove 'fusing' key, when this will dropped in DataBase

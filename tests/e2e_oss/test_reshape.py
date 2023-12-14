@@ -53,8 +53,8 @@ def test_reshape(instance, configuration, prepare_test_info, inference_precision
     passed_pipelines = []
     shapes = configuration.shapes
 
-    if instance_ie_pipeline.get('postprocess'):
-        del instance_ie_pipeline['postprocess']
+    if instance_ie_pipeline.get('postprocessor'):
+        del instance_ie_pipeline['postprocessor']
 
     # running stage
     for pipeline in reshape_pipelines:

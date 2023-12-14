@@ -113,6 +113,7 @@ class ScoreTensorFlowBase(ClassProvider):
         self.additional_inputs = config.get("additional_inputs", [])
         self.user_output_node_names_list = config.get("user_output_node_names_list", [])
         self.override_default_inputs = config.get("override_default_inputs", False)
+        self.inputs = config["inputs"]
         self.res = {}
 
     def load_graph(self):
@@ -123,7 +124,7 @@ class ScoreTensorFlowBase(ClassProvider):
         raise NotImplementedError("{}\nDo not use {} class directly!".format(self.load_graph().__doc__,
                                                                              self.__class__.__name__))
 
-    def get_refs(self, input_data):
+    def get_refs(self):
         """Return TensorFlow model reference results."""
         log.info("Running inference with tensorflow ...")
         import tensorflow as tf
@@ -140,7 +141,7 @@ class ScoreTensorFlowBase(ClassProvider):
             input_layers = self.additional_inputs
         else:
             input_layers.extend(self.additional_inputs)
-        data_keys = [key for key in input_data.keys()]
+        data_keys = [key for key in self.inputs.keys()]
         if sorted(input_layers) != sorted(data_keys):
             raise ValueError('input data keys: {data_keys} do not match input '
                              'layers of network: {input_layers}'.format(data_keys=data_keys, input_layers=input_layers))
@@ -152,7 +153,7 @@ class ScoreTensorFlowBase(ClassProvider):
                 tensor = graph.get_tensor_by_name(input_layer_name)
             else:
                 tensor = graph.get_tensor_by_name(input_layer_name + ':0')
-            feed_dict[tensor] = input_data[input_layer_name]
+            feed_dict[tensor] = self.inputs[input_layer_name]
         output_tensors = []
         for name in output_layers:
             tensor = graph.get_tensor_by_name(name + ':0')

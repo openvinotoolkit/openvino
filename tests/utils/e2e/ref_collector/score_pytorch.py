@@ -24,6 +24,7 @@ class PytorchBaseRunner:
                             if onnx_dump_path specified as a directory, target dump file name will be constructed from
                             the path specified in config and model_name attribute + .onnx extension
         """
+        self.inputs = config["inputs"]
         self.model_name = config.get("model_name")
         self.torch_model_zoo_path = config.get("torch_model_zoo_path", '')
         os.environ['TORCH_HOME'] = self.torch_model_zoo_path
@@ -41,7 +42,7 @@ class PytorchBaseRunner:
         raise NotImplementedError("{}\nDo not use {} class directly!".format(self._get_model.__doc__,
                                                                              self.__class__.__name__))
 
-    def get_refs(self, input_data: dict):
+    def get_refs(self):
         """
         Run inference with PyTorch
         Note: input_data for the function have to be represented as a dictionary to keep uniform interface
@@ -55,7 +56,7 @@ class PytorchBaseRunner:
         import torch
         # PyTorch forward method accepts input data without mapping on input tensor
         # All models from pytorch pretrained have only one input, so we will work with 1st numpy array from input dict
-        input_array = next(iter(input_data.values()))
+        input_array = next(iter(self.inputs.values()))
         input_variable = torch.autograd.Variable(torch.Tensor(input_array))
         self.net.eval()
         self.res = {"output": self.net(input_variable).detach().numpy()}
@@ -174,7 +175,7 @@ class PytorchTorchvisionDetectionRunner(ClassProvider, PytorchBaseRunner):
         setattr(net, "input_size", self.input_size)
         return net
 
-    def get_refs(self, input_data: dict):
+    def get_refs(self):
         """
         Run inference with PyTorch
         Note: input_data for the function have to be represented as a dictionary to keep uniform interface
@@ -187,7 +188,7 @@ class PytorchTorchvisionDetectionRunner(ClassProvider, PytorchBaseRunner):
         log.info("Running inference with torch ...")
         import torch
         # PyTorch forward method accepts input data without mapping on input tensor
-        input_array = next(iter(input_data.values()))
+        input_array = next(iter(self.inputs.values()))
         input_variable = torch.autograd.Variable(torch.Tensor(input_array))
         self.net.eval()
         self.res = {"output": self.net(input_variable)[0]}
@@ -228,7 +229,7 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
         setattr(net, "input_size", self.input_size)
         return net
 
-    def get_refs(self, input_data: dict):
+    def get_refs(self):
         """
         Run inference with PyTorch
         Note: input_data for the function have to be represented as a dictionary to keep uniform interface
@@ -240,7 +241,7 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
         log.info("Running inference with torch ...")
         import torch
         # PyTorch forward method accepts input data without mapping on input tensor
-        input_variable = [torch.autograd.Variable(torch.Tensor(x)) for x in input_data.values()]
+        input_variable = [torch.autograd.Variable(torch.Tensor(x)) for x in self.inputs.values()]
         assert len(input_variable) == 2, "There should be 2 inputs for optical flow models"
         self.net.eval()
         # We are only interested in the final predicted flows (they are the most accurate ones),
@@ -343,7 +344,7 @@ class PytorchSavedModelRunner(ClassProvider, PytorchBaseRunner):
 
         return net
 
-    def get_refs(self, input_data):
+    def get_refs(self):
         """
         Run inference with PyTorch
         :param input_data: input data for the model. Could be list or dict with tensors
@@ -351,13 +352,13 @@ class PytorchSavedModelRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Running inference with torch ...")
         self.net.eval()
-        if isinstance(input_data, dict):
+        if isinstance(self.inputs, dict):
             try:
-                self.res = self.net(**input_data)
+                self.res = self.net(**self.inputs)
             except Exception as e:
                 log.info(f"Tried to infer model with unpacking arguments (self.res = self.net(**input_data)), but got "
                          f"exception: \n{e}")
-                self.res = self.net(input_data)
-        if isinstance(input_data, list):
-            self.res = self.net(*input_data)
+                self.res = self.net(self.inputs)
+        if isinstance(self.inputs, list):
+            self.res = self.net(*self.inputs)
         return self.res

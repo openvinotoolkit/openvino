@@ -108,7 +108,6 @@ def _test_run(instance, ir_gen_time_csv_name, load_net_to_plug_time_csv_name, me
         infer_result=ie_pipeline.fetch_results(),
         reference=ref_pipeline.fetch_results(),
         result_aligner=getattr(instance, 'align_results', None, ),
-        xml=ie_pipeline.details.xml
     )
 
     log.info("Running comparators:")

@@ -171,7 +171,7 @@ class CustomPostproc(ClassProvider, CustomPreproc):
 
     Implementation duplicates CustomPreproc preprocessor
     """
-    __action_name__ = "custom_postproc"
+    __action_name__ = "custom_postprocessor"
 
     pass
 

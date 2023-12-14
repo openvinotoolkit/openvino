@@ -4,38 +4,26 @@ from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConf
 from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get_refs_tf_hub
 from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
 from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
-from e2e_oss.pipelines.pipeline_templates.input_templates import generate_tf_hub_inputs
+from e2e_oss.utils.test_utils import generate_tf_hub_inputs, get_tf_hub_model
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
-from e2e_oss.pipelines.pipeline_templates.tf_hub_loader_template import tf_hub_loader
 
 
 class TFHUB_eltwise_Base(CommonConfig):
-    ref_collect_func = ''
-    model_link = ''
-    model_name = ''
-    model = ''
+    model = None
+    inputs = None
 
-    def __init__(self, batch, device, precision, **kwargs):
+    def prepare_prerequisites(self):
+        self.model = get_tf_hub_model(self.model_name, self.model_link)
+        self.inputs = generate_tf_hub_inputs(self.model)
+
+    def __init__(self, device, precision, **kwargs):
         self.ref_pipeline = OrderedDict([
-            tf_hub_loader(model_name=self.model_name, model_link=self.model_link),
-            generate_tf_hub_inputs(),
-            ('preprocess_tf_hub', OrderedDict([
-                ('assign_indices_tf_hub', {}),
-                ('align_with_batch_tf_hub', {'batch': 1, 'expand_dims': False})
-            ])),
-            get_refs_tf_hub(),
-            ("postprocess", {"align_with_batch": {"batch": batch}})])
-
+            get_refs_tf_hub(model=self.model, inputs=self.inputs)
+        ])
         self.ie_pipeline = OrderedDict([
-            tf_hub_loader(model_name=self.model_name, model_link=self.model_link),
-            generate_tf_hub_inputs(),
-            ('preprocess_tf_hub', OrderedDict([
-                ('assign_indices_tf_hub', {}),
-                ('align_with_batch_tf_hub', {'batch': 1, 'expand_dims': False})
-            ])),
             common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=self.model,
                                  precision=precision),
-            common_infer_step(device=device, batch=batch, **kwargs)
+            common_infer_step(device=device, inputs=self.inputs, **kwargs)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)

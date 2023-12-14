@@ -95,7 +95,7 @@ class _PyTorchBase(CommonConfig):
                                               "onnx_rt_ep": self.onnx_rt_ep,
                                               "convert_to_onnx": False,
                                               "get_model_args": self.get_model_args}}),
-            ("postprocess", {"align_with_batch": {"batch": batch}})
+            ("postprocessor", {"align_with_batch": {"batch": batch}})
         ]),
             "store_path": ref_from_model(self.model, framework="pytorch", opset=self.opset),
             "store_path_for_ref_save": ref_from_model(self.model, framework="pytorch", opset=self.opset,

@@ -17,12 +17,13 @@ class ScoreTensorFlow(ClassProvider):
 
     def __init__(self, config):
         self.saved_model_dir = resolve_dir_path(config["saved_model_dir"], as_str=True)
+        self.inputs = config["inputs"]
         self.res = {}
 
-    def get_refs(self, input_data):
+    def get_refs(self):
         import tensorflow as tf
         """Return TensorFlow model reference results."""
-        input_data_constants = {name: tf.constant(val) for name, val in input_data.items()}
+        input_data_constants = {name: tf.constant(val) for name, val in self.inputs.items()}
         log.info("Running inference with tensorflow {} ...".format(tf.__version__))
         model = tf.saved_model.load(self.saved_model_dir)
         infer_func = model.signatures["serving_default"]

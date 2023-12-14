@@ -41,7 +41,7 @@ class ONNXRuntimeEltwiseBaseClass(CommonConfig):
                              rename_inputs=[("data", self.input_name)],
                              **self.preproc),
             get_refs_onnx_runtime(model=model_path, onnx_rt_ep=self.onnx_rt_ep),
-            ("postprocess", OrderedDict([("align_with_batch", {"batch": batch})])),
+            ("postprocessor", OrderedDict([("align_with_batch", {"batch": batch})])),
         ])
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=self.input_file),

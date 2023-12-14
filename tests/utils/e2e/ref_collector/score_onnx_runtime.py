@@ -24,6 +24,7 @@ class ONNXRuntimeRunner(ClassProvider):
         self.cast_input_data = config.get("cast_input_data", True)
         self.cast_input_data_to_type = config.get("cast_input_data_to_type", "float32")
         self.res = None
+        self.inputs = config["inputs"]
 
     def run_rt(self, input_data):
         """Return ONNX model reference results."""
@@ -65,6 +66,6 @@ class ONNXRuntimeRunner(ClassProvider):
         res = {output_names[i]: out[i] for i in range(len(output_names))}
         return res
 
-    def get_refs(self, input_data):
-        self.res = multiprocessing_run(self.run_rt, [input_data], "ONNX Runtime Inference", timeout=200)
+    def get_refs(self):
+        self.res = multiprocessing_run(self.run_rt, [self.inputs], "ONNX Runtime Inference", timeout=200)
         return self.res

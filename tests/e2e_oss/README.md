@@ -26,34 +26,16 @@ following actions:
         ```bash
         pip3 install -r requirements.txt 
         ```
-        * Install Python modules required for Model Optimizer:
-        ```bash
-        pip3 install -r ../../tools/mo/requirements.txt
-        ```
-        * Build Inference Engine from sources or install it as part of DLDT\OpenVINO package
-            * In case of using Inference Engine built from source specify `PYTHONPATH` and `LD_LIBRARY_PATH` 
-            variables like in example bellow bellow:
-            ```bash
-            export PYTHONPATH=/dldt_repo_root/inference-engine/bin/intel64/Release/lib/python_api/python3.6
-            export LD_LIBRARY_PATH=/dldt_repo_root/inference-engine/bin/intel64/Release/lib/
-            ``` 
-            * In case of using Inference Engine from package follow post install instruction to configure environment
-
-        * To make test data available (like models, references, input files and etc.):
-            * Pull lfs data
-            ```bash
-            git lfs pull
-            ```
-            * Mount VDP shared drives following [the instruction](https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders)
-            <br>After share is mounted update paths to the models in [env_config_local.yml](env_config_local.yml)
-            to point to correct path where share was mounted.
+        * Mount VDP shared drives following [the instruction](https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders)
+        <br>After share is mounted update paths to the models in [env_config_local.yml](env_config_local.yml)
+        to point to correct path where share was mounted.
             
     * Running:
     ~~~bash
     pytest test.py
     ~~~
 
-2. Run (non-runtime) reference collection:
+2.  Run (non-runtime) reference collection:
     ~~~bash
     pytest collect_refs.py
     ~~~
@@ -70,13 +52,8 @@ The following is the list of the main components of the E2E OSS tests.
     e2e_oss/
     |__ test.py                 Main entry-point to run pytest tests
     |__ collect_refs.py         Main entry-point to run pytest ref collection
-    |__ test_multi_request.py   Main entry-point to run multi request test scenario with comparing inference
-                                results from each infer request between themselve or with references from original
-                                framework
-
     |__ test_reshape.py                            Main entry-point to run reshape pipelines
     |__ test_dynamism.py                           Main entry-point to run dynamism pipelines
-    |__ test_first_time_inference_dynamism.py      Main entry-point to run FIL in dynamism pipelines
     |__ test_compare_onnx_ir.py                    Runner for comparing IR inference results to ONNX model inference results (through ONNX importer) 
                                                    using eltwise comparison
 
@@ -85,7 +62,6 @@ The following is the list of the main components of the E2E OSS tests.
     |__ test_rules.yml          Test rules configuration file
 
     |__ pipelines/              Test pipelines definitions
-    |__ test_data/              Test data files (inputs, precollected references)
     |__ plugins/                Local plugins for pytest
 
     utils/e2e/
@@ -93,11 +69,11 @@ The following is the list of the main components of the E2E OSS tests.
     |__ comparator/             Reference/Inference Engine results comparators
                                 (i.e. classification, object detection)
     |__ infer/                  Inference engine runners
-    |__ ir_provider/            IR providers (i.e. model optimizer runner)
+    |__ ir_provider/            IR providers (i.e. OpenVINO converter)
     |__ postprocessor/          Inference *output* processors
     |__ preprocessor/           Inference *input* processors
     |__ readers/                File readers (i.e. .npy, .npz readers)
-    |__ ref_collector/          Reference collectors (Caffe, MXNet, ...)
+    |__ ref_collector/          Reference collectors (TensorFlow, PyTorch ...)
 
 ## Add new model
 
@@ -186,7 +162,7 @@ __is_test_config__ = True
                     ("align_with_batch", {"batch": 1}), # add batch dimension to input data
                 ])),
                 ('get_refs', {'score_tf': {'model': "/path/to/model")}}),
-                ("postprocess", OrderedDict([
+                ("postprocessor", OrderedDict([
                     ("remove_layer", {"layers_to_remove": ["name_of_layer_that_should_be_removed"]}), # if ref and ie layers does not match
                     ("align_with_batch", {"batch": self.batch}), # compare with batch size
                 ]))
@@ -210,7 +186,7 @@ __is_test_config__ = True
                 read_npz_input(path="/path/to/input/data"),
                 assemble_preproc(batch=1),
                 get_refs_tf(model="/path/to/model"),
-                ("postprocess", OrderedDict([
+                ("postprocessor", OrderedDict([
                     ("remove_layer", {"layers_to_remove": ["name_of_layer_that_should_be_removed"]}), # if ref and ie layers does not match
                     ("align_with_batch", {"batch": self.batch}), # compare with batch size
                 ]))
@@ -247,7 +223,7 @@ __is_test_config__ = True
                                  model=prepend_with_env_path(self.model_env_key, self.model),
                                  precision=precision, **self.additional_mo_args),
             common_infer_step(batch=batch, device=device),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("permute_shape", {"order": (0,2,3,1)}),
             ]))
         ])

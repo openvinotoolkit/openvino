@@ -249,10 +249,7 @@ def pytest_collection_modifyitems(session, config, items):
         if not hasattr(i, 'callspec'):
             items.remove(i)
 
-    # Sorting by batch is set for skipping generating IR with batch == 1 twice.
-    # Test with batch > 1 will reuse IR with batch == 1
-    items.sort(key=lambda item: (item.callspec.params['instance'].batch,
-                                 item.callspec.params['instance'].__class__.__name__))
+    items.sort(key=lambda item: item.callspec.params['instance'].__class__.__name__)
 
     logger.info("Preparing tests for test session in the following folder: {}".format(session.startdir))
 

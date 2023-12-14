@@ -75,9 +75,9 @@ def update_pre_post_process_reshape_config(instance_ie_pipeline, shapes, instanc
                                                                         changed_dims))
 
     # postprocess stage
-    if 'postprocess' in instance_ie_pipeline:
+    if 'postprocessor' in instance_ie_pipeline:
         shape = iter(shapes.values()).__next__()
-        for action_name, action_attrs in instance_ie_pipeline['postprocess'].items():
+        for action_name, action_attrs in instance_ie_pipeline['postprocessor'].items():
             if 'batch' in action_attrs:
                 action_attrs['batch'] = shape[0]
     return config

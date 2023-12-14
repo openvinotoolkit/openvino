@@ -1,5 +1,3 @@
-batch:
-  - 1
 device:
   - CPU
 precision:

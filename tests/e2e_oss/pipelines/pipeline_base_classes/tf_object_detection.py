@@ -35,7 +35,7 @@ class TF_OD_Config(CommonConfig):
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("tf_to_common_od_format", {}),
                 ("remove_layer", {"layers_to_remove": ["raw_detection_boxes", "raw_detection_scores",
                                                        "detection_multiclass_scores"]}),

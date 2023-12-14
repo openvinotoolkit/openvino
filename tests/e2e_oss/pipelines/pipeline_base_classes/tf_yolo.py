@@ -43,7 +43,7 @@ class TF_YOLO_V3_Base(TF_YoloBase):
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("align_with_batch", {"batch": batch}),
                 ("permute_shape", {"order": (0, 3, 1, 2)}),
                 ("yolo_region", {"masks_length": len(yolo_attrs["masks"][0]), "classes": yolo_attrs["classes"],
@@ -65,7 +65,7 @@ class TF_YOLO_V3_Base(TF_YoloBase):
                                  model=model_path, precision=precision, input_shape="(1,416,416,3)",
                                  transformations_config=mo_cfg),
             common_infer_step(device=device, batch=batch, **kwargs),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("parse_yolo_V3_region", {"classes": yolo_attrs["classes"], "coords": yolo_attrs["coords"],
                                           'input_w': self.w, 'input_h': self.h,
                                           "masks_length": len(yolo_attrs["masks"][0]),
@@ -96,7 +96,7 @@ class TF_YOLO_V3_No_Region_Base(TF_YoloBase):
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {
                 "path": ref_from_model(model_name=getattr(self, "model_ref_path", self.model), framework="tf")}}),
-            ("postprocess", OrderedDict([("align_with_batch", {"batch": batch})]))
+            ("postprocessor", OrderedDict([("align_with_batch", {"batch": batch})]))
         ])
 
         self.ie_pipeline = OrderedDict([
@@ -105,7 +105,7 @@ class TF_YOLO_V3_No_Region_Base(TF_YoloBase):
             common_ir_generation(mo_out=self.environment["mo_out"],
                                  model=model_path, precision=precision, **self.mo_additional_args),
             common_infer_step(device=device, batch=batch, **kwargs),
-            ('postprocess', postprocess_args)
+            ('postprocessor', postprocess_args)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)
 
@@ -131,7 +131,7 @@ class TF_YOLO_V2_Base(TF_YoloBase):
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("align_with_batch", {"batch": batch}),
                 ("permute_shape", {"order": (0, 3, 1, 2)}),
                 ("yolo_region", {"classes": yolo_attrs["classes"], "coords": yolo_attrs["coords"],
@@ -151,7 +151,7 @@ class TF_YOLO_V2_Base(TF_YoloBase):
                                  model=model_path, precision=precision, input_shape="(1,416,416,3)",
                                  transformations_config=mo_cfg),
             common_infer_step(device=device, batch=batch, **kwargs),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("parse_yolo_V2_region", {"classes": yolo_attrs["classes"], "coords": yolo_attrs["coords"],
                                           "num": yolo_attrs["num"], "anchors": yolo_attrs["anchors"],
                                           "grid": (13, 13)}),
@@ -182,7 +182,7 @@ class TF_YOLO_V2_Full_No_Region_Base(TF_YoloBase):
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(
                 model_name=getattr(self, "model_ref_path", self.model), framework="tf")}}),
-            ("postprocess", OrderedDict([("align_with_batch", {"batch": batch})]))
+            ("postprocessor", OrderedDict([("align_with_batch", {"batch": batch})]))
         ])
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),
@@ -190,6 +190,6 @@ class TF_YOLO_V2_Full_No_Region_Base(TF_YoloBase):
             common_ir_generation(mo_out=self.environment["mo_out"], model=model_path, precision=precision,
                                  **self.mo_additional_args),
             common_infer_step(device=device, batch=batch, **kwargs),
-            ('postprocess', postprocess_args)
+            ('postprocessor', postprocess_args)
         ])
         self.comparators = eltwise_comparators(precision=precision, device=device)

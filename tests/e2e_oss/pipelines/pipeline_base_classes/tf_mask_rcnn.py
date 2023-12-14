@@ -42,7 +42,7 @@ class TF_Mask_RCNN_Config(CommonConfig):
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model,
                                                                   framework="tf")}}),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("tf_to_common_od_format", {}),
                 ("remove_layer",
                  {"layers_to_remove": ["raw_detection_boxes", "raw_detection_scores",
@@ -67,7 +67,7 @@ class TF_Mask_RCNN_Config(CommonConfig):
             ('infer', {'ie_sync': {"device": device, "network_modifiers": {
                 'set_batch_using_reshape': {"batch": batch, 'target_layers': ['image_tensor']}},
                        "timeout": 1000}}),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("parse_object_detection", {"target_layers": ['reshape_do_2d']}),
                 ("rename_outputs", {"rename_input_pairs": [("reshape_do_2d", "tf_detections"),
                                                            ('SecondStageBoxPredictor_1/Conv_3/BiasAdd',

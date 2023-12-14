@@ -31,6 +31,7 @@ class PyTorchToOnnxRunner:
                             if onnx_dump_path specified as a directory, target dump file name will be constructed from
                             the path specified in config and model_name attribute + .onnx extension
         """
+        self.inputs = config["inputs"]
         self.model_name = config["model_name"]
         self.torch_model_zoo_path = config["torch_model_zoo_path"]
         os.environ['TORCH_HOME'] = os.path.join(self.torch_model_zoo_path, self.model_name)
@@ -46,7 +47,7 @@ class PyTorchToOnnxRunner:
         raise NotImplementedError("{}\nDo not use {} class directly!".format(self._get_model.__doc__,
                                                                              self.__class__.__name__))
 
-    def get_refs(self, input_data):
+    def get_refs(self):
         """
         Run inference with Onnx runner
         Note: input_data for the function have to be represented as a dictionary to keep uniform interface
@@ -58,7 +59,7 @@ class PyTorchToOnnxRunner:
         """
         runner = ONNXRuntimeRunner({"model": self.onnx_model_path,
                                     "onnx_rt_ep": "CPUExecutionProvider"})
-        res = runner.get_refs(input_data)
+        res = runner.get_refs(self.inputs)
         self.res = {"output": next(iter(res.values()))}
         return self.res
 

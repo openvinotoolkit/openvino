@@ -28,16 +28,17 @@ class ScorePaddlePaddle(ClassProvider):
         self.model = Path(config["model"])
         self.params_filename = config.get("params_filename", None)
         self.cast_input_data_to_type = config.get("cast_input_data_to_type", "float32")
+        self.inputs = config["inputs"]
         self.res = {}
 
-    def get_refs(self, input_data: dict):
+    def get_refs(self):
         """Return PaddlePaddle model reference results."""
         import paddle
 
         log.info("Running inference with PaddlePaddle ...")
 
-        for layer, data in input_data.items():
-            input_data[layer] = data.astype(self.cast_input_data_to_type)
+        for layer, data in self.inputs.items():
+            self.inputs[layer] = data.astype(self.cast_input_data_to_type)
 
         executor = paddle.fluid.Executor(paddle.fluid.CPUPlace())
 
@@ -48,7 +49,7 @@ class ScorePaddlePaddle(ClassProvider):
             model_filename=self.model.name,
             params_filename=self.params_filename
         )
-        out = executor.run(inference_program, feed=input_data, fetch_list=output_layers, return_numpy=False)
+        out = executor.run(inference_program, feed=self.inputs, fetch_list=output_layers, return_numpy=False)
         self.res = dict(zip(map(lambda layer: layer.name, output_layers), out))
 
         log.info("PaddlePaddle reference collected successfully")

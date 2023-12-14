@@ -61,8 +61,8 @@ def test_dynamism(instance, configuration, prepare_test_info, copy_input_files, 
     prepare_test_info['inputsize'] = "__".join([f"{i}_{v}" for i, v in ir_input_shapes.items()])
     prepare_test_info['dynamismType'] = configuration.dynamism_type
 
-    if instance_ie_pipeline.get('postprocess'):
-        del instance_ie_pipeline['postprocess']
+    if instance_ie_pipeline.get('postprocessor'):
+        del instance_ie_pipeline['postprocessor']
 
     check_mo_precision(instance_ie_pipeline)
     dynamic_config = dynamism_config(instance_ie_pipeline, ir_input_shapes, test_name, default_shapes, changed_values,

@@ -45,7 +45,7 @@ class _PyTorchHuggingFaceBase(CommonConfig):
             ("get_refs", {'score_pytorch_saved_model': {"model": self.model,
                                                         "model-path": self.ref_model_path,
                                                         }}),
-            ("postprocess", OrderedDict([
+            ("postprocessor", OrderedDict([
                 ("filter_torch_data", {"target_layers": self.target_layers}),
                 ("align_with_batch", {"batch": 1})
              ]))
@@ -56,7 +56,7 @@ class _PyTorchHuggingFaceBase(CommonConfig):
         }
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="pytorch")}}),
-            ('postprocess', {"align_with_batch": {"batch": batch},
+            ('postprocessor', {"align_with_batch": {"batch": batch},
                              "names_to_indices": {}}),
         ])
         self.ie_pipeline = OrderedDict([
@@ -74,7 +74,7 @@ class _PyTorchHuggingFaceBase(CommonConfig):
                                  precision=precision,
                                  **self.additional_args),
             common_infer_step(device=device, batch=batch, **kwargs),
-            ("postprocess", {"names_to_indices": {}})
+            ("postprocessor", {"names_to_indices": {}})
         ])
 
         self.comparators = eltwise_comparators(device=device, precision=precision)

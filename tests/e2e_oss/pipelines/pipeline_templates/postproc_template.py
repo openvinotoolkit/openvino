@@ -1,4 +1,4 @@
-"""Postprocessing templates processed by testing framework.
+"""ing templates processed by testing framework.
 """
 from collections import OrderedDict
 
@@ -81,7 +81,7 @@ def assemble_postproc_tf(batch=None, align_with_batch_od=False, **kwargs):
     for preproc, config in kwargs.items():
         steps.append((preproc, config))
 
-    return "postprocess", dict(steps)
+    return "postprocessor", dict(steps)
 
 
 def paddlepaddle_od_postproc(target_layers=None):

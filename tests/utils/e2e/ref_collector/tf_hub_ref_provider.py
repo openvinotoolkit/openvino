@@ -26,5 +26,5 @@ class TFHubStepProvider(BaseStepProvider):
         cfg = config[action_name]
         self.executor = ClassProvider.provide(action_name, config=cfg)
 
-    def execute(self, data):
-        self.out_data = self.executor.get_refs(*data)
+    def execute(self):
+        self.out_data = self.executor.get_refs()

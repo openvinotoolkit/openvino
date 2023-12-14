@@ -20,7 +20,7 @@ class ClassProvider(BaseProvider):
 
 
 class StepProvider(BaseStepProvider):
-    __step_name__ = "postprocess"
+    __step_name__ = "postprocessor"
 
     def __init__(self, config):
         self.out_data = None

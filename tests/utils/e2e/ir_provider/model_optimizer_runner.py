@@ -62,7 +62,7 @@ class OVCMORunner(ClassProvider):
 
         return args
 
-    def get_ir(self, input_data=None):
+    def get_ir(self):
         from openvino import convert_model, save_model
         from openvino.tools.mo.utils.cli_parser import input_shape_to_input_cut_info, input_to_input_cut_info
 

@@ -27,7 +27,7 @@ class TFLiteClassification(CommonConfig):
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": ref_from_model(model_name=self.model, framework="tf")}}),
-            ("postprocess", {"align_with_batch": {"batch": batch}, "normalize": {"factor": 255}})])
+            ("postprocessor", {"align_with_batch": {"batch": batch}, "normalize": {"factor": 255}})])
 
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=common_input_file),

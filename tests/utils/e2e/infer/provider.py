@@ -25,6 +25,6 @@ class StepProvider(BaseStepProvider):
         action_name = next(iter(config))
         self.executor = ClassProvider.provide(action_name, config=config[action_name])
 
-    def execute(self, data):
+    def execute(self, model):
         with log_timestamp('Inference'):
-            self.out_data = self.executor.infer(data)
+            self.out_data = self.executor.infer(model)

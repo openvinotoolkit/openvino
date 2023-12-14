@@ -39,7 +39,7 @@ class Pregenerated_od_base(CommonConfig):
 
         self.ref_pipeline = OrderedDict([
             ("get_refs", {"precollected": {"path": self.ref_file}}),
-            ("postprocess", {"align_with_batch_od": {"batch": batch}})])
+            ("postprocessor", {"align_with_batch_od": {"batch": batch}})])
 
         self.ie_pipeline = OrderedDict([
             read_npz_input(path=self.input_file),

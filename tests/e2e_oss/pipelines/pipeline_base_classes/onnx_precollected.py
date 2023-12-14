@@ -32,7 +32,7 @@ class ONNXPrecollectedProtobufBaseClass(CommonConfig):
 
         self.ref_pipeline = OrderedDict([
             read_pb_input(path=outputs_map),
-            ("postprocess", {"align_with_batch": {"batch": batch}})
+            ("postprocessor", {"align_with_batch": {"batch": batch}})
         ])
 
         self.ie_pipeline = OrderedDict([
@@ -70,7 +70,7 @@ class ONNXPrecollectedNPYBaseClass(CommonConfig):
 
         self.ref_pipeline = OrderedDict([
             read_npy_input(path=outputs_map),
-            ("postprocess", {"align_with_batch": {"batch": batch}})
+            ("postprocessor", {"align_with_batch": {"batch": batch}})
         ])
         self.ie_pipeline = OrderedDict([
             read_npy_input(path=inputs_map),
