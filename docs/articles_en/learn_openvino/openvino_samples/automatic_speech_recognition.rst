@@ -1,7 +1,7 @@
 .. {#openvino_sample_automatic_speech_recognition}
 
-Automatic Speech Recognition Sample
-===================================
+[DEPRECATED] Automatic Speech Recognition Sample
+====================================================
 
 
 
