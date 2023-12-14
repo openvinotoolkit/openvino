@@ -179,6 +179,7 @@ def runCommandList(commit, cfgData):
         # {commit}, {makeCmd}, {cashedPath} placeholders
         pathExists, cashedPath = getCashedPath(commit, cfgData)
         if pathExists:
+            # todo - and {} in cmd
             strCommand = cmd["cmd"].format(
                 cashedPath=cashedPath,
                 commit=commit, makeCmd=makeCmd)
@@ -189,7 +190,11 @@ def runCommandList(commit, cfgData):
         # define command launch destination
         cwd = defRepo
         if "path" in cmd:
-            cwd = cmd["path"].format(buildPath=buildPath, gitPath=gitPath)
+            # todo - cashedpath
+            cwd = cmd["path"].format(
+                buildPath=buildPath,
+                gitPath=gitPath,
+                cashedPath=cashedPath)
         # run and check
         commitLogger.info("Run command: {command}".format(
             command=formattedCmd)
