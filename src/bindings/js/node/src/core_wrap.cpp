@@ -36,22 +36,19 @@ Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    ReadModelArgs* args;
-
     try {
+        ReadModelArgs* args;
         args = new ReadModelArgs(info);
+        auto model = args->model_str.empty() ? _core.read_model(args->model_path, args->bin_path)
+                                             : _core.read_model(args->model_str, args->weight_tensor);
+        delete args;
+
+        return ModelWrap::Wrap(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
         return info.Env().Undefined();
     }
-
-    auto model = args->model_str.empty() ? _core.read_model(args->model_path, args->bin_path)
-                                         : _core.read_model(args->model_str, args->weight_tensor);
-
-    delete args;
-
-    return ModelWrap::Wrap(info.Env(), model);
 }
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
