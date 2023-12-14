@@ -7,7 +7,7 @@
 #include "helper.hpp"
 #include "partial_shape_wrap.hpp"
 
-Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
+Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info), _output{} {}
 
 Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
     return Output::DefineClass(
@@ -60,7 +60,9 @@ Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
 }
 
-Output<const ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<const ov::Node>>(info) {}
+Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<Output<const ov::Node>>(info),
+      _output{} {}
 
 Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
     return Output::DefineClass(

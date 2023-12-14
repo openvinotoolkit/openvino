@@ -6,7 +6,11 @@
 #include "addon.hpp"
 #include "node_output.hpp"
 
-ModelWrap::ModelWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<ModelWrap>(info) {}
+ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<ModelWrap>(info),
+      _model{},
+      _core{},
+      _compiled_model{} {}
 
 Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
@@ -23,7 +27,7 @@ Napi::Object ModelWrap::Init(Napi::Env env, Napi::Object exports) {
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>(); 
+    const auto data = env.GetInstanceData<AddonData>();
     data->model_prototype = ref;
 
     exports.Set("Model", prototype);

@@ -10,7 +10,7 @@
 #include "model_wrap.hpp"
 #include "read_model_args.hpp"
 
-CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core() {}
+CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
 Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,

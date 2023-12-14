@@ -3,8 +3,6 @@
 
 #include "helper.hpp"
 
-#include <iostream>
-
 #include "tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {

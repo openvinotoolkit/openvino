@@ -8,7 +8,9 @@
 #include "infer_request.hpp"
 #include "node_output.hpp"
 
-CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CompiledModelWrap>(info) {}
+CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<CompiledModelWrap>(info),
+      _compiled_model{} {}
 
 Napi::Function CompiledModelWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,

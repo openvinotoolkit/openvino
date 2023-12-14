@@ -5,7 +5,9 @@
 
 #include "addon.hpp"
 
-PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PartialShapeWrap>(info) {
+PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<PartialShapeWrap>(info),
+      _partial_shape{} {
     const size_t attrs_length = info.Length();
 
     if (attrs_length == 0) {

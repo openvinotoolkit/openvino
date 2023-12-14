@@ -16,7 +16,9 @@ namespace {
 std::mutex infer_mutex;
 }
 
-InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
+InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<InferRequestWrap>(info),
+      _infer_request{} {}
 
 Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
