@@ -48,7 +48,7 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
    with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
    For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
-   For PyTorch models, Python API is the only conversion option. 
+   For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only conversion option. 
 
    TensorFlow may present additional considerations :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
@@ -61,19 +61,19 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
    :align: center
    :alt: OpenVINO workflow diagram 
 
-| * Saved on disk
-|    A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
-|
-|      * OpenVINO IR: pair of .xml and .bin files
-|      * ONNX: .onnx file
-|      * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
-|      * TensorFlow Lite: .tflite file
-|      * PaddlePaddle: .pdmodel file
+| **Saved on disk**
 
-| * Loaded but not compiled
+|    A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
+|       OpenVINO IR: pair of .xml and .bin files
+|       ONNX: .onnx file
+|       TensorFlow: directory with a .pb file and two subfolders or just a .pb file
+|       TensorFlow Lite: .tflite file
+|       PaddlePaddle: .pdmodel file
+
+| **Loaded but not compiled**
 |    A model object (``ov.Model``) is created in memory either by parsing a file or converting an existing framework object. Inference cannot be done with this object yet as it is not attached to any specific device, but it allows customization such as reshaping its input, applying quantization or even adding preprocessing steps before compiling the model.
 
-| * Loaded and compiled
+| **Loaded and compiled**
 |   This state is achieved when one or more devices are specified for a model object to run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling inference.
 
 For more information on each function, see the :doc:`OpenVINO Workflow <openvino_workflow>` page.

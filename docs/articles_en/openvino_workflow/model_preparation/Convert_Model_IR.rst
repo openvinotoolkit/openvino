@@ -19,7 +19,7 @@ Convert to OpenVINO IR
 
 
 :doc:`IR (Intermediate Representation) <openvino_ir>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
-Convert the model into OpenVINO IR for `better performance <#IR-Conversion-Benefits>`__ .
+Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__ .
 
 Convert Models
 ##############################################
