@@ -52,14 +52,6 @@ Napi::Object PartialShapeWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-ov::PartialShape PartialShapeWrap::get_partial_shape() {
-    return this->_partial_shape;
-}
-
-void PartialShapeWrap::set_partial_shape(const ov::PartialShape& partial_shape) {
-    _partial_shape = partial_shape;
-}
-
 Napi::Object PartialShapeWrap::Wrap(Napi::Env env, ov::PartialShape partial_shape) {
     const auto prototype = env.GetInstanceData<AddonData>()->partial_shape_prototype;
     if (!prototype) {
@@ -67,7 +59,7 @@ Napi::Object PartialShapeWrap::Wrap(Napi::Env env, ov::PartialShape partial_shap
     }
     auto obj = prototype->New({});
     const auto t = Napi::ObjectWrap<PartialShapeWrap>::Unwrap(obj);
-    t->set_partial_shape(partial_shape);
+    t->_partial_shape = partial_shape;
     
     return obj;
 }
