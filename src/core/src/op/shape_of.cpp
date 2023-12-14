@@ -62,6 +62,9 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
         auto eval_status =
             shape_of::evaluate_shape_of(outputs[0], is_upper ? in_shape.get_max_shape() : in_shape.get_min_shape());
 
+        if (in_shape.size() == 0)
+            return eval_status;
+
         // use node output type as it can be different than output tensor type
         // e.g. when v3::ShapeOf is converted to v0::ShapeOf then the output tensor will have always i64
         // but node output type is transferred from v3 and can be i32 (dimension inf bound is i32 max)
