@@ -97,20 +97,12 @@ void RuntimeConfigurator::init_first_iter_loop_descriptor(const LinearIR::LoopMa
                                                           RuntimeConfig::LoopDescriptor& first_iter_loop_desc) {
     const auto loop_ports = loop_info->get_all_ports();
     const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
-    const auto skip_evaluation = !is_wa_dynamic && loop_info->get_work_amount() <= loop_info->get_increment();
 
-    first_iter_loop_desc.work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
-                                       skip_evaluation ? 0 : loop_info->get_increment();
+    first_iter_loop_desc.work_amount = is_wa_dynamic ? loop_info->get_work_amount() : loop_info->get_increment();
     first_iter_loop_desc.ptr_increments.resize(loop_ports.size());
     first_iter_loop_desc.finalization_offsets.resize(loop_ports.size());
     first_iter_loop_desc.increment = loop_info->get_increment();
     first_iter_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::First;
-
-    if (skip_evaluation) {
-        std::for_each(first_iter_loop_desc.ptr_increments.begin(), first_iter_loop_desc.ptr_increments.end(), [](int64_t& value) { value = 0; });
-        std::for_each(first_iter_loop_desc.finalization_offsets.begin(), first_iter_loop_desc.finalization_offsets.end(), [](int64_t& value) { value = 0; });
-        return;
-    }
 
     const auto& increment = first_iter_loop_desc.increment;
     for (size_t i = 0; i < loop_ports.size(); ++i) {
@@ -118,14 +110,16 @@ void RuntimeConfigurator::init_first_iter_loop_descriptor(const LinearIR::LoopMa
         first_iter_loop_desc.ptr_increments[i] =
             LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
                                                                                        : increment * loop_port.ptr_increment * loop_port.data_size;
-        first_iter_loop_desc.finalization_offsets[i] = 0;
+        first_iter_loop_desc.finalization_offsets[i] =
+            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
+                                                                                             : loop_port.finalization_offset * loop_port.data_size;
     }
 }
 
 void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
                                                       RuntimeConfig::LoopDescriptor& vector_loop_desc) {
     const auto loop_ports = loop_info->get_all_ports();
-    const auto first_iter_desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
+    auto first_iter_desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
     const auto first_needed = first_iter_desc_it != m_config.loops.at(loop_id).cend() && first_iter_desc_it->work_amount > 0;
     const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
     const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
@@ -139,8 +133,8 @@ void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManage
     vector_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::Vector;
 
     if (skip_evaluation) {
-        std::for_each(vector_loop_desc.ptr_increments.begin(), vector_loop_desc.ptr_increments.end(), [](int64_t& value) { value = 0; });
-        std::for_each(vector_loop_desc.finalization_offsets.begin(), vector_loop_desc.finalization_offsets.end(), [](int64_t& value) { value = 0; });
+        std::fill(vector_loop_desc.ptr_increments.begin(), vector_loop_desc.ptr_increments.end(), 0);
+        std::fill(vector_loop_desc.finalization_offsets.begin(), vector_loop_desc.finalization_offsets.end(), 0);
         return;
     }
 
@@ -150,21 +144,31 @@ void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManage
         vector_loop_desc.ptr_increments[i] =
             LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
                                                                                        : increment * loop_port.ptr_increment * loop_port.data_size;
-        vector_loop_desc.finalization_offsets[i] =
-            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
+        if (!first_needed)
+            vector_loop_desc.finalization_offsets[i] =
+                LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
                                                                                              : loop_port.finalization_offset * loop_port.data_size;
+    }
+    if (first_needed) {
+        vector_loop_desc.finalization_offsets = first_iter_desc_it->finalization_offsets;
+        std::fill(first_iter_desc_it->finalization_offsets.begin(), first_iter_desc_it->finalization_offsets.end(), 0);
     }
 }
 
 void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
                                                     RuntimeConfig::LoopDescriptor& tail_loop_desc) {
     const auto loop_ports = loop_info->get_all_ports();
-    auto vector_desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
-    const auto vector_needed = vector_desc_it != m_config.loops.at(loop_id).end() && vector_desc_it->work_amount > 0;
+    auto& loop_descs = m_config.loops.at(loop_id);
+    auto last_execution_loop = loop_descs.end();
+     // todo: make reverse
+    for (auto desc_it = loop_descs.begin(); desc_it != loop_descs.end(); ++desc_it) {
+        if (desc_it->type != RuntimeConfig::LoopDescriptor::Tail && desc_it->work_amount > 0) {
+            last_execution_loop = desc_it;
+        }
+    }
+    const auto there_is_before_loop = last_execution_loop != loop_descs.end();
     const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
-    const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() :
-                                    vector_needed ? vector_desc_it->work_amount % loop_info->get_increment()
-                                                  : loop_info->get_work_amount() % loop_info->get_increment();
+    const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() : loop_info->get_work_amount() % loop_info->get_increment();
     const auto skip_evaluation = !is_wa_dynamic && tail_loop_desc.work_amount == 0;
 
     tail_loop_desc.work_amount = target_work_amount;
@@ -174,8 +178,8 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
     tail_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::Tail;
 
     if (skip_evaluation) {
-        std::for_each(tail_loop_desc.ptr_increments.begin(), tail_loop_desc.ptr_increments.end(), [](int64_t& value) { value = 0; });
-        std::for_each(tail_loop_desc.finalization_offsets.begin(), tail_loop_desc.finalization_offsets.end(), [](int64_t& value) { value = 0; });
+        std::fill(tail_loop_desc.ptr_increments.begin(), tail_loop_desc.ptr_increments.end(), 0);
+        std::fill(tail_loop_desc.finalization_offsets.begin(), tail_loop_desc.finalization_offsets.end(), 0);
         return;
     }
 
@@ -185,14 +189,14 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
         tail_loop_desc.ptr_increments[i] =
             LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
                                                                                        : increment * loop_port.ptr_increment * loop_port.data_size;
-        if (!vector_needed)
+        if (!there_is_before_loop)
             tail_loop_desc.finalization_offsets[i] =
                 LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
                                                                                                  : loop_port.finalization_offset * loop_port.data_size;
     }
-    if (vector_needed) {
-        tail_loop_desc.finalization_offsets = vector_desc_it->finalization_offsets;
-        std::fill(vector_desc_it->finalization_offsets.begin(), vector_desc_it->finalization_offsets.end(), 0);
+    if (there_is_before_loop) {
+        tail_loop_desc.finalization_offsets = last_execution_loop->finalization_offsets;
+        std::fill(last_execution_loop->finalization_offsets.begin(), last_execution_loop->finalization_offsets.end(), 0);
     }
 }
 
