@@ -212,7 +212,6 @@ bool max_pools_8_are_equal(const Node* lhs, const Node* rhs) {
            l_pool->get_index_element_type() == r_pool->get_index_element_type() &&
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
-           
 bool broadcasts_1_are_equal(const Node* lhs, const Node* rhs) {
     const auto l_broadcast = as_type<const v1::Broadcast>(lhs);
     const auto r_broadcast = as_type<const v1::Broadcast>(rhs);
