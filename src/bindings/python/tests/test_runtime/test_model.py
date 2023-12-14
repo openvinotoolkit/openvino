@@ -568,6 +568,7 @@ def test_model_add_remove_variable():
     model.remove_variable(variable_1)
     assert len(model.get_variables()) == 1
 
+
 def test_save_model_with_none():
     with pytest.raises(AttributeError) as e:
         save_model(model=None, output_model='model.xml')
