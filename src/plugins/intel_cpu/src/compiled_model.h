@@ -38,7 +38,7 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
     void set_property(const ov::AnyMap& properties) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented  CompiledModel::set_property is not supported by CPU plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of compiled model. Set property for entire Core before compiling the model");
     };
 
 private:
