@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
@@ -336,6 +337,48 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestI64Only) {
 
         auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
         model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, Sharedv1Broadcasts) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
+        auto broadcast_v1_0 = std::make_shared<v1::Broadcast>(input, target_shape);
+        auto broadcast_v1_1 = std::make_shared<v1::Broadcast>(input, target_shape, AutoBroadcastType::PDPD);
+        auto broadcast_v1_2 = std::make_shared<v1::Broadcast>(input, target_shape);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input, target_shape});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
+        auto broadcast_v1_0 = std::make_shared<v1::Broadcast>(input, target_shape);
+        auto broadcast_v1_1 = std::make_shared<v1::Broadcast>(input, target_shape, AutoBroadcastType::PDPD);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input, target_shape});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, Sharedv3Broadcasts) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
+        auto broadcast_v1_0 = std::make_shared<v3::Broadcast>(input, target_shape);
+        auto broadcast_v1_1 = std::make_shared<v3::Broadcast>(input, target_shape, BroadcastType::BIDIRECTIONAL);
+        auto broadcast_v1_2 = std::make_shared<v3::Broadcast>(input, target_shape);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input, target_shape});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
+        auto broadcast_v1_0 = std::make_shared<v3::Broadcast>(input, target_shape);
+        auto broadcast_v1_1 = std::make_shared<v3::Broadcast>(input, target_shape, BroadcastType::BIDIRECTIONAL);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input, target_shape});
     }
 }
 
