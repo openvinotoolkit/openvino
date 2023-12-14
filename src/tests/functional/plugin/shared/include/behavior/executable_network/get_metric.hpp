@@ -135,8 +135,10 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
+    std::cout << "before ie.LoadNetwork: " << target_device << std::endl;
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
+    std::cout << "before exeNetwork.GetMetric: " << target_device << std::endl;
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto configValues = p.as<std::vector<std::string>>();
 

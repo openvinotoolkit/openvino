@@ -96,7 +96,9 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
         return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
     }
     auto parsed = parseDeviceNameIntoConfig(deviceName, any_copy(config));
+    std::cout << "ov::CoreImpl::LoadNetwork - get_plugin: " << deviceName.c_str() << std::endl;
     auto plugin = get_plugin(parsed._deviceName);
+    std::cout << "ov::CoreImpl::LoadNetwork - LoadNetworkImpl: " << deviceName.c_str() << std::endl;
     auto res = LoadNetworkImpl(network, plugin, any_copy(parsed._config), nullptr);
     return {res._ptr, res._so};
 }
