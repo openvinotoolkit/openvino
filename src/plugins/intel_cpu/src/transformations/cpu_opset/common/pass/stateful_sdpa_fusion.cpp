@@ -84,8 +84,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto past_k_node = ov::as_type_ptr<opset6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
         const auto past_v_node = ov::as_type_ptr<opset6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
-            // TODO: remove
-            std::cout << "StatefulSDPAFusion unexpected children of readvalue\n";
             return false;
         }
         const auto concat_k_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
@@ -111,8 +109,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto gather_k_node = ov::as_type_ptr<opset8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
         const auto gather_v_node = ov::as_type_ptr<opset8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
         if (gather_k_node->input_value(1) != gather_v_node->input_value(1)) {
-            // TODO: remove
-            std::cout << "StatefulSDPAFusion beam_idx is not same for gather\n";
             return false;
         }
         auto args = sdp_node->input_values();
@@ -140,8 +136,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         else
             assign_v_node->set_arguments({new_node->output(2)});
 
-        // TODO: remove
-        std::cout << "StatefulSDPAFusion hits pattern\n";
         return true;
     };
 

@@ -55,6 +55,7 @@ private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
     void updateBeamTable(const MemoryPtr& mem_beam_idx, size_t new_q_len);
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
+    ov::element::Type getRuntimePrecision() const override;
 
     struct Executor {
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const MemoryPtr output, const MemoryPtr presentk_input,
@@ -63,6 +64,7 @@ private:
 
     struct Config {
         ScaledDotProductAttentionWithKVCache::Config config;
+        std::vector<size_t> reverse_order;
     };
 
     Config m_config;
