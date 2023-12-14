@@ -180,7 +180,6 @@ def main():
             "exclusive": True,
             "data_format": "NDHWC",
         }
-        # NOT support data_format = "NDHWC" now
         pool3d(pooling_type + "3d" + "Pool_test5", data_NDHWC, paddle_attrs)
 
         # example 6:
@@ -202,6 +201,7 @@ def main():
             data_type
         )
         data1_NCDHW = data1.reshape(N_data1, C_data1, D_data1, H_data1, W_data1)
+        data1_NDHWC = data1.reshape(N_data1, D_data1, H_data1, W_data1, C_data1)
         # example 7:
         # pool_padding size is 6: [pad_depth_front, pad_depth_back, pad_height_top, pad_height_bottom, pad_width_left, pad_width_right]
         paddle_attrs = {
@@ -238,6 +238,17 @@ def main():
             "data_format": "NCDHW",
         }
         pool3d(pooling_type + "3d" + "Pool_test9", data1_NCDHW, paddle_attrs)
+
+        # example 10:
+        paddle_attrs = {
+            "pool_size": 9,
+            "pool_type": pooling_type,
+            "pool_stride": 3,
+            "pool_padding": [[0, 0], [2, 2], [1, 2], [2, 2], [0, 0]],
+            "ceil_mode": False,
+            "data_format": "NDHWC",
+        }
+        pool3d(pooling_type + "3d" + "Pool_test10", data1_NDHWC, paddle_attrs)
 
     paddle_attrs = {
         "pool_size": 9,

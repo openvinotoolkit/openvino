@@ -4,6 +4,8 @@
 //
 //*****************************************************************************
 
+#include <string>
+
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
@@ -12,7 +14,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 // helper func - get pad_begin and pad_end
-static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shape& pad_end, ov::op::PadType& auto_pad) {
+static void get_paddings(const NodeContext& node,
+                         ov::Shape& pad_begin,
+                         ov::Shape& pad_end,
+                         ov::op::PadType& auto_pad,
+                         std::string& data_format) {
     if (node.has_attribute("padding_algorithm")) {
         auto pad_algo = node.get_attribute<std::string>("padding_algorithm");
         if (pad_algo == "SAME") {
@@ -86,8 +92,18 @@ NamedOutputs pool3d(const NodeContext& node) {
 
     auto auto_pad = ov::op::PadType::EXPLICIT;
     ov::Shape pad_begin, pad_end;
-    get_paddings(node, pad_begin, pad_end, auto_pad);
+    std::string data_format = node.get_attribute<std::string>("data_format", "NCDHW");
 
+    get_paddings(node, pad_begin, pad_end, auto_pad, data_format);
+
+    if (data_format == "NDHWC") {
+        data = std::make_shared<default_opset::Transpose>(
+            data,
+            std::make_shared<default_opset::Constant>(ov::element::i64, Shape{5}, std::vector<int64_t>{0, 4, 1, 2, 3}));
+        input_shape = data.get_partial_shape();
+    }
+
+    std::vector<Output<Node>> pool_outputs;
     if (global_pooling || (adaptive && std::any_of(kernel_shape.begin(), kernel_shape.end(), [](int32_t i) {
                                return i == 1;
                            }))) {
@@ -95,14 +111,12 @@ NamedOutputs pool3d(const NodeContext& node) {
             auto axes = default_opset::Constant::create(ov::element::i64,
                                                         {3},
                                                         {input_rank - 3, input_rank - 2, input_rank - 1});
-            return node.default_single_output_mapping({std::make_shared<default_opset::ReduceMax>(data, axes, true)},
-                                                      {"Out"});
+            pool_outputs = std::make_shared<default_opset::ReduceMax>(data, axes, true)->outputs();
         } else {
             auto axes = default_opset::Constant::create(ov::element::i64,
                                                         {3},
                                                         {input_rank - 3, input_rank - 2, input_rank - 1});
-            return node.default_single_output_mapping({std::make_shared<default_opset::ReduceMean>(data, axes, true)},
-                                                      {"Out"});
+            pool_outputs = std::make_shared<default_opset::ReduceMean>(data, axes, true)->outputs();
         }
     } else if (adaptive) {
         auto pool_size = std::vector<int64_t>(3, 0);
@@ -121,21 +135,13 @@ NamedOutputs pool3d(const NodeContext& node) {
             default_opset::Constant::create(ov::element::i64, {pool_size.size()}, pool_size);
 
         if (pooling_type == "max") {
-            std::vector<Output<Node>> pool_outputs;
             pool_outputs =
                 std::make_shared<default_opset::AdaptiveMaxPool>(data, output_shape, ov::element::i32)->outputs();
-            NamedOutputs outputs;
-            outputs["Out"] = {pool_outputs[0]};
-            outputs["Mask"] = {pool_outputs[1]};
-            return outputs;
         } else {
-            return node.default_single_output_mapping(
-                {std::make_shared<default_opset::AdaptiveAvgPool>(data, output_shape)},
-                {"Out"});
+            pool_outputs = std::make_shared<default_opset::AdaptiveAvgPool>(data, output_shape)->outputs();
         }
     } else {
         auto strides = node.get_attribute<std::vector<int32_t>>("strides");
-        auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
 
         size_t kernel_d, kernel_h, kernel_w;
         if (kernel_shape.size() == 1) {
@@ -161,16 +167,15 @@ NamedOutputs pool3d(const NodeContext& node) {
             if ((input_d > 0) && (input_d + pad_begin[0] + pad_end[0] < kernel_d)) {
                 kernel_d = input_d + pad_begin[0] + pad_end[0];
             }
-            if ((input_h > 0) && (input_h + pad_begin[0] + pad_end[0] < kernel_h)) {
-                kernel_h = input_h + pad_begin[0] + pad_end[0];
+            if ((input_h > 0) && (input_h + pad_begin[1] + pad_end[1] < kernel_h)) {
+                kernel_h = input_h + pad_begin[1] + pad_end[1];
             }
-            if ((input_w > 0) && (input_w + pad_begin[1] + pad_end[1] < kernel_w)) {
-                kernel_w = input_w + pad_begin[1] + pad_end[1];
+            if ((input_w > 0) && (input_w + pad_begin[2] + pad_end[2] < kernel_w)) {
+                kernel_w = input_w + pad_begin[2] + pad_end[2];
             }
         }
 
         if (pooling_type == "max") {
-            std::vector<Output<Node>> pool_outputs;
             pool_outputs = std::make_shared<default_opset::MaxPool>(data,
                                                                     ov::Strides(strides.begin(), strides.end()),
                                                                     ov::Strides{1, 1, 1},
@@ -180,20 +185,30 @@ NamedOutputs pool3d(const NodeContext& node) {
                                                                     rounding_type,
                                                                     auto_pad)
                                ->outputs();
-            return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
         } else {
             bool exclude_pad = node.get_attribute<bool>("exclusive", false);
-            return node.default_single_output_mapping(
-                {std::make_shared<default_opset::AvgPool>(data,
-                                                          ov::Strides(strides.begin(), strides.end()),
-                                                          pad_begin,
-                                                          pad_end,
-                                                          ov::Shape{kernel_d, kernel_h, kernel_w},
-                                                          exclude_pad,
-                                                          rounding_type,
-                                                          auto_pad)},
-                {"Out"});
+            pool_outputs = std::make_shared<default_opset::AvgPool>(data,
+                                                                    ov::Strides(strides.begin(), strides.end()),
+                                                                    pad_begin,
+                                                                    pad_end,
+                                                                    ov::Shape{kernel_d, kernel_h, kernel_w},
+                                                                    exclude_pad,
+                                                                    rounding_type,
+                                                                    auto_pad)
+                               ->outputs();
         }
+    }
+
+    if (data_format == "NDHWC") {
+        pool_outputs[0] = std::make_shared<default_opset::Transpose>(
+            pool_outputs[0],
+            std::make_shared<default_opset::Constant>(ov::element::i64, Shape{5}, std::vector<int64_t>{0, 2, 3, 4, 1}));
+    }
+
+    if (pool_outputs.size() == 1) {
+        return NamedOutputs{{"Out", {pool_outputs[0]}}};
+    } else {
+        return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
     }
 }
 
