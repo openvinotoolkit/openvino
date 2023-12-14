@@ -90,5 +90,4 @@ protected:
 
 private:
     ov::Core _core;
-    Napi::Env env;
 };

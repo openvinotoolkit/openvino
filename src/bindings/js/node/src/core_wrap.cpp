@@ -10,7 +10,7 @@
 #include "model_wrap.hpp"
 #include "read_model_args.hpp"
 
-CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), env(info.Env()) {}
+CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core() {}
 
 Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
@@ -199,7 +199,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
 }
 
 Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
+    auto env = info.Env();
     if (info[0].IsObject() && info[1].IsString()) {
         auto context_data = new TsfnContextModel(env);
         auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());
