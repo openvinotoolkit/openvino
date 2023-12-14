@@ -10,7 +10,6 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -38,6 +37,7 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/util.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -344,10 +344,8 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto pad_begin_const = get_constant_from_source(pad->input_value(1));
-        auto pad_end_const = get_constant_from_source(pad->input_value(2));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto pad_begin_const = ov::util::get_constant_from_source(pad->input_value(1));
+        auto pad_end_const = ov::util::get_constant_from_source(pad->input_value(2));
 
         if (!pad_begin_const || !pad_end_const) {
             return false;

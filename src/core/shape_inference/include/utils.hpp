@@ -319,9 +319,7 @@ ov::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
                                                      c->get_data_ptr(),
                                                      shape_size(c->get_shape()),
                                                      std::forward<UnaryOperation>(func)));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (ov::evaluate_as_partial_shape(op->input_value(port), s)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        } else if (ov::util::evaluate_as_partial_shape(op->input_value(port), s)) {
             shape = std::move(s);
         }
     }

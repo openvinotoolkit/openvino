@@ -6,12 +6,12 @@
 
 #include "mask_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
+#include "validation_util.hpp"
 
 template <typename T>
 static std::string vec_to_str(const std::vector<T> m) {
@@ -38,9 +38,7 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     if (input.get_partial_shape().is_dynamic() || shape.get_partial_shape().is_dynamic())
         return false;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape_const_op = get_constant_from_source(shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shape_const_op = ov::util::get_constant_from_source(shape);
     if (!output_shape_const_op)
         return false;
 
@@ -62,9 +60,7 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ov::Mask
         return false;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto constant = get_constant_from_source(shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto constant = ov::util::get_constant_from_source(shape);
     if (!constant) {
         return false;
     }
@@ -318,9 +314,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                 }
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto folded_const = ov::get_constant_from_source(last_output)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto folded_const = ov::util::get_constant_from_source(last_output)) {
                 last_output = folded_const;
             }
             // as we insert Gather operations after Constant we need to reconnect all

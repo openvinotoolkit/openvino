@@ -10,7 +10,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -29,6 +28,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -290,9 +290,7 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            auto axis = ov::util::get_constant_from_source(pattern_map.at(axis_p));
             if (!axis)
                 return false;
 
@@ -304,9 +302,7 @@ public:
                 return true;
             }
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            auto order = ov::util::get_constant_from_source(pattern_map.at(indices_p));
             if (!order)
                 return false;
 

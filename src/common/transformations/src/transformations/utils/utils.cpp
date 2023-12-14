@@ -9,13 +9,13 @@
 #include <functional>
 #include <memory>
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -426,9 +426,7 @@ float cast_eps_to_float(double eps_d) {
 }
 
 bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& constant = ov::get_constant_from_source(output)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& constant = ov::util::get_constant_from_source(output)) {
         const auto& values = constant->cast_vector<int64_t>();
         return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
             return i == v;

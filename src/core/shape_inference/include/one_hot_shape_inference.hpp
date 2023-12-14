@@ -5,6 +5,7 @@
 
 #include "openvino/op/one_hot.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -31,9 +32,7 @@ void inline resolve_axis(OneHot* op) {
     const auto& indices_shape = op->get_input_partial_shape(0);
     if (indices_shape.rank().is_static()) {
         const auto indices_rank = indices_shape.rank().get_length();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        op->m_axis = ov::normalize_axis(op, op->m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        op->m_axis = ov::util::normalize_axis(op, op->m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
     }
 }
 
@@ -65,9 +64,8 @@ std::vector<TRShape> shape_infer(const OneHot* op,
     if (indices_shape.rank().is_static()) {
         result_shape = indices_shape;
         const auto indices_rank = indices_shape.rank().get_length();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto axis = ov::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis =
+            ov::util::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
 
         auto depth_as_shape =
             get_input_const_data_as_shape<TRShape>(op, 1, ta, util::GetNotNegative<typename DimType::value_type>(op));

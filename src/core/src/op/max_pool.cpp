@@ -7,8 +7,8 @@
 #include "itt.hpp"
 #include "max_pool_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/max_pool.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -166,9 +166,7 @@ void MaxPool::validate_and_infer_types() {
 
     const auto input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_axis = normalize_axis(this, m_axis, input_shape.rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        m_axis = ov::util::normalize_axis(this, m_axis, input_shape.rank());
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START

@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/topk.hpp>
-
+#include "openvino/op/topk.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -69,9 +68,7 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
 
     TRShape output_shape = input_shape;
     if (input_shape.rank().is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axis = ov::util::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
         auto& dim_axis = output_shape[normalized_axis];
 
         if (auto k_as_shape =

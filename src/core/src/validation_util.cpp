@@ -968,48 +968,13 @@ void ov::infer_auto_padding(const Shape& image_shape,
                             const op::PadType pad_type,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below) {
-    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
-    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    ov::util::try_apply_auto_padding(image_dims,
-                                     filter_shape,
-                                     filter_strides,
-                                     filter_dilations,
-                                     pad_type,
-                                     padding_above,
-                                     padding_below);
-}
-
-bool ov::util::try_apply_auto_padding(const PartialShape& image_shape,
-                                      const Shape& filter_shape,
-                                      const Strides& filter_strides,
-                                      const Strides& filter_dilations,
-                                      const op::PadType pad_type,
-                                      CoordinateDiff& padding_above,
-                                      CoordinateDiff& padding_below) {
-    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
-
-    if (image_shape.rank().is_dynamic()) {
-        return false;
-    }
-    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
-    for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
-        if (image_dims[i + 2].is_static()) {
-            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
-            int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
-            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
-            auto output_size = (image_size + filter_stride - 1) / filter_stride;
-
-            auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
-            auto padding_lhs = padding_needed / 2;
-            auto padding_rhs = padding_needed - padding_lhs;
-            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
-            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
-        } else {
-            padding_below.push_back(0);
-            padding_above.push_back(0);
-        }
-    }
-    return true;
+    ov::util::infer_auto_padding(image_shape,
+                                 filter_shape,
+                                 filter_strides,
+                                 filter_dilations,
+                                 pad_type,
+                                 padding_above,
+                                 padding_below);
 }
 
 namespace {
@@ -1037,47 +1002,21 @@ int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
 };
 
 void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
-    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
-    NODE_VALIDATION_CHECK(node,
-                          invalid_axis == axes.cend(),
-                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
-    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
+    ov::util::normalize_axes(node, tensor_rank, axes);
 }
 
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
-    std::vector<size_t> new_axes;
-    new_axes.reserve(axes.size());
-    for (const auto& axis : axes) {
-        new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
-    }
-    return new_axes;
+    return ov::util::normalize_axes(node_description, axes, tensor_rank);
 }
 
 int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
-    return normalize_axis(node->description(), axis, tensor_rank);
+    return ov::util::normalize_axis(node, axis, tensor_rank);
 }
 
 int64_t ov::normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
-    if (axis < 0) {
-        // Handling negative axis requires static tensor rank
-        OPENVINO_ASSERT(tensor_rank.is_static(),
-                        node_description,
-                        " Rank must be static in order to normalize negative axis=",
-                        axis);
-    }
-    if (tensor_rank.is_dynamic()) {
-        return axis;
-    }
-
-    const auto tensor_rank_value = tensor_rank.get_length();
-    return normalize_axis(node_description,
-                          axis,
-                          tensor_rank_value,
-                          -tensor_rank_value,
-                          tensor_rank_value ? (tensor_rank_value - 1) : 0);
+    return ov::util::normalize_axis(node_description, axis, tensor_rank);
 }
 
 int64_t ov::normalize_axis(const Node* node,
@@ -1085,7 +1024,7 @@ int64_t ov::normalize_axis(const Node* node,
                            std::uint64_t tensor_rank,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max) {
-    return normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
+    return ov::util::normalize_axis(node, axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
 int64_t ov::normalize_axis(const std::string& node_description,
@@ -1093,48 +1032,15 @@ int64_t ov::normalize_axis(const std::string& node_description,
                            std::uint64_t tensor_rank,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max) {
-    // Accepted range of value for axis is [axis_range_min, axis_range_max].
-    OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
-                    node_description,
-                    normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
-    return util::normalize(axis, tensor_rank);
+    return ov::util::normalize_axis(node_description, axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
-    Tensor lb, ub;
-    std::tie(lb, ub) = ov::evaluate_both_bounds(output);
-    bool shape_defined = false;
-    if (lb && ub) {
-        auto lower_bound = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
-                               ->cast_vector<int64_t>();
-        auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
-                               ->cast_vector<int64_t>();
-        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
-        const TensorLabel& labels = output.get_tensor().get_value_label();
-        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
-
-        std::vector<Dimension> resulting_pshape(lower_bound.size());
-        for (size_t i = 0; i < lower_bound.size(); ++i) {
-            auto low = lower_bound[i], up = upper_bound[i];
-            OPENVINO_ASSERT(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
-            if (output.get_element_type() == element::i32 && low != up) {
-                if (up == std::numeric_limits<std::int32_t>::max())
-                    up = std::numeric_limits<std::int64_t>::max();
-                if (low == std::numeric_limits<std::int32_t>::max())
-                    low = std::numeric_limits<std::int64_t>::max();
-            }
-            resulting_pshape[i] = {low, up};
-            if (!labels.empty() && labels[i])
-                ov::DimensionTracker::set_label(resulting_pshape[i], labels[i]);
-        }
-        pshape = PartialShape(resulting_pshape);
-        shape_defined = true;
-    }
-    return shape_defined;
+    return ov::util::evaluate_as_partial_shape(output, pshape);
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    return default_label_evaluator(node, {0}, output_labels);
+    return ov::util::default_label_evaluator(node, output_labels);
 }
 
 std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<Node>& source) {
@@ -1142,17 +1048,15 @@ std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<
 }
 
 bool ov::has_no_labels(const ov::TensorLabel& labels) {
-    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+    return ov::util::has_no_labels(labels);
 }
 
 void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
-    axes_order.reserve(length);
-    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+    ov::util::generate_transpose_default_order(axes_order, length);
 }
 
 bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return util::are_unique(axes_order) &&
-           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+    return ov::util::is_valid_axes_order(axes_order, size);
 }
 
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
@@ -1198,7 +1102,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
 }
 
 //
-// Infers the output batch shape and element type for convolution fprop.
+// Infers the output batch shape for convolution fprop.
 //
 ov::PartialShape ov::infer_convolution_forward(const Node* node,
                                                const PartialShape& data_batch_shape,
@@ -1208,117 +1112,14 @@ ov::PartialShape ov::infer_convolution_forward(const Node* node,
                                                const PartialShape& filters_shape,
                                                const Strides& filter_strides,
                                                const Strides& filter_dilation) {
-    Rank data_batch_filters_rank{Rank::dynamic()};
-
-    NODE_VALIDATION_CHECK(node,
-                          Rank::merge(data_batch_filters_rank, data_batch_shape.rank(), filters_shape.rank()),
-                          "Data batch and filters rank do not match (data batch shape: ",
-                          data_batch_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          data_batch_filters_rank.is_dynamic() || data_batch_filters_rank.get_length() >= 3,
-                          "Data batch and filters must have rank of at least 3 (one batch axis, ",
-                          "one input-channel axis, and at least one spatial dimension) ",
-                          "(data batch shape: ",
-                          data_batch_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
-
-    Rank spatial_rank{Rank::dynamic()};
-    NODE_VALIDATION_CHECK(node,
-                          Rank::merge(spatial_rank, spatial_rank, data_batch_filters_rank - 2) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_dilation.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_padding_below.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_padding_above.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, filter_strides.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, filter_dilation.size()),
-                          "Ranks for data item shape/filters shape (data batch has shape ",
-                          data_batch_shape,
-                          ", so data item rank is ",
-                          (data_batch_shape.rank() - 2),
-                          " and filters have shape ",
-                          filters_shape,
-                          ", so filters spatial rank is ",
-                          (filters_shape.rank() - 2),
-                          "), data dilation (",
-                          data_dilation,
-                          "), padding below (",
-                          data_padding_below,
-                          "), padding above (",
-                          data_padding_above,
-                          "), filter strides (",
-                          filter_strides,
-                          "), and filter dilation (",
-                          filter_dilation,
-                          ") do not match.");
-
-    Dimension batch_size = (data_batch_shape.rank().is_static() ? data_batch_shape[0] : Dimension::dynamic());
-    Dimension data_channel_count = (data_batch_shape.rank().is_static() ? data_batch_shape[1] : Dimension::dynamic());
-    PartialShape data_spatial_shape(PartialShape::dynamic(spatial_rank));
-
-    Dimension filter_output_channel_count =
-        (filters_shape.rank().is_static() ? filters_shape[0] : Dimension::dynamic());
-    Dimension filter_input_channel_count = (filters_shape.rank().is_static() ? filters_shape[1] : Dimension::dynamic());
-    PartialShape filter_spatial_shape(PartialShape::dynamic(spatial_rank));
-
-    //
-    // Note: spatial_rank is definitely static at this point.
-    //
-
-    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
-        if (data_batch_shape.rank().is_static()) {
-            data_spatial_shape[i] = data_batch_shape[i + 2];
-        }
-
-        if (filters_shape.rank().is_static()) {
-            filter_spatial_shape[i] = filters_shape[i + 2];
-        }
-    }
-
-    NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
-
-    Dimension merged_channel_count;
-
-    NODE_VALIDATION_CHECK(node,
-                          Dimension::merge(merged_channel_count, data_channel_count, filter_input_channel_count),
-                          "Data batch channel count (",
-                          data_channel_count,
-                          ") does not match filter input ",
-                          "channel count (",
-                          filter_input_channel_count,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          merged_channel_count.is_dynamic() || merged_channel_count.get_length() > 0,
-                          "Data batch channel count and/or filter input channel count is zero.");
-
-    NODE_VALIDATION_CHECK(node,
-                          filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
-                          "Filter output channel count is zero.");
-
-    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
-                                                                                   data_spatial_shape,
-                                                                                   data_dilation,
-                                                                                   data_padding_below,
-                                                                                   data_padding_above,
-                                                                                   filter_spatial_shape,
-                                                                                   filter_strides,
-                                                                                   filter_dilation,
-                                                                                   true);
-
-    PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
-    batch_output_shape[0] = batch_size;
-    batch_output_shape[1] = filter_output_channel_count;
-
-    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
-        batch_output_shape[i + 2] = data_output_shape[i];
-    }
-
-    return batch_output_shape;
+    return ov::util::infer_convolution_forward(node,
+                                               data_batch_shape,
+                                               data_dilation,
+                                               data_padding_below,
+                                               data_padding_above,
+                                               filters_shape,
+                                               filter_strides,
+                                               filter_dilation);
 }
 
 namespace ov {
@@ -1441,6 +1242,293 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     return std::any_of(others.begin(), others.end(), [&r](const Rank& other) {
         return r.compatible(other);
     });
+}
+
+PartialShape infer_convolution_forward(const Node* node,
+                                       const PartialShape& data_batch_shape,
+                                       const Strides& data_dilation,
+                                       const CoordinateDiff& data_padding_below,
+                                       const CoordinateDiff& data_padding_above,
+                                       const PartialShape& filters_shape,
+                                       const Strides& filter_strides,
+                                       const Strides& filter_dilation) {
+    Rank data_batch_filters_rank{Rank::dynamic()};
+
+    NODE_VALIDATION_CHECK(node,
+                          Rank::merge(data_batch_filters_rank, data_batch_shape.rank(), filters_shape.rank()),
+                          "Data batch and filters rank do not match (data batch shape: ",
+                          data_batch_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          data_batch_filters_rank.is_dynamic() || data_batch_filters_rank.get_length() >= 3,
+                          "Data batch and filters must have rank of at least 3 (one batch axis, ",
+                          "one input-channel axis, and at least one spatial dimension) ",
+                          "(data batch shape: ",
+                          data_batch_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    Rank spatial_rank{Rank::dynamic()};
+    NODE_VALIDATION_CHECK(node,
+                          Rank::merge(spatial_rank, spatial_rank, data_batch_filters_rank - 2) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_dilation.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_padding_below.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_padding_above.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, filter_strides.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, filter_dilation.size()),
+                          "Ranks for data item shape/filters shape (data batch has shape ",
+                          data_batch_shape,
+                          ", so data item rank is ",
+                          (data_batch_shape.rank() - 2),
+                          " and filters have shape ",
+                          filters_shape,
+                          ", so filters spatial rank is ",
+                          (filters_shape.rank() - 2),
+                          "), data dilation (",
+                          data_dilation,
+                          "), padding below (",
+                          data_padding_below,
+                          "), padding above (",
+                          data_padding_above,
+                          "), filter strides (",
+                          filter_strides,
+                          "), and filter dilation (",
+                          filter_dilation,
+                          ") do not match.");
+
+    Dimension batch_size = (data_batch_shape.rank().is_static() ? data_batch_shape[0] : Dimension::dynamic());
+    Dimension data_channel_count = (data_batch_shape.rank().is_static() ? data_batch_shape[1] : Dimension::dynamic());
+    PartialShape data_spatial_shape(PartialShape::dynamic(spatial_rank));
+
+    Dimension filter_output_channel_count =
+        (filters_shape.rank().is_static() ? filters_shape[0] : Dimension::dynamic());
+    Dimension filter_input_channel_count = (filters_shape.rank().is_static() ? filters_shape[1] : Dimension::dynamic());
+    PartialShape filter_spatial_shape(PartialShape::dynamic(spatial_rank));
+
+    //
+    // Note: spatial_rank is definitely static at this point.
+    //
+
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
+        if (data_batch_shape.rank().is_static()) {
+            data_spatial_shape[i] = data_batch_shape[i + 2];
+        }
+
+        if (filters_shape.rank().is_static()) {
+            filter_spatial_shape[i] = filters_shape[i + 2];
+        }
+    }
+
+    NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
+
+    Dimension merged_channel_count;
+
+    NODE_VALIDATION_CHECK(node,
+                          Dimension::merge(merged_channel_count, data_channel_count, filter_input_channel_count),
+                          "Data batch channel count (",
+                          data_channel_count,
+                          ") does not match filter input ",
+                          "channel count (",
+                          filter_input_channel_count,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          merged_channel_count.is_dynamic() || merged_channel_count.get_length() > 0,
+                          "Data batch channel count and/or filter input channel count is zero.");
+
+    NODE_VALIDATION_CHECK(node,
+                          filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
+                          "Filter output channel count is zero.");
+
+    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
+                                                                                   data_spatial_shape,
+                                                                                   data_dilation,
+                                                                                   data_padding_below,
+                                                                                   data_padding_above,
+                                                                                   filter_spatial_shape,
+                                                                                   filter_strides,
+                                                                                   filter_dilation,
+                                                                                   true);
+
+    PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
+    batch_output_shape[0] = batch_size;
+    batch_output_shape[1] = filter_output_channel_count;
+
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
+        batch_output_shape[i + 2] = data_output_shape[i];
+    }
+
+    return batch_output_shape;
+}
+
+bool try_apply_auto_padding(const PartialShape& image_shape,
+                            const Shape& filter_shape,
+                            const Strides& filter_strides,
+                            const Strides& filter_dilations,
+                            const op::PadType pad_type,
+                            CoordinateDiff& padding_above,
+                            CoordinateDiff& padding_below) {
+    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
+
+    if (image_shape.rank().is_dynamic()) {
+        return false;
+    }
+    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
+    for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
+        if (image_dims[i + 2].is_static()) {
+            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
+            int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
+            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
+            auto output_size = (image_size + filter_stride - 1) / filter_stride;
+
+            auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
+            auto padding_lhs = padding_needed / 2;
+            auto padding_rhs = padding_needed - padding_lhs;
+            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
+            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
+        } else {
+            padding_below.push_back(0);
+            padding_above.push_back(0);
+        }
+    }
+    return true;
+}
+
+void infer_auto_padding(const Shape& image_shape,
+                        const Shape& filter_shape,
+                        const Strides& filter_strides,
+                        const Strides& filter_dilations,
+                        const op::PadType pad_type,
+                        CoordinateDiff& padding_above,
+                        CoordinateDiff& padding_below) {
+    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
+    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
+    try_apply_auto_padding(image_dims,
+                           filter_shape,
+                           filter_strides,
+                           filter_dilations,
+                           pad_type,
+                           padding_above,
+                           padding_below);
+}
+
+bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+    Tensor lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(output);
+    bool shape_defined = false;
+    if (lb && ub) {
+        auto lower_bound = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
+                               ->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
+                               ->cast_vector<int64_t>();
+        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
+        const TensorLabel& labels = output.get_tensor().get_value_label();
+        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
+
+        std::vector<Dimension> resulting_pshape(lower_bound.size());
+        for (size_t i = 0; i < lower_bound.size(); ++i) {
+            auto low = lower_bound[i], up = upper_bound[i];
+            OPENVINO_ASSERT(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
+            if (output.get_element_type() == element::i32 && low != up) {
+                if (up == std::numeric_limits<std::int32_t>::max())
+                    up = std::numeric_limits<std::int64_t>::max();
+                if (low == std::numeric_limits<std::int32_t>::max())
+                    low = std::numeric_limits<std::int64_t>::max();
+            }
+            resulting_pshape[i] = {low, up};
+            if (!labels.empty() && labels[i])
+                DimensionTracker::set_label(resulting_pshape[i], labels[i]);
+        }
+        pshape = PartialShape(resulting_pshape);
+        shape_defined = true;
+    }
+    return shape_defined;
+}
+
+bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+    return default_label_evaluator(node, {0}, output_labels);
+}
+
+void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(axes_order.size() + length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return are_unique(axes_order) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+}
+
+bool has_no_labels(const ov::TensorLabel& labels) {
+    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+}
+
+std::vector<size_t> normalize_axes(const std::string& node_description,
+                                   const std::vector<int64_t>& axes,
+                                   const Rank& tensor_rank) {
+    std::vector<size_t> new_axes;
+    new_axes.reserve(axes.size());
+    for (const auto& axis : axes) {
+        new_axes.push_back(ov::util::normalize_axis(node_description, axis, tensor_rank));
+    }
+    return new_axes;
+}
+
+void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
+    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
+    NODE_VALIDATION_CHECK(node,
+                          invalid_axis == axes.cend(),
+                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
+    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
+}
+
+int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
+    return ov::util::normalize_axis(node->description(), axis, tensor_rank);
+}
+
+int64_t normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
+    if (axis < 0) {
+        // Handling negative axis requires static tensor rank
+        OPENVINO_ASSERT(tensor_rank.is_static(),
+                        node_description,
+                        " Rank must be static in order to normalize negative axis=",
+                        axis);
+    }
+    if (tensor_rank.is_dynamic()) {
+        return axis;
+    }
+
+    const auto tensor_rank_value = tensor_rank.get_length();
+    return normalize_axis(node_description,
+                          axis,
+                          tensor_rank_value,
+                          -tensor_rank_value,
+                          tensor_rank_value ? (tensor_rank_value - 1) : 0);
+}
+
+int64_t normalize_axis(const Node* node,
+                       std::int64_t axis,
+                       std::uint64_t tensor_rank,
+                       std::int64_t axis_range_min,
+                       std::int64_t axis_range_max) {
+    return normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
+}
+
+int64_t normalize_axis(const std::string& node_description,
+                       std::int64_t axis,
+                       std::uint64_t tensor_rank,
+                       std::int64_t axis_range_min,
+                       std::int64_t axis_range_max) {
+    // Accepted range of value for axis is [axis_range_min, axis_range_max].
+    OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
+                    node_description,
+                    normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
+    return normalize(axis, tensor_rank);
 }
 }  // namespace util
 }  // namespace ov

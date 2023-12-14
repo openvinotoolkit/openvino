@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/split.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -47,9 +47,7 @@ std::vector<TRShape> shape_infer(const Split* op,
                               axes_values->size(),
                               " axes");
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto axis = ov::normalize_axis(op, (*axes_values)[0], data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto axis = ov::util::normalize_axis(op, (*axes_values)[0], data_rank);
 
         if (data_ps[axis].is_static()) {
             const auto dimension_at_axis = data_ps[axis].get_length();

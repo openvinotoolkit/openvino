@@ -3,13 +3,12 @@
 //
 
 #include "low_precision/split.hpp"
-#include "openvino/core/node.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -47,9 +46,8 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
     ov::copy_runtime_info(split, newSplit);
 
     const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const size_t normalizedAxis = ov::normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const size_t normalizedAxis =
+        ov::util::normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
     const size_t outputSize = newSplit->get_output_size();
 
     const auto splitConstant = [&](const std::shared_ptr<Node> operation) {

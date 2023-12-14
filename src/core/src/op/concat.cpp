@@ -8,8 +8,8 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/concat.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -101,9 +101,7 @@ bool Concat::evaluate_label(TensorLabelVector& output_labels) const {
     const auto& inputs = input_values();
     if (std::all_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& out) {
             const auto& labels = out.get_tensor().get_value_label();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            return has_no_labels(labels);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            return ov::util::has_no_labels(labels);
         })) {
         return false;
     }

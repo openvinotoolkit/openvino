@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <openvino/op/shuffle_channels.hpp>
-
-#include "openvino/core/validation_util.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -27,9 +26,7 @@ std::vector<TRShape> shape_infer(const ShuffleChannels* op, const std::vector<TS
 
     if (input_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op, input_shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto axis_zb = static_cast<size_t>(normalize_axis(op, op->get_axis(), input_shape_rank));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis_zb = static_cast<size_t>(ov::util::normalize_axis(op, op->get_axis(), input_shape_rank));
         const auto& channel_dim = input_shape[axis_zb];
         NODE_VALIDATION_CHECK(op,
                               channel_dim.is_dynamic() || (channel_dim.get_length() % group) == 0,

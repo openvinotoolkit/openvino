@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
@@ -14,6 +13,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
+#include "validation_util.hpp"
 
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
@@ -58,11 +58,9 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             }))
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& axes = normalize_axes(squeeze->description(),
-                                          const_axes->cast_vector<int64_t>(),
-                                          squeeze->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axes = ov::util::normalize_axes(squeeze->description(),
+                                                   const_axes->cast_vector<int64_t>(),
+                                                   squeeze->get_input_partial_shape(0).rank());
 
         // Here squeeze input shape is equal to stridedslice input shape,
         // since new_axis_mask, shrink_axis_mask and ellipsis_mask are all zeros.
@@ -163,11 +161,9 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             }))
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto axes = normalize_axes(squeeze->description(),
-                                   const_axes->cast_vector<int64_t>(),
-                                   squeeze->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto axes = ov::util::normalize_axes(squeeze->description(),
+                                             const_axes->cast_vector<int64_t>(),
+                                             squeeze->get_input_partial_shape(0).rank());
         std::sort(axes.begin(), axes.end());
         for (const auto& axis : axes) {
             begin_vec.insert(begin_vec.begin() + axis, 0);
@@ -214,11 +210,9 @@ bool squeezes_perform_the_same(std::shared_ptr<ov::op::v0::Squeeze> lhs, std::sh
     const auto l_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(lhs->get_input_node_shared_ptr(1));
     const auto r_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(rhs->get_input_node_shared_ptr(1));
     if (l_axes && r_axes) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return ov::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
-               ov::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
+        return ov::util::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
+               ov::util::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

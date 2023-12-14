@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
@@ -17,6 +16,7 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -121,10 +121,8 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             }
         } else {
             auto rank = main_node->get_output_partial_shape(0).rank();
-            OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                ov::util::normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
         }
         auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
 
@@ -193,10 +191,8 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             }
         } else {
             auto rank = main_node->get_output_partial_shape(0).rank();
-            OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                ov::util::normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
         }
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();

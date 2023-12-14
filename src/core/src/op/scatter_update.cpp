@@ -60,9 +60,7 @@ bool ScatterUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) 
     output.set_shape(data_shape);
 
     auto axis_val = get_tensor_data_as<int64_t>(axis)[0];
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis_val = ov::normalize_axis(this, axis_val, static_cast<int64_t>(data_shape.size()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis_val = ov::util::normalize_axis(this, axis_val, static_cast<int64_t>(data_shape.size()));
 
     const auto indices_casted_vector = get_tensor_data_as<int64_t>(indices);
 

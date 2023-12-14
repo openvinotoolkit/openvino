@@ -3,11 +3,11 @@
 //
 
 #include "mask_attribute.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -85,9 +85,8 @@ public:
             while (!ov::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
                 if (ov::is_type<opset6::Transpose>(cur_node)) {
-                    OPENVINO_SUPPRESS_DEPRECATED_START
-                    const auto forward_order = get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
-                    OPENVINO_SUPPRESS_DEPRECATED_END
+                    const auto forward_order =
+                        ov::util::get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
                     if (!forward_order)
                         return false;
                     const auto forward_order_vec = forward_order->cast_vector<int64_t>();

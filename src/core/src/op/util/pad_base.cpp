@@ -10,6 +10,7 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
 #include "pad_shape_inference.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 op::util::PadBase::PadBase(const Output<Node>& arg,
@@ -35,9 +36,7 @@ op::util::PadBase::PadBase(const Output<Node>& arg,
 
 CoordinateDiff op::util::PadBase::get_pads_begin() const {
     CoordinateDiff pads_begin_coord{};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto pads_begin_const = get_constant_from_source(input_value(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto pads_begin_const = ov::util::get_constant_from_source(input_value(1))) {
         pads_begin_coord = pads_begin_const->cast_vector<ptrdiff_t>();
     }
     return pads_begin_coord;
@@ -45,9 +44,7 @@ CoordinateDiff op::util::PadBase::get_pads_begin() const {
 
 CoordinateDiff op::util::PadBase::get_pads_end() const {
     CoordinateDiff pads_end_coord{};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto pads_end_const = get_constant_from_source(input_value(2))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto pads_end_const = ov::util::get_constant_from_source(input_value(2))) {
         pads_end_coord = pads_end_const->cast_vector<ptrdiff_t>();
     }
     return pads_end_coord;
@@ -155,9 +152,7 @@ bool op::util::PadBase::evaluate_upper(TensorVector& output_values) const {
 
 bool op::util::PadBase::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(util_PadBase_evaluate_label);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return ov::util::default_label_evaluator(this, output_labels);
 }
 
 }  // namespace ov
