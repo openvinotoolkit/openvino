@@ -13,7 +13,6 @@
 #include "common_test_utils/matcher.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"

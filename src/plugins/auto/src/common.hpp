@@ -18,7 +18,6 @@
 #include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/auto/properties.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
 #include "itt.hpp"

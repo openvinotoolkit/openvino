@@ -120,8 +120,8 @@ void StatefulModelSupportedTest::SetUp() {
         auto isSupportStateful = item.second;
         std::unordered_set<std::string> device_supported_layers;
         for (auto& op : model->get_ops()) {
-            if (!std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) &&
-                !std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+            if (!std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) &&
+                !std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
                 res[op->get_friendly_name()] = deviceName;
                 continue;
             }
