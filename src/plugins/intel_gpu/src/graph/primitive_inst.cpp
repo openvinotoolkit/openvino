@@ -459,11 +459,15 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
         std::string variable_id = stateful_prim->variable_id();
         auto& variable = get_network().get_variable(variable_id);
-        variable.set_layout(actual_layout, false);
         // For nodes that can be optimized, variable memory is used as output memory
         // so there is no need for output memory reallocation
-        if (can_be_optimized())
+        if (can_be_optimized()) {
+            variable.set_layout(actual_layout, false);
             return ev;
+        }
+        variable.set_layout(actual_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": use variable memory " << variable.get_memory()
+                               << " (size=" << variable.get_memory()->size() << ")" << std::endl;
     }
 
     // Update output layout with respect to FC's fake alignment
@@ -485,6 +489,8 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
+    // If the node's output memory is used as next input memory for the same node,
+    // the buffer should be allocated newly every time to prevent data corruption
     bool output_used_as_its_input_next_iter = false;
     if (get_node().is_type<concatenation>()) {
         if (!can_be_optimized() && !allocation_done_by_other && get_users().front()->is_type<assign>()) {
@@ -493,7 +499,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size && !output_used_as_its_input_next_iter;
+    bool can_reuse_buffer = _outputs[0]
+                             && updated_layout.count() <= max_output_layout_size
+                             && !output_used_as_its_input_next_iter;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -852,6 +860,28 @@ void primitive_inst::do_runtime_skip_gather() {
     set_can_be_optimized(true);
 }
 
+void primitive_inst::do_runtime_skip_assign() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_assign: " + id()));
+
+    if (can_be_optimized())
+        return;
+
+    if (get_node().is_type<concatenation>()) {
+        for (auto u : get_user_insts()) {
+            if (u->get_node().is_type<assign>()) {
+                if (u->can_be_optimized())
+                    continue;
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
+                u->update_shape();
+                u->update_shape_done_by_other = true;
+
+                u->set_can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_assign] set user " << u->id() << " as can_be_optimized" << std::endl;
+            }
+        }
+    }
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -937,6 +967,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
+        do_runtime_skip_assign();
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);

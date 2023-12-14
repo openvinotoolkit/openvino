@@ -48,6 +48,7 @@ void VariableState::set() {
 }
 
 void VariableState::set_memory(cldnn::memory::ptr new_mem) {
+    GPU_DEBUG_TRACE_DETAIL << "Set variable memory from " << new_mem << std::endl;
     m_memory = new_mem;
 }
 
@@ -82,9 +83,12 @@ void VariableState::update_device_buffer() {
         const auto current_shape = get_tensor_shape(m_layout.get_partial_shape());
         const auto alloc_shape = predict_shape(m_name, current_shape, m_layout.data_type, *m_shape_predictor);
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
+        GPU_DEBUG_TRACE_DETAIL << ": allocate variable memory from layout=" << alloc_layout.to_short_string()
+                               << ", size = " << alloc_layout.bytes_count() << std::endl;
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
     } else {
+        GPU_DEBUG_TRACE_DETAIL << ": reuse previously allocated variable memory" << std::endl;
         m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
     }
 }

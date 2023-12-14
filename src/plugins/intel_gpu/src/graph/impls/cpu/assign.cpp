@@ -51,13 +51,17 @@ struct assign_impl : public typed_primitive_impl<assign> {
         }
 
         auto& variable = instance.get_network().get_variable(variable_id);
+        auto &stream = instance.get_network().get_stream();
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
                         "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
                         " assign output layout: ", instance.get_output_layout().to_short_string());
 
-        variable.set_memory(instance.input_memory_ptr());
         variable.set();
+        if (!instance.can_be_optimized()) {
+            return variable.get_memory()->copy_from(stream, instance.input_memory(), false);
+        }
+        variable.set_memory(instance.input_memory_ptr());
 
         return instance.get_network().get_stream().create_user_event(true);
     }
