@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -211,6 +212,24 @@ bool max_pools_8_are_equal(const Node* lhs, const Node* rhs) {
            l_pool->get_index_element_type() == r_pool->get_index_element_type() &&
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
+           
+bool broadcasts_1_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_broadcast = as_type<const v1::Broadcast>(lhs);
+    const auto r_broadcast = as_type<const v1::Broadcast>(rhs);
+    if (!l_broadcast || !r_broadcast)
+        return false;
+    return l_broadcast->get_broadcast_spec() == r_broadcast->get_broadcast_spec() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool broadcasts_3_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_broadcast = as_type<const v3::Broadcast>(lhs);
+    const auto r_broadcast = as_type<const v3::Broadcast>(rhs);
+    if (!l_broadcast || !r_broadcast)
+        return false;
+    return l_broadcast->get_broadcast_spec() == r_broadcast->get_broadcast_spec() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
 
 bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
@@ -251,6 +270,8 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         RECORD_NO_ATTRIBUTES(v0::Floor),
 
         // with attributes
+        RECORD(v1::Broadcast, broadcasts_1_are_equal),
+        RECORD(v3::Broadcast, broadcasts_3_are_equal),
         RECORD(v0::Concat, concats_are_equal),
         RECORD(v0::Convert, converts_are_equal),
         RECORD(v1::Gather, gathers_are_equal),

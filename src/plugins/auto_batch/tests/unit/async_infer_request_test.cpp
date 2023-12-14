@@ -13,6 +13,7 @@
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -115,7 +116,7 @@ public:
         std::tie(m_batch_size, m_element_type, m_infer_interval) = this->GetParam();
         m_terminate = false;
         std::vector<size_t> inputShape = {1, 3, 24, 24};
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, m_element_type);
+        m_model = ov::test::utils::make_multi_single_conv(inputShape, m_element_type);
 
         prepare_input(m_model, m_batch_size);
 

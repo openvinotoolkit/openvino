@@ -115,7 +115,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
                               " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
                               " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
-    message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
+    message_list.emplace_back("OV_GPU_DumpGraphs", "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
+                              "3) dump graph in execution.");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
     message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
     message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space."
@@ -140,6 +141,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
     message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DisableMemoryReuse", "Disable memory reuse");
+    message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPool", "Dump memory pool contents of each iteration");
     message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes", "Disable build time weight reorder for dynmaic nodes.");
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");

@@ -36,12 +36,12 @@ void TransposeAdd::SetUp() {
     ngraph::Shape permute_order(input_shape.size());
     std::iota(std::begin(permute_order), std::end(permute_order), 0);
     std::iter_swap(std::end(permute_order) - 2, std::end(permute_order) - 1);
-    auto transpose_in_params = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64,
+    auto transpose_in_params = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
         ngraph::Shape{permute_order.size()}, permute_order);
-    auto transpose_in = std::make_shared<ngraph::opset8::Transpose>(params[0], transpose_in_params);
+    auto transpose_in = std::make_shared<ov::op::v1::Transpose>(params[0], transpose_in_params);
 
     auto add_const = ngraph::builder::makeConstant<float>(ngPrc, transpose_in->get_output_shape(0), {}, true);
-    auto add = std::make_shared<ngraph::opset8::Add>(transpose_in, add_const);
+    auto add = std::make_shared<ov::op::v1::Add>(transpose_in, add_const);
 
     function = std::make_shared<ngraph::Function>(add, params, "transpose_add");
 }

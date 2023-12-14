@@ -38,29 +38,41 @@ and has the following differences:
 The steps for the quantization with accuracy control are described
 below.
 
-The tutorial consists of the following steps:
+**Table of contents:**
 
--  `Prerequisites <#>`__
--  `Get Pytorch model and OpenVINO IR model <#>`__
--  `Define validator and data loader <#>`__
--  `Prepare calibration and validation datasets <#>`__
--  `Prepare validation function <#>`__
--  `Run quantization with accuracy control <#>`__
--  `Compare Performance of the Original and Quantized Models <#>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Get Pytorch model and OpenVINO IR
+   model <#get-pytorch-model-and-openvino-ir-model>`__
+
+   -  `Define validator and data
+      loader <#define-validator-and-data-loader>`__
+   -  `Prepare calibration and validation
+      datasets <#prepare-calibration-and-validation-datasets>`__
+   -  `Prepare validation function <#prepare-validation-function>`__
+
+-  `Run quantization with accuracy
+   control <#run-quantization-with-accuracy-control>`__
+-  `Compare Accuracy and Performance of the Original and Quantized
+   Models <#compare-accuracy-and-performance-of-the-original-and-quantized-models>`__
 
 Prerequisites
-----------------------------------
+^^^^^^^^^^^^^
+
+
 
 Install necessary packages.
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install "nncf>=2.6.0"
-    %pip install -q "ultralytics==8.0.43"
+    %pip install -q "nncf>=2.6.0"
+    %pip install -q "ultralytics==8.0.43" --extra-index-url https://download.pytorch.org/whl/cpu
 
-Get Pytorch model and OpenVINO IR Model
----------------------------------------------------
+Get Pytorch model and OpenVINO IR model
+---------------------------------------
+
+
 
 Generally, PyTorch models represent an instance of the
 `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -115,18 +127,19 @@ Load model.
     ov_model = ov.Core().read_model(model_path)
 
 Define validator and data loader
----------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The original model
-repository uses a ``Validator`` wrapper, which represents the accuracy
-validation pipeline. It creates dataloader and evaluation metrics and
-updates metrics on each data batch produced by the dataloader. Besides
-that, it is responsible for data preprocessing and results
-postprocessing. For class initialization, the configuration should be
-provided. We will use the default setup, but it can be replaced with
-some parameters overriding to test on custom data. The model has
-connected the ``ValidatorClass`` method, which creates a validator class
-instance.
+
+
+The original model repository uses a ``Validator`` wrapper, which
+represents the accuracy validation pipeline. It creates dataloader and
+evaluation metrics and updates metrics on each data batch produced by
+the dataloader. Besides that, it is responsible for data preprocessing
+and results postprocessing. For class initialization, the configuration
+should be provided. We will use the default setup, but it can be
+replaced with some parameters overriding to test on custom data. The
+model has connected the ``ValidatorClass`` method, which creates a
+validator class instance.
 
 .. code:: ipython3
 
@@ -150,7 +163,9 @@ instance.
 
 
 Prepare calibration and validation datasets
----------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 We can use one dataset as calibration and validation datasets. Name it
 ``quantization_dataset``.
@@ -176,7 +191,9 @@ We can use one dataset as calibration and validation datasets. Name it
 
 
 Prepare validation function
-----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -230,24 +247,22 @@ Prepare validation function
     validation_fn = partial(validation_ac, validator=validator, log=False)
 
 Run quantization with accuracy control
----------------------------------------------------
+--------------------------------------
 
-You should provide
-the calibration dataset and the validation dataset. It can be the same
-dataset.
 
-- parameter ``max_drop`` defines the accuracy drop threshold.
-  The quantization process stops when the degradation of accuracy metric
-  on the validation dataset is less than the ``max_drop``. The default
-  value is 0.01. NNCF will stop the quantization and report an error if
-  the ``max_drop`` value can’t be reached.
-- ``drop_type`` defines how the
-  accuracy drop will be calculated: ABSOLUTE (used by default) or
-  RELATIVE.
-- ``ranking_subset_size`` - size of a subset that is used to
-  rank layers by their contribution to the accuracy drop. Default value is
-  300, and the more samples it has the better ranking, potentially. Here
-  we use the value 25 to speed up the execution.
+
+You should provide the calibration dataset and the validation dataset.
+It can be the same dataset. - parameter ``max_drop`` defines the
+accuracy drop threshold. The quantization process stops when the
+degradation of accuracy metric on the validation dataset is less than
+the ``max_drop``. The default value is 0.01. NNCF will stop the
+quantization and report an error if the ``max_drop`` value can’t be
+reached. - ``drop_type`` defines how the accuracy drop will be
+calculated: ABSOLUTE (used by default) or RELATIVE. -
+``ranking_subset_size`` - size of a subset that is used to rank layers
+by their contribution to the accuracy drop. Default value is 300, and
+the more samples it has the better ranking, potentially. Here we use the
+value 25 to speed up the execution.
 
    **NOTE**: Execution can take tens of minutes and requires up to 15 GB
    of free memory
@@ -321,9 +336,11 @@ dataset.
 Compare Accuracy and Performance of the Original and Quantized Models
 ---------------------------------------------------------------------
 
-Now we can compare metrics of the Original non-quantized
-OpenVINO IR model and Quantized OpenVINO IR model to make sure that the
-``max_drop`` is not exceeded.
+
+
+Now we can compare metrics of the Original non-quantized OpenVINO IR
+model and Quantized OpenVINO IR model to make sure that the ``max_drop``
+is not exceeded.
 
 .. code:: ipython3
 

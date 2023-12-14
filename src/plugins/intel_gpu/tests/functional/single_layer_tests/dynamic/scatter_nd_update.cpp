@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/scatter_ND_update.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <string>
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
-namespace GPULayerTestsDefinitions {
-using ScatterUpdateShapes = std::vector<InputShape>;
+namespace {
+using ScatterUpdateShapes = std::vector<ov::test::InputShape>;
 using IndicesValues = std::vector<std::int64_t>;
 
 enum class Scatterupdate_type {
@@ -31,24 +30,24 @@ struct ScatterUpdateLayerParams {
 
 typedef std::tuple<
     ScatterUpdateLayerParams,
-    ElementType,        // input precision
-    ElementType         // indices precision
+    ov::element::Type,        // input precision
+    ov::element::Type         // indices precision
 > ScatterUpdateParams;
 
 class ScatterUpdateLayerGPUTest : public testing::WithParamInterface<ScatterUpdateParams>,
-                                    virtual public SubgraphBaseTest {
+                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ScatterUpdateParams> obj) {
         ScatterUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
+        ov::element::Type model_type;
+        ov::element::Type idx_type;
+        std::tie(scatterParams, model_type, idx_type) = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
         const auto scType = scatterParams.scType;
 
         std::ostringstream result;
-        result << inputPrecision << "_IS=";
+        result << model_type << "_IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
@@ -61,7 +60,7 @@ public:
             result << ")_";
         }
         result << "indices_values=" << ov::test::utils::vec2str(indicesValues);
-        result << "_idx_precision=" << idxPrecision;
+        result << "_idx_precision=" << idx_type;
         result << "_scatter_mode=";
         switch (scType) {
             case Scatterupdate_type::ND:
@@ -84,30 +83,34 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            const auto& inputPrecision = funcInput.get_element_type();
+            const auto& model_type = funcInput.get_element_type();
             const auto& targetShape = targetInputStaticShapes[i];
             ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::Tensor{ inputPrecision, targetShape };
+                tensor = ov::Tensor{ model_type, targetShape };
                 const auto indicesVals = std::get<0>(this->GetParam()).indicesValues;
-                if (inputPrecision == ElementType::i32) {
+                if (model_type == ov::element::i32) {
                     auto data = tensor.data<std::int32_t>();
                     for (size_t i = 0; i < tensor.get_size(); ++i) {
                         data[i] = static_cast<std::int32_t>(indicesVals[i]);
                     }
-                } else if (inputPrecision == ElementType::i64) {
+                } else if (model_type == ov::element::i64) {
                     auto data = tensor.data<std::int64_t>();
                     for (size_t i = 0; i < tensor.get_size(); ++i) {
                         data[i] = indicesVals[i];
                     }
                 } else {
-                    OPENVINO_THROW("GatherNDUpdate. Unsupported indices precision: ", inputPrecision);
+                    OPENVINO_THROW("GatherNDUpdate. Unsupported indices precision: ", model_type);
                 }
             } else {
-                if (inputPrecision.is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, 10, 0, 1000);
+                if (model_type.is_real()) {
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(model_type, targetShape, in_data);
                 } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape);
+                    tensor = ov::test::utils::create_and_fill_tensor(model_type, targetShape);
                 }
             }
             inputs.insert({ funcInput.get_node_shared_ptr(), tensor });
@@ -117,19 +120,19 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         ScatterUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
+        ov::element::Type model_type;
+        ov::element::Type idx_type;
+        std::tie(scatterParams, model_type, idx_type) = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto scType = scatterParams.scType;
 
         init_input_shapes({inputShapes[0], inputShapes[1], inputShapes[2]});
 
 
-        ov::ParameterVector dataParams{std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]),
-                                   std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[2])};
+        ov::ParameterVector dataParams{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]),
+                                   std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2])};
 
-        auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idxPrecision, inputDynamicShapes[1]);
+        auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idx_type, inputDynamicShapes[1]);
         dataParams[0]->set_friendly_name("Param_1");
         indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
@@ -137,41 +140,38 @@ protected:
         std::shared_ptr<ov::Node> scatter;
         switch (scType) {
             case Scatterupdate_type::ND: {
-                scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
+                scatter = std::make_shared<ov::op::v3::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
                 break;
             }
             case Scatterupdate_type::Elements: {
                 auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
-                scatter = std::make_shared<ngraph::opset4::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+                scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
                 break;
             }
             case Scatterupdate_type::Basic:
             default: {
                 auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
-                scatter = std::make_shared<ngraph::opset4::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+                scatter = std::make_shared<ov::op::v3::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
             }
         }
 
-        ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
+        ov::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
 
-        auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
-            ResultVector results;
+        auto makeFunction = [](ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+            ov::ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
-            return std::make_shared<Function>(results, params, "ScatterUpdateLayerGPUTest");
+            return std::make_shared<ov::Model>(results, params, "ScatterUpdateLayerGPUTest");
         };
         function = makeFunction(allParams, scatter);
     }
 };
 
-TEST_P(ScatterUpdateLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(ScatterUpdateLayerGPUTest, Inference) {
     run();
 }
-
-namespace ScatterNDUpdate {
 
 const std::vector<ScatterUpdateLayerParams> scatterNDParams = {
     ScatterUpdateLayerParams{
@@ -245,12 +245,12 @@ const std::vector<ScatterUpdateLayerParams> scatterElementsParams = {
     },
 };
 
-const std::vector<ElementType> inputPrecisions = {
-    ElementType::f32,
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
 };
 
-const std::vector<ElementType> constantPrecisions = {
-    ElementType::i32,
+const std::vector<ov::element::Type> constantPrecisions = {
+    ov::element::i32,
 };
 
 const std::vector<ScatterUpdateLayerParams> scatterUpdate_EmptyInput1_2Params = {
@@ -294,28 +294,28 @@ const std::vector<ScatterUpdateLayerParams> scatterElementsUpdate_EmptyInput1_2P
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(scatterNDParams),
-        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(scatterElementsParams),
-        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(scatterUpdate_EmptyInput1_2Params),
-        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(scatterNDUpdate_EmptyInput1_2Params),
-        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
 
@@ -323,8 +323,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_EmptyInput1_2_CompareWithRefs_dyn
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(scatterElementsUpdate_EmptyInput1_2Params),
-        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
-} // namespace ScatterNDUpdate
-} // namespace GPULayerTestsDefinitions
+} // namespace
