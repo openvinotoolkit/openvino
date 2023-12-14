@@ -14,6 +14,7 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "strided_slice_inst.h"
+#include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -407,6 +408,19 @@ static bool can_crop_be_optimized_along_batch(const crop_node& node) {
     return false;
 }
 
+static bool can_read_value_be_optimize(const read_value_node& node) {
+    if (node.get_users().size() == 1)
+        return true;
+
+    const auto non_shape_of_users_count = std::count_if(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+        return !user->is_type<shape_of>();
+    });
+    if (non_shape_of_users_count <= 1)
+        return true;
+
+    return false;
+}
+
 static void propagate_padding_to_opt_out_users(program_node& node, cldnn::padding padding_data) {
     if (padding_data == cldnn::padding())
         return;
@@ -632,10 +646,10 @@ void prepare_buffer_fusing::run(program& p) {
             //                   ┌────┴──────┐
             //                   │  Result   │
             //                   └───────────┘
-            // If read_value here returns virable memory w/o copy, then based on Add-s and Assign execution order we may have different results
+            // If read_value here returns variable memory w/o copy, then based on Add-s and Assign execution order we may have different results
             // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
-            node.can_be_optimized(node.get_users().size() == 1);
+            node.can_be_optimized(can_read_value_be_optimize(node));
         });
     }
 }

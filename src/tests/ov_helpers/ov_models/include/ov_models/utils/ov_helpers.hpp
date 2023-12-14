@@ -10,11 +10,11 @@
 #endif
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/runtime/tensor.hpp>
 #include <vector>
 
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 namespace helpers {
