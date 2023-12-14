@@ -116,13 +116,13 @@ protected:
 
     inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs);
     inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
-                            const int64_t* indexes, const std::vector<std::vector<int64_t>>& data_offsets);
+                            const int64_t* indexes, const std::vector<std::vector<size_t>>& data_offsets);
     // Evaluates generated snippet using parallel backend
     void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
     void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
     snippets::Schedule schedule;
-    std::vector<std::vector<int64_t>> data_offsets = {};
+    std::vector<std::vector<size_t>> data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size

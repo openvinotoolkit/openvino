@@ -82,6 +82,11 @@ public:
      * @return the const ref of vector with data offsets
      */
     const std::vector<std::vector<size_t>>& get_data_offsets() const { return data_offsets; }
+    /**
+     * @brief Return the count of all loop descriptors
+     * @return the count
+     */
+    size_t get_full_loop_descriptor_count() const;
 
 private:
     RuntimeConfig() = default;

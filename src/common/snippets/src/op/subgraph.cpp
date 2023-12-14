@@ -465,7 +465,6 @@ void Subgraph::control_flow_transformations(const std::vector<snippets::lowered:
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-    pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();

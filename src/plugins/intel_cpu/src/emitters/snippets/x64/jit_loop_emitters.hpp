@@ -60,6 +60,8 @@ protected:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
+    size_t aux_gprs_count() const  override { return 1; }
+
     std::shared_ptr<const Xbyak::Label> loop_end_label;
     size_t loop_id;
 };
@@ -114,6 +116,8 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+
+    size_t aux_gprs_count() const  override { return 1; }
 
     std::shared_ptr<Xbyak::Label> loop_end_label;
     size_t loop_id;

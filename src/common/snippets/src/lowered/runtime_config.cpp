@@ -56,6 +56,11 @@ bool RuntimeConfig::get_loop_desc(size_t loop_id, LoopDescriptor::Type type, Loo
     return false;
 }
 
+size_t RuntimeConfig::get_full_loop_descriptor_count() const {
+    return std::accumulate(loops.cbegin(), loops.cend(), 0,
+                           [](size_t count, const std::pair<size_t, std::vector<LoopDescriptor>>& p) { return count + p.second.size(); });
+}
+
 } // namespace lowered
 } // namespace snippets
 } // namespace ov

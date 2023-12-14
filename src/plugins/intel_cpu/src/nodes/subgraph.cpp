@@ -532,6 +532,17 @@ Subgraph::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyn
 }
 
 void Subgraph::SnippetJitExecutor::prepare() {
+    if (is_dynamic) {
+        const auto runtime_config = snippet_attrs.snippet->configure_runtime_args();
+        loop_args.resize(runtime_config.get_full_loop_descriptor_count());
+        size_t idx = 0;
+        for (const auto& loops : runtime_config.get_loops()) {
+            for (const auto& loop : loops.second) {
+                loop_args[idx++] = jit_snippets_call_args::loop_args_t(loop.work_amount, loop.ptr_increments, loop.finalization_offsets);
+            }
+        }
+        data_offsets = runtime_config.get_data_offsets();
+    }
     buffer_scratchpad_size = schedule.lowering_result.buffer_scratchpad_size;
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
     parallel_exec_domain = snippet_attrs.snippet->get_parallel_exec_domain();
@@ -564,21 +575,21 @@ inline void Subgraph::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& ca
                                                       const std::vector<MemoryPtr>& srcMemPtrs,
                                                       const std::vector<MemoryPtr>& dstMemPtrs,
                                                       const int64_t* indexes,
-                                                      const std::vector<std::vector<int64_t>>& data_offsets) {
+                                                      const std::vector<std::vector<size_t>>& data_offsets) {
     OPENVINO_ASSERT(data_offsets.size() == srcMemPtrs.size() + dstMemPtrs.size(), "Incorrect data offset count!");
     OPENVINO_ASSERT(data_offsets.front().size() == tensor_rank, "Data offsets with invalid ranks detected");
 
     for (size_t i = 0; i < srcMemPtrs.size(); i++) {
         auto i_ptr = reinterpret_cast<uint8_t*>(srcMemPtrs[i]->getData()) + start_offset_in[i];
         for (size_t j = 0; j < tensor_rank - 1; j++) {
-            i_ptr += (data_offsets[i][j] * indexes[j]);
+            i_ptr += (static_cast<int64_t>(data_offsets[i][j]) * indexes[j]);
         }
         call_args.src_ptrs[i] = i_ptr;
     }
     for (size_t i = 0; i < dstMemPtrs.size(); i++) {
         auto i_ptr = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->getData()) + start_offset_out[i];
         for (size_t j = 0; j < tensor_rank - 1; j++) {
-            i_ptr += (data_offsets[i + srcMemPtrs.size()][j] * indexes[j]);
+            i_ptr += (static_cast<int64_t>(data_offsets[i + srcMemPtrs.size()][j]) * indexes[j]);
         }
         call_args.dst_ptrs[i] = i_ptr;
     }
