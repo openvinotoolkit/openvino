@@ -84,8 +84,8 @@ The applications include:
 
      benchmark_app -m <model> -i <input> -d <device>
 
-- :doc:`Automatic Speech Recognition Sample <openvino_sample_automatic_speech_recognition>` - 
-  ``[DEPRECATED]`` Acoustic model inference based on Kaldi neural networks and 
+- ``[DEPRECATED]`` :doc:`Automatic Speech Recognition Sample <openvino_sample_automatic_speech_recognition>` - 
+  Acoustic model inference based on Kaldi neural networks and 
   speech feature vectors.
 
 
