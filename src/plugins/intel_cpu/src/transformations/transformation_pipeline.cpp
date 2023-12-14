@@ -499,11 +499,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             ov::pass::MulFakeQuantizeFusion,
             ov::pass::FakeQuantizeMulFusion);
 
-        CPU_SET_CALLBACK_COMMON(manager,
+        /*CPU_SET_CALLBACK_COMMON(manager,
             [&defaultPrecisions](const_node_ptr &node) -> bool {
                 return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
             },
-            ov::pass::ConvertQuantizeDequantize);
+            ov::pass::ConvertQuantizeDequantize);*/
     }
 
     /* In some cases, during the transformation pipeline, some MatMul nodes can be transformed into other nodes. For example, they can become part of

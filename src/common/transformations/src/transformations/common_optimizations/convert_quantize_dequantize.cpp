@@ -72,7 +72,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
     auto convert1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(
         {fq_pattern},
-        pattern::type_matches_any({element::i8, element::u8, element::i16, element::u16}));
+        pattern::type_matches_any({element::i8, element::u8, element::i16, element::u16, element::i32, element::u32}));
     auto convert2_pattern =
         ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = pass::pattern::any_input();
@@ -139,10 +139,12 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
                 return false;
             break;
         case element::Type_t::i16:
+        case element::Type_t::i32:
             if (out_low_val != -32768 || out_high_val != 32767)
                 return false;
             break;
         case element::Type_t::u16:
+        case element::Type_t::u32:
             if (out_low_val != 0 || out_high_val != 65535)
                 return false;
             break;
