@@ -67,15 +67,22 @@ def test_normalize():
 
 
 @pytest.mark.parametrize(
+    ("target_size"),
+    [
+        (220, 220, 3),
+        (200, 240, 3),
+    ]
+)
+@pytest.mark.parametrize(
     ("interpolation", "tolerance"),
     [
         (transforms.InterpolationMode.NEAREST, 4e-05),
     ],
 )
-def test_resize(interpolation, tolerance):
+def test_resize(target_size, interpolation, tolerance):
     if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
         pytest.skip("Ticket: 114816")
-    test_input = np.random.randint(255, size=(220, 220, 3), dtype=np.uint8)
+    test_input = np.random.randint(255, size=target_size, dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
             transforms.Resize(224, interpolation=interpolation),

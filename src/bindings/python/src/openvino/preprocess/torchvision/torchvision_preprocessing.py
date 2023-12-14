@@ -48,22 +48,29 @@ TORCHTYPE_TO_OVTYPE = {
 
 
 @singledispatch
-def _setup_size(size: Any, error_msg: str) -> SequenceType[int]:
+def _setup_size(size: Any, error_msg: str, meta: Dict) -> SequenceType[int]:
     raise ValueError(error_msg)
 
 
 @_setup_size.register
-def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]:
+def _setup_size_number(size: numbers.Number, error_msg: str, meta: Dict) -> SequenceType[int]:
+    print(f"\n\_setup_size_number\n\n")
     return int(size), int(size)  # type: ignore
 
 
 @_setup_size.register
-def _setup_size_sequence(size: Sequence, error_msg: str) -> SequenceType[int]:
+def _setup_size_sequence(size: Sequence, error_msg: str, meta: Dict) -> SequenceType[int]:
+    print(f"\n\n_setup_size_sequence\n\n")
     if len(size) == 1:
+        print(f"\n\n_setup_size_sequence1\n\n")
         return size[0], size[0]
     elif len(size) == 2:
-        return size
+        print(f"\n\n_setup_size_sequence2\n\n")
+        return size[0], size[1]
     raise ValueError(error_msg)
+
+
+#def rescale_dimensions(meta: Dict, )
 
 
 def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
@@ -290,7 +297,14 @@ class _(TransformConverterBase):
         if transform.interpolation is not InterpolationMode.NEAREST:
             raise ValueError("Only InterpolationMode.NEAREST is supported.")
 
-        h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+        target_h, target_w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+
+        current_h, current_w = meta["image_dimensions"]
+
+        if current_h > current_w:
+            target_h = int(transform.size*(current_h/current_w))
+        elif current_w > current_h:
+            target_w = int(transform.size*(current_w/current_h))
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
@@ -298,11 +312,11 @@ class _(TransformConverterBase):
 
         input_shape[meta["layout"].get_index_by_name("H")] = -1
         input_shape[meta["layout"].get_index_by_name("W")] = -1
-
+        print(f"\n\nDims: {target_h}, {target_w}\n\n")
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], h, w)
+        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
         meta["input_shape"] = input_shape
-        meta["image_dimensions"] = (h, w)
+        meta["image_dimensions"] = (target_h, target_w)
 
 
 def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> ov.Model:
