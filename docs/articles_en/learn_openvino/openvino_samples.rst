@@ -17,17 +17,17 @@ OpenVINO™ Samples
    :hidden:
    
    Get Started with C++ Samples <openvino_docs_get_started_get_started_demos>
-   openvino_sample_image_classification_async
    openvino_sample_hello_classification
-   openvino_sample_hello_reshape_ssd
    openvino_sample_hello_nv12_input_classification
    openvino_sample_hello_query_device
+   openvino_sample_hello_reshape_ssd
+   openvino_sample_image_classification_async
    openvino_sample_model_creation
-   openvino_sample_automatic_speech_recognition
    openvino_sample_sync_benchmark
    openvino_sample_throughput_benchmark
    openvino_sample_bert_benchmark
    openvino_sample_benchmark_tool
+   openvino_sample_automatic_speech_recognition
 
 
 The OpenVINO™ samples are simple console applications that show how to utilize 
