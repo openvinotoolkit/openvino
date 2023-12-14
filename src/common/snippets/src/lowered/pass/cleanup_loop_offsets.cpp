@@ -57,11 +57,11 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
                             //    outer_ptr_increment[0] = (inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) / outer_Inc
                             //    outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
 
-                            const auto full_outer_increment = outer_ptr_increments[i] * outer_increment;
+                            const auto full_outer_increment = outer_ptr_increments[i];
                             const auto new_final_outer_increment = full_outer_increment + fin_offsets[found->second];
 
                             if (new_final_outer_increment % outer_increment == 0) {
-                                outer_ptr_increments[i] = new_final_outer_increment / outer_increment;
+                                outer_ptr_increments[i] = new_final_outer_increment;
                                 fin_offsets[found->second] = 0;
                                 is_modified = true;
                             }
