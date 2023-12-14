@@ -23,7 +23,7 @@ from tests import (
     xfail_issue_78843,
     xfail_issue_86911,
     xfail_issue_onnx_models_140,
-    xfail_issue_127649)
+    skip_issue_127649)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -181,8 +181,8 @@ if len(zoo_models) > 0:
             (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_resnet101_duc_7_resnet101_duc_hdc_resnet101_duc_hdc_cpu"),
             (xfail_issue_78843, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
-            (xfail_issue_127649, "test_onnx_model_zoo_vision_classification_resnet_model_resnet50_v1_7_resnet50v1_resnet50_v1_7_cpu"),
-            (xfail_issue_127649, "test_onnx_model_zoo_vision_super_resolution_sub_pixel_cnn_2016_model_super_resolution_10_super_resolution_super_resolution_cpu"),
+            (skip_issue_127649, "test_onnx_model_zoo_vision_classification_resnet_model_resnet50_v1_7_resnet50v1_resnet50_v1_7_cpu"),
+            (skip_issue_127649, "test_onnx_model_zoo_vision_super_resolution_sub_pixel_cnn_2016_model_super_resolution_10_super_resolution_super_resolution_cpu"),
 
             # Model MSFT
             (xfail_issue_37973, "test_msft_opset7_tf_inception_v2_model_cpu"),
