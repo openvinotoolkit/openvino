@@ -359,6 +359,157 @@ public:
         }
     }
 
+    void test_dynamic_padding(bool is_caching_test) {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        auto& engine = get_test_engine();
+
+        const unsigned long BATCH_SIZE = 31;
+        const unsigned long M_SIZE = 11;
+        const unsigned long K_SIZE = 37;
+        const unsigned long N_SIZE = 49;
+
+        auto fill_mem = [&](cldnn::memory_ptr mem, std::vector<ov::float16>& data) {
+            cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
+            auto&& l = mem->get_layout();
+            auto data_idx = 0;
+            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
+                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
+                            mem_ptr[buffer_idx] = data[data_idx++];
+                        }
+                    }
+                }
+            }
+        };
+
+        const auto align_size_m = 13;
+        const auto align_size_k = 16;
+        const auto align_size_n = 15;
+        const auto align_size_b1 = 3;
+        const auto align_size_b2 = 19;
+
+        const auto aligned_batch1_size = align_to(1ul, align_size_b1);
+        auto padding_size_batch1 = static_cast<int>(aligned_batch1_size - 1);
+
+        const auto aligned_batch2_size = align_to(BATCH_SIZE, align_size_b2);
+        auto padding_size_batch2 = static_cast<int>(aligned_batch2_size - BATCH_SIZE);
+
+        const auto aligned_m_size = align_to(M_SIZE, align_size_m);
+        auto padding_size_m = static_cast<int>(aligned_m_size - M_SIZE);
+        const auto aligned_k_size = align_to(K_SIZE, align_size_k);
+        auto padding_size_k = static_cast<int>(aligned_k_size - K_SIZE);
+        const auto aligned_n_size = align_to(N_SIZE, align_size_n);
+        auto padding_size_n = static_cast<int>(aligned_n_size - N_SIZE);
+
+        ov::Shape in1_shape = { 1, BATCH_SIZE, M_SIZE, K_SIZE };
+        ov::Shape in2_shape = { 1, BATCH_SIZE, K_SIZE, N_SIZE };
+        ov::Shape in1_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_m_size, aligned_k_size };
+        ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
+
+        // Use dynamic padding for all BFYX dimensions
+        tensor dyn_pad_dims_input({1, 1, 1, 1}, 0);
+
+        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input)};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input)};
+
+        auto aligned_input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
+        auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
+
+        auto input1_mem = engine.reinterpret_buffer(*aligned_input1_mem, layout{ov::PartialShape(in1_shape),
+                                                                                data_types::f16,
+                                                                                format::bfyx,
+                                                                                padding({padding_size_batch1, 0, 0, 0},
+                                                                                        {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input)});
+
+        auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
+                                                                                data_types::f16,
+                                                                                format::bfyx,
+                                                                                padding({0, padding_size_batch2, 0, 0},
+                                                                                        {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input)});
+
+        auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
+        auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
+
+        fill_mem(input1_mem, input_1_data);
+        fill_mem(input2_mem, input_2_data);
+
+        auto get_ref_results = [&]() {
+            ov::Shape in1_shape = { 1, BATCH_SIZE, M_SIZE, K_SIZE };
+            ov::Shape in2_shape = { 1, BATCH_SIZE, K_SIZE, N_SIZE };
+            auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
+            auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
+
+            auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f16, format::bfyx});
+            auto input2_mem = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f16, format::bfyx});
+
+            fill_mem(input1_mem, input_1_data);
+            fill_mem(input2_mem, input_2_data);
+
+            topology topology;
+            topology.add(input_layout("input1", in1_layout),
+                        input_layout("input2", in2_layout),
+                        gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
+            );
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+            network network(engine, topology, config);
+            network.set_input_data("input1", input1_mem);
+            network.set_input_data("input2", input2_mem);
+
+            auto outputs = network.execute();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            OPENVINO_ASSERT(outputs.begin()->first == "gemm_ref");
+
+            auto inst = network.get_primitive("gemm_ref");
+
+            auto output_mem = outputs.at("gemm_ref").get_memory();
+            auto output_layout = outputs.at("gemm_ref").get_layout();
+
+            return engine.reinterpret_buffer(*output_mem, output_layout);
+        };
+
+        topology topology;
+        topology.add(input_layout("input1", in1_layout),
+                     input_layout("input2", in2_layout),
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input1", input1_mem);
+        network->set_input_data("input2", input2_mem);
+
+        auto inst = network->get_primitive("gemm");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network->execute();
+
+        auto output_mem = outputs.at("gemm").get_memory();
+        auto output_layout = outputs.at("gemm").get_layout();
+
+        auto res = engine.reinterpret_buffer(*output_mem, output_layout);
+
+        auto ref_res = get_ref_results();
+
+        mem_lock<ov::float16> res_lock(res, get_test_stream());
+        mem_lock<ov::float16> res_ref_lock(ref_res, get_test_stream());
+        for (size_t i = 0; i < res->count(); i++) {
+            ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
+        }
+    }
+
     void test_dynamic_multi_inference_same_shape(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -547,6 +698,10 @@ TEST_F(gemm_gpu_tests, basic_bfyx_t2_inplace_crop_with_pad) {
 
 TEST_F(gemm_gpu_tests, dynamic) {
     this->test_dynamic(false);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_padding) {
+    this->test_dynamic_padding(false);
 }
 
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape) {

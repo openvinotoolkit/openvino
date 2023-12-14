@@ -24,6 +24,7 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfwzyx);
 
     k.EnableTensorOffset();
+    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
@@ -64,7 +65,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
 
     GemmKernelTiledOpt::GemmTuningData tuning_data;
 
-     if (!params.is_shape_agnostic) {
+    if (!params.is_shape_agnostic) {
         auto m_size = output.Y().v;
         auto n_size = output.X().v;
         auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
@@ -112,11 +113,17 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     if (params.has_dynamic_tensors()) {
         DimensionAccessHelper dims0(params.inputs[0]);
         DimensionAccessHelper dims1(params.inputs[1]);
+        DimensionAccessHelper dims0_padded(params.inputs[0], true);
+        DimensionAccessHelper dims1_padded(params.inputs[1], true);
         // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
         // Because we cannot get the original rank
         auto m_size = params.transpose_input0 ? dims0.x() : dims0.y();
         auto n_size = params.transpose_input1 ? dims1.y() : dims1.x();
+        auto n_padded_size = params.transpose_input1 ? "(" + dims1_padded.y() + ")"
+                                                     : "(" + dims1_padded.x() + ")";
         auto k_size = params.transpose_input0 ? dims0.y() : dims0.x();
+        auto k_padded_size_in0 = params.transpose_input0 ? "(" + dims0_padded.y() + ")"
+                                                         : "(" + dims0_padded.x() + ")";
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
         const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
         const std::string leftover_k = "(" + k_size + "%" + std::to_string(tuning_data.tile_k_size) + ")";
@@ -129,6 +136,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("M", m_size),
             MakeJitConstant("K", k_size),
             MakeJitConstant("N", n_size),
+            MakeJitConstant("K_PADDED_IN0", k_padded_size_in0),
+            MakeJitConstant("N_PADDED", n_padded_size),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -141,6 +150,15 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
         });
+
+        bool has_dynamic_k_padding = params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic
+                                                             : params.inputs[0].X().pad.is_dynamic;
+        bool has_dynamic_n_padding = params.transpose_input1 ? params.inputs[1].Y().pad.is_dynamic
+                                                             : params.inputs[1].X().pad.is_dynamic;
+        if (has_dynamic_k_padding)
+            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_K_PADDING", 1));
+        if (has_dynamic_n_padding)
+            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
     } else {
         auto m_size = output.Y().v;
         auto n_size = output.X().v;
@@ -153,6 +171,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("M", m_size),
             MakeJitConstant("K", k_size),
             MakeJitConstant("N", n_size),
+            MakeJitConstant("K_PADDED_IN0", k_size),
+            MakeJitConstant("N_PADDED", n_size),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -235,10 +255,24 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
         return false;
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
-    for (auto input : gmm_params.inputs) {
-        // Only supports outer padding as first element offset
-        if (input.X().pad.Total() != 0 || input.Y().pad.Total() != 0 || input.Z().pad.Total() != 0 ||
-            input.Feature().pad.Total() != 0)
+
+    if (gmm_params.outputs[0].PitchesDifferFromLogicalDims())
+        return false;
+
+    for (size_t input_idx = 0; input_idx < gmm_params.inputs.size(); ++input_idx) {
+        auto& input = gmm_params.inputs[input_idx];
+        // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for first and second inputs
+        // in case of shape agnostic kernel
+        bool proper_pad_f = input.Feature().pad.is_dynamic ? false : input.Feature().pad.Total() == 0;
+        bool proper_pad_x = input.X().pad.is_dynamic ? false : input.X().pad.Total() == 0;
+        bool proper_pad_y = input.Y().pad.is_dynamic ? false : input.Y().pad.Total() == 0;
+        if (gmm_params.is_shape_agnostic && input_idx < 2) {
+            proper_pad_f |= input.Feature().pad.is_dynamic;
+            proper_pad_x |= input.X().pad.is_dynamic;
+            proper_pad_y |= input.Y().pad.is_dynamic;
+        }
+
+        if (!proper_pad_x || !proper_pad_y || input.Z().pad.Total() != 0 || !proper_pad_f)
             return false;
     }
 
