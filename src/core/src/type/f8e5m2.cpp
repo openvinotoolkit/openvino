@@ -21,8 +21,7 @@ f8e5m2::f8e5m2(float16 f16_val) {
 }
 
 f8e5m2::operator float() const {
-    const uint16_t sign_mask = uint16_t(m_value & 0x80) << 8;
-    return static_cast<float>(float16::from_bits(sign_mask | (static_cast<uint16_t>(m_value) << 8)));
+    return static_cast<float>(float16::from_bits((static_cast<uint16_t>(m_value) << 8)));
 }
 
 size_t f8e5m2::size() const {
