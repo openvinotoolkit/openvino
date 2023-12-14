@@ -8,7 +8,7 @@
 #include "openvino/runtime/core.hpp"
 
 Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
-    Napi::Object enumObj = Napi::Object::New(info.Env());
+    auto enumObj = Napi::Object::New(info.Env());
     std::vector<Napi::PropertyDescriptor> pds;
 
     std::array<std::string, 3> resizeAlgorithms = {"RESIZE_LINEAR", "RESIZE_CUBIC", "RESIZE_NEAREST"};

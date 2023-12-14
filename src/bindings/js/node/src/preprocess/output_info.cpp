@@ -16,11 +16,12 @@ Napi::Value OutputInfo::tensor(const Napi::CallbackInfo& info) {
     if (info.Length() != 0) {
         reportError(info.Env(), "Error in tensor(). Function does not take any parameters.");
         return info.Env().Undefined();
+    } else {
+        Napi::Object obj = OutputTensorInfo::GetClassConstructor(info.Env()).New({});
+        auto tensor_info = Napi::ObjectWrap<OutputTensorInfo>::Unwrap(obj);
+        tensor_info->set_output_tensor_info(_output_info->tensor());
+        return obj;
     }
-    Napi::Object obj = OutputTensorInfo::GetClassConstructor(info.Env()).New({});
-    auto tensor_info = Napi::ObjectWrap<OutputTensorInfo>::Unwrap(obj);
-    tensor_info->set_output_tensor_info(_output_info->tensor());
-    return obj;
 }
 
 void OutputInfo::set_output_info(ov::preprocess::OutputInfo& info) {

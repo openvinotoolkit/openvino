@@ -22,33 +22,36 @@ Napi::Value InputInfo::tensor(const Napi::CallbackInfo& info) {
     if (info.Length() != 0) {
         reportError(info.Env(), "Error in tensor(). Function does not take any parameters.");
         return info.Env().Undefined();
+    } else {
+        Napi::Object obj = InputTensorInfo::GetClassConstructor(info.Env()).New({});
+        auto tensor_info = Napi::ObjectWrap<InputTensorInfo>::Unwrap(obj);
+        tensor_info->set_input_tensor_info(_input_info->tensor());
+        return obj;
     }
-    Napi::Object obj = InputTensorInfo::GetClassConstructor(info.Env()).New({});
-    auto tensor_info = Napi::ObjectWrap<InputTensorInfo>::Unwrap(obj);
-    tensor_info->set_input_tensor_info(_input_info->tensor());
-    return obj;
 }
 
 Napi::Value InputInfo::preprocess(const Napi::CallbackInfo& info) {
     if (info.Length() != 0) {
         reportError(info.Env(), "Error in preprocess(). Function does not take any parameters.");
         return info.Env().Undefined();
+    } else {
+        Napi::Object obj = PreProcessSteps::GetClassConstructor(info.Env()).New({});
+        auto preprocess_info = Napi::ObjectWrap<PreProcessSteps>::Unwrap(obj);
+        preprocess_info->set_preprocess_info(_input_info->preprocess());
+        return obj;
     }
-    Napi::Object obj = PreProcessSteps::GetClassConstructor(info.Env()).New({});
-    auto preprocess_info = Napi::ObjectWrap<PreProcessSteps>::Unwrap(obj);
-    preprocess_info->set_preprocess_info(_input_info->preprocess());
-    return obj;
 }
 
 Napi::Value InputInfo::model(const Napi::CallbackInfo& info) {
     if (info.Length() != 0) {
         reportError(info.Env(), "Error in model(). Function does not take any parameters.");
         return info.Env().Undefined();
+    } else {
+        Napi::Object obj = InputModelInfo::GetClassConstructor(info.Env()).New({});
+        auto model_info = Napi::ObjectWrap<InputModelInfo>::Unwrap(obj);
+        model_info->set_input_model_info(_input_info->model());
+        return obj;
     }
-    Napi::Object obj = InputModelInfo::GetClassConstructor(info.Env()).New({});
-    auto model_info = Napi::ObjectWrap<InputModelInfo>::Unwrap(obj);
-    model_info->set_input_model_info(_input_info->model());
-    return obj;
 }
 
 void InputInfo::set_input_info(ov::preprocess::InputInfo& info) {
