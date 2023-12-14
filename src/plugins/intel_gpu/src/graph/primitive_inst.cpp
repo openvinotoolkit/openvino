@@ -1,4 +1,5 @@
 // Copyright (C) 2018-2023 Intel Corporation
+
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "program_helpers.h"
@@ -25,6 +26,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "condition_inst.h"
+#include "gather_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -787,6 +789,49 @@ void primitive_inst::do_runtime_skip_reorder() {
     }
 }
 
+void primitive_inst::do_runtime_skip_gather() {
+    // Target pattter:
+    // [kv_cache_input / beam_idx_input] => Gather => Concat
+    auto is_optimizable_gather = [&] {
+        if (!get_node().is_type<gather>())
+            return false;
+        if (!get_node().get_dependency(0).is_type<input_layout>() &&
+            !get_node().get_dependency(0).is_type<read_value>())
+            return false;
+        if (get_user_insts().size() != 1 || !get_user_insts().front()->get_node().is_type<concatenation>())
+            return false;
+        auto idx_shape = get_impl_params()->get_input_layout(1).get_partial_shape().to_shape();
+        if (idx_shape.size() > 1)
+            return false;
+        return true;;
+    };
+
+    if (!is_optimizable_gather())
+        return;
+    auto idx_id = get_node().get_dependency(1).id();
+    auto idx_shape = _impl_params->get_input_layout(1).get_partial_shape().to_shape();
+    auto input_shape = _impl_params->get_input_layout(0).get_partial_shape().to_shape();
+    auto axis = _impl_params->typed_desc<gather>()->axis;
+    if (idx_shape[0] != input_shape[axis]) {
+        set_can_be_optimized(false);
+        return;
+    }
+
+    auto queue_type = get_network().get_stream().get_queue_type();
+    if (queue_type == QueueTypes::out_of_order)
+        get_network().get_stream().wait_for_events({_network.get_primitive_event(idx_id)});
+    else
+        _network.get_stream().finish();
+    mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), _network.get_stream());
+    for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
+        if (idx_data[i] != i) {
+            set_can_be_optimized(false);
+            return;
+        }
+    }
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -871,6 +916,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
+        do_runtime_skip_gather();
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);

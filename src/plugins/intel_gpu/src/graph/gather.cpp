@@ -132,6 +132,23 @@ std::string gather_inst::to_string(gather_node const& node) {
     return primitive_description.str();
 }
 
+void gather_inst::on_execute() {
+    update_output_memory();
+}
+
+void gather_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    _outputs[0] = input_memory_ptr();
+    _mem_allocated = false;
+}
+
 gather_inst::typed_primitive_inst(network& network, gather_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn
