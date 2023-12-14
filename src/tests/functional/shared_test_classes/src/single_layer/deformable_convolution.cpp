@@ -13,7 +13,7 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestP
     std::string targetDevice;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
             obj.param;
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector offsets, filter, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
@@ -64,7 +64,7 @@ void DeformableConvolutionLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
             this->GetParam();
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector offsets, filter, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
@@ -76,30 +76,30 @@ void DeformableConvolutionLayerTest::SetUp() {
     for (auto&& shape : {inputShape, offsets, filter}) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto data = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(inputShape));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(inputShape));
     data->set_friendly_name("a_data");
-    auto offset_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(offsets));
+    auto offset_vals = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(offsets));
     offset_vals->set_friendly_name("b_offset_vals");
-    auto filter_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(filter));
+    auto filter_vals = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(filter));
     filter_vals->set_friendly_name("c_filter_vals");
     ngraph::ParameterVector parameters{data, offset_vals, filter_vals};
     std::shared_ptr<ngraph::Node> deformable_conv;
     if (with_modulation) {
         auto modulation_shape = ngraph::Shape(offsets);
         modulation_shape[1] = offsets[1] / 2;
-        auto modulation_scalars = std::make_shared<ngraph::op::Parameter>(ngPrc, modulation_shape);
+        auto modulation_scalars = std::make_shared<ov::op::v0::Parameter>(ngPrc, modulation_shape);
         modulation_scalars->set_friendly_name("c_modulation_scalars");
 
-        deformable_conv = std::make_shared<ngraph::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, padBegin,
+        deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, padBegin,
                                                                                   padEnd, dilation, padType, groups, deformable_groups,
                                                                                   with_bilinear_interpolation_pad);
         parameters.push_back(modulation_scalars);
     } else {
-        deformable_conv = std::make_shared<ngraph::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, stride, padBegin, padEnd, dilation,
+        deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, stride, padBegin, padEnd, dilation,
                                                                                   padType, groups, deformable_groups, with_bilinear_interpolation_pad);
     }
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformable_conv)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(deformable_conv)};
     function = std::make_shared<ngraph::Function>(results, parameters, "deformable_convolution");
 }
 }  // namespace LayerTestsDefinitions
