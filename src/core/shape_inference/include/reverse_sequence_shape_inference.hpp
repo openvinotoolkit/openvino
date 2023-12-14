@@ -3,10 +3,9 @@
 //
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/reverse_sequence.hpp>
-
+#include "openvino/op/reverse_sequence.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -32,9 +31,7 @@ std::vector<TRShape> shape_infer(const ReverseSequence* op, const std::vector<TS
                           seq_lengths_pshape);
     TRShape output_pshape = data_pshape;
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_batch_axis = ov::normalize_axis(op, op->get_origin_batch_axis(), data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_batch_axis = ov::util::normalize_axis(op, op->get_origin_batch_axis(), data_rank);
         DimType merged_sequence_length;
         NODE_VALIDATION_CHECK(
             op,

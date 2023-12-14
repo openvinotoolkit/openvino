@@ -6,9 +6,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
 ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);
@@ -23,9 +23,7 @@ ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
 
         auto v8_axis = softmax_v8_node->get_axis();
         auto rank = softmax_v8_node->get_input_partial_shape(0).rank().get_length();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto v1_axis = static_cast<size_t>(ov::normalize_axis(softmax_v8_node->description(), v8_axis, rank));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto v1_axis = static_cast<size_t>(ov::util::normalize_axis(softmax_v8_node->description(), v8_axis, rank));
 
         auto softmax_v1_node = std::make_shared<ov::op::v1::Softmax>(softmax_v8_node->input_value(0), v1_axis);
         softmax_v1_node->set_friendly_name(softmax_v8_node->get_friendly_name());
