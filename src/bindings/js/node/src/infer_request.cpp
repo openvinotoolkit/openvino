@@ -190,7 +190,7 @@ void InferRequestWrap::infer(const Napi::Array& inputs) {
 }
 
 void InferRequestWrap::infer(const Napi::Object& inputs) {
-    auto keys = inputs.GetPropertyNames();
+    const auto& keys = inputs.GetPropertyNames();
 
     for (size_t i = 0; i < keys.Length(); ++i) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();

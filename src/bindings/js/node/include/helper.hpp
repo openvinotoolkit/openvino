@@ -31,7 +31,7 @@ template <typename TargetType>
 TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx, const std::vector<napi_types>& acceptable_types);
 
 template <typename TargetType>
-TargetType js_to_cpp(const Napi::Value, const std::vector<napi_types>& acceptable_types);
+TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
 
 template <>
 int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
@@ -93,7 +93,7 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>
-ov::Any js_to_cpp<ov::Any>(const Napi::Value, const std::vector<napi_types>& acceptable_types);
+ov::Any js_to_cpp<ov::Any>(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
 
 /** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
 template <>
@@ -133,16 +133,16 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
 ov::TensorVector parse_input_data(const Napi::Value& input);
 
 /** @brief Gets an input/output tensor from InferRequest by key. */
-ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
+ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key);
 
 /** @brief Gets an input tensor from InferRequest by index. */
-ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
+ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const size_t idx);
 
 /** @brief Creates ov::tensor from TensorWrap Object */
-ov::Tensor cast_to_tensor(Napi::Value value);
+ov::Tensor cast_to_tensor(const Napi::Value& value);
 
 /** @brief Creates ov::tensor from TypedArray using given shape and element type*/
-ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const ov::element::Type_t& type);
+ov::Tensor cast_to_tensor(const Napi::TypedArray& data, const ov::Shape& shape, const ov::element::Type_t& type);
 
 /** @brief A helper function to create a ov::Tensor from Napi::Value.
  * @param value a Napi::Value that can be either a TypedArray or a TensorWrap Object.
@@ -151,7 +151,7 @@ ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const o
  * @return ov::Tensor
  */
 template <typename KeyType>
-ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key) {
+ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_request, const KeyType key) {
     if (value.IsTypedArray()) {
         const auto input = get_request_tensor(infer_request, key);
         const auto& shape = input.get_shape();
