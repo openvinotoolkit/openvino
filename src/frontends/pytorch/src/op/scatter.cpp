@@ -131,6 +131,23 @@ OutputVector translate_scatter_reduce(const NodeContext& context) {
     return {scatter_result};
 };
 
+OutputVector translate_scatter_add(const NodeContext& context) {
+    // aten::scatter_add(Tensor self, int dim, Tensor index, Tensor src) -> Tensor
+    num_inputs_check(context, 4, 4);
+    auto input = context.get_input(0);
+    auto dim = context.get_input(1);
+    auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
+    auto src = context.get_input(3);
+    auto src_input_dtype = prepare_source(context, src, index, input);
+    auto scatter_result =
+        context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input,
+                                                                       index,
+                                                                       src_input_dtype,
+                                                                       dim,
+                                                                       v12::ScatterElementsUpdate::Reduction::SUM));
+    return {scatter_result};
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

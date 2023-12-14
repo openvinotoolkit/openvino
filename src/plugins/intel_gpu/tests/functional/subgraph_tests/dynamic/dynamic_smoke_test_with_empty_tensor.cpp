@@ -49,26 +49,28 @@ public:
     }
 
 protected:
-     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-          inputs.clear();
-          const auto& funcInputs = function->inputs();
-          for (size_t i = 0; i < funcInputs.size(); ++i) {
-            auto node = funcInputs[i].get_node_shared_ptr();
-            auto tensor = ov::runtime::Tensor(node->get_element_type(), targetInputStaticShapes[i]);
-            if (i == 0) {
-                // All zero inputs for non_zero op
-                auto tensor_ptr = static_cast<int32_t*>(tensor.data());
-                for (size_t j = 0; j < ov::shape_size(targetInputStaticShapes[i]); ++j) {
-                    tensor_ptr[j] = 0;
-                }
-            } else {
-                // Random inputs for concat
-                tensor = ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 80, 0, 8);
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
+        auto node = funcInputs[i].get_node_shared_ptr();
+        auto tensor = ov::runtime::Tensor(node->get_element_type(), targetInputStaticShapes[i]);
+        if (i == 0) {
+            // All zero inputs for non_zero op
+            auto tensor_ptr = static_cast<int32_t*>(tensor.data());
+            for (size_t j = 0; j < ov::shape_size(targetInputStaticShapes[i]); ++j) {
+                tensor_ptr[j] = 0;
             }
-            inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
-          }
+        } else {
+            // Random inputs for concat
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = 80;
+            in_data.resolution = 8;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+        }
+        inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
+        }
      }
 
      void SetUp() override {

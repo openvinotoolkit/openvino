@@ -8,9 +8,9 @@ from typing import Any, Dict, Union, Optional
 import numpy as np
 
 from openvino._pyopenvino import ConstOutput, Tensor, Type
-from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper
+from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
-ContainerTypes = Union[dict, list, tuple]
+ContainerTypes = Union[dict, list, tuple, OVDict]
 ScalarTypes = Union[np.number, int, float]
 ValidKeys = Union[str, int, ConstOutput]
 
@@ -133,6 +133,14 @@ def _(
     return {k: to_c_style(v) if is_shared else v for k, v in inputs.items()}
 
 
+@normalize_arrays.register(OVDict)
+def _(
+    inputs: OVDict,
+    is_shared: bool = False,
+) -> dict:
+    return {i: to_c_style(v) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
+
+
 @normalize_arrays.register(list)
 @normalize_arrays.register(tuple)
 def _(
@@ -175,6 +183,7 @@ def create_shared(
 @create_shared.register(dict)
 @create_shared.register(list)
 @create_shared.register(tuple)
+@create_shared.register(OVDict)
 def _(
     inputs: ContainerTypes,
     request: _InferRequestWrapper,
@@ -317,6 +326,7 @@ def create_copied(
 @create_copied.register(dict)
 @create_copied.register(list)
 @create_copied.register(tuple)
+@create_copied.register(OVDict)
 def _(
     inputs: ContainerTypes,
     request: _InferRequestWrapper,
