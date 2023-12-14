@@ -5,28 +5,20 @@
 
 #include "addon.hpp"
 
-PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info)
-    : Napi::ObjectWrap<PartialShapeWrap>(info),
-      _partial_shape{} {
+PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PartialShapeWrap>(info) {
     const size_t attrs_length = info.Length();
-
-    if (attrs_length == 0) {
-        return;
-    }
 
     if (attrs_length == 1 && info[0].IsString()) {
         try {
-            std::string shape = std::string(info[0].ToString());
+            const auto& shape = std::string(info[0].ToString());
 
             _partial_shape = ov::PartialShape(shape);
-            return;
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
-            return;
         }
+    } else {
+        reportError(info.Env(), "Invalid parameters for PartialShape constructor.");
     }
-
-    reportError(info.Env(), "Cannot parse params");
 }
 
 Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
@@ -60,7 +52,7 @@ Napi::Object PartialShapeWrap::Wrap(Napi::Env env, ov::PartialShape partial_shap
     auto obj = prototype->New({});
     const auto t = Napi::ObjectWrap<PartialShapeWrap>::Unwrap(obj);
     t->_partial_shape = partial_shape;
-    
+
     return obj;
 }
 
