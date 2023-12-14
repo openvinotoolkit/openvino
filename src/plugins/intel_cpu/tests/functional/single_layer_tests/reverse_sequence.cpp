@@ -99,10 +99,11 @@ protected:
 
         if (funcInputs.size() != 1) {
             const auto maxSeqLength = targetInputStaticShapes.front().at(m_seqAxisIndex);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 1;
+            in_data.range = maxSeqLength;
             const auto seqLengthsTensor =
-                ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(),
-                                                        targetInputStaticShapes[1],
-                                                        maxSeqLength, 1);
+                ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
             inputs.insert({funcInputs[1].get_node_shared_ptr(), seqLengthsTensor});
         }
     }

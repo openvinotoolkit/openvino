@@ -12,6 +12,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "transformations/broadcast_const.hpp"
 
 namespace testing {
@@ -26,17 +27,12 @@ std::unique_ptr<T> createUnique(Args&&... args) {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-std::shared_ptr<ngraph::opset8::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
-    auto input_low = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {-0.5});
-    auto input_high = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {0.5});
-    auto output_low = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {-0.5});
-    auto output_high = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {0.5});
-    return std::make_shared<ngraph::opset8::FakeQuantize>(parent_node,
-                                                          input_low,
-                                                          input_high,
-                                                          output_low,
-                                                          output_high,
-                                                          0);
+std::shared_ptr<ov::opset8::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
+    auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, {}, {-0.5});
+    auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, {}, {0.5});
+    auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, {}, {-0.5});
+    auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, {}, {0.5});
+    return std::make_shared<ov::opset8::FakeQuantize>(parent_node, input_low, input_high, output_low, output_high, 0);
 }
 
 using Node = std::shared_ptr<ov::op::Op>;
@@ -133,23 +129,21 @@ std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape
                                                  bool swap_outputs,
                                                  bool add_scaleshift,
                                                  EltwiseFactoryPtr eltwise_factory) {
-    const auto input_params_1 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
+    const auto input_params_1 = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, data_shape);
     ngraph::ParameterVector params{input_params_1};
 
-    const auto constant_1 = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
-                                                             ngraph::Shape{const_shape_dims},
-                                                             const_shape_values);
+    const auto constant_1 =
+        ov::op::v0::Constant::create(ngraph::element::Type_t::f32, ngraph::Shape{const_shape_dims}, const_shape_values);
 
     Node const_last_node = constant_1;
 
     if (add_scaleshift) {
-        const auto input_params_2 =
-            std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
+        const auto input_params_2 = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, data_shape);
         params.push_back(input_params_2);
 
-        const auto constant_2 = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
-                                                                 ngraph::Shape{const_shape_dims},
-                                                                 const_shape_values);
+        const auto constant_2 = ov::op::v0::Constant::create(ngraph::element::Type_t::f32,
+                                                             ngraph::Shape{const_shape_dims},
+                                                             const_shape_values);
 
         const_last_node = std::make_shared<ngraph::op::ScaleShiftIE>(input_params_2,
                                                                      constant_1,
@@ -177,7 +171,7 @@ std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape
 
     const auto add = eltwise_factory->CreateNode(left_node, right_node);
 
-    const auto result = std::make_shared<ngraph::opset8::Result>(add);
+    const auto result = std::make_shared<ov::op::v0::Result>(add);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, params);
 }
 
@@ -268,13 +262,13 @@ void execute_cloned_test(std::shared_ptr<ngraph::Function> function) {
 
 namespace {
 
-std::vector<EltwiseFactoryPtr> opset8_eltwise_factories = {CreateEltwiseFactory<ngraph::opset8::Add>(),
-                                                           CreateEltwiseFactory<ngraph::opset8::Subtract>(),
-                                                           CreateEltwiseFactory<ngraph::opset8::Multiply>()};
+std::vector<EltwiseFactoryPtr> opset8_eltwise_factories = {CreateEltwiseFactory<ov::opset8::Add>(),
+                                                           CreateEltwiseFactory<ov::opset8::Subtract>(),
+                                                           CreateEltwiseFactory<ov::opset8::Multiply>()};
 
-std::vector<EltwiseFactoryPtr> all_eltwise_factories = {CreateEltwiseFactory<ngraph::opset8::Add>(),
-                                                        CreateEltwiseFactory<ngraph::opset8::Subtract>(),
-                                                        CreateEltwiseFactory<ngraph::opset8::Multiply>(),
+std::vector<EltwiseFactoryPtr> all_eltwise_factories = {CreateEltwiseFactory<ov::opset8::Add>(),
+                                                        CreateEltwiseFactory<ov::opset8::Subtract>(),
+                                                        CreateEltwiseFactory<ov::opset8::Multiply>(),
                                                         CreateEltwiseFactory<ngraph::op::Eltwise>()};
 
 std::vector<ov::op::AutoBroadcastType> broadcast_passed_types = {ov::op::AutoBroadcastType::NONE,

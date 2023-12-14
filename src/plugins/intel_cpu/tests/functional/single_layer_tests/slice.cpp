@@ -71,16 +71,16 @@ protected:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (i == 0u)
+            if (i == 0u) {
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 1;
+                in_data.range = 10;
                 // Fill the slice input0 tensor with random data.
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 10,
-                                                                 1,
-                                                                 1);
-            else
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            } else {
                 // Fill the slice input1~input4 with specified data.
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};
+            }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

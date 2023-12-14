@@ -8,7 +8,7 @@ from typing import Any, Dict, Union, Optional
 import numpy as np
 
 from openvino._pyopenvino import ConstOutput, Tensor, Type
-from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper
+from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
 ContainerTypes = Union[dict, list, tuple]
 ScalarTypes = Union[np.number, int, float]
@@ -132,6 +132,14 @@ def _(
     return {k: to_c_style(v) if is_shared else v for k, v in inputs.items()}
 
 
+@normalize_arrays.register(OVDict)
+def _(
+    inputs: OVDict,
+    is_shared: bool = False,
+) -> dict:
+    return {i: to_c_style(v) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
+
+
 @normalize_arrays.register(list)
 @normalize_arrays.register(tuple)
 def _(
@@ -174,6 +182,7 @@ def create_shared(
 @create_shared.register(dict)
 @create_shared.register(list)
 @create_shared.register(tuple)
+@create_shared.register(OVDict)
 def _(
     inputs: ContainerTypes,
     request: _InferRequestWrapper,
@@ -300,7 +309,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
 @singledispatch
 def create_copied(
-    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes],
+    inputs: Union[ContainerTypes, OVDict, np.ndarray, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> Union[dict, None]:
     # Check the special case of the array-interface
@@ -314,8 +323,9 @@ def create_copied(
 @create_copied.register(dict)
 @create_copied.register(list)
 @create_copied.register(tuple)
+@create_copied.register(OVDict)
 def _(
-    inputs: ContainerTypes,
+    inputs: Union[ContainerTypes, OVDict],
     request: _InferRequestWrapper,
 ) -> dict:
     return update_inputs(normalize_arrays(inputs, is_shared=False), request)
@@ -346,7 +356,7 @@ def _(
 
 def _data_dispatch(
     request: _InferRequestWrapper,
-    inputs: Union[ContainerTypes, Tensor, np.ndarray, ScalarTypes] = None,
+    inputs: Union[ContainerTypes, OVDict, Tensor, np.ndarray, ScalarTypes] = None,
     is_shared: bool = False,
 ) -> Union[dict, Tensor]:
     if inputs is None:
