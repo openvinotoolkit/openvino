@@ -214,10 +214,6 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     auto&& dims = actual_internal_desc->getShape().getStaticDims();
 
     auto actual_external_desc = get_external_desc()->cloneWithNewDims(dims);
-
-    auto intermed_external_mem =
-        std::make_shared<Memory>(get_engine(), actual_external_desc->cloneWithNewPrecision(actual_internal_desc->getPrecision()));
-
     auto external_mem = std::make_shared<Memory>(get_engine(), actual_external_desc);
 
     // let's assume 4th rank KV tensors. This may be extended later
@@ -228,9 +224,8 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     //sanity check
     OPENVINO_ASSERT(actual_internal_order == m_dense_internal_desc->getOrder());
 
-    //TBD very naive implementation
-    // 1. map m_internal_mem to the intermed_external_mem (the same precision)
-    // 2. perform precision conversion from intermed_external_mem to external_mem
+    // Warning, this implementation is very KV cache specific it assumes that S is always a last dimension and it's not
+
     if (m_hidden_state) {
         PlainTensor output, pastkv, beam_table;
         output.reset(external_mem);

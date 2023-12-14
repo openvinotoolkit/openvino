@@ -161,18 +161,11 @@ public:
         return getType() == Type::MemoryInput;
     }
 
-    bool needShapeInfer() const override;
-    bool isExecutable() const override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
-    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
-    void assignState(MemStatePtr newState) override;
     MemoryOutputBase& getOutputNode();
 
 private:
@@ -180,10 +173,7 @@ private:
      * @brief keeps reference to output sibling node
      */
     MemoryOutputBase* outputNode = nullptr;
-    MemoryPtr assignedMem = nullptr;
     MemoryNodeVirtualEdge::Holder* holder = nullptr;
-    ProxyMemoryMngrPtr memMngr = nullptr;
-    bool isExecutableFlag = true;
 };
 
 class MemoryInput : public MemoryInputBase {
@@ -191,9 +181,21 @@ public:
     using MemoryInputBase::MemoryInputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    bool needShapeInfer() const override;
+    bool isExecutable() const override;
     void initOptimalPrimitiveDescriptor() override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
+
+private:
+    bool isExecutableFlag = true;
+    ProxyMemoryMngrPtr memMngr = nullptr;
+    MemoryPtr assignedMem = nullptr;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {
@@ -218,6 +220,7 @@ public:
     void initOptimalPrimitiveDescriptor() override;
 
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
@@ -227,7 +230,7 @@ public:
 private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
-    bool m_needShapeInfer = false; // TODO refactor MemoryInputBase in order to better separate responsibilities
+    bool m_needShapeInfer = false;
 };
 }   // namespace node
 }   // namespace intel_cpu
