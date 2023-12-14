@@ -571,5 +571,5 @@ def test_model_add_remove_variable():
 
 def test_save_model_with_none():
     with pytest.raises(AttributeError) as e:
-        save_model(model=None, output_model='model.xml')
+        save_model(model=None, output_model="model.xml")
     assert "'model' argument is required and cannot be None." in str(e.value)
