@@ -15,6 +15,7 @@
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/set_load_store_scalar.hpp"
 
 #include "emitters/snippets/x64/cpu_generator.hpp"
 
@@ -521,6 +522,7 @@ Subgraph::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyn
                                                  const std::vector<ptrdiff_t>& start_offset_in, const std::vector<ptrdiff_t>& start_offset_out)
     : SnippetExecutor(attrs, is_dynamic, tensor_rank, start_offset_in, start_offset_out) {
     ov::snippets::lowered::pass::PassPipeline custom_control_flow_pipeline;
+    custom_control_flow_pipeline.register_pass<ov::snippets::lowered::pass::SetLoadStoreScalar>();
     custom_control_flow_pipeline.register_pass<ov::snippets::lowered::pass::InsertBroadcastMove>();
     custom_control_flow_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
 
