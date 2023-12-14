@@ -68,7 +68,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",
                                       "vit_base_patch8_224.augreg_in21k",
-                                      "beit_base_patch16_224.in22k_ft_in22k"])
+                                      "beit_base_patch16_224.in22k_ft_in22k",
+                                      "sequencer2d_l.in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.run(name, None, ie_device)

@@ -52,7 +52,10 @@ void GatherElementsLayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     auto axis_dim = targetStaticShapes[0][0][axis < 0 ? axis + targetStaticShapes[0][0].size() : axis];
-    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(indices_type, indices_shape, axis_dim - 1);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = axis_dim - 1;
+    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(indices_type, indices_shape, in_data);
     auto indices_node = std::make_shared<ov::op::v0::Constant>(indices_node_tensor);
 
     auto gather_el = std::make_shared<ov::op::v6::GatherElements>(param, indices_node, axis);
