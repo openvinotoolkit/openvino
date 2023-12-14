@@ -305,19 +305,11 @@ def constant(
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
         if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
-            if not np.allclose(_value, 0):
-                raise RuntimeError(
-                    f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                    "Please use `openvino.helpers` module and `pack_data`, `unpack_data` functions to fill this Constant's data.")
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
-            return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
+            return Constant(dtype, Shape(_value.shape), _value.reshape(-1).tolist())
         elif dtype in [Type.bf16]:
-            if not np.allclose(_value, 0):
-                raise RuntimeError(
-                    f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                    "Please use `this_constant.data[:] = ...` to fill this Constant's data.")
             display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
-            return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
+            return Constant(dtype, Shape(_value.shape), _value.reshape(-1).tolist())
         # General use-case for all other types:
         else:
             _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
