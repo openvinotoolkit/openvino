@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -28,15 +27,15 @@
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
-        bool is_int_model = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
+        bool is_int_model = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
         if (is_int_model) {
             return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+            if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
                     return "FP32";
