@@ -5,6 +5,7 @@
 #include "dict_resolver.hpp"
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -18,7 +19,56 @@ namespace pass {
 using namespace ov::pass;
 using namespace ov::op;
 
-bool DictResolver::run_on_model(const std::shared_ptr<Model>& model) {
+bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
+    bool changed = false;
+    const auto parameters = model->get_parameters();
+    ParameterVector new_params;
+
+    for (const auto& p : parameters) {
+        bool at_least_one_unused = false;
+        if (p->get_output_size() == 1) {
+            const auto targets = p->get_output_target_inputs(0);
+            for (const auto inp : targets) {
+                const auto getitem_node = cast_fw_node(inp.get_node()->shared_from_this(), "aten::__getitem__");
+                if (getitem_node) {
+                    const auto index_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(
+                        getitem_node->get_input_node_shared_ptr(1));
+                    if (!index_node) {
+                        at_least_one_unused = true;
+                        continue;
+                    }
+                    const auto attrs = index_node->get_attrs();
+                    if (attrs.find("string_value") == attrs.end()) {
+                        // index node must contain string value
+                        at_least_one_unused = true;
+                        continue;
+                    }
+                    const auto name = attrs.at("string_value");
+                    auto new_param = std::make_shared<v0::Parameter>(getitem_node->get_output_element_type(0),
+                                                                     getitem_node->get_output_partial_shape(0));
+                    new_param->set_friendly_name(name);
+                    getitem_node->output(0).replace(new_param);
+                    new_params.push_back(new_param);
+                    changed = true;
+                } else {
+                    at_least_one_unused = true;
+                }
+            }
+        }
+        if (changed) {
+            model->remove_parameter(p);
+            if (at_least_one_unused || p->get_output_size() != 1) {
+                new_params.push_back(p);
+            }
+        }
+    }
+    if (changed) {
+        model->add_parameters(new_params);
+    }
+    return changed;
+};
+
+bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
     bool changed = false;
     const auto results = model->get_results();
     for (const auto& res : results) {

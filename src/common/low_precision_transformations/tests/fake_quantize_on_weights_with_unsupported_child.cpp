@@ -28,13 +28,13 @@ public:
     class Actual {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     TestTransformationParams params;

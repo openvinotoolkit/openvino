@@ -3,6 +3,7 @@
 //
 
 #include "shape_of_inst.h"
+#include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "eltwise_inst.h"
 #include "pass_manager.h"
@@ -41,6 +42,10 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
 
 bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.has_fused_primitives())
+        return false;
+
+    // read_value may have initializer which is shape_of sub-graph, but read_value itself is not a part of such sub-graph
+    if (node.is_type<read_value>())
         return false;
 
     if (node.is_type<reshape>())

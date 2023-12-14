@@ -12,6 +12,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
+#include "validation_util.hpp"
 
 namespace {
 using namespace ov;
@@ -478,10 +479,12 @@ bool ov::interval_bound_evaluator(const Node* node,
         if (!lower_output_values[i]) {
             fully_defined = false;
         } else {
-            // Can not set to get_constant_min_of_type(lower_output_values[i]->get_element_type())
-            // yet
-            op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, zero_t, lower_output_values[i]});
-            node->get_output_tensor(i).set_lower_value(lower_output_values[i]);
+            // Can not set to get_constant_min_of_type(lower_output_values[i]->get_element_type()) yet
+            const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
+            const auto then_data = static_cast<char*>(then.data());
+            std::memset(then_data, 0, then.get_byte_size());
+            op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
+            node->get_output_tensor(i).set_lower_value(lower_out[0]);
         }
     }
     return fully_defined;
@@ -580,9 +583,7 @@ bool ov::default_label_evaluator(const Node* node,
     for (size_t i = 0; i < inputs_count; ++i) {
         if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
             auto labels = node->get_input_tensor(i).get_value_label();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!has_no_labels(labels) && !has_any_input_labels) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (!ov::util::has_no_labels(labels) && !has_any_input_labels) {
                 has_any_input_labels = true;
             }
 
