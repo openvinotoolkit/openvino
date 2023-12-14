@@ -57,14 +57,7 @@ Napi::Value ModelWrap::get_name(const Napi::CallbackInfo& info) {
         return Napi::String::New(info.Env(), "unknown");
 }
 
-std::string ModelWrap::get_name() {
-    if (_model->get_name() != "")
-        return _model->get_name();
-    else
-        return "unknown";
-}
-
-std::shared_ptr<ov::Model> ModelWrap::get_model() {
+std::shared_ptr<ov::Model> ModelWrap::get_model() const {
     return _model;
 }
 

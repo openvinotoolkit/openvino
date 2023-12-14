@@ -59,7 +59,7 @@ Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-ov::Tensor TensorWrap::get_tensor() {
+ov::Tensor TensorWrap::get_tensor() const {
     return this->_tensor;
 }
 
