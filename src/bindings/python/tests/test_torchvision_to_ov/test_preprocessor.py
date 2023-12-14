@@ -70,7 +70,7 @@ def test_normalize():
     ("target_size", "interpolation", "tolerance"),
     [
         ((220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
-        ((200, 240, 3), transforms.InterpolationMode.NEAREST, 0.3),  # Ticket
+        ((200, 240, 3), transforms.InterpolationMode.NEAREST, 0.3),  # Ticket 127670
         ((220, 220, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
         ((200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
         ((220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
