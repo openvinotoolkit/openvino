@@ -119,6 +119,7 @@ jobs:
         continue-on-error: true
         run: |
           rm -rf ${MODELS_SHARE_PATH}/onnx_model_zoo
+          rm -rf ${MODELS_SHARE_PATH}/models_data
           mv ${ONNX_MODELS_PATH}/model_zoo/onnx_model_zoo_* ${MODELS_SHARE_PATH}/onnx_model_zoo
 
           ls -laR ${MODELS_SHARE_PATH}
