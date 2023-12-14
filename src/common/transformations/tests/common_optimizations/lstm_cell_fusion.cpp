@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, LSTMCellFusion) {
         auto it = std::make_shared<op::v0::Sigmoid>(split->output(0));
         auto ct = std::make_shared<op::v0::Tanh>(split->output(1));
         auto ft = std::make_shared<op::v0::Sigmoid>(
-            std::make_shared<op::v1::Add>(split->output(2), op::v0::Constant::create(element::f32, Shape{}, {1})));
+            std::make_shared<op::v1::Add>(split->output(2), op::v0::Constant::create(element::f32, Shape{1, 1}, {1})));
         auto ot = std::make_shared<op::v0::Sigmoid>(split->output(3));
         auto mul = std::make_shared<op::v1::Multiply>(it, ct);
         auto mul1 = std::make_shared<op::v1::Multiply>(ft, C);
@@ -86,7 +86,7 @@ TEST_F(TransformationTestsF, LSTMCellFusion) {
         };
         auto R = op::v0::Constant::create(element::f32, R_shape, R_values);
         Shape B_shape{4 * hidden_size};
-        std::vector<float> B_values{4, 5, 0, 1, 2, 3, 6, 7};
+        std::vector<float> B_values{5, 6, 0, 1, 2, 3, 6, 7};
         auto B = op::v0::Constant::create(element::f32, B_shape, B_values);
         auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X,
                                                             H,

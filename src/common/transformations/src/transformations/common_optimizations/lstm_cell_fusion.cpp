@@ -17,7 +17,6 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "validation_util.hpp"
 
 static std::string get_activation_name(const std::shared_ptr<ov::Node>& node) {
@@ -44,8 +43,8 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
     auto split_label = pattern::wrap_type<op::v1::Split>({bias_add_label, axis_label});
     auto it_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
     auto ct_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
-    auto constant_label = pattern::wrap_type<op::v0::Constant>();
-    auto add_label = pattern::wrap_type<op::v1::Add>({split_label, constant_label});
+    auto ft_additional_bias_label = pattern::wrap_type<op::v0::Constant>();
+    auto add_label = pattern::wrap_type<op::v1::Add>({split_label, ft_additional_bias_label});
     auto ft_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({add_label});
     auto ot_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
     auto mul_label = pattern::wrap_type<op::v1::Multiply>({it_label, ct_label});
@@ -63,17 +62,21 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
         const auto& C = pattern_map.at(c_label);
         const auto& WR = pattern_map.at(weights_label);
         const auto& B = pattern_map.at(bias_label);
+        const auto& ft_additional_bias = pattern_map.at(ft_additional_bias_label);
         auto Ho = pattern_map.at(Ho_label);
         auto Co = pattern_map.at(Co_label);
 
         const auto& WR_shape = WR.get_shape();
         const auto& B_shape = B.get_shape();
+        const auto& ft_additional_bias_shape = ft_additional_bias.get_shape();
+
         if (WR_shape[0] % 4 != 0)
             return false;
         if (WR_shape[0] != B_shape[1])
             return false;
-
         if (B_shape[0] != 1)
+            return false;
+        if (shape_size(ft_additional_bias_shape) != 1)
             return false;
 
         size_t hidden_size = WR_shape[0] / 4;
@@ -137,11 +140,6 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
         auto Co_activation = pattern_map.at(Co_activation_label).get_node_shared_ptr();
         std::string h_activation_name = get_activation_name(Co_activation);
 
-        auto constant = ov::as_type_ptr<op::v0::Constant>(pattern_map.at(constant_label).get_node_shared_ptr());
-        float value = 0.0f;
-        if (!op::util::get_single_value(constant, value) || value != 1.0f)
-            return false;
-
         auto zero = op::v0::Constant::create(element::i32, Shape{}, {0});
         auto WR_split = std::make_shared<op::v1::Split>(WR, zero /* axis */, 4);
         auto WR_fico = std::make_shared<op::v0::Concat>(
@@ -158,11 +156,14 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
             R = constant;
 
         auto B_split = std::make_shared<op::v1::Split>(std::make_shared<op::v0::Squeeze>(B, zero), zero /* axis */, 4);
-        Output<Node> new_B = std::make_shared<op::v0::Concat>(
-            OutputVector{B_split->output(2), B_split->output(0), B_split->output(1), B_split->output(3)},
+        auto B_f =
+            std::make_shared<op::v1::Add>(B_split->output(2), std::make_shared<op::v0::Squeeze>(ft_additional_bias));
+
+        Output<Node> B_fico = std::make_shared<op::v0::Concat>(
+            OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
             0);
-        if (auto constant = ov::util::constantfold_subgraph(new_B))
-            new_B = constant;
+        if (auto constant = ov::util::constantfold_subgraph(B_fico))
+            B_fico = constant;
 
         auto lstm_cell = std::make_shared<op::v4::LSTMCell>(
             X,
@@ -170,7 +171,7 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
             C,
             W,
             R,
-            new_B,
+            B_fico,
             hidden_size,
             std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
         lstm_cell->set_friendly_name(m.get_match_root()->get_friendly_name());
@@ -196,7 +197,7 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
                 Co_activation,
                 Ho.get_node_shared_ptr(),
             },
-            {W.get_node_shared_ptr(), R.get_node_shared_ptr(), new_B.get_node_shared_ptr(), lstm_cell});
+            {W.get_node_shared_ptr(), R.get_node_shared_ptr(), B_fico.get_node_shared_ptr(), lstm_cell});
 
         Ho.replace(lstm_cell->output(0));
         Co.replace(lstm_cell->output(1));
