@@ -57,7 +57,7 @@ def pool3d(name: str, x, attrs: dict):
     return outs[0]
 
 
-def adaptive_pool2d(name: str, x, attrs: dict):
+def adaptive_pool3d(name: str, x, attrs: dict):
     import paddle
 
     paddle.enable_static()
@@ -254,14 +254,14 @@ def main():
     # adaptive_pool3
     for i, pooling_type in enumerate(pooling_types):
         paddle_attrs = {"pool_size": [2, 2, 2], "pool_type": pooling_type}
-        adaptive_pool2d(pooling_type + "AdaptivePool3D_test1", data_NCDHW, paddle_attrs)
+        adaptive_pool3d(pooling_type + "AdaptivePool3D_test1", data_NCDHW, paddle_attrs)
         paddle_attrs = {"pool_size": 2, "pool_type": pooling_type}
-        adaptive_pool2d(pooling_type + "AdaptivePool3D_test2", data_NCDHW, paddle_attrs)
+        adaptive_pool3d(pooling_type + "AdaptivePool3D_test2", data_NCDHW, paddle_attrs)
         paddle_attrs = {
             "pool_size": 1,  # global pooling case
             "pool_type": pooling_type,
         }
-        adaptive_pool2d(pooling_type + "AdaptivePool3D_test3", data_NCDHW, paddle_attrs)
+        adaptive_pool3d(pooling_type + "AdaptivePool3D_test3", data_NCDHW, paddle_attrs)
 
 
 if __name__ == "__main__":
