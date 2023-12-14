@@ -23,6 +23,8 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     if (!target->is_supported())
         OPENVINO_THROW("unsupported architecture for code generation");
 
+    const auto runtime_config = linear_ir.configure();
+
     std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
         return get_op_reg_type(op);
     };
@@ -35,8 +37,8 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
-    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
-    // lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>(runtime_config);
+    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);

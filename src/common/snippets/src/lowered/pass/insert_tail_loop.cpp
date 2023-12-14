@@ -179,11 +179,10 @@ LinearIR::container InsertTailLoop::copy_loop(const LinearIR& linear_ir, LinearI
     return loop_copy_range;
 }
 
-bool InsertTailLoop::init_main_loop(const RuntimeConfig& runtime_config, size_t loop_id, const std::shared_ptr<op::LoopEnd>& loop_end,
-                                    RuntimeConfig::LoopDescriptor::Type type) {
+bool InsertTailLoop::init_main_loop(size_t loop_id, const std::shared_ptr<op::LoopEnd>& loop_end, RuntimeConfig::LoopDescriptor::Type type) {
     size_t updated_loop_id;
     RuntimeConfig::LoopDescriptor loop_desc;
-    if (runtime_config.get_loop_desc(loop_id, type, loop_desc, updated_loop_id)) {
+    if (m_runtime_config.get_loop_desc(loop_id, type, loop_desc, updated_loop_id)) {
         loop_end->update(loop_desc);
         update_loop_id_mapping(loop_end, updated_loop_id, loop_end->get_id());
         return true;
@@ -192,15 +191,15 @@ bool InsertTailLoop::init_main_loop(const RuntimeConfig& runtime_config, size_t 
 }
 
 bool InsertTailLoop::create_first_iter_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
-                                            const RuntimeConfig& runtime_config, size_t original_loop_id, const std::shared_ptr<op::LoopEnd>& loop_end) {
+                                            size_t original_loop_id, const std::shared_ptr<op::LoopEnd>& loop_end) {
     size_t updated_loop_id;
     RuntimeConfig::LoopDescriptor loop_desc;
-    if (runtime_config.get_loop_desc(original_loop_id, RuntimeConfig::LoopDescriptor::Type::First, loop_desc, updated_loop_id)) {
+    if (m_runtime_config.get_loop_desc(original_loop_id, RuntimeConfig::LoopDescriptor::Type::First, loop_desc, updated_loop_id)) {
         std::shared_ptr<op::LoopEnd> first_iter_loop_end = loop_end;
         LinearIR::constExprIt first_iter_loop_end_it = end;
         // Need to copy body if there are other specific sup-loops
         // Otherwise we should update the current body
-        const bool need_copy_body = runtime_config.get_loops().at(original_loop_id).size() > 1;
+        const bool need_copy_body = m_runtime_config.get_loops().at(original_loop_id).size() > 1;
         if (need_copy_body) {
             const auto new_loop_range = copy_loop(linear_ir, begin, end, loop_end->get_id());
             linear_ir.insert(begin, new_loop_range.begin(), new_loop_range.end());
@@ -223,14 +222,14 @@ bool InsertTailLoop::create_first_iter_loop(LinearIR& linear_ir, LinearIR::const
 }
 
 bool InsertTailLoop::create_tail_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
-                                      const RuntimeConfig& runtime_config, size_t original_loop_id, std::shared_ptr<op::LoopEnd>& loop_end) {
+                                      size_t original_loop_id, std::shared_ptr<op::LoopEnd>& loop_end) {
     size_t updated_loop_id;
     RuntimeConfig::LoopDescriptor loop_desc;
-    if (runtime_config.get_loop_desc(original_loop_id, RuntimeConfig::LoopDescriptor::Type::Tail, loop_desc, updated_loop_id)) {
+    if (m_runtime_config.get_loop_desc(original_loop_id, RuntimeConfig::LoopDescriptor::Type::Tail, loop_desc, updated_loop_id)) {
         const auto tail_loop_end = loop_end;
         // Need to copy body if there is main loop
         // Otherwise we should update the current body
-        const bool need_copy_body = runtime_config.contains(original_loop_id, RuntimeConfig::LoopDescriptor::Type::Vector);
+        const bool need_copy_body = m_runtime_config.contains(original_loop_id, RuntimeConfig::LoopDescriptor::Type::Vector);
         if (need_copy_body) {
             const auto new_loop_range = copy_loop(linear_ir, begin, end, original_loop_id);
             const auto vector_loop_end = ov::as_type_ptr<op::LoopEnd>(std::prev(new_loop_range.end())->get()->get_node());
@@ -270,8 +269,9 @@ bool InsertTailLoop::create_tail_loop(LinearIR& linear_ir, LinearIR::constExprIt
                     continue;
 
                 RuntimeConfig::LoopDescriptor splited_tail_loop_desc;
-                OPENVINO_ASSERT(runtime_config.get_loop_desc(m_loop_ids_mapping.at(inner_loop_end->get_id()), RuntimeConfig::LoopDescriptor::Type::SplitedTail,
-                                                             splited_tail_loop_desc, updated_loop_id),
+                OPENVINO_ASSERT(m_runtime_config.get_loop_desc(m_loop_ids_mapping.at(inner_loop_end->get_id()),
+                                                               RuntimeConfig::LoopDescriptor::Type::SplitedTail,
+                                                               splited_tail_loop_desc, updated_loop_id),
                                 "Splited inner Loop has not been found!");
                 inner_loop_end->update(splited_tail_loop_desc);
                 update_loop_id_mapping(inner_loop_end, updated_loop_id, m_loop_ids_mapping.at(inner_loop_end->get_id()));
@@ -364,8 +364,7 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::insertTailLoop")
     bool modified = false;
 
-    const auto runtime_config = linear_ir.configure();
-    const auto& loop_descriptors = runtime_config.get_loops();
+    const auto& loop_descriptors = m_runtime_config.get_loops();
 
     m_loop_ids_mapping.clear();
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); ++expr_it) {
@@ -384,13 +383,13 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
         // Attention: the order of loop creation and initialization is important!!!
         // Corner case with splited inner loop where there is only tile descriptor without vector loop descriptor
         const auto one_splitted_tail_loop_status = loop_descriptors.at(loop_id).size() == 1 &&
-                                                   init_main_loop(runtime_config, loop_id, main_loop_end, RuntimeConfig::LoopDescriptor::Type::SplitedTail);
+                                                   init_main_loop(loop_id, main_loop_end, RuntimeConfig::LoopDescriptor::Type::SplitedTail);
         const auto first_iter_status =
-            create_first_iter_loop(linear_ir, begin_it, expr_it, runtime_config, loop_id, main_loop_end);
+            create_first_iter_loop(linear_ir, begin_it, expr_it, loop_id, main_loop_end);
         const auto last_iter_status =
-            create_tail_loop(linear_ir, begin_it, expr_it, runtime_config, loop_id, main_loop_end);
+            create_tail_loop(linear_ir, begin_it, expr_it, loop_id, main_loop_end);
         const auto vector_loop_status =
-            init_main_loop(runtime_config, loop_id, main_loop_end, RuntimeConfig::LoopDescriptor::Type::Vector);
+            init_main_loop(loop_id, main_loop_end, RuntimeConfig::LoopDescriptor::Type::Vector);
         OPENVINO_ASSERT(one_splitted_tail_loop_status || vector_loop_status || first_iter_status || last_iter_status, "The Loop has not been updated!");
         modified = true;
     }

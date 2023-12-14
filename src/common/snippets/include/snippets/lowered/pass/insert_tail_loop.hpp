@@ -24,17 +24,17 @@ namespace pass {
 class InsertTailLoop : public Pass {
 public:
     OPENVINO_RTTI("InsertTailLoop", "Pass")
-    InsertTailLoop() = default;
+    InsertTailLoop(const RuntimeConfig& config) : m_runtime_config(config) {}
     bool run(LinearIR& linear_ir) override;
 
 private:
     // Corner case with splited inner loop where there is only tile descriptor without vector loop descriptor
-    bool init_main_loop(const RuntimeConfig& runtime_config, size_t loop_id, const std::shared_ptr<op::LoopEnd>& loop_end,
+    bool init_main_loop(size_t loop_id, const std::shared_ptr<op::LoopEnd>& loop_end,
                         RuntimeConfig::LoopDescriptor::Type type);
     bool create_first_iter_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
-                                const RuntimeConfig& runtime_config, size_t loop_id, const std::shared_ptr<op::LoopEnd>& loop_end);
+                                size_t loop_id, const std::shared_ptr<op::LoopEnd>& loop_end);
     bool create_tail_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
-                          const RuntimeConfig& runtime_config, size_t loop_id, std::shared_ptr<op::LoopEnd>& loop_end);
+                          size_t loop_id, std::shared_ptr<op::LoopEnd>& loop_end);
 
     void tail_transformations(LinearIR& linear_ir,
                               LinearIR::constExprIt tail_begin,
@@ -53,6 +53,7 @@ private:
 
     static constexpr size_t existing_subtensor_value = SIZE_MAX;
 
+    RuntimeConfig m_runtime_config;
     // [new id in RuntimeConfig::LoopDescriptor bounds] -> [old id in LoopManager bounds]
     std::map<size_t, size_t> m_loop_ids_mapping = {};
 };
