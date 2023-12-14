@@ -8,8 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
-using OvString = ov::element_type_traits<ov::element::string>::value_type;
-
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -269,8 +267,8 @@ void Input::cloneBlobIfRequired() {
         } else {
             if (constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
-                auto src = constOp->get_data_ptr<OvString>();
-                auto dst = reinterpret_cast<OvString *>(memory->getData());
+                auto src = constOp->get_data_ptr<StringMemory::OvString>();
+                auto dst = reinterpret_cast<StringMemory::OvString *>(memory->getData());
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
@@ -383,7 +381,7 @@ void Input::cloneBlobIfRequired() {
         memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
-    } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
+    } else if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
         memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
         memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());

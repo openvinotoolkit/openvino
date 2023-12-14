@@ -12,8 +12,6 @@
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
-using OvString = ov::element_type_traits<ov::element::string>::value_type;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -439,8 +437,8 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
 
     if (input.getDesc().isCompatible(output.getDesc())) {
         if (input.getDesc().getPrecision() == element::string) {
-            auto srcPtr = reinterpret_cast<OvString *>(input.getData());
-            auto dstPtr = reinterpret_cast<OvString *>(output.getData());
+            auto srcPtr = reinterpret_cast<StringMemory::OvString *>(input.getData());
+            auto dstPtr = reinterpret_cast<StringMemory::OvString *>(output.getData());
             std::copy(srcPtr, srcPtr + output.getShape().getElementsCount(), dstPtr);
         } else {
             auto srcPtr = static_cast<uint8_t*>(input.getData());

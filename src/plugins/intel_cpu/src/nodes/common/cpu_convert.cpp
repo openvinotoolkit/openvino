@@ -7,15 +7,13 @@
 #include "cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #include "nodes/kernels/x64/jit_kernel.hpp"
 #endif
-
-using OvString = ov::element_type_traits<ov::element::string>::value_type;
-
 
 namespace ov {
 namespace intel_cpu {
@@ -579,8 +577,8 @@ void cpu_convert(const void *srcPtr,
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
         if (srcPrc == element::string) {
-            auto str_src = reinterpret_cast<const OvString *>(srcPtr);
-            auto str_dst = reinterpret_cast<OvString *>(dstPtr);
+            auto str_src = reinterpret_cast<const StringMemory::OvString *>(srcPtr);
+            auto str_dst = reinterpret_cast<StringMemory::OvString *>(dstPtr);
             std::copy(str_src, str_src + size, str_dst);
         } else if (totalSize >= L2_cache_size) {
             auto src = static_cast<const uint8_t *>(srcPtr);

@@ -54,9 +54,6 @@
 #    include <tbb/task.h>
 #endif
 
-
-using OvString = ov::element_type_traits<ov::element::string>::value_type;
-
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -609,16 +606,35 @@ void Graph::AllocateWithReuse() {
             }
 
             // Special allocation for string tensors
-            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation &&
-                    !edge->getParent()->isConstant()) {
-                auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
-                edge->reuse(memory);
+            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
+                StringMemory::StringMemoryMngrPtr mngr;
+                if (edge->getParent()->isConstant()) {
+                    if (edge->getParent()->getType() == Type::Input) {
+                        auto constNode = static_cast<node::Input *>(edge->getParent().get());
+                        edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
+                    } else {
+                        edge->externalAllocate(context->getWeightsCache());
+                    }
+                    auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
+                    OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
+                            edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
+                    mngr = stringMemory->getStringMemoryMngrPtr();
+                } else {
+                    auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
+                    edge->reuse(memory);
+                    mngr = memory->getStringMemoryMngrPtr();
+                }
                 for (auto& edge_c : cluster) {
+                    if (edge_c == edge) {
+                        continue;
+                    }
                     OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
-                    if (edge_c->getStatus() == Edge::Status::NeedAllocation &&
-                            !(edge_c->getParent()->isConstant() && edge_c->getParent()->getType() == Type::Input)) {
-                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc());
+                    if (edge_c->getStatus() == Edge::Status::NotAllocated) {
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), mngr);
                         edge_c->reuse(memory);
+                    } else {
+                        OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
+                            edge_c->getChild()->getName(), "' has an unexpected status: ", static_cast<int>(edge_c->getStatus()));
                     }
                 }
                 erase = true;
