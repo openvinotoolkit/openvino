@@ -41,6 +41,9 @@ public:
     typed_primitive_inst(network& network, const assign_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 
+    void update_output_memory() override;
+
+protected:
     void on_execute() override;
 };
 

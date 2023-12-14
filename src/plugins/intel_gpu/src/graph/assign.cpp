@@ -31,6 +31,10 @@ std::string assign_inst::to_string(const assign_node& node) {
 }
 
 void assign_inst::on_execute() {
+    update_output_memory();
+}
+
+void assign_inst::update_output_memory() {
     _outputs[0] = input_memory_ptr(0);
 }
 } // namespace cldnn

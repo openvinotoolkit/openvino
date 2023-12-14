@@ -106,24 +106,24 @@ bool is_user_cpu(const program_node* user) {
         return impl->is_cpu();
     return false;
 }
-bool has_cpu_user_not_shape_of(const program_node* user) {
+bool has_cpu_user_not_shape_of_assign(const program_node* user) {
     if (user->can_be_optimized()) {
         auto users = user->get_users();
         for (const auto& u : users) {
-            if (has_cpu_user_not_shape_of(u)) {
+            if (has_cpu_user_not_shape_of_assign(u)) {
                 return true;
             }
         }
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        return impl->is_cpu() && !user->is_type<shape_of>() && !user->is_type<assign>();
     return false;
 }
 
-bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) {
+bool has_any_cpu_user_not_shape_of_assign(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
-        if (has_cpu_user_not_shape_of(user))
+        if (has_cpu_user_not_shape_of_assign(user))
             return true;
     }
     return false;
@@ -289,7 +289,7 @@ void primitive_inst::update_shape() {
             new_layout.set_partial_shape(pshape);
         }
 
-        variable.set_layout(new_layout);
+        variable.set_layout(new_layout, false);
 
         if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
             _impl_params->state_layout = new_layout;
@@ -423,7 +423,7 @@ void primitive_inst::update_shape() {
 
     if (get_node().is_type<assign>()) {
         auto desc = get_node().as<assign>().get_primitive();
-        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
+        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout(), false);
         _impl_params->state_layout = _impl_params->get_output_layout();
     }
 }
@@ -459,9 +459,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
         std::string variable_id = stateful_prim->variable_id();
         auto& variable = get_network().get_variable(variable_id);
-        variable.set_layout(actual_layout);
-        GPU_DEBUG_TRACE_DETAIL << id() << ": use variable memory " << variable.get_memory()
-                               << " (size=" << variable.get_memory()->size() << ")" << std::endl;
+        variable.set_layout(actual_layout, false);
         // For nodes that can be optimized, variable memory is used as output memory
         // so there is no need for output memory reallocation
         if (can_be_optimized())
@@ -487,7 +485,15 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size;
+    bool output_used_as_its_input_next_iter = false;
+    if (get_node().is_type<concatenation>()) {
+        if (!can_be_optimized() && !allocation_done_by_other && get_users().front()->is_type<assign>()) {
+            output_used_as_its_input_next_iter = true;
+            updated_params._can_share_buffer = false;
+        }
+    }
+
+    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size && !output_used_as_its_input_next_iter;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -1452,7 +1458,9 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout()) ? !reset : !user_requesting_mem_reuse_false(_node);
+    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
+                                       ? (!reset && impl_params.can_share_buffer())
+                                       : !user_requesting_mem_reuse_false(_node);
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be executed in parallel with predecessors
     // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs
@@ -1466,7 +1474,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                               _node.get_preferred_impl_type() == impl_types::cpu;
     auto use_lockable_memory =
         is_output_buffer || is_cpu ||
-        has_any_cpu_user_not_shape_of(_node.get_users()) ||
+        has_any_cpu_user_not_shape_of_assign(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());

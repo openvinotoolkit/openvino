@@ -6,6 +6,7 @@
 #include "implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -45,22 +46,20 @@ struct assign_impl : public typed_primitive_impl<assign> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, assign_inst& instance) override {
+        for (auto e : events) {
+            e->wait();
+        }
+
         auto& variable = instance.get_network().get_variable(variable_id);
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
                         "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
                         " assign output layout: ", instance.get_output_layout().to_short_string());
 
-        auto& stream = instance.get_network().get_stream();
-
-        for (auto e : events) {
-            e->wait();
-        }
-
-        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory());
+        variable.set_memory(instance.input_memory_ptr());
         variable.set();
 
-        return ev_set_memory;
+        return instance.get_network().get_stream().create_user_event(true);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}

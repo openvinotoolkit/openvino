@@ -47,10 +47,15 @@ void VariableState::set() {
     m_is_set = true;
 }
 
-void VariableState::set_layout(const cldnn::layout& new_layout) {
+void VariableState::set_memory(cldnn::memory::ptr new_mem) {
+    m_memory = new_mem;
+}
+
+void VariableState::set_layout(const cldnn::layout& new_layout, bool update_mem) {
     m_layout = new_layout;
     GPU_DEBUG_TRACE_DETAIL << "Update state layout to " << new_layout.to_short_string() << std::endl;
-    update_device_buffer();
+    if (update_mem)
+        update_device_buffer();
 }
 
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
@@ -79,8 +84,9 @@ void VariableState::update_device_buffer() {
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
+    } else {
+        m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
     }
-    m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
