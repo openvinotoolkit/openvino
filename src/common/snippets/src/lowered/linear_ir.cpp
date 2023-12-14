@@ -8,7 +8,6 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/expression_factory.hpp"
-#include "snippets/op/serialization_node.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -67,7 +66,7 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
     return ExpressionFactory::build(n, *this, model);
 }
 
-ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) {
+ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const {
     return ExpressionFactory::build(n, inputs, *this);
 }
 
@@ -86,46 +85,15 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     return ov::topological_sort(nodes);
 }
 
-void LinearIR::serialize(const std::string& xml, const std::string& bin) const {
-    auto first_node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
-    first_node->set_friendly_name("Start");
-    first_node->get_rt_info()["execTimeMcs"] = 0;
-    std::shared_ptr<Node> serialization_node = first_node;
-
-    // This map allows to get LoopBegin serialization node by original LoopBegin node
-    // It is used to draw an edge between LoopBegin and LoopEnd serialization nodes
-    std::map<std::shared_ptr<snippets::op::LoopBegin>, std::shared_ptr<Node>> loops_map;
-    for (const auto& expr : m_expressions) {
-        const auto node = expr->get_node();
-        if (auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(node)) {
-            OPENVINO_ASSERT(loops_map.count(loop_end->get_loop_begin()),
-                            "Serialization can't find LoopBegin that corresponds to LoopEnd with friendly name ",
-                            loop_end->get_friendly_name());
-            auto loop_begin_serialization_node = loops_map.at(loop_end->get_loop_begin());
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node}, expr);
-        } else {
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node}, expr);
-            if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(node)) {
-                loops_map[loop_begin] = serialization_node;
-            }
-        }
-    }
-    auto last_node = std::make_shared<ov::op::v0::Result>(serialization_node);
-    last_node->set_friendly_name("End");
-    const auto tmp_model = std::make_shared<ov::Model>(ResultVector {last_node},
-                                                       ParameterVector {first_node},
-                                                       "Lowered_IR_Serialization");
-    ov::pass::Serialize(xml, bin).run_on_model(tmp_model);
-}
-
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
                                               ExressionMap& expression_map) {
     OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
-    for (auto it = begin; it != end; it++)
+    for (auto it = begin; it != end; it++) {
         original_nodes.push_back((*it)->get_node());
+    }
 
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
     ngraph::NodeMap node_map;

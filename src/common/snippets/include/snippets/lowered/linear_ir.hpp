@@ -63,7 +63,7 @@ public:
     LinearIR() = default;
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
     std::shared_ptr<LinearIR> clone() const;
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
@@ -125,7 +125,6 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;

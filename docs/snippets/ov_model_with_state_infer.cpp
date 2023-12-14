@@ -57,9 +57,7 @@ int main(int argc, char* argv[]) {
         }
 
         // 7. Initialize memory state before starting
-        for (auto&& state : infer_request.query_state()) {
-            state.reset();
-        }
+        infer_request.reset_state();
 
         //! [part1]
         // input data

@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "sequnce_generator.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling
@@ -134,11 +134,9 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         }
 
         auto unsqueeze_axes_val = unsqueeze_axes_input->cast_vector<int64_t>();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        normalize_axes(unsqueeze_node.get(),
-                       unsqueeze_node->get_output_partial_shape(0).rank().get_length(),
-                       unsqueeze_axes_val);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::normalize_axes(unsqueeze_node.get(),
+                                 unsqueeze_node->get_output_partial_shape(0).rank().get_length(),
+                                 unsqueeze_axes_val);
         const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
 
         if (have_same_axes(unsqueeze_axes_val, reduce_axes_val)) {
