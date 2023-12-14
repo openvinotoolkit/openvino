@@ -29,7 +29,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj);
 
 protected:
-    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape);
+    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals = false);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
@@ -42,8 +42,10 @@ namespace Eltwise {
 const std::vector<ov::AnyMap>& additional_config();
 
 const std::vector<ElementType>& netType();
+const std::vector<ElementType>& netTypeJit();
 const std::vector<ov::test::utils::OpType>& opTypes();
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpJit();
 const std::vector<utils::InputLayerType>& secondaryInputTypes();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
