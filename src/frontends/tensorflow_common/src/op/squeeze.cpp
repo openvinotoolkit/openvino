@@ -9,7 +9,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 using namespace std;

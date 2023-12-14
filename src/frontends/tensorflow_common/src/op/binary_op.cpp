@@ -31,7 +31,6 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/opsets/opset13.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -78,7 +77,6 @@ OutputVector translate_mul_op(const NodeContext& node) {
     auto lhs = node.get_input(0);
     auto rhs = node.get_input(1);
     auto result = make_shared<v1::Multiply>(lhs, rhs);
-    set_node_name(node.get_name(), result);
 
     auto complex_type_mark_lhs = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
     auto complex_type_mark_rhs = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
@@ -121,6 +119,7 @@ OutputVector translate_mul_op(const NodeContext& node) {
         return {complex_result};
     }
 
+    set_node_name(node.get_name(), result);
     return {result};
 }
 template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
