@@ -613,12 +613,12 @@ void regclass_InferRequest(py::module m) {
         )");
 
     cls.def(
-            "reset_state",
-            [](InferRequestWrapper& self) {
-                return self.m_request.reset_state();
-            },
-            py::call_guard<py::gil_scoped_release>(),
-            R"(
+        "reset_state",
+        [](InferRequestWrapper& self) {
+            return self.m_request.reset_state();
+        },
+        py::call_guard<py::gil_scoped_release>(),
+        R"(
             Resets all internal variable states for relevant infer request to
             a value specified as default for the corresponding `ReadValue` node
 
