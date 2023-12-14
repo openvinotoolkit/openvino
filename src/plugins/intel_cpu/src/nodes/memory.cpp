@@ -584,7 +584,7 @@ void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
     auto config = selectedPd->getConfig();
     // The pyscial layout varies from models, e.g. [LBHS]chatglm, [BHLS]Llama
     // The SDPA knows details, so should trust the layout config provided by SPDA
-    auto newMemDesc = childConfig.outConfs.back().getMemDesc();
+    auto newMemDesc = childConfig.inConfs.back().getMemDesc();
     config.outConfs.front().setMemDesc(newMemDesc);
     //bypass any checks, we enforce the child descriptor precision
     selectedPd->setConfig(config);

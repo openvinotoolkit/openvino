@@ -35,14 +35,22 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
     auto concat_k = wrap_type<opset6::Concat>({concat_input_k, any_input()});
     auto concat_v = wrap_type<opset6::Concat>({concat_input_v, any_input()});
 
+    // multi-query branch
+    auto reshape_k = wrap_type<opset6::Reshape>({concat_k, any_input()});
+    auto reshape_v = wrap_type<opset6::Reshape>({concat_v, any_input()});
     auto constant_k = wrap_type<opset6::Constant>();
     auto constant_v = wrap_type<opset6::Constant>();
+    auto multiply_k = wrap_type<opset6::Multiply>({reshape_k, constant_k});
+    auto multiply_v = wrap_type<opset6::Multiply>({reshape_v, constant_v});
+    auto reshape1_k = wrap_type<opset6::Reshape>({multiply_k, any_input()});
+    auto reshape1_v = wrap_type<opset6::Reshape>({multiply_v, any_input()});
 
-
+    auto transpose_k_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape1_k, concat_k});
+    auto transpose_v_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape1_v, concat_v});
     auto order_k = wrap_type<opset6::Constant>();
     auto order_v = wrap_type<opset6::Constant>();
-    auto transpose_k = wrap_type<opset6::Transpose>({concat_k, order_k});
-    auto transpose_v = wrap_type<opset6::Transpose>({concat_v, order_v});
+    auto transpose_k = wrap_type<opset6::Transpose>({transpose_k_input, order_k});
+    auto transpose_v = wrap_type<opset6::Transpose>({transpose_v_input, order_v});
 
     auto order_q = wrap_type<opset6::Constant>();
     auto q_input = any_input();
@@ -108,18 +116,20 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
         const auto order_q_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
         const auto order_k_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
         const auto order_v_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
-        const auto& vec_order_q = order_q_node->cast_vector<int32_t>();
-        const auto& vec_order_k = order_k_node->cast_vector<int32_t>();
-        const auto& vec_order_v = order_v_node->cast_vector<int32_t>();
-        if (vec_order_q != vec_order_k || vec_order_q != vec_order_v) // the transpose order of q/k/v should be the same.
+
+        const auto& permute_q = order_q_node->cast_vector<int32_t>();
+        const auto& permute_k = order_k_node->cast_vector<int32_t>();
+        const auto& permute_v = order_v_node->cast_vector<int32_t>();
+        if (permute_q != permute_k || permute_q != permute_v) {
             return false;
+        }
 
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
-        const auto& permute_axes = vec_order_k;
-        config.permute_axes.resize(permute_axes.size());
-        for (size_t i = 0; i < permute_axes.size(); i++) {
-            config.permute_axes[i] = static_cast<size_t>(permute_axes[i]);
+
+        config.permute_axes.resize(permute_q.size());
+        for (size_t i = 0; i < permute_q.size(); i++) {
+            config.permute_axes[i] = static_cast<size_t>(permute_q[i]);
         }
         auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);

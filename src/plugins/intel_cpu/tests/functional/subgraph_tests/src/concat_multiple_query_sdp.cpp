@@ -87,7 +87,6 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
         bool hasShapeOf;
         std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
@@ -136,7 +135,7 @@ public:
         auto unsqueezeK = std::make_shared<opset8::Unsqueeze>(concatK, unsquezeAxis);
         auto unsqueezeV = std::make_shared<opset8::Unsqueeze>(concatV, unsquezeAxis);
 
-        auto targetShape = op::v0::Constant::create(ov::element::f32, {1, 1, 1, 4, 1}, {1});
+        auto targetShape = op::v0::Constant::create(inType, {1, 1, 1, 4, 1}, {1});
         auto broadcastK = std::make_shared<opset8::Multiply>(unsqueezeK, targetShape);
         auto broadcastV = std::make_shared<opset8::Multiply>(unsqueezeV, targetShape);
 
@@ -259,7 +258,11 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    if (inType == ov::element::bf16) {
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", 5);
+    } else {
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    }
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
@@ -284,7 +287,7 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);
