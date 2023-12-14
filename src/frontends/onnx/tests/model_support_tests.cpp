@@ -11,7 +11,7 @@
 
 namespace {
 std::string model_path(const char* model) {
-    std::string path = ONNX_TEST_MODELS;
+    std::string path = TEST_ONNX_MODELS_DIRNAME;
     path += "support_test/";
     path += model;
     return ov::test::utils::getModelFromTestModelZoo(path);
