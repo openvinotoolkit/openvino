@@ -77,50 +77,18 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     num_outputs = 0;
     const auto& io_exprs = body.get_IO_ops();
     for (const auto& expr : io_exprs) {
-        snippets::lowered::PortDescriptorPtr desc = nullptr;
-        element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                // Note that here we consider only the first child (which is usually load),
-                // but often there is another child - LoopEnd
-                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
-                const auto& first_consumer = consumer_inputs.begin()->get_expr();
-                // If there is a RankNormalization op after a parameter - we should skip it
-                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
-                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
-                std::set<std::vector<size_t>> child_layouts;
-                for (const auto& child_input : consumer_inputs) {
-                    const auto& child = child_input.get_expr();
-                    const auto port = child_input.get_index();
-                    const auto& n = child->get_node();
-                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(n);
-                    if (ma && ma->is_memory_access_input_port(port)) {
-                        desc = child_input.get_descriptor_ptr();
-                        child_layouts.insert(desc->get_layout());
-                    }
-                }
-                OPENVINO_ASSERT(child_layouts.size() == 1, "All children of an input expression must have the same layout");
-                etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
                 num_outputs++;
-                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
-                etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
                 OPENVINO_THROW("Kernel detected unsupported io_type");
             }
         }
-        const auto& shape = desc->get_shape();
-        const auto& layout = desc->get_layout();
-        OPENVINO_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
-        const auto max_dim = *std::max_element(layout.begin(), layout.end());
-        OPENVINO_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
-        io_shapes.push_back(shape);
-        io_data_layouts.push_back(layout);
-        io_data_sizes.push_back(etype.size());
         mem_access_exprs.push_back(expr);
     }
     std::set<size_t> unique_buffers;
@@ -177,6 +145,8 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
     : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(abi_param1.getIdx()), reg_runtime_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
     OPENVINO_ASSERT(kernel, "jit_kernel_static_emitter expectes KernelStatic expression");
+    data_offsets = kernel->get_data_offsets();
+    OPENVINO_ASSERT(data_offsets.size() == num_inputs + num_outputs, "Incorrect count of data offsets!");
     master_shape = body.get_master_shape();
     // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
     //       so we have to reproduce this behavior here
@@ -206,44 +176,6 @@ void jit_kernel_static_emitter::init_data_pointers(const Xbyak::Reg64& reg_index
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = master_shape.size() - 1;
-    std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
-    auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size, bool is_input) {
-        // Strides represent distance between consecutive elements of corresponding dimension.
-        // If a dim size == 1, then the next dim starts immediately and the stride is 0
-        // case 1:
-        //    shape:         s0,    s1, s2, s3
-        //    strides: s1*s2*s3, s2*s3, s3,  1
-        // case 2:
-        //    shape:      s0, s1, s2 == 1, s3
-        //    strides: s1*s3, s3,       0,  1
-        std::vector<size_t> strides(shape.size());
-        size_t dim_step = 1;
-        strides[shape.size() - 1] = 1;
-        for (int k = static_cast<int>(shape.size()) - 2; k >= 0; k--) {
-            dim_step *= shape[k+1];
-            strides[k] = shape[k] != 1 ? dim_step * data_size : 0;
-        }
-        // Note: this is an extra copy, but let's keep it for clarity
-        if (!layout.empty()) {
-            std::vector<size_t> reordered_strides(strides.size());
-            for (size_t i = 0; i < layout.size(); i++) {
-                const auto& src_idx = is_input ? layout[i] : i;
-                const auto& dst_idx = is_input ? i : layout[i];
-                reordered_strides[dst_idx] = strides[src_idx];
-            }
-            strides = std::move(reordered_strides);
-        }
-        // the last stride is ignored, since the entire last dim is processed by kernel
-        // and no parallel_for data_ptr offsets can be applied in this case
-        strides.pop_back();
-        // actual offset size might be larger that the shape size due to 6D scheduling
-        strides.insert(strides.begin(), offset_rank - strides.size(), 0);
-
-        return strides;
-    };
-    for (size_t i = 0; i < num_params; i++) {
-        data_offsets[i] = offset_calculation(io_shapes[i],  io_data_layouts[i], io_data_sizes[i], i < num_inputs);
-    }
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
     init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {

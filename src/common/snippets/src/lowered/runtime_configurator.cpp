@@ -273,12 +273,18 @@ void RuntimeConfigurator::init_data_offsets(const LinearIR& linear_ir) {
                 // If there is a RankNormalization op after a parameter - we should skip it
                 if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
                     consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
+                std::set<std::vector<size_t>> child_layouts;
                 for (const auto& child_input : consumer_inputs) {
-                    if (ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node())) {
+                    const auto& child = child_input.get_expr();
+                    const auto port = child_input.get_index();
+                    const auto& n = child->get_node();
+                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(n);
+                    if (ma && ma->is_memory_access_input_port(port)) {
                         desc = child_input.get_descriptor_ptr();
-                        break;
+                        child_layouts.insert(desc->get_layout());
                     }
                 }
+                OPENVINO_ASSERT(child_layouts.size() == 1, "All children of an input expression must have the same layout");
                 etype = expr->get_node()->get_output_element_type(0);
                 break;
             }
@@ -295,7 +301,7 @@ void RuntimeConfigurator::init_data_offsets(const LinearIR& linear_ir) {
 }
 
 void RuntimeConfigurator::offset_calculation(const lowered::PortDescriptorPtr& desc, size_t data_size, bool is_input,
-                                             size_t rank, std::vector<int64_t>& offsets) {
+                                             size_t rank, std::vector<size_t>& offsets) {
     // offsets represent distance between consecutive elements of corresponding dimension.
     // If a dim size == 1, then the next dim starts immediately and the stride is 0
     // case 1:
@@ -312,17 +318,17 @@ void RuntimeConfigurator::offset_calculation(const lowered::PortDescriptorPtr& d
     if (utils::is_dynamic_vdims(shape))
         return;
 
-    int64_t dim_step = static_cast<int64_t>(data_size);
+    size_t dim_step = data_size;
     offsets[offsets.size() - 1] = dim_step;
 
     OPENVINO_ASSERT(rank >= shape.size(), "Incorrect tensor rank!");
     const auto idx_stride = rank - shape.size();
     for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
-        dim_step *= static_cast<int64_t>(shape[i + 1]);
+        dim_step *= shape[i + 1];
         offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
     }
     if (!layout.empty()) {
-        std::vector<int64_t> reordered_offsets(offsets.size());
+        std::vector<size_t> reordered_offsets(offsets.size());
         for (size_t i = 0; i < layout.size(); i++) {
             const auto& src_idx = is_input ? layout[i] : i;
             const auto& dst_idx = is_input ? i : layout[i];

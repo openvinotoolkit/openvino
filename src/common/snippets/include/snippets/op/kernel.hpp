@@ -30,8 +30,13 @@ class KernelStatic : public Kernel {
 public:
     OPENVINO_OP("KernelStatic", "SnippetsOpset", Kernel);
     KernelStatic() = default;
-    KernelStatic(lowered::LinearIR region);
+    KernelStatic(lowered::LinearIR region, std::vector<std::vector<size_t>> data_offsets);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+
+    const std::vector<std::vector<size_t>>& get_data_offsets() const { return m_data_offsets; }
+
+private:
+    std::vector<std::vector<size_t>> m_data_offsets = {};
 };
 
 class KernelDynamic : public Kernel {

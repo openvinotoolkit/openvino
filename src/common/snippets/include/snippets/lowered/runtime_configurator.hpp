@@ -59,7 +59,7 @@ private:
      * @param rank common tensor rank
      * @param offsets reference on the target offsets for update
      */
-    static void offset_calculation(const lowered::PortDescriptorPtr& desc, size_t data_size, bool is_input, size_t rank, std::vector<int64_t>& offsets);
+    static void offset_calculation(const lowered::PortDescriptorPtr& desc, size_t data_size, bool is_input, size_t rank, std::vector<size_t>& offsets);
     /**
      * @brief Initialize the first iteration loop descriptor
      * @param loop_info loop information of the corresponding loop

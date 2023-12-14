@@ -81,7 +81,7 @@ public:
      * @brief Return the Subgraph input and output data offsets
      * @return the const ref of vector with data offsets
      */
-    const std::vector<std::vector<int64_t>>& get_data_offsets() const { return data_offsets; }
+    const std::vector<std::vector<size_t>>& get_data_offsets() const { return data_offsets; }
 
 private:
     RuntimeConfig() = default;
@@ -89,7 +89,7 @@ private:
     // [loop_id -> loop descriptors]
     LoopMap loops;
     // offsets of subgraph input and output data
-    std::vector<std::vector<int64_t>> data_offsets;
+    std::vector<std::vector<size_t>> data_offsets;
 };
 
 } // namespace lowered

@@ -110,13 +110,6 @@ protected:
     size_t num_outputs = 0;
     size_t num_unique_buffers = 0;
 
-    // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
-    // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
-    // Needed to calc i/o offsets.
-    std::vector<std::vector<size_t>> io_data_layouts = {};
-    std::vector<std::vector<size_t>> io_shapes = {};
-    std::vector<size_t> io_data_sizes {};
-
     snippets::lowered::LinearIR::container mem_access_exprs;
     snippets::lowered::LinearIR::container general_exprs;
 };
@@ -134,6 +127,7 @@ private:
     const size_t reg_indexes_idx{0};
     const size_t reg_runtime_params_idx{0};
     std::vector<size_t> master_shape;
+    std::vector<std::vector<size_t>> data_offsets;
 };
 
 class jit_kernel_dynamic_emitter : public jit_kernel_emitter, public jit_snippets_dynamic_emitter {
