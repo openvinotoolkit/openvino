@@ -1782,12 +1782,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    get_processing_order().save(ob);
+    processing_order.save(ob);
 
     {
         auto& kernels_cache = get_kernels_cache();
         std::vector<primitive_id> impl_ids;
-        for (auto& node : get_processing_order()) {
+        for (auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
@@ -1901,7 +1901,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _can_be_optimized;
     _loaded_from_cache = true;
 
-    get_processing_order().load(ib, *this);
+    processing_order.load(ib, *this);
 
     {
         auto& kernels_cache = get_kernels_cache();
