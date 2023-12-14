@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  PIP_CACHE_PATH: /mount/caches/pip/win
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -87,8 +88,10 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: 'true'
+          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -248,7 +251,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: 'true'
 
       - name: Build cpp samples
         run: |
@@ -329,8 +332,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -769,7 +773,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: 'true'
 
       - name: Install python dependencies
         shell: cmd
