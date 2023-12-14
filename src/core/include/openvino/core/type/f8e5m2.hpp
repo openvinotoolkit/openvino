@@ -14,8 +14,6 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/float16.hpp"
 
-#define ROUND_MODE_TO_NEAREST_EVEN
-
 namespace ov {
 class OPENVINO_API f8e5m2 {
 public:
@@ -71,7 +69,7 @@ public:
     f8e5m2 operator/=(const T& other);
     operator float() const;
 
-    static constexpr f8e5m2 from_bits(uint8_t bits) {
+    static f8e5m2 from_bits(uint8_t bits) {
         return f8e5m2(bits, true);
     }
     uint8_t to_bits() const;
@@ -81,7 +79,7 @@ public:
     }
 
 private:
-    constexpr f8e5m2(uint8_t x, bool) : m_value{x} {}
+    f8e5m2(uint8_t x, bool) : m_value{x} {}
 
     uint8_t m_value = 0;
 };
