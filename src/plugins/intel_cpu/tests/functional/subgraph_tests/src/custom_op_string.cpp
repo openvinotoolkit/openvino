@@ -2,35 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//   -----------         ----------
-//  | Parameter |       | Constant |
-//   -----------         ----------
-//        | string          | string
-//     -----------------------
-//    |        Extension      |
-//     -----------------------
-//        | string          | string
-//   -----------         --------
-//  | Extension |       | Result |
-//   -----------         --------
-//        | u8
-//   ---------------
-//  | Bitwise (CPU) |
-//   ---------------
-//        | u8
-//     --------
-//    | Result |
-//     --------
+//      -----------------            ----------------
+//     |    Parameter    |          |    Constant    |
+//      -----------------            ----------------
+//         |  string  |                 | string |
+//   -----------    -----------------------    -----------
+//  | Extension |  |        Extension      |  | Extension |
+//   -----------    -----------------------    -----------
+//      | u8            | string       | string     | u8
+//   --------      -----------      --------      --------
+//  | Result |    | Extension |    | Result |    | Result |
+//   --------      -----------      --------      --------
+//                      | u8
+//               ---------------
+//              | Bitwise (CPU) |
+//               ---------------
+//                      | u8
+//                  --------
+//                 | Result |
+//                  --------
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/op/op.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using CustomOpStringCPUTestParams = std::tuple<ElementType, InputShape>;
 
@@ -166,7 +165,6 @@ public:
     }
 
 protected:
-
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
 
@@ -178,15 +176,21 @@ protected:
 
         auto in_0 = std::make_shared<ov::op::v0::Parameter>(in_type, inputDynamicShapes[0]);
         auto in_1 = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(in_type, { 1, 3, 5 }));
-        ov::OutputVector param_outs({ in_0, in_1 });
-        auto str_str_op = std::make_shared<CustomOpStringString>(param_outs);
-        ov::OutputVector param_outs_2({ str_str_op->output(0) });
-        auto str_u8_op = std::make_shared<CustomOpStringU8>(param_outs_2);
-        auto btw_not_op = std::make_shared<ov::op::v13::BitwiseNot>(str_u8_op->output(0));
+        ov::OutputVector param_outs_0({ in_0, in_1 });
+        auto str_str_op = std::make_shared<CustomOpStringString>(param_outs_0);
+        ov::OutputVector param_outs_1({ str_str_op->output(0) });
+        auto str_u8_op_0 = std::make_shared<CustomOpStringU8>(param_outs_1);
+        ov::OutputVector param_outs_2({ in_0 });
+        auto str_u8_op_1 = std::make_shared<CustomOpStringU8>(param_outs_2);
+        ov::OutputVector param_outs_3({ in_1 });
+        auto str_u8_op_2 = std::make_shared<CustomOpStringU8>(param_outs_3);
+        auto btw_not_op = std::make_shared<ov::op::v13::BitwiseNot>(str_u8_op_0->output(0));
 
         ov::ParameterVector input_params{in_0};
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(btw_not_op->output(0)),
-                                 std::make_shared<ov::op::v0::Result>(str_str_op->output(1))};
+                                 std::make_shared<ov::op::v0::Result>(str_str_op->output(1)),
+                                 std::make_shared<ov::op::v0::Result>(str_u8_op_1->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(str_u8_op_2->output(0))};
         function = std::make_shared<ov::Model>(results, input_params, "CustomOpStringString");
     }
 
@@ -241,4 +245,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          ::testing::Combine(::testing::Values(ElementType::string), ::testing::ValuesIn(inputShapes)),
                          CustomOpStringCPUTest::getTestCaseName);
 
-} // namespace CPULayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

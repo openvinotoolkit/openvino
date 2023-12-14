@@ -168,9 +168,9 @@ void Reorder::prepareParams() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has unallocated destination memory.");
+        THROW_CPU_NODE_ERR("has unallocated destination memory object.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has unallocated input memory.");
+        THROW_CPU_NODE_ERR("has unallocated input memory object.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
@@ -227,9 +227,9 @@ void Reorder::prepareParams() {
     }
     if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated destination memory.");
+            THROW_CPU_NODE_ERR("has unallocated destination memory object.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated input memory.");
+            THROW_CPU_NODE_ERR("has unallocated input memory object.");
         if (getSelectedPrimitiveDescriptor() == nullptr)
             THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 

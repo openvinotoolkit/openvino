@@ -5,14 +5,15 @@
 #include "cpu_convert.h"
 
 #include "cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
-#include "selective_build.h"
 #include "utils/bfloat16.hpp"
-#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #include "nodes/kernels/x64/jit_kernel.hpp"
+#else
+#include "cpu_memory.h"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "selective_build.h"
+#include "utils/general_utils.h"
 #endif
 
 namespace ov {
