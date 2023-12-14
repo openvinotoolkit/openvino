@@ -102,10 +102,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseDeconvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseBroadcastAndEltwise");
-    FuseBroadcastAndEltwise(graph);
-    graph.RemoveDroppedNodes();
-
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseClampAndFakeQuantize");
     FuseClampAndFakeQuantize(graph);
     graph.RemoveDroppedNodes();
@@ -2158,36 +2154,6 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
             graph.InsertReorder(edge, layerName, n->getInput(), nn->getOutput(), false);
             graph.GetEdges().erase(std::remove(graph.GetEdges().begin(), graph.GetEdges().end(), edge), graph.GetEdges().end());
         }
-    }
-}
-
-void GraphOptimizer::FuseBroadcastAndEltwise(Graph &graph) {
-    auto& graphNodes = graph.GetNodes();
-
-    for (auto &graphNode : graphNodes) {
-        if (graphNode->getType() != Type::Generic
-                || graphNode->getTypeStr() != "Broadcast"
-                || graphNode->getChildEdges().size() != 1lu
-                || graphNode->getChildEdgeAt(0)->getChild()->getType() != Type::Eltwise)
-                continue;
-
-        NodePtr& broadcastNode = graphNode;
-        NodePtr eltwiseNode = broadcastNode->getChildEdgeAt(0)->getChild();
-        eltwiseNode->inputShapes[broadcastNode->getChildEdgeAt(0)->getOutputNum()]
-                = broadcastNode->getInputShapeAtPort(0);
-
-        auto& edges = graph.GetEdges();
-        for (size_t i = 1lu; i < broadcastNode->getParentEdges().size(); i++) {
-            auto constParent = broadcastNode->getParentEdgesAtPort(i)[0]->getParent();
-            for (auto it = edges.begin(); it != edges.end(); it++) {
-                if ((*it) == constParent->getChildEdgeAt(0)) {
-                    edges.erase(it);
-                    constParent->remove();
-                    break;
-                }
-            }
-        }
-        graph.DropNode(broadcastNode);
     }
 }
 
