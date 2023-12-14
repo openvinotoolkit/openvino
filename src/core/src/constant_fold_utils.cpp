@@ -129,19 +129,6 @@ std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov:
         }
     }
 
-    for (size_t i = 0; i < num_outputs; i++) {
-        // The last check to make sure that 'cloned_node' outputs has supported precisions.
-        // If they don't - it (most likely) means that the outputs precisions don't depend
-        // in the node's inputs. In that case, there's an attribute in the operator that
-        // specificies the output precision. In order to fix that - `output_conversion_methods`
-        // map should be updated to handle that operator.
-        OPENVINO_ASSERT(!node_evaluate_requires_output_conversion(cloned_node->output(i)),
-                        cloned_node,
-                        " output ",
-                        i,
-                        " has unsupported precision");
-    }
-
     return cloned_node;
 }
 
