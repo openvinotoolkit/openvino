@@ -97,13 +97,15 @@ jobs:
 
   - script: |
       set -e
-      apt-get update && apt-get install -y lsb-release git git-lfs && apt-get clean all
+      apt-get update && apt-get install -y lsb-release git git-lfs
+      git-lfs install
+      apt-get clean all
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
     displayName: 'Install dependencies'
 
   - script:
-      src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d $(MODELS_DIR) -o -s "$(ONNX_MODEL_ZOO_SHA)"
+      src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d $(MODELS_DIR) -o -f -s "$(ONNX_MODEL_ZOO_SHA)"
     displayName: 'Update models'
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
