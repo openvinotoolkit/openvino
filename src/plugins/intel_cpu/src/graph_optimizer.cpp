@@ -2843,7 +2843,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         for (auto&& edge : node->getChildEdgesAtPort(0)) {
             auto child = edge->getChild();
             if (Type::ScaledDotProductAttention == child->getType()) {
-                if (sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child)) {
+                sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child);
+                if (sdpa) {
                     break;
                 } else {
                     OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
