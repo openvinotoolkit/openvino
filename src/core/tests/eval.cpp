@@ -3676,7 +3676,7 @@ TEST(eval, evaluate_fake_convert_bf16_matching_f8_to_f8e5m2_scale_1) {
         4096.f, 5120.f, 6144.f, 7168.f,
         8192.f, 10240.f, 12288.f, 14336.f,
         16384.f, 20480.f, 24576.f, 28672.f,
-        32768.f, 40960.f, 49152.f, 57344.0
+        32768.f, 40960.f, 49152.f, 57344.f
     };
     // clang-format on
 
