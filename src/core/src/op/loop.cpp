@@ -7,7 +7,6 @@
 #include <climits>
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -160,9 +159,8 @@ void Loop::validate_and_infer_types() {
                 body_parameter->set_partial_shape(PartialShape::dynamic());
             } else {
                 auto out_shape = input_partial_shape;
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto axis = normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                const auto axis =
+                    ov::util::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
             }
@@ -271,9 +269,7 @@ void Loop::validate_and_infer_types() {
             if (zero_number_of_iter) {
                 out_shape = PartialShape{0};
             } else if (out_shape.rank().is_static()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto axis = normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                const auto axis = ov::util::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
                     out_shape = PartialShape{1};

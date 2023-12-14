@@ -28,9 +28,7 @@ const ov::AxisSet ov::op::util::ReductionBase::get_reduction_axes() const {
     if (const auto& const_op = ov::util::get_constant_from_source(input_value(1))) {
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axes = ov::util::normalize_axes(get_friendly_name(), const_data, input_data_rank);
         return {normalized_axes};
     } else {
         return {};

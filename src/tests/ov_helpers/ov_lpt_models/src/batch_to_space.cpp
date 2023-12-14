@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/batch_to_space.hpp"
 
-#include <openvino/opsets/opset2.hpp>
+#include "openvino/opsets/opset2.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 namespace ngraph {

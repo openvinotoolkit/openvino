@@ -76,7 +76,7 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
 
     auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
-    auto groupConvBackpropData = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
+    auto groupConvBackpropData = std::dynamic_pointer_cast<ov::opset1::GroupConvolutionBackpropData>(
             ngraph::builder::makeGroupConvolutionBackpropData(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};

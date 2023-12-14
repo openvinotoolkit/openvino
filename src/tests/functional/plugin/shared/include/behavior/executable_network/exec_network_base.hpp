@@ -8,6 +8,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/relu.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 class ExecutableNetworkBaseTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,
@@ -292,7 +293,7 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
 
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
-    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    auto referenceNetwork = ov::test::utils::make_conv_pool_relu();
     compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
@@ -303,7 +304,7 @@ protected:
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
     }
     void TearDown() override {
         if (!configuration.empty()) {

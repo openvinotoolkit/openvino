@@ -10,7 +10,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -179,11 +178,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
-                                                       reduction_axes->cast_vector<int64_t>(),
-                                                       reduction->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& non_negative_axes = ov::util::normalize_axes(reduction->get_friendly_name(),
+                                                                 reduction_axes->cast_vector<int64_t>(),
+                                                                 reduction->get_input_partial_shape(0).rank());
         reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ov::NodeVector new_ops;

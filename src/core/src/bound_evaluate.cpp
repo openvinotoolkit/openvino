@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
+#include "validation_util.hpp"
 
 namespace {
 using namespace ov;
@@ -579,9 +580,7 @@ bool ov::default_label_evaluator(const Node* node,
     for (size_t i = 0; i < inputs_count; ++i) {
         if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
             auto labels = node->get_input_tensor(i).get_value_label();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!has_no_labels(labels) && !has_any_input_labels) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (!ov::util::has_no_labels(labels) && !has_any_input_labels) {
                 has_any_input_labels = true;
             }
 
