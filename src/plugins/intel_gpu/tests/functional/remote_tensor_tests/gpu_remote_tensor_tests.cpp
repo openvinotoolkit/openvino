@@ -11,13 +11,16 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/convert_transpose.hpp"
 
 class OVRemoteTensor_Test : public ov::test::TestsCommon {
 protected:
     std::shared_ptr<ov::Model> fn_ptr;
 
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::test::utils::make_split_multi_conv_concat();
     }
 };
 
@@ -739,7 +742,7 @@ protected:
 
 public:
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::test::utils::make_split_multi_conv_concat();
         deviceName = ov::test::utils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) {
@@ -1259,7 +1262,10 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8, {1, height, width, feature}, 50, 0, 1);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 50;
+    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8, {1, height, width, feature}, in_data);
     ov::Tensor fake_image_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, height, width, feature });
 
     auto image_ptr = static_cast<uint8_t*>(fake_image.data());
@@ -1277,7 +1283,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, feature, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({1, feature, height, width});
 
     using namespace ov::preprocess;
 
@@ -1325,7 +1331,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, feature, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, feature, height, width});
 
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::f32)
@@ -1361,14 +1367,18 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 50;
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, in_data);
+    in_data.range = 256;
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, in_data);
 
     auto ie = ov::Core();
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvertTranspose({1, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_convert_transpose({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1435,7 +1445,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvertTranspose({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_convert_transpose({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1472,13 +1482,16 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height * 3 / 2, width, 1}, 50);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 50;
+    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height * 3 / 2, width, 1}, in_data);
 
     auto ie = ov::Core();
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1526,7 +1539,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1562,14 +1575,18 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 50;
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, in_data);
+    in_data.range = 256;
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, in_data);
 
     auto ie = ov::Core();
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1634,7 +1651,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1671,12 +1688,16 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 50;
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, in_data);
+    in_data.range = 256;
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, in_data);
 
     auto ie = ov::Core();
 
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1773,15 +1794,19 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_yuv;
     for (size_t i = 0; i < num_batch; i++) {
-        fake_image_data_yuv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, height * 3 / 2, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 50;
+        in_data.resolution = 1;
+        in_data.seed = static_cast<int>(i);
+        fake_image_data_yuv.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height * 3 / 2, width, 1}, in_data));
     }
 
     auto ie = ov::Core();
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1839,7 +1864,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1880,16 +1905,21 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch; i++) {
-        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
-        fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1, static_cast<int32_t>(i)));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 50;
+        in_data.resolution = 1;
+        in_data.seed = static_cast<int>(i);
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, in_data));
+        in_data.range = 256;
+        fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, in_data));
     }
 
     auto ie = ov::Core();
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1963,7 +1993,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -2008,7 +2038,12 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
     std::vector<ov::Tensor> fake_image;
     std::vector<ov::Tensor> fake_image_regular;
     for (size_t i = 0; i < num_batch; i++) {
-        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, feature}, 50, 0, 1, static_cast<int32_t>(i));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 50;
+        in_data.resolution = 1;
+        in_data.seed = static_cast<int>(i);
+        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, feature}, in_data);
         auto tensor_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width });
         auto image_ptr = static_cast<uint8_t*>(tensor_image.data());
         auto image_ptr_regular = static_cast<float*>(tensor_regular.data());
@@ -2028,7 +2063,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, feature, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({num_batch, feature, height, width});
 
     using namespace ov::preprocess;
 
@@ -2086,7 +2121,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, 1, height, width});
 
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::f32)
@@ -2124,16 +2159,21 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch * 2; ++i) {
-        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
-        fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1, static_cast<int32_t>(i)));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 50;
+        in_data.resolution = 1;
+        in_data.seed = static_cast<int>(i);
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, in_data));
+        in_data.range = 256;
+        fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, in_data));
     }
 
     auto ie = ov::Core();
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+    auto fn_ptr_remote = ov::test::utils::make_conv_pool_relu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -2235,7 +2275,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::test::utils::make_conv_pool_relu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -2369,7 +2409,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
 
     const auto gpuDeviceFirst = gpuDevices[0];
     const auto gpuDeviceSecond = gpuDevices[1];
-    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto model = ov::test::utils::make_convert_transpose();
 
     auto compiledModelFirst = core.compile_model(model, gpuDeviceFirst);
     auto compiledModelSecond = core.compile_model(model, gpuDeviceSecond);
@@ -2410,7 +2450,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
     check_contexts_are_same(default_ctx,  core.get_default_context(ov::test::utils::DEVICE_GPU));
 
     // Ensure compiled model uses default context too
-    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto model = ov::test::utils::make_convert_transpose();
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     check_contexts_are_same(default_ctx, compiled_model.get_context());
     ASSERT_EQ(2, compiled_model.get_property(ov::streams::num));

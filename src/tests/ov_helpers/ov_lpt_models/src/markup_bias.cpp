@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/markup_bias.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"

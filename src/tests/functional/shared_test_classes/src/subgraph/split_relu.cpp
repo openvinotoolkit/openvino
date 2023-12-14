@@ -38,8 +38,8 @@ namespace SubgraphTestsDefinitions {
         ngraph::ResultVector results;
 
         for (size_t i : connect_index) {
-            auto relu = std::make_shared<ngraph::opset1::Relu>(split->output(i));
-            results.push_back(std::make_shared<ngraph::opset1::Result>(relu));
+            auto relu = std::make_shared<ov::op::v0::Relu>(split->output(i));
+            results.push_back(std::make_shared<ov::op::v0::Result>(relu));
         }
         function = std::make_shared<ngraph::Function>(results, input, "split_relu");
     }

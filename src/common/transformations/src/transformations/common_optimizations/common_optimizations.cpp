@@ -233,7 +233,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
 
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins
-    // that didn't enabled BitwiseOps from opset13
+    // that didn't enabled BitwiseOps from opset13 and to allow for constant
+    // folding for bool inputs
     REGISTER_PASS(manager, ConvertBitwiseToLogical)
 
     // StridesOptimization should be at the very end

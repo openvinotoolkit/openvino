@@ -178,6 +178,7 @@ OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_scatter);
+OP_CONVERTER(translate_scatter_add);
 OP_CONVERTER(translate_scatter_reduce);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
@@ -471,6 +472,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
+        {"aten::pow_", op::translate_pow},
         {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
@@ -503,6 +505,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
         {"aten::scatter", op::translate_scatter},
         {"aten::scatter_", op::inplace_op<op::translate_scatter>},
+        {"aten::scatter_add", op::translate_scatter_add},
+        {"aten::scatter_add_", op::inplace_op<op::translate_scatter_add>},
         {"aten::scatter_reduce", op::translate_scatter_reduce},
         {"aten::scatter_reduce_", op::inplace_op<op::translate_scatter_reduce>},
         {"aten::select", op::quantizable_op<op::translate_select>},

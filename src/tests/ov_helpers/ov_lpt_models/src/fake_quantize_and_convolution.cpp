@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
@@ -209,7 +209,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
         if (multiplyAfter) {
             const auto& O = lastOperation->get_shape()[1];
             std::vector<float> weights_val(O, 1);
-            auto constant = op::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
+            auto constant = ov::opset1::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
             lastOperation = std::make_shared<ov::opset1::Multiply>(lastOperation, constant);
         }
     } else {

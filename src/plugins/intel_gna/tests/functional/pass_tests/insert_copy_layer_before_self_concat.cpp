@@ -90,9 +90,9 @@ protected:
         }
         ngraph::ResultVector results;
         for (int i = 0; i < concatsNum; ++i) {
-            auto concat = std::make_shared<ngraph::opset1::Concat>(concatInputs, axis);
-            auto relu = std::make_shared<ngraph::opset1::Relu>(concat);
-            results.push_back(std::make_shared<ngraph::opset1::Result>(relu));
+            auto concat = std::make_shared<ov::opset1::Concat>(concatInputs, axis);
+            auto relu = std::make_shared<ov::opset1::Relu>(concat);
+            results.push_back(std::make_shared<ov::op::v0::Result>(relu));
         }
         function = std::make_shared<ngraph::Function>(results, params, "InsertCopyBeforeSelfConcat");
     }

@@ -60,9 +60,9 @@ void GatherTreeLayerTest::SetUp() {
         throw std::runtime_error("Unsupported inputType");
     }
 
-    auto operationResult = std::make_shared<ngraph::opset4::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
+    auto operationResult = std::make_shared<ov::op::v1::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(operationResult)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(operationResult)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
 }
 
