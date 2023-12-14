@@ -49,6 +49,7 @@ public:
 
 private:
     bool is_legacy_api() const;
+    ov::Any get_property_internal(const std::string& name, const ov::AnyMap& arguments) const;
 
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
     ov::Any get_metric_legacy(const std::string& name, const ov::AnyMap& options) const;

@@ -637,6 +637,17 @@ ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& o
 }
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
+    auto prop = get_property_internal(name, options);
+    if (!prop.empty()) {
+        std::cout << "cpu get_property(): name = " << name.c_str() << ", value = " << prop.as<std::string>()
+                  << std::endl;
+    } else {
+        std::cout << "cpu get_property(): name = " << name.c_str() << ", value = empty " << std::endl;
+    }
+    return prop;
+}
+
+ov::Any Engine::get_property_internal(const std::string& name, const ov::AnyMap& options) const {
     if (is_legacy_api()) {
         auto ret = get_property_legacy(name, options);
         if (!ret.empty())
