@@ -13,26 +13,24 @@ namespace util {
 OPENVINO_API
 element::TypeVector unsupported_types();
 
-/// \brief is_convert returns true if the first parameter is a Convert or ConvertLike node and false otherwise
-/// TODO: find better place for this helper function
-OPENVINO_API
-bool is_convert(const std::shared_ptr<Node>& node);
-
 /// \brief If the node has constant inputs with types that (before constant_fold) should be converted to f32 - the
 ///        function converts and constantfolds those inputs to f32. Then, the function clones the node with
 ///        the new inputs and returns the new node.
 ///
 /// \param node
 /// \param inputs               - vector of new inputs to the node
-/// \param constant_fold_inputs - If true - tries to constant fold converted inputs
 ///
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
-OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node,
-                                                      OutputVector&& inputs,
-                                                      bool constant_fold_inputs = true);
+OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node, OutputVector&& inputs);
 
-OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node,
-                                                      bool constant_fold_inputs = true);
+/// \brief If the node has constant inputs with types that (before constant_fold) should be converted to f32 - the
+///        function converts and constantfolds those inputs to f32. Then, the function clones the node with
+///        the new inputs and returns the new node.
+///
+/// \param node
+///
+/// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
+OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node);
 
 /// \brief Function constantfolds a node.
 ///        It converts the node inputs if necessary, runs Node::constant_fold

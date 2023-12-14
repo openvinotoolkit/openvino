@@ -39,10 +39,6 @@ static bool node_evaluate_requires_output_conversion(const ov::Output<ov::Node>&
            is_type_unsupported(output.get_element_type());
 }
 
-bool ov::util::is_convert(const std::shared_ptr<Node>& node) {
-    return ov::is_type<op::v0::Convert>(node) || ov::is_type<op::v1::ConvertLike>(node);
-}
-
 static bool convert_range_precision(const std::shared_ptr<ov::Node>& node) {
     auto range = ov::as_type_ptr<ov::op::v4::Range>(node);
     if (!range)
@@ -59,14 +55,11 @@ static std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared
         {ov::op::v4::Range::get_type_info_static(), convert_range_precision},
 };
 
-std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node,
-                                                       bool constant_fold_inputs) {
-    return try_convert_inputs(node, node->input_values(), constant_fold_inputs);
+std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node) {
+    return try_convert_inputs(node, node->input_values());
 }
 
-std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node,
-                                                       OutputVector&& inputs,
-                                                       bool constant_fold_inputs) {
+std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node, OutputVector&& inputs) {
     size_t num_inputs = node->get_input_size();
     if (num_inputs == 0)
         return node;
@@ -75,10 +68,6 @@ std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov:
     bool inputs_changed = false;
 
     for (size_t i = 0; i < num_inputs; i++) {
-        if (constant_fold_inputs && !ov::is_type<ov::op::v0::Constant>(inputs[i].get_node())) {
-            // non-constant input - node is not constfoldable
-            return node;
-        }
         if (node->get_input_element_type(i) == inputs[i].get_element_type() &&
             node_evaluate_requires_input_conversion(node->input(i))) {
             // ith input requires a convert to f32
@@ -104,11 +93,9 @@ std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov:
     for (size_t i = 0; i < num_inputs; i++) {
         if (node->get_input_element_type(i) == inputs[i].get_element_type() &&
             node_evaluate_requires_input_conversion(node->input(i))) {
-            // this input is a constant, but it requires conversion from unsupported type to f32
             auto convert = std::make_shared<ov::op::v0::Convert>(inputs[i], ov::element::f32);
-            if (constant_fold_inputs) {
-                OutputVector outputs(1);
-                OPENVINO_ASSERT(convert->constant_fold(outputs, convert->input_values()));
+            OutputVector outputs(1);
+            if (convert->constant_fold(outputs, convert->input_values())) {
                 inputs[i] = outputs[0];
             } else {
                 inputs[i] = convert;
@@ -239,8 +226,7 @@ bool ov::util::evaluate_node(const std::shared_ptr<ov::Node>& node,
     // otherwise try to convert input tensors and run the Node::evaluate once again
 
     // create a cloned node with converted inputs in order to know output precisions
-    bool constant_fold_inputs = false;
-    auto cloned = try_convert_inputs(node->shared_from_this(), constant_fold_inputs);
+    auto cloned = try_convert_inputs(node->shared_from_this());
 
     ov::TensorVector converted_input_tensors;
     converted_input_tensors.reserve(input_tensors.size());
