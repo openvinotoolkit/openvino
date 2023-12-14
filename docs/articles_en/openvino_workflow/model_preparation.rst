@@ -61,23 +61,20 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
    :align: center
    :alt: OpenVINO workflow diagram 
 
-* Saved on disk
+| * Saved on disk
+|    A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
+|
+|      * OpenVINO IR: pair of .xml and .bin files
+|      * ONNX: .onnx file
+|      * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
+|      * TensorFlow Lite: .tflite file
+|      * PaddlePaddle: .pdmodel file
 
-  A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
+| * Loaded but not compiled
+|    A model object (``ov.Model``) is created in memory either by parsing a file or converting an existing framework object. Inference cannot be done with this object yet as it is not attached to any specific device, but it allows customization such as reshaping its input, applying quantization or even adding preprocessing steps before compiling the model.
 
-  * OpenVINO IR: pair of .xml and .bin files
-  * ONNX: .onnx file
-  * TensorFlow: directory with a .pb file and two subfolders or just a .pb file
-  * TensorFlow Lite: .tflite file
-  * PaddlePaddle: .pdmodel file
-
-* Loaded but not compiled
-
-A model object (``ov.Model``) is created in memory either by parsing a file or converting an existing framework object. Inference cannot be done with this object yet as it is not attached to any specific device, but it allows customization such as reshaping its input, applying quantization or even adding preprocessing steps before compiling the model.
-
-* Loaded and compiled
-
-This state is achieved when one or more devices are specified for a model object to run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling inference.
+| * Loaded and compiled
+|   This state is achieved when one or more devices are specified for a model object to run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling inference.
 
 For more information on each function, see the :doc:`OpenVINO Workflow <openvino_workflow>` page.
 
