@@ -1493,7 +1493,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             } else {
                 const auto scores_layout = nms_node.input_scores().get_output_layout();
                 if (scores_layout.is_dynamic()) {
-                    preferred_impl = impl_types::ocl;
+                    preferred_impl = impl_types::cpu;
                 } else {
                     const size_t kBatchNum = scores_layout.batch();
                     const size_t kClassNum = scores_layout.feature();
