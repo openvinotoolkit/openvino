@@ -24,6 +24,7 @@ public:
     int _numa_nodes = 0;
     int _sockets = 0;
     int _cores = 0;
+    int _blocked_cores = 0;
     std::vector<std::vector<int>> _org_proc_type_table;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
@@ -134,6 +135,7 @@ void get_cpu_mapping_from_cores(const int _processors,
  * @param[out] _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _blocked_cores total number for blocked processors in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
@@ -144,6 +146,7 @@ void parse_processor_info_win(const char* base_ptr,
                               int& _numa_nodes,
                               int& _sockets,
                               int& _cores,
+                              int& _blocked_cores,
                               std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif

@@ -74,6 +74,14 @@ inline int getNumberOfLogicalCPUCores(bool bigCoresOnly = false) {
 }
 
 /**
+ * @brief      Returns number of blocked CPU cores. Please note that this is a temporary interface for performance
+ * optimization on a specific platform. May be removed in future release.
+ * @ingroup    ov_dev_api_system_conf
+ * @return     Number of blocked CPU cores.
+ */
+using ov::get_number_of_blocked_cores;
+
+/**
  * @brief      Checks whether CPU supports SSE 4.2 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is SSE 4.2 instructions are available, `false` otherwise
