@@ -38,6 +38,7 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     if ((info.name() != "input1") && (info.name() != "input2")) {
         IE_THROW() << "unexpected layer name " << info.name();
@@ -57,12 +58,15 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
 
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
 }
+#endif
 
 void MatMulTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+
+    init_input_shapes({ testValues.inputShape1, testValues.inputShape2 });
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
@@ -75,7 +79,7 @@ void MatMulTransformation::SetUp() {
 }
 
 void MatMulTransformation::run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     LayerTransformation::run();
 

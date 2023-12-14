@@ -44,13 +44,15 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 }
 
 void NormalizeL2Transformation::SetUp() {
-    threshold = 3.e-3;
+    rel_threshold = 3.e-3;
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
     std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
+
+    init_input_shapes(shapes.first);
 
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
@@ -62,7 +64,7 @@ void NormalizeL2Transformation::SetUp() {
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

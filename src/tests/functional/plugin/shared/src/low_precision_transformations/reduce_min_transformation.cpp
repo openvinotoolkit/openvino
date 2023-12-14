@@ -37,6 +37,8 @@ void ReduceMinTransformation::SetUp() {
     ReduceMinTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
+    init_input_shapes(inputShape);
+
     ngraph::builder::subgraph::DequantizationOperations::Convert convert;
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
@@ -61,7 +63,7 @@ void ReduceMinTransformation::run() {
 }
 
 TEST_P(ReduceMinTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

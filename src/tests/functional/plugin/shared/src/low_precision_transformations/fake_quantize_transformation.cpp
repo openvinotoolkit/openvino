@@ -40,6 +40,8 @@ void FakeQuantizeTransformation::SetUp() {
     bool isConvertOnConstants;
     std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     testParams.fakequantize.addConverts = isConvertOnConstants;
 
     function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
@@ -66,7 +68,7 @@ void FakeQuantizeTransformation::run() {
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

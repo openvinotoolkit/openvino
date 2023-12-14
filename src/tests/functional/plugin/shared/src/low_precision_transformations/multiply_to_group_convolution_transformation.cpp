@@ -45,6 +45,8 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
     MultiplyToGroupConvolutionTransformationParam param;
     std::tie(precision, shape, targetDevice, param) = this->GetParam();
 
+    init_input_shapes(shape);
+
     function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,

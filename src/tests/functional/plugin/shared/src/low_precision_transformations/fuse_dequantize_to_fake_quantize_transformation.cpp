@@ -36,6 +36,8 @@ void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
     FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
         testValues.inputShape,
         testValues.actual.precisionBeforeAdd,
@@ -48,7 +50,7 @@ void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
 }
 
 TEST_P(FuseDequantizeToFakeQuantizeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

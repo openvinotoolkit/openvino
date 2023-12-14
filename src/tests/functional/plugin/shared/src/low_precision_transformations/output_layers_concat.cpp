@@ -32,6 +32,7 @@ std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<Lay
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
+#if 0
 InferenceEngine::Blob::Ptr OutputLayersConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
@@ -49,6 +50,7 @@ InferenceEngine::Blob::Ptr OutputLayersConcat::GenerateInput(const InferenceEngi
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
     return input;
 }
+#endif
 
 /*
 *           FQ1     FQ2
@@ -68,6 +70,16 @@ void OutputLayersConcat::SetUp() {
     InferenceEngine::Precision netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+
+    init_input_shapes({
+                              ov::PartialShape(inputShape1),
+                              ov::PartialShape(std::vector<ov::Dimension::value_type>({
+                                                                                              static_cast<ov::Dimension::value_type>(inputShape1[0]),
+                                                                                              static_cast<ov::Dimension::value_type>(inputShape1[1] * 2ul),
+                                                                                              static_cast<ov::Dimension::value_type>(inputShape1[2]),
+                                                                                              static_cast<ov::Dimension::value_type>(inputShape1[3])
+                                                                                      }))
+                      });
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -123,7 +135,7 @@ void OutputLayersConcat::SetUp() {
 }
 
 TEST_P(OutputLayersConcat, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

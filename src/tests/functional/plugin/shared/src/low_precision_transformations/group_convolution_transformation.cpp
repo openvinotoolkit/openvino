@@ -44,7 +44,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
 }
 
 void GroupConvolutionTransformation::SetUp() {
-    threshold = 0.1f;
+    rel_threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -52,6 +52,8 @@ void GroupConvolutionTransformation::SetUp() {
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
     std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = this->GetParam();
+
+    init_input_shapes(inputShapes.first);
 
     while (param.fakeQuantizeOnData.constantShape.size() > inputShapes.first.size()) {
         param.fakeQuantizeOnData.constantShape.pop_back();

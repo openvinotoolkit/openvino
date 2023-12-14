@@ -39,6 +39,8 @@ void ReshapeTransformation::SetUp() {
     ReshapeTransformationParam param;
     std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(param.inputShape);
+
     function = ngraph::builder::subgraph::ReshapeFunction::getOriginal(
         param.inputShape,
         param.reshapeConstValues,
@@ -59,7 +61,7 @@ void ReshapeTransformation::run() {
 }
 
 TEST_P(ReshapeTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

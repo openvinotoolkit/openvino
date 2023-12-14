@@ -31,6 +31,7 @@ std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<Rel
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
@@ -45,6 +46,7 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
         static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
         1ul);
 }
+#endif
 
 void ReluTransformation::SetUp() {
     ngraph::element::Type precision;
@@ -52,13 +54,15 @@ void ReluTransformation::SetUp() {
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(ReluTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

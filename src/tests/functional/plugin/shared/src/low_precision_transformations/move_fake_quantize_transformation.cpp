@@ -44,6 +44,25 @@ void MoveFakeQuantizeTransformation::SetUp() {
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();
 
+    if (oneInputWithSplit) {
+        auto newInputShape = inputShapes[0];
+        int channels = 0;
+        bool channelsWasIdentified = false;
+        for (const auto inputShape : inputShapes) {
+            if (inputShape[param.axis].is_static()) {
+                channels += inputShape[param.axis].get_length();
+                channelsWasIdentified = true;
+            }
+        }
+
+        if (channelsWasIdentified) {
+            newInputShape[param.axis] = channels;
+        }
+        init_input_shapes(newInputShape);
+    } else {
+        init_input_shapes(inputShapes);
+    }
+
     function = ngraph::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
         inputShapes,

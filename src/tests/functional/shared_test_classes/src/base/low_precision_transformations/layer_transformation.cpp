@@ -37,7 +37,7 @@ LayerTransformation::LayerTransformation() {
     rel_threshold = 0.05;
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
-
+#if 0
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     const ngraph::element::Type precision,
     const InferenceEngine::TensorDesc& tensorDesc,
@@ -48,6 +48,7 @@ InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
 
     return FuncTestUtils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
 }
+#endif
 
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type precision) {
     const bool unsignedInterval = precision == ngraph::element::u8;
@@ -84,6 +85,110 @@ std::string LayerTransformation::getTestCaseNameByParams(
     std::ostringstream result;
     result << precision << "_" << inputShapes << "_" << targetDevice << "_" << toString(params);
     return result.str();
+}
+
+std::string LayerTransformation::getRuntimePrecision(const std::string& layerName) {
+    const ov::CompiledModel& execNet = compiledModel;
+    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
+    const auto& execFunction = function;
+
+    for (const auto& op : execFunction->get_ops()) {
+        const auto name = op->get_friendly_name();
+        if (name == layerName) {
+            const auto& rtInfo = op->get_rt_info();
+            const auto& it = rtInfo.find("runtimePrecision");
+            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
+            return it->second.as<std::string>();
+        }
+    }
+
+    return "";
+}
+
+std::string LayerTransformation::getRuntimePrecisionByType(const std::string& layerType) {
+    const ov::CompiledModel& execNet = compiledModel;
+    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
+    const auto& execFunction = function;
+
+    for (const auto& op : execFunction->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+
+        IE_ASSERT(typeIt != rtInfo.end()) << "Layer is not found for type: " << layerType;
+
+        auto type = typeIt->second.as<std::string>();
+        if (type == layerType) {
+            const auto& it = rtInfo.find("runtimePrecision");
+            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << type;
+            return it->second.as<std::string>();
+        }
+    }
+
+    return "";
+}
+
+std::string LayerTransformation::getRuntimePrecisionByFusedName(const std::string& layerName) {
+    const ov::CompiledModel& execNet = compiledModel;
+    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
+    const auto& execFunction = function;
+
+    const auto parse = [](const std::string& originalLayersNames) -> std::set<std::string> {
+        std::set<std::string> names;
+
+        std::string tmp = originalLayersNames;
+        size_t beginPosition = 0ul;
+        size_t endPosition;
+        while ((endPosition = tmp.find(",", beginPosition)) != std::string::npos) {
+            names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
+            beginPosition = endPosition + 1;
+        }
+
+        names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
+        return names;
+    };
+
+    for (const auto& op : execFunction->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+
+        const auto& nameIt = rtInfo.find("originalLayersNames");
+        IE_ASSERT(nameIt != rtInfo.end()) << "originalLayersNames is not found for node: " << layerName;
+        const auto fusedName = parse(nameIt->second.as<std::string>());
+        if (fusedName.find(layerName) == fusedName.end()) {
+            continue;
+        }
+
+        const auto& it = rtInfo.find("runtimePrecision");
+        IE_ASSERT(it != rtInfo.end()) << "runtimePrecision is not found for node: " << layerName;
+        const auto rtPrecisionPtr = it->second.as<std::string>();
+        return rtPrecisionPtr;
+    }
+
+    return "";
+}
+
+std::map<std::string, ngraph::Node::RTMap> LayerTransformation::getRuntimeInfo() {
+    const ov::CompiledModel& execNet = compiledModel;
+    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
+
+    std::map<std::string, ngraph::Node::RTMap> runtimeInfo;
+    for (const auto& op : function->get_ops()) {
+        runtimeInfo[op->get_friendly_name()] = op->get_rt_info();
+    }
+    return runtimeInfo;
+}
+
+void LayerTransformation::init_input_shapes(const ov::PartialShape& shape) {
+    std::pair<ov::PartialShape, std::vector<ov::Shape>> input_shapes(shape, { shape.to_shape() });
+    SubgraphBaseTest::init_input_shapes({ input_shapes });
+}
+
+void LayerTransformation::init_input_shapes(const std::vector<ov::PartialShape>& shapes) {
+    std::vector<ov::test::InputShape> input_shapes;
+    for (const auto& shape : shapes) {
+        std::pair<ov::PartialShape, std::vector<ov::Shape>> tmp_shapes(shape, { shape.to_shape() });
+        input_shapes.push_back(tmp_shapes);
+    }
+    SubgraphBaseTest::init_input_shapes(input_shapes);
 }
 
 }  // namespace LayerTestsUtils

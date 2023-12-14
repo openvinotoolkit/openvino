@@ -26,6 +26,7 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testin
     return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
 }
 
+#if 0
 InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
@@ -39,13 +40,16 @@ InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
+#endif
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
-    threshold = 2.e-2;
+    rel_threshold = 2.e-2;
     ngraph::element::Type ngPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
+
+    init_input_shapes({ inputShape, inputShape, inputShape });
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
         ngPrecision,
@@ -58,7 +62,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
 }
 
 TEST_P(ConcatWithNeighborsGraphTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

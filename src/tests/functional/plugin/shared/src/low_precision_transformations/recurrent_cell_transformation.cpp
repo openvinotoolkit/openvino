@@ -45,6 +45,8 @@ void RecurrentCellTransformation::SetUp() {
 
     std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(activations_shapes);
+
     function = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                       activations_shapes,
                                                                       weights_shapes,
@@ -72,9 +74,10 @@ void RecurrentCellTransformation::SetUp() {
 void RecurrentCellTransformation::run() {
     LayerTransformation::run();
 
+#if 0
     if (!executableNetwork)
         return;
-
+#endif
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;

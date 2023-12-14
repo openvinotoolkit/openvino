@@ -34,6 +34,7 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::PartialShape inputShape;
     ngraph::element::Type netPrecision;
@@ -44,12 +45,22 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
+#endif
 
 void ConcatTransformation::SetUp() {
     ngraph::PartialShape inputShape;
     ngraph::element::Type precision;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+
+    std::vector<ngraph::PartialShape> inputs;
+    if (testValues.input_constant1 == nullptr) {
+        inputs.push_back(inputShape);
+    }
+    if (testValues.input_constant2 == nullptr) {
+        inputs.push_back(inputShape);
+    }
+    init_input_shapes(inputs);
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
         precision,
@@ -63,7 +74,7 @@ void ConcatTransformation::SetUp() {
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

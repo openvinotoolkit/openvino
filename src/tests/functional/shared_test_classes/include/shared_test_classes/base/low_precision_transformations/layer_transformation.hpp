@@ -33,12 +33,12 @@ class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphF
 class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
-
+#if 0
     static InferenceEngine::Blob::Ptr GenerateInput(
         const ngraph::element::Type precision,
         const InferenceEngine::TensorDesc& tensorDesc,
         const float k = 1.f);
-
+#endif
     static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
 
     static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
@@ -54,6 +54,21 @@ protected:
         const ngraph::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ov::pass::low_precision::LayerTransformation::Params& params);
+
+    // get runtime precision by operation friendly name
+    std::string getRuntimePrecision(const std::string& layerName);
+
+    // get runtime precision by operation type
+    std::string getRuntimePrecisionByType(const std::string& layerType);
+
+    // get runtime precision by operation friendly name which can be fused
+    std::string getRuntimePrecisionByFusedName(const std::string& layerName);
+
+    std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
+
+    void init_input_shapes(const ov::PartialShape& shape);
+
+    void init_input_shapes(const std::vector<ov::PartialShape>& shapes);
 };
 
 typedef std::tuple<

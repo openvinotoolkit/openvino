@@ -21,7 +21,7 @@ const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> modes = {
         ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-const std::vector<v::PartialShape> inputShapesBS2 = {
+const std::vector<ov::PartialShape> inputShapesBS2 = {
         {1, 4, 3, 3}, {2, 16, 5, 4}
 };
 

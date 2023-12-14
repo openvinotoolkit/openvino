@@ -45,11 +45,13 @@ void TransposeAfterMatMulTransformation::SetUp() {
     bool transposeChannelDim;
     std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
+    init_input_shapes({ inputShape, inputShape });
+
     function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

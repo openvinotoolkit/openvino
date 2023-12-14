@@ -49,6 +49,8 @@ void ReduceMeanTransformation::SetUp() {
     ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
         netPrecision,
         inputShape,
@@ -69,7 +71,7 @@ void ReduceMeanTransformation::run() {
 }
 
 TEST_P(ReduceMeanTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

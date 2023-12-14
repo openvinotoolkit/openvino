@@ -37,6 +37,7 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     if ((info.name() != "input1") && (info.name() != "input2")) {
         IE_THROW() << "unexpected layer name " << info.name();
@@ -56,11 +57,14 @@ InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const
 
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
 }
+#endif
 
 void MatMulWithConstantTransformation::SetUp() {
     ngraph::element::Type precision;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    init_input_shapes(testValues.inputShape);
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
@@ -86,7 +90,7 @@ void MatMulWithConstantTransformation::run() {
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

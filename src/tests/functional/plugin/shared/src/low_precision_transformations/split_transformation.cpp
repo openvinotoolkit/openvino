@@ -29,6 +29,7 @@ std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<Sp
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEngine::InputInfo& info) const {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
@@ -44,6 +45,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
         static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
         1ul);
 }
+#endif
 
 void SplitTransformation::SetUp() {
     ngraph::element::Type precision;
@@ -51,6 +53,8 @@ void SplitTransformation::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::SplitFunction::getOriginal(
         precision,
@@ -61,6 +65,6 @@ void SplitTransformation::SetUp() {
 }
 
 TEST_P(SplitTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 } // namespace LayerTestsDefinitions

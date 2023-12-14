@@ -37,6 +37,8 @@ void ReduceSumTransformation::SetUp() {
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
+    init_input_shapes(inputShape);
+
     ngraph::builder::subgraph::DequantizationOperations::Convert convert;
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
@@ -61,7 +63,7 @@ void ReduceSumTransformation::run() {
 }
 
 TEST_P(ReduceSumTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

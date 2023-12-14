@@ -29,6 +29,8 @@ void SpaceToBatchTransformation::SetUp() {
     SpaceToBatchTransformationParam param;
     std::tie(input_type, targetDevice, param) = this->GetParam();
 
+    init_input_shapes(param.input_shape);
+
     function = ngraph::builder::subgraph::SpaceToBatchFunction::get(
         param.input_shape,
         input_type,
@@ -53,7 +55,7 @@ void SpaceToBatchTransformation::run() {
 }
 
 TEST_P(SpaceToBatchTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

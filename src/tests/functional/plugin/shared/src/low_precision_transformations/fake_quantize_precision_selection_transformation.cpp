@@ -35,6 +35,8 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
         netPrecision,
         inputShape,
@@ -48,7 +50,7 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizePrecisionSelectionTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

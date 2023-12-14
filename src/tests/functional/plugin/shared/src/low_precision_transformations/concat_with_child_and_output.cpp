@@ -52,12 +52,14 @@ void ConcatWithChildAndOutputTransformation::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
+    init_input_shapes({ inputShapes, inputShapes });
+
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 }
 
 TEST_P(ConcatWithChildAndOutputTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -32,6 +32,7 @@ std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestPa
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
@@ -43,6 +44,7 @@ InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const In
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
+#endif
 
 /*
 * FQ       FQ
@@ -59,6 +61,11 @@ void ConcatWithSplitTransformation::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
+    auto inputShape1 = inputShapes;
+    const size_t numSplit = 2;
+    inputShape1[1] = inputShape1[1].get_length() / numSplit;
+    init_input_shapes({ inputShape1, inputShapes });
+
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
         netPrecision,
         inputShapes,
@@ -68,7 +75,7 @@ void ConcatWithSplitTransformation::SetUp() {
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -43,6 +43,8 @@ void FuseConvertTransformation::SetUp() {
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();
 
+    init_input_shapes(constInput ? std::vector<ov::PartialShape>{ shape } : std::vector<ov::PartialShape>{ shape, shape });
+
     function = ngraph::builder::subgraph::FuseConvertFunction::getWithFQ(
         shape,
         precision,
@@ -51,7 +53,7 @@ void FuseConvertTransformation::SetUp() {
 }
 
 TEST_P(FuseConvertTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

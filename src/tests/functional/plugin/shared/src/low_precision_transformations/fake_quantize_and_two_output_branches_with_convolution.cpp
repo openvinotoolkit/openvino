@@ -43,6 +43,8 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
         netPrecision,
         inputShape,

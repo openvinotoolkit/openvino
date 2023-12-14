@@ -54,6 +54,8 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     std::string elementwiseType;
     std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
 
+    init_input_shapes({ inputShape, inputShape });
+
     function = ngraph::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
         precision,
         inputShape,
@@ -114,7 +116,7 @@ void ElementwiseBranchSelectionTransformation::run() {
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

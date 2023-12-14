@@ -37,6 +37,7 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
@@ -49,6 +50,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
+#endif
 
 /*
 * FQ       FQ
@@ -66,6 +68,17 @@ void ConcatWithIntermediateTransformation::SetUp() {
     bool multichannel;
     std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
 
+    ngraph::PartialShape inputShape1 = inputShape;
+    if (inputShape1[2].is_static() && transparentIntermediate) {
+        inputShape1[2] = inputShape1[2].get_length() - 2;
+    }
+
+    if (inputShape1[3].is_static() && transparentIntermediate) {
+        inputShape1[3] = inputShape1[3].get_length() - 2;
+    }
+
+    init_input_shapes({ inputShape1, inputShape });
+
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
         ngPrecision,
         inputShape,
@@ -75,7 +88,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
 }
 
 TEST_P(ConcatWithIntermediateTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

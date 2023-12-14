@@ -53,7 +53,7 @@ void BatchToSpaceTransformation::run() {
 }
 
 TEST_P(BatchToSpaceTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

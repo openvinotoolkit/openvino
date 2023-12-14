@@ -37,6 +37,8 @@ void PadTransformation::SetUp() {
     PadTransformationParam param;
     std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::PadFunction::get(
         inputShape,
         netPrecision,
@@ -58,7 +60,7 @@ void PadTransformation::run() {
 }
 
 TEST_P(PadTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

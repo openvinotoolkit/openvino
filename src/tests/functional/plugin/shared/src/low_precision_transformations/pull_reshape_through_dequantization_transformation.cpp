@@ -51,6 +51,8 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     // to prevent test cases increasing let's parameterize test by dequantization shape and
     // initialize values here
     if (!testValues.dequantizationOnWeights.subtract.empty()) {

@@ -36,6 +36,7 @@ std::string VariadicSplitTransformation::getTestCaseName(const testing::TestPara
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const InferenceEngine::InputInfo& info) const {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
@@ -51,6 +52,7 @@ InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const Infe
         static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
         1ul);
 }
+#endif
 
 void VariadicSplitTransformation::SetUp() {
     ngraph::element::Type precision;
@@ -58,6 +60,8 @@ void VariadicSplitTransformation::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     VariadicSplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::VariadicSplitFunction::getOriginal(
         precision,
@@ -68,6 +72,6 @@ void VariadicSplitTransformation::SetUp() {
 }
 
 TEST_P(VariadicSplitTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 } // namespace LayerTestsDefinitions

@@ -35,6 +35,7 @@ std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const tes
     return result.str();
 }
 
+#if 0
 InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
@@ -46,6 +47,7 @@ InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateIn
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
+#endif
 
 void ConcatWithDifferentChildrenTransformation::SetUp() {
     ngraph::element::Type netPrecision;
@@ -54,12 +56,14 @@ void ConcatWithDifferentChildrenTransformation::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
+    init_input_shapes({ inputShapes, inputShapes });
+
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
         netPrecision, inputShapes, param.axis, param.fqOnData1, param.fqOnData2);
 }
 
 TEST_P(ConcatWithDifferentChildrenTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

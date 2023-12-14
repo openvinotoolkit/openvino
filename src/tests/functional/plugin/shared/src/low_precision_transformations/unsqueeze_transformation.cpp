@@ -29,6 +29,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
     return os;
 }
 
+#if 0
 InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -45,6 +46,7 @@ InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const Inferenc
         static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
         1ul);
 }
+#endif
 
 std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
@@ -69,6 +71,8 @@ void UnsqueezeTransformation::SetUp() {
 
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = this->GetParam();
 
+    init_input_shapes(unsqueezeParam.shape);
+
     function = ngraph::builder::subgraph::UnsqueezeFunction::getOriginal(
         netPrecision,
         unsqueezeParam.shape,
@@ -79,7 +83,7 @@ void UnsqueezeTransformation::SetUp() {
 }
 
 TEST_P(UnsqueezeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

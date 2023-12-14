@@ -32,6 +32,7 @@ std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTest
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
+#if 0
 InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
@@ -46,12 +47,16 @@ InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::In
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
     return input;
 }
+#endif
 
 void OutputLayers::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+
+    init_input_shapes(ov::PartialShape(inputShape));
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape));
@@ -91,7 +96,7 @@ void OutputLayers::SetUp() {
 }
 
 TEST_P(OutputLayers, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

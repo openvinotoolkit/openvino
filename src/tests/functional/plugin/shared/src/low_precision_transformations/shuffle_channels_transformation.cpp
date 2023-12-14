@@ -39,6 +39,8 @@ void ShuffleChannelsTransformation::SetUp() {
     ShuffleChannelsTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
         netPrecision,
         inputShape,
