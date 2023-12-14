@@ -356,12 +356,13 @@ def test_raise_for_packed_types(ov_type, src_dtype):
 
     assert "All values must be equal to 0 to initialize Constant with type of" in str(err.value)
 
+
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f16, np.float16),
 ])
 def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
+    from openvino.runtime import opset13 as opset
     import openvino as ov
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
@@ -379,8 +380,8 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
 
     target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
               0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
-              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625, 448, 512, 512, 57344] \
-        + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
+              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
+              448, 512, 512, 57344] + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
@@ -440,8 +441,8 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
 
     target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
               0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
-              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625, 448, 512, 512, 57344] \
-        + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
+              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
+              448, 512, 512, 57344] + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
