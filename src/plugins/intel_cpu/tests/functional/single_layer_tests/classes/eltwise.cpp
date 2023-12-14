@@ -34,7 +34,7 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
     return result.str();
 }
 
-ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape) {
+ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
     struct gen_params {
         uint32_t range;
         int32_t start_from;
@@ -78,11 +78,19 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 params = gen_params(UINT16_MAX, 0);
                 break;
             case ov::element::u32:
-                // testing::internal::Random::random limitation
-                params = gen_params(INT32_MAX, 0);
+                if (adopt_intervals) {
+                    params = gen_params(INT8_MAX, 0);
+                } else {
+                    // testing::internal::Random::random limitation
+                    params = gen_params(INT32_MAX, 0);
+                }
                 break;
             default:
-                params = gen_params(INT32_MAX, INT32_MIN);
+                if (adopt_intervals) {
+                    params = gen_params(INT8_MAX, INT8_MIN);
+                } else {
+                    params = gen_params(INT32_MAX, INT32_MIN);
+                }
                 break;
         }
     }
@@ -98,7 +106,10 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(funcInput.get_element_type(), targetInputStaticShapes[i])});
+        inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(
+            funcInput.get_element_type(),
+            targetInputStaticShapes[i],
+            (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32))});
     }
 }
 
@@ -188,7 +199,7 @@ void EltwiseLayerCPUTest::SetUp() {
                     }
                 }
 
-                auto data_tensor = generate_eltwise_input(netType, shape);
+                auto data_tensor = generate_eltwise_input(netType, shape, (netType == element::i32) || (netType == element::u32));
                 if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
                     auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
                     std::vector<uint8_t> data(data_ptr, data_ptr + ov::shape_size(shape));
@@ -241,6 +252,14 @@ const std::vector<ElementType>& netType() {
     return netType;
 }
 
+const std::vector<ElementType>& netTypeJit() {
+    static const std::vector<ElementType> netType = {
+        ElementType::i32,
+        ElementType::u32,
+        ElementType::f32};
+    return netType;
+}
+
 const std::vector<ov::test::utils::OpType>& opTypes() {
     static const std::vector<ov::test::utils::OpType> opTypes = {
         ov::test::utils::OpType::VECTOR,
@@ -258,6 +277,18 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
         utils::EltwiseTypes::SQUARED_DIFF,
+    };
+    return eltwiseOpTypesBinInp;
+}
+
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpJit() {
+    static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
+        utils::EltwiseTypes::ADD,
+        utils::EltwiseTypes::MULTIPLY,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
+        utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
+#endif
     };
     return eltwiseOpTypesBinInp;
 }
