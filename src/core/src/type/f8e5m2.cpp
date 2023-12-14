@@ -4,15 +4,16 @@
 
 #include "openvino/core/type/f8e5m2.hpp"
 
-#include <bitset>
 #include <cmath>
-#include <iostream>
 #include <limits>
 
 #include "openvino/reference/fake_convert.hpp"
 
 namespace ov {
 static_assert(sizeof(f8e5m2) == 1, "class f8e5m2 must be exactly 1 byte");
+static_assert(std::is_trivially_constructible<f8e5m2, f8e5m2>::value == true);
+static_assert(std::is_trivially_constructible<f8e5m2, ov::float16>::value == false);
+static_assert(std::is_trivially_constructible<f8e5m2, float>::value == false);
 
 f8e5m2::f8e5m2(float value) : f8e5m2(static_cast<float16>(value)){};
 f8e5m2::f8e5m2(float16 f16_val) {

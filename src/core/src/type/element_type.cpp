@@ -422,7 +422,8 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(f8e5m2);
         ET_CASE(string);
 #undef ET_CASE
-    case ov::element::Type_t::undefined : return 0;
+    case ov::element::Type_t::undefined:
+        return 0;
     case ov::element::Type_t::dynamic:
         return 0;
     }

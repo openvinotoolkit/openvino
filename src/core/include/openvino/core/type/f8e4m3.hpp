@@ -31,7 +31,6 @@ public:
 
     f8e4m3(float value);
     f8e4m3(ov::float16 f16_val);
-    f8e4m3(const ov::f8e4m3& f8_val);
 
     template <typename I>
     explicit f8e4m3(I value) : m_value{f8e4m3{static_cast<float>(value)}.m_value} {}
