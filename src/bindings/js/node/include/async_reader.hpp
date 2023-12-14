@@ -18,7 +18,12 @@ public:
     ReaderWorker(const Napi::Env& env, ReadModelArgs* args)
         : Napi::AsyncWorker{env, "ReaderWorker"},
           _deferred{env},
-          _args{args}, _model{} {}
+          _model{} {
+        if (!args) {
+            OPENVINO_THROW("Invalid pointer to ReadModelArgs.\n");
+        }
+        _args = args;
+    }
 
     Napi::Promise GetPromise();
 
