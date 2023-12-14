@@ -533,16 +533,6 @@ void Subgraph::print() const {
     }
 }
 
-
-void Subgraph::serialize() const {
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_model(body_ptr());
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
-    std::cout << m_model << std::endl;
-}
-
 } // namespace op
 } // namespace snippets
 } // namespace ov
