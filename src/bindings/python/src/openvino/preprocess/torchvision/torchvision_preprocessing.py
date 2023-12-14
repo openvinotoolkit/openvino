@@ -297,9 +297,9 @@ class _(TransformConverterBase):
         # rescale the smaller image edge
         current_h, current_w = meta["image_dimensions"]
         if current_h > current_w:
-            target_h = int(transform.size*(current_h/current_w))
+            target_h = int(transform.size * (current_h / current_w))
         elif current_w > current_h:
-            target_w = int(transform.size*(current_w/current_h))
+            target_w = int(transform.size * (current_w / current_h))
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
