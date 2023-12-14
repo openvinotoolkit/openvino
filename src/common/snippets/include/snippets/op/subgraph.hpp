@@ -124,7 +124,6 @@ public:
 
     void print() const;
 
-    void serialize() const;
     VectorDims infer_master_shape();
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;

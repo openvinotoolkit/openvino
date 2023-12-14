@@ -8,7 +8,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/einsum.hpp"
@@ -23,6 +22,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 namespace {
 /// \brief      Check if the EinsumDecomposition transformation is applicable to a given Einsum.
@@ -305,9 +305,7 @@ ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_
     // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
     // in order to prevent repeated computing during constant-folding pass
     std::shared_ptr<ov::op::v1::Reshape> reshaped_input_op;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto new_shape_const = ov::get_constant_from_source(new_shape_op)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto new_shape_const = ov::util::get_constant_from_source(new_shape_op)) {
         reshaped_input_op = std::make_shared<ov::op::v1::Reshape>(input_node, new_shape_const, false);
         subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
     } else {
@@ -672,9 +670,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
         // in order to prevent repeated computing during constant-folding pass
         std::shared_ptr<ov::op::v1::Reshape> result_op;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto new_shape_const = ov::get_constant_from_source(result_shape_op)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto new_shape_const = ov::util::get_constant_from_source(result_shape_op)) {
             result_op = std::make_shared<ov::op::v1::Reshape>(matmul->output(0), new_shape_const, false);
             subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
         } else {

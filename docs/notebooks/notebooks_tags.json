@@ -1,7 +1,9 @@
 {
     "002-openvino-api": [
         "ONNX",
-        "Reshape Model"
+        "Pytorch",
+        "Reshape Model",
+        "Torchvision"
     ],
     "101-tensorflow-classification-to-openvino": [
         "Tensorflow"
@@ -389,7 +391,6 @@
         "Async Inference",
         "NNCF",
         "Pytorch",
-        "Reshape Model",
         "Transformers"
     ],
     "255-mms-massively-multilingual-speech": [
@@ -433,6 +434,12 @@
         "Pytorch",
         "Transformers"
     ],
+    "263-lcm-lora-controlnet": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
     "264-qrcode-monster": [
         "Pytorch",
         "Transformers"
@@ -455,6 +462,19 @@
     ],
     "269-film-slowmo": [
         "Tensorflow"
+    ],
+    "270-sound-generation-audioldm2": [
+        "Pytorch"
+    ],
+    "271-sdxl-turbo": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "272-paint-by-example": [
+        "Pytorch",
+        "Transformers"
     ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",

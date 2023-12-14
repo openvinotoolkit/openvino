@@ -12,6 +12,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 // ------------------------------ V1 ------------------------------
@@ -81,9 +82,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(2));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(2));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -179,9 +178,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(2));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(2));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -450,9 +447,7 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(max_output_boxes_port));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -465,9 +460,7 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto iou_threshold_input = ov::util::get_constant_from_source(input_value(iou_threshold_port));
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -481,7 +474,7 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
+    const auto score_threshold_input = ov::util::get_constant_from_source(input_value(score_threshold_port));
     OPENVINO_SUPPRESS_DEPRECATED_END
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
@@ -496,7 +489,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
+    const auto soft_nms_sigma_input = ov::util::get_constant_from_source(input_value(soft_nms_sigma_port));
     OPENVINO_SUPPRESS_DEPRECATED_END
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
@@ -686,7 +679,7 @@ int64_t op::v9::NonMaxSuppression::max_boxes_output_from_input() const {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(max_output_boxes_port));
     OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
@@ -701,7 +694,7 @@ float op::v9::NonMaxSuppression::iou_threshold_from_input() const {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
+    const auto iou_threshold_input = ov::util::get_constant_from_source(input_value(iou_threshold_port));
     OPENVINO_SUPPRESS_DEPRECATED_END
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
@@ -716,7 +709,7 @@ float op::v9::NonMaxSuppression::score_threshold_from_input() const {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
+    const auto score_threshold_input = ov::util::get_constant_from_source(input_value(score_threshold_port));
     OPENVINO_SUPPRESS_DEPRECATED_END
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
@@ -731,7 +724,7 @@ float op::v9::NonMaxSuppression::soft_nms_sigma_from_input() const {
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
+    const auto soft_nms_sigma_input = ov::util::get_constant_from_source(input_value(soft_nms_sigma_port));
     OPENVINO_SUPPRESS_DEPRECATED_END
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 

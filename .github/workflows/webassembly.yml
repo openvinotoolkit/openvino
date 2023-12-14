@@ -35,7 +35,7 @@ jobs:
     container:
       image: emscripten/emsdk
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'

@@ -64,11 +64,11 @@ TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessGetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -130,11 +130,11 @@ TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessSetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -199,11 +199,11 @@ TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessGetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -259,11 +259,11 @@ TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessSetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -321,11 +321,11 @@ TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -382,11 +382,11 @@ TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -446,11 +446,11 @@ TEST_P(InferRequestPreprocessTest, SetScalePreProcessGetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -506,11 +506,11 @@ TEST_P(InferRequestPreprocessTest, SetScalePreProcessSetBlob) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -656,11 +656,11 @@ TEST_P(InferRequestPreprocessConversionTest, Infer) {
     {
         ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
         ngraph::element::Type type(InferenceEngine::details::convertPrecision(netPrecision));
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -850,11 +850,11 @@ TEST_P(InferRequestPreprocessDynamicallyInSetBlobTest, Infer) {
     {
         ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
         ngraph::element::Type type(InferenceEngine::details::convertPrecision(netPrecision));
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -982,11 +982,11 @@ TEST_P(InferRequestPreprocessTest, InferWithRGB2BGRConversion) {
     {
         ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
         ngraph::element::Type type(InferenceEngine::details::convertPrecision(netPrecision));
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
