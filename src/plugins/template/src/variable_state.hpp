@@ -26,6 +26,7 @@ public:
     }
 
     void reset() override {
+        std::memset(m_state->data(), 0, m_state->get_byte_size());
         m_variable_value->set_reset(true);
     }
 
