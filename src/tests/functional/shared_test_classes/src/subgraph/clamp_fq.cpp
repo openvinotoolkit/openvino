@@ -63,16 +63,16 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-        auto clamp = std::make_shared<ngraph::opset1::Clamp>(params[0], clamp_min_max[0], clamp_min_max[1]);
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(params[0], clamp_min_max[0], clamp_min_max[1]);
 
         auto FQNode = ngraph::builder::makeFakeQuantize(clamp, ngraph::element::f32, levels[0], constShape[0],
                                                              { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
 
-        auto FQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(FQNode);
-        auto sigmoid = std::make_shared<ngraph::opset1::Sigmoid>(FQ);
+        auto FQ = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(FQNode);
+        auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(FQ);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(sigmoid)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(sigmoid)};
         function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
             configuration = config.second;
     }

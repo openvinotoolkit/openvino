@@ -5,13 +5,15 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "internal_properties.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
 
+namespace ov {
+namespace test {
 using ExpectedNodes = std::vector<std::pair<std::string, size_t>>;
 
 typedef std::tuple<std::vector<InputShape>,   // Input shapes
@@ -25,19 +27,19 @@ typedef std::tuple<std::vector<InputShape>,   // Input shapes
 
 static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes,
                                                    std::vector<ElementType>& inputPrecisions) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -90,24 +92,24 @@ static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes,
                                                    std::vector<ElementType>& inputPrecisions) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -142,7 +144,7 @@ static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 class MHATest : public testing::WithParamInterface<MHATuple>, virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -187,17 +189,15 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (funcInput.get_element_type() == ov::element::bf16)
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 2,
-                                                                 -1,
-                                                                 256);
-            else
-                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(),
-                                                                                 targetInputStaticShapes[i],
-                                                                                 -1,
-                                                                                 5);
+            if (funcInput.get_element_type() == ov::element::bf16) {
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            } else {
+                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, 5);
+            }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -235,8 +235,8 @@ protected:
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+        if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
         }
     }
 };
@@ -313,19 +313,19 @@ INSTANTIATE_TEST_SUITE_P(
 static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes,
                                                         std::vector<ElementType>& inputPrecisions,
                                                         std::vector<ElementType>& matMulIn0Precisions) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -435,26 +435,26 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize5, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
                                                         const std::vector<ElementType>& inputPrecisions,
                                                         const std::vector<ElementType>& matMulIn0Precisions,
                                                         const bool fakeQuantize3Exists) {
-    ov::ParameterVector ngraphParam;
+    ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
-    ngraphParam.push_back(transpose0Param);
+    paramVect.push_back(transpose0Param);
 
     auto transpose1Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[1], inputDynamicShapes[1]);
-    ngraphParam.push_back(transpose1Param);
+    paramVect.push_back(transpose1Param);
 
     auto addParam = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[2], inputDynamicShapes[2]);
-    ngraphParam.push_back(addParam);
+    paramVect.push_back(addParam);
 
     auto transpose2Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[3], inputDynamicShapes[3]);
-    ngraphParam.push_back(transpose2Param);
+    paramVect.push_back(transpose2Param);
 
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
@@ -524,7 +524,7 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::Pa
         transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
 
 class MHAQuantTest : public testing::WithParamInterface<MHATuple>,
@@ -574,17 +574,15 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (funcInput.get_element_type().is_real())
-                tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(),
-                                                                                     targetInputStaticShapes[i],
-                                                                                     0.0f,
-                                                                                     1.5f);
-            else
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 255,
-                                                                 0,
-                                                                 1);
+            if (funcInput.get_element_type().is_real()) {
+                tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 0.0f, 1.5f);
+            } else {
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 255;
+                in_data.resolution = 1;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            }
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -617,8 +615,8 @@ protected:
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+        if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
         }
     }
 };
@@ -704,3 +702,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2,
                          MHAQuantTest::getTestCaseName);
 
 }  // namespace
+}  // namespace test
+}  // namespace ov

@@ -52,7 +52,7 @@ void ReverseLayerTest::SetUp() {
         axes_constant =
             std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{axesMask.size()}, axesMask);
     }
-    const auto reverse = std::make_shared<ngraph::opset1::Reverse>(params[0], axes_constant, mode);
+    const auto reverse = std::make_shared<ov::op::v1::Reverse>(params[0], axes_constant, mode);
     function = std::make_shared<ngraph::Function>(reverse->outputs(), params, "reverse");
 }
 }  // namespace LayerTestsDefinitions
