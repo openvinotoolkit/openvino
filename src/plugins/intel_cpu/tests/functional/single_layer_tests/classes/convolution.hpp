@@ -4,23 +4,20 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/convolution.hpp"
-
-#include "test_utils/cpu_test_utils.hpp"
-#include "test_utils/convolution_params.hpp"
-#include "test_utils/fusing_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/core/visibility.hpp"
-#include <shared_test_classes/single_layer/convolution.hpp>
+#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/single_op/convolution.hpp"
+#include "test_utils/convolution_params.hpp"
+#include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
-using LayerTestsDefinitions::convSpecificParams;
+namespace ov {
+namespace test {
+namespace Convolution {
 
 typedef std::tuple<
         convSpecificParams,
@@ -35,7 +32,7 @@ typedef std::tuple<
         convLayerTestParamsSet,
         CPUSpecificParams,
         fusingSpecificParams,
-        std::map<std::string, std::string> > convLayerCPUTestParamsSet;
+        ov::AnyMap > convLayerCPUTestParamsSet;
 
 class ConvolutionLayerCPUTest : public testing::WithParamInterface<convLayerCPUTestParamsSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -43,18 +40,18 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerCPUTestParamsSet>& obj);
 protected:
     bool isBias = false;
-    InferenceEngine::SizeVector kernel, dilation;
-    InferenceEngine::SizeVector stride;
+    ov::Shape kernel, dilation;
+    ov::Shape stride;
     std::vector<ptrdiff_t> padBegin, padEnd;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const;
-    std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
-                                              ngraph::ParameterVector &params,
-                                              const std::shared_ptr<ngraph::Node> &lastNode) override;
+    std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
+                                              ov::ParameterVector &params,
+                                              const std::shared_ptr<ov::Node> &lastNode) override;
     void SetUp() override;
 };
 
-namespace Convolution {
+    using SizeVector = std::vector<size_t>;
     const std::vector<SizeVector>& kernels1d();
     const std::vector<SizeVector>& strides1d();
     const std::vector<std::vector<ptrdiff_t>>& padBegins1d();
@@ -92,8 +89,8 @@ namespace Convolution {
     const std::vector<InputShape>& inShapesGemm2D_cache();
     const std::vector<InputShape>& inShapesGemm3D();
 
-    const SizeVector& numOutChannels();
-    const SizeVector& numOutChannels_Gemm();
+    const ov::Shape& numOutChannels();
+    const ov::Shape& numOutChannels_Gemm();
 
     const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty();
 
@@ -104,23 +101,23 @@ namespace Convolution {
                                                         ::testing::ValuesIn(padEnds2d()),
                                                         ::testing::ValuesIn(dilations2d()),
                                                         ::testing::ValuesIn(numOutChannels_Gemm()),
-                                                        ::testing::Values(ngraph::op::PadType::EXPLICIT)));
+                                                        ::testing::Values(ov::op::PadType::EXPLICIT)));
     using convParams_ExplicitPaddingDilatedType = decltype(::testing::Combine(
                                                                 ::testing::ValuesIn(kernels2d()),
                                                                 ::testing::ValuesIn(strides2d()),
                                                                 ::testing::ValuesIn(padBegins2d()),
                                                                 ::testing::ValuesIn(padEnds2d()),
-                                                                ::testing::Values(SizeVector{2, 2}),
+                                                                ::testing::Values(ov::Shape{2, 2}),
                                                                 ::testing::ValuesIn(numOutChannels_Gemm()),
-                                                                ::testing::Values(ngraph::op::PadType::EXPLICIT)));
+                                                                ::testing::Values(ov::op::PadType::EXPLICIT)));
     using convParams_ExplicitPadding_1x1_Type = decltype(::testing::Combine(
-                                                                ::testing::Values(SizeVector({1})),
-                                                                ::testing::Values(SizeVector({1})),
+                                                                ::testing::Values(ov::Shape({1})),
+                                                                ::testing::Values(ov::Shape({1})),
                                                                 ::testing::Values(std::vector<ptrdiff_t>({0})),
                                                                 ::testing::Values(std::vector<ptrdiff_t>({0})),
-                                                                ::testing::Values(SizeVector({1})),
+                                                                ::testing::Values(ov::Shape({1})),
                                                                 ::testing::Values(63),
-                                                                ::testing::Values(ngraph::op::PadType::EXPLICIT)));
+                                                                ::testing::Values(ov::op::PadType::EXPLICIT)));
     const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_1D();
     const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_2D();
     const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_3D();
@@ -134,5 +131,6 @@ namespace Convolution {
 
     const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_1D();
     const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_2D();
-} // namespace Convolution
-} // namespace CPULayerTestsDefinitions
+    }  // namespace Convolution
+    }  // namespace test
+    }  // namespace ov

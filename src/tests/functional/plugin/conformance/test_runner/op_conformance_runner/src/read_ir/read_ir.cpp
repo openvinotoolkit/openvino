@@ -139,7 +139,7 @@ void ReadIRTest::SetUp() {
             if (!in_info.is_const) {
                 continue;
             }
-            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
+            ov::test::utils::set_const_ranges(in_info.ranges.min, in_info.ranges.max);
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
@@ -148,7 +148,7 @@ void ReadIRTest::SetUp() {
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
             parameter_to_remove.push_back(param);
-            utils::ConstRanges::reset();
+            ov::test::utils::reset_const_ranges();
         }
         for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);

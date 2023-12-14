@@ -2,26 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_layer/tile.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/tile.hpp"
 
-namespace GPULayerTestsDefinitions {
-
+namespace {
 using TileLayerTestParamsSet = typename std::tuple<
         std::vector<ov::test::InputShape>,     // Input shapes
         std::vector<int64_t>,                  // Repeats
-        ov::element::Type_t,                   // Network precision
+        ov::element::Type,                     // Model type
         bool,                                  // Is Repeats input constant
         std::string>;                          // Device name
 
@@ -32,27 +25,27 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<TileLayerTestParamsSet> obj) {
         TileLayerTestParamsSet basicParamsSet = obj.param;
 
-        std::vector<ov::test::InputShape> inputShapes;
+        std::vector<ov::test::InputShape> input_shapes;
         std::vector<int64_t> repeats;
-        ov::element::Type_t netPrecision;
-        bool isRepeatsConst;
+        ov::element::Type_t model_type;
+        bool is_repeats_const;
         std::string deviceName;
-        std::tie(inputShapes, repeats, netPrecision, isRepeatsConst, deviceName) = basicParamsSet;
+        std::tie(input_shapes, repeats, model_type, is_repeats_const, deviceName) = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=(";
-        for (const auto& shape : inputShapes) {
+        for (const auto& shape : input_shapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
-        for (const auto& shape : inputShapes) {
+        for (const auto& shape : input_shapes) {
             for (const auto& item : shape.second) {
                 result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "Repeats=" << ov::test::utils::vec2str(repeats)  << "_";
-        result << "netPrec=" << netPrecision << "_";
-        result << "constRepeats=" << (isRepeatsConst ? "True" : "False") << "_";
+        result << "netPrec=" << model_type << "_";
+        result << "constRepeats=" << (is_repeats_const ? "True" : "False") << "_";
         result << "trgDev=" << deviceName;
 
         return result.str();
@@ -62,31 +55,31 @@ protected:
     void SetUp() override {
         TileLayerTestParamsSet basicParamsSet = this->GetParam();
 
-        std::vector<ov::test::InputShape> inputShapes;
-        ov::element::Type_t netPrecision;
-        bool isRepeatsConst;
-        std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, targetDevice) = basicParamsSet;
+        std::vector<ov::test::InputShape> input_shapes;
+        ov::element::Type_t model_type;
+        bool is_repeats_const;
+        std::tie(input_shapes, repeatsData, model_type, is_repeats_const, targetDevice) = basicParamsSet;
 
-        if (inputShapes.front().first.rank() != 0) {
-            inputDynamicShapes.push_back(inputShapes.front().first);
-            if (!isRepeatsConst) {
+        if (input_shapes.front().first.rank() != 0) {
+            inputDynamicShapes.push_back(input_shapes.front().first);
+            if (!is_repeats_const) {
                 inputDynamicShapes.push_back({ static_cast<int64_t>(repeatsData.size()) });
             }
         }
-        const size_t targetStaticShapeSize = inputShapes.front().second.size();
+        const size_t targetStaticShapeSize = input_shapes.front().second.size();
         targetStaticShapes.resize(targetStaticShapeSize);
         for (size_t i = 0lu; i < targetStaticShapeSize; ++i) {
-            targetStaticShapes[i].push_back(inputShapes.front().second[i]);
-            if (!isRepeatsConst)
+            targetStaticShapes[i].push_back(input_shapes.front().second[i]);
+            if (!is_repeats_const)
                 targetStaticShapes[i].push_back({ repeatsData.size() });
         }
 
         ov::ParameterVector functionParams;
         if (inputDynamicShapes.empty()) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, targetStaticShapes.front().front()));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, targetStaticShapes.front().front()));
         } else {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front()));
-            if (!isRepeatsConst) {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front()));
+            if (!is_repeats_const) {
                 functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]));
                 functionParams.back()->set_friendly_name("repeats");
             }
@@ -94,22 +87,22 @@ protected:
         functionParams.front()->set_friendly_name("data");
 
         std::shared_ptr<ov::Node> tileNode;
-        if (isRepeatsConst) {
+        if (is_repeats_const) {
             tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0],
                     ov::op::v0::Constant::create(ov::element::i64, { repeatsData.size() }, repeatsData));
         } else {
             tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < tileNode->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset4::Result>(tileNode->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(tileNode->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, functionParams, "Tile");
+        function = std::make_shared<ov::Model>(results, functionParams, "Tile");
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
@@ -123,8 +116,11 @@ protected:
                 }
             } else {
                 if (funcInput.get_element_type().is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }
@@ -136,18 +132,16 @@ protected:
     std::vector<int64_t> repeatsData;
 };
 
-TEST_P(TileLayerGPUTest, CompareWithRefs) {
+TEST_P(TileLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-
-const std::vector<ov::element::Type_t> netPrecisions = {
+const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
     ov::element::f16,
 };
 
-const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
+const std::vector<std::vector<ov::test::InputShape>> dynamic_input_shapes4D = {
     {
         { // Origin dynamic shapes
             {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)},
@@ -169,7 +163,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
     }
 };
 
-const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes5D = {
+const std::vector<std::vector<ov::test::InputShape>> dynamic_input_shapes5D = {
     {
         { // Origin dynamic shapes
             {ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 70)},
@@ -212,22 +206,20 @@ const std::vector<std::vector<int64_t>> repeats5D = {
 
 INSTANTIATE_TEST_CASE_P(DynamicShape4D, TileLayerGPUTest,
                                 ::testing::Combine(
-                                        ::testing::ValuesIn(dynamicInputShapes4D),
+                                        ::testing::ValuesIn(dynamic_input_shapes4D),
                                         ::testing::ValuesIn(repeats4D),
-                                        ::testing::ValuesIn(netPrecisions),
+                                        ::testing::ValuesIn(model_types),
                                         ::testing::Values(true, false),
                                         ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(DynamicShape5D, TileLayerGPUTest,
                                 ::testing::Combine(
-                                        ::testing::ValuesIn(dynamicInputShapes5D),
+                                        ::testing::ValuesIn(dynamic_input_shapes5D),
                                         ::testing::ValuesIn(repeats5D),
-                                        ::testing::ValuesIn(netPrecisions),
+                                        ::testing::ValuesIn(model_types),
                                         ::testing::Values(true, false),
                                         ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
 } // namespace
-
-} // namespace GPULayerTestsDefinitions

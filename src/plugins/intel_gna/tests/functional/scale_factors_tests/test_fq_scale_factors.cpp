@@ -12,6 +12,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -114,25 +115,17 @@ protected:
 
         auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin});
         auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax});
-        auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(test_node,
-                                                                   lowNodeIn,
-                                                                   highNodeIn,
-                                                                   lowNodeIn,
-                                                                   highNodeIn,
-                                                                   levels);
+        auto fqIn =
+            std::make_shared<ov::opset8::FakeQuantize>(test_node, lowNodeIn, highNodeIn, lowNodeIn, highNodeIn, levels);
 
-        auto mul = std::make_shared<ngraph::opset8::Multiply>(fqIn, test_node);
+        auto mul = std::make_shared<ov::opset8::Multiply>(fqIn, test_node);
 
         auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-inputDataMin * inputDataMin});
         auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax * inputDataMax});
-        auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(mul,
-                                                                    lowNodeOut,
-                                                                    highNodeOut,
-                                                                    lowNodeOut,
-                                                                    highNodeOut,
-                                                                    levels);
+        auto fqOut =
+            std::make_shared<ov::opset8::FakeQuantize>(mul, lowNodeOut, highNodeOut, lowNodeOut, highNodeOut, levels);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(fqOut)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fqOut)};
         function = std::make_shared<ngraph::Function>(results, params, "FQWithSmallScaleFactor");
         functionRefs = ngraph::clone_function(*function);
     }

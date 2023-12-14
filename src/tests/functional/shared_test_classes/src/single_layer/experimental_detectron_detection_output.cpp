@@ -12,7 +12,7 @@ namespace test {
 namespace subgraph {
 
 namespace {
-    std::ostream& operator <<(std::ostream& ss, const ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes& attributes) {
+    std::ostream& operator <<(std::ostream& ss, const ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes& attributes) {
     ss << "score_threshold=" << attributes.score_threshold << "_";
     ss << "nms_threshold=" << attributes.nms_threshold << "_";
     ss << "max_delta_log_wh=" << attributes.max_delta_log_wh << "_";
@@ -28,7 +28,7 @@ namespace {
 std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronDetectionOutputTestParams>& obj) {
     std::vector<ov::test::InputShape> inputShapes;
-    ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes attributes;
+    ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes attributes;
     ElementType netPrecision;
     std::string targetName;
     std::tie(
@@ -61,7 +61,7 @@ std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
 
 void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
     std::vector<InputShape> inputShapes;
-    ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes attributes;
+    ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes attributes;
 
     ElementType netPrecision;
     std::string targetName;
@@ -90,7 +90,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
 
-    auto experimentalDetectron = std::make_shared<ngraph::opset6::ExperimentalDetectronDetectionOutput>(
+    auto experimentalDetectron = std::make_shared<ov::op::v6::ExperimentalDetectronDetectionOutput>(
         params[0], // input_rois
         params[1], // input_deltas
         params[2], // input_scores
