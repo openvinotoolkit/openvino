@@ -8,7 +8,8 @@ import numpy as np
 
 from tests.utils.helpers import generate_relu_compiled_model
 
-from openvino import Type, Shape, Tensor
+from openvino import Core, Model, Type, Shape, Tensor
+import openvino.runtime.opset13 as ops
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
@@ -125,7 +126,7 @@ def test_ndarray_shared_dispatcher_casting(device, input_shape):
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape(test_data.shape)
-    assert result.get_element_type() == infer_request.inputs[0].get_element_type()
+    assert result.get_element_type() == infer_request.input_tensors[0].get_element_type()
     assert np.array_equal(result.data, test_data)
 
     test_data[0] = 2.0
@@ -161,3 +162,95 @@ def test_ndarray_copied_dispatcher(device, input_shape):
     test_data[0] = 2.0
 
     assert not np.array_equal(infer_request.input_tensors[0].data, test_data)
+
+
+@pytest.mark.xfail(reason="Awaiting plugin implementation ref:125004")
+@pytest.mark.parametrize(
+    ("input_data"),
+    [
+        np.array(["śćżóąę", "data_dispatcher_test"]),
+        np.array(["abcdef", "data_dispatcher_test"]).astype("S"),
+    ],
+)
+@pytest.mark.parametrize("data_type", [str, bytes, np.str_, np.bytes_])
+@pytest.mark.parametrize("input_shape", [[2], [2, 1]])
+@pytest.mark.parametrize("is_shared", [True, False])
+def test_string_array_dispatcher(device, input_data, data_type, input_shape, is_shared):
+    test_data = input_data.reshape(input_shape)
+
+    param = ops.parameter(input_shape, data_type, name="data")
+    res = ops.result(param)
+    model = Model([res], [param], "test_model")
+
+    core = Core()
+
+    compiled_model = core.compile_model(model, device)
+
+    infer_request = compiled_model.create_infer_request()
+    result = _data_dispatch(infer_request, test_data, is_shared)
+
+    assert result == {}
+    assert np.array_equal(infer_request.input_tensors[0].data, test_data)
+
+    test_data[0] = "different string"
+
+    assert not np.array_equal(infer_request.input_tensors[0].data, test_data)
+
+
+@pytest.mark.xfail(reason="Awaiting plugin implementation ref:125004")
+@pytest.mark.parametrize(
+    ("input_data", "input_shape"),
+    [
+        (["śćżóąę", "data_dispatcher_test"], [2]),
+        ([b"abcdef", b"data_dispatcher_test"], [2]),
+        ([bytes("abc", encoding="utf-8"), bytes("zzzz", encoding="utf-8")], [2]),
+        ([["śćżóąę", "data_dispatcher_test"]], [1, 2]),
+        ([["śćżóąę"], ["data_dispatcher_test"]], [2, 1]),
+    ],
+)
+@pytest.mark.parametrize("data_type", [str, bytes, np.str_, np.bytes_])
+@pytest.mark.parametrize("is_shared", [True, False])
+def test_string_list_dispatcher(device, input_data, input_shape, data_type, is_shared):
+    param = ops.parameter(input_shape, data_type, name="data")
+    res = ops.result(param)
+    model = Model([res], [param], "test_model")
+
+    core = Core()
+
+    compiled_model = core.compile_model(model, device)
+
+    infer_request = compiled_model.create_infer_request()
+    result = _data_dispatch(infer_request, input_data, is_shared)
+
+    assert result == {}
+    assert np.array_equal(infer_request.input_tensors[0].data, input_data)
+
+
+@pytest.mark.xfail(reason="Awaiting plugin implementation ref:125004")
+@pytest.mark.parametrize(
+    ("input_data"),
+    [
+        "śćżóąę",
+        "test dispatcher",
+        bytes("zzzz", encoding="utf-8"),
+        b"aaaaaaa",
+    ],
+)
+@pytest.mark.parametrize("data_type", [str, bytes, np.str_, np.bytes_])
+@pytest.mark.parametrize("is_shared", [True, False])
+def test_string_single_dispatcher(device, input_data, data_type, is_shared):
+    test_data = input_data
+
+    param = ops.parameter([1], data_type, name="data")
+    res = ops.result(param)
+    model = Model([res], [param], "test_model")
+
+    core = Core()
+
+    compiled_model = core.compile_model(model, device)
+
+    infer_request = compiled_model.create_infer_request()
+    result = _data_dispatch(infer_request, test_data, is_shared)
+
+    assert result == {}
+    assert infer_request.input_tensors[0].data[0] == test_data
