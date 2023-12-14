@@ -5,7 +5,7 @@
 #include "ov_lpt_models/transpose_after_mat_mul.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
 

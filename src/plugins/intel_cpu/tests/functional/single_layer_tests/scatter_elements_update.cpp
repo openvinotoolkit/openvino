@@ -80,7 +80,11 @@ protected:
                 }
             } else {
                 if (inputPrecision.is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, 10, 0, 1000);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 10;
+                in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape);
                 }

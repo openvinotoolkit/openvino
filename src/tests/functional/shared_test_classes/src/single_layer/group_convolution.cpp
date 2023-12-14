@@ -14,7 +14,7 @@ std::string GroupConvolutionLayerTest::getTestCaseName(const testing::TestParamI
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels, numGroups;
@@ -44,17 +44,17 @@ void GroupConvolutionLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels, numGroups;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
+    auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(
             ngraph::builder::makeGroupConvolution(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
 }
 }  // namespace LayerTestsDefinitions

@@ -58,14 +58,12 @@ is used to act as an audio representation.
 
 
 -  `Prerequisites <#prerequisites>`__
--  `Download and Convert
-   models <#download-and-convert-models>`__
+-  `Download and Convert models <#download-and-convert-models>`__
 
    -  `Text Encoder <#text-encoder>`__
    -  `Coarse encoder <#coarse-encoder>`__
    -  `Fine encoder <#fine-encoder>`__
-   -  `Prepare Inference
-      pipeline <#prepare-inference-pipeline>`__
+   -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 
 -  `Run model inference <#run-model-inference>`__
 
@@ -73,22 +71,26 @@ is used to act as an audio representation.
 
 -  `Interactive demo <#interactive-demo>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
     import sys
     
     if sys.platform == "linux":
-        %pip install -q "torch==1.13.1" "torchvision" "torchaudio==0.13.1" --index-url https://download.pytorch.org/whl/cpu
+        %pip install -q "torch==1.13.1" "torchvision==0.14.1" "torchaudio==0.13.1" --index-url https://download.pytorch.org/whl/cpu
     else:
-        %pip install -q "torch==1.13.1" "torchvision" "torchaudio==0.13.1"
+        %pip install -q "torch==1.13.1" "torchvision==0.14.1" "torchaudio==0.13.1"
     %pip install -q "openvino>=2023.1.0" gradio
     %pip install -q "git+https://github.com/suno-ai/bark.git"
 
-Download and Convert models 
----------------------------------------------------------------------
+Download and Convert models
+---------------------------
+
+
 
 .. code:: ipython3
 
@@ -104,8 +106,10 @@ Download and Convert models
     torch version does not support flash attention. You will get faster inference speed by upgrade torch to newest nightly version.
 
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 Text encoder is responsible for embedding initial text prompt into
 high-level semantic tokens. it uses tokenizer for conversion input text
@@ -163,8 +167,10 @@ models for that.
         del text_encoder_exportable
     del text_encoder_model, text_encoder
 
-Coarse encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Coarse encoder
+~~~~~~~~~~~~~~
+
+
 
 Coarse encoder is a causal autoregressive transformer, that takes as
 input the results of the text encoder model. It aims at predicting the
@@ -257,8 +263,10 @@ provide empty tensor on the first step.
     
     fine_feature_extractor_path = fine_model_dir / "bark_fine_feature_extractor.xml"
 
-Fine encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fine encoder
+~~~~~~~~~~~~
+
+
 
 Fine encoder is time a non-causal autoencoder transformer, which
 iteratively predicts the last codebooks based on the sum of the previous
@@ -286,8 +294,10 @@ codebooks embeddings obtained using Coarse encoder.
                 fine_model_dir / f"bark_fine_lm_{i}.xml",
             )
 
-Prepare Inference pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare Inference pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For better usability, classes for working with models provided below.
 
@@ -859,14 +869,18 @@ consists from several steps, illustrated on the diagram below:
             gen_fine_arr = gen_fine_arr[:, :-n_remove_from_end]
         return gen_fine_arr
 
-Run model inference 
--------------------------------------------------------------
+Run model inference
+-------------------
+
+
 
 Now is time to see model in action. We need only wrap our models to
 classes and run ``generate_audio`` function.
 
-Select Inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select Inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -952,8 +966,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
