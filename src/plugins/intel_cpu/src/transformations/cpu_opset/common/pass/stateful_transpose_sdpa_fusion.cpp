@@ -95,10 +95,10 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
 
         // check broadcast arg has all ones
         auto check_bcst = [&](const std::shared_ptr<Node>& ptr) {
-            const auto constant_k_node = ov::as_type_ptr<opset6::Constant>(ptr);
-            const auto& k_targe_shape = constant_k_node->cast_vector<int32_t>();
-            return std::all_of(k_targe_shape.begin(), k_targe_shape.end(), [](int i) {
-                return i == 1;
+            const auto constant_node = ov::as_type_ptr<opset6::Constant>(ptr);
+            const auto& bcst_arg = constant_node->cast_vector<float>();
+            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](int i) {
+                return i == 1.0;
             });
         };
 
