@@ -424,11 +424,10 @@ size_t LinearIR::LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
     }
 
     const auto old_loop_info = this->get_loop_info(old_id);
-    const auto old_loop_begin_pos = linear_ir.find(old_loop_info->get_entry_points().front().expr_port->get_expr());
-    const auto old_loop_end_pos = linear_ir.find(old_loop_info->get_exit_points().back().expr_port->get_expr());
     // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
     // In this case old loop info must be completely removed from loop manager
-    if (loop_begin_pos == old_loop_begin_pos && loop_end_pos == old_loop_end_pos) {
+    if (std::find_if(linear_ir.cbegin(), linear_ir.cend(),
+                     [&](const ExpressionPtr& expr) { return is_loop_id_found(expr, old_id); }) == linear_ir.cend()) {
         this->remove_loop_info(old_id);
     }
     return loop_id;
@@ -604,11 +603,15 @@ void LinearIR::LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_po
     loop_info->set_exit_points(exits);
 }
 
+bool LinearIR::LoopManager::is_loop_id_found(const ExpressionPtr& expr, size_t id) {
+    const auto loop_ids = expr->get_loop_ids();
+    return std::find(loop_ids.cbegin(), loop_ids.cend(), id) != loop_ids.cend();
+}
+
 void LinearIR::LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {
     OPENVINO_ASSERT(m_map.count(new_id) == 1, "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
+    OPENVINO_ASSERT(!is_loop_id_found(expr, new_id),  "Expression cannot have several the same Loop IDs");
     auto& loop_ids = expr->m_loop_ids;
-    OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
-                    "Expression cannot have several the same Loop IDs");
     auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
     if (target_id != SIZE_MAX) {
         insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);
@@ -633,9 +636,8 @@ void LinearIR::LoopManager::insert_loop_ids(const ExpressionPtr& expr, const std
 
 void LinearIR::LoopManager::replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id) {
     OPENVINO_ASSERT(m_map.count(new_id), "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
+    OPENVINO_ASSERT(!is_loop_id_found(expr, new_id),  "Expression cannot have several the same Loop IDs");
     auto& loop_ids = expr->m_loop_ids;
-    OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
-                    "Expression already has the Loop with ID " + std::to_string(new_id));
     auto it = std::find(loop_ids.begin(), loop_ids.end(), prev_id);
     OPENVINO_ASSERT(it != loop_ids.end(),
                     "Expression doesn't have the Loop with ID " + std::to_string(prev_id));

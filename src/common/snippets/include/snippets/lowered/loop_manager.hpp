@@ -235,6 +235,7 @@ private:
     //                                         for `before` the new Loop is the most outer Loop
     void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
     void insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before = true, size_t target_id = SIZE_MAX);
+    static bool is_loop_id_found(const ExpressionPtr& expr, size_t id);
 
     std::map<size_t, LoopInfoPtr> m_map = {};
     size_t next_id = 0;
