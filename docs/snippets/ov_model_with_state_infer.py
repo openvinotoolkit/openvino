@@ -65,7 +65,7 @@ def main():
         log.info(state_buf[0])
 
     log.info("\nReset state between utterances...\n")
-    infer_request.query_state()
+    infer_request.reset_state()
         
     log.info("Infer the second utterance")
     for next_input in range(int(len(input_data)/2), len(input_data)):
