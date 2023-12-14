@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::symbol::util;
 
@@ -71,9 +71,7 @@ void get_dims(const ov::Output<ov::Node>& source,
     std::vector<size_t> non_constant_ids;
     for (size_t i = from; i < to; ++i) {
         auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(source, {i}, copy_rt_info_from);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto constant = ov::get_constant_from_source(node)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto constant = ov::util::get_constant_from_source(node)) {
             node = constant;
         } else {
             non_constant_ids.push_back(i);

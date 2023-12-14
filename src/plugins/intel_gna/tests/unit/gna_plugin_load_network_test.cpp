@@ -60,9 +60,9 @@ protected:
         const auto& model = GetParam().model;
 
         using ngraph::element::f32;
-        auto parameter = std::make_shared<ngraph::opset9::Parameter>(f32, ngraph::Shape{model.input_size});
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(f32, ngraph::Shape{model.input_size});
 
-        auto conv = std::dynamic_pointer_cast<ngraph::opset9::Convolution>(
+        auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(
             ngraph::builder::makeConvolution(parameter,
                                              f32,
                                              model.filter_size,
@@ -72,7 +72,7 @@ protected:
                                              c_dilations,
                                              ngraph::op::PadType::EXPLICIT,
                                              c_num_out_channels));
-        auto result = std::make_shared<ngraph::opset9::Result>(conv);
+        auto result = std::make_shared<ov::op::v0::Result>(conv);
         function = std::make_shared<ngraph::Function>(result, ov::ParameterVector{parameter}, "convolution");
     }
 };
