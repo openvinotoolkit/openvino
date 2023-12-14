@@ -123,7 +123,7 @@ public:
         }
 
         // pre SDPA transpose
-        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
+        auto preOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
@@ -146,15 +146,15 @@ public:
         const auto reshapeOrder = get_reshape_order(inputDynamicShapes[0], transposeOrder);
 
         auto postOrder =
-            op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{0, 2, 1, 3});  // BHLS -> BLHS
+            ov::op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{0, 2, 1, 3});  // BHLS -> BLHS
         auto transposeSDP = std::make_shared<ov::op::v1::Transpose>(sdp, postOrder);
 
-        auto constReshape = op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
+        auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
         auto reshapeSDP = std::make_shared<ov::op::v1::Reshape>(transposeSDP, constReshape, true);  // BLHS -> B,L,HxS
 
-        auto add = std::make_shared<op::v1::Add>(reshapeSDP, op::v0::Constant::create(inType, {1}, {1.0f}));
-        auto pastk_assign = std::make_shared<op::v6::Assign>(concatK, var_k);
-        auto pastv_assign = std::make_shared<op::v6::Assign>(concatV, var_v);
+        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, op::v0::Constant::create(inType, {1}, {1.0f}));
+        auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
+        auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");
         pastv_assign->set_friendly_name("pastv_w");
 
