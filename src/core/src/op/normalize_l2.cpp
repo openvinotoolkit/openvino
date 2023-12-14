@@ -5,7 +5,7 @@
 #include "openvino/op/normalize_l2.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 
@@ -57,14 +57,10 @@ void ov::op::v0::NormalizeL2::validate_and_infer_types() {
 
 ov::AxisSet ov::op::v0::NormalizeL2::get_reduction_axes() const {
     AxisSet axes;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto const_op = ov::get_constant_from_source(input_value(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto const_op = ov::util::get_constant_from_source(input_value(1))) {
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axes = ov::util::normalize_axes(get_friendly_name(), const_data, input_data_rank);
         axes = AxisSet{normalized_axes};
     }
     return axes;

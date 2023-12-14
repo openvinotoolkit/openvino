@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "topk_shape_inference.hpp"
+#include "validation_util.hpp"
 
 namespace {
 constexpr auto UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
@@ -148,9 +149,8 @@ void ov::op::util::TopKBase::set_axis(const int64_t axis) {
 }
 
 void ov::op::util::TopKBase::set_axis(const Rank& input_rank, const int64_t axis) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_normalized_axis = input_rank.is_static() ? normalize_axis(this, axis, input_rank) : UNKNOWN_NORMALIZED_AXIS;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_normalized_axis =
+        input_rank.is_static() ? ov::util::normalize_axis(this, axis, input_rank) : UNKNOWN_NORMALIZED_AXIS;
     m_axis = axis;
 }
 
