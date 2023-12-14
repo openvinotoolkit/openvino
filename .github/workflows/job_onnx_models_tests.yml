@@ -16,7 +16,7 @@ on:
 jobs:
   ONNX_Models_tests:
     name: ONNX Models tests
-    timeout-minutes: 400
+    timeout-minutes: 60
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -106,21 +106,6 @@ jobs:
 
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
-
-      - name: Check Dir
-        run: |
-          ls -la /mount
-          ls -laR ${MODELS_SHARE_PATH}
-
-#      - name: Use common parent directory for models
-#        continue-on-error: true
-#        run: |
-#          # The tests use the model paths as their names so
-#          # they expect a certain parent folder structure - w/o the commit hash append by model_zoo_preprocess.sh
-#          # rm -rf ${MODELS_SHARE_PATH}/onnx_model_zoo
-#          # mv ${ONNX_MODELS_PATH}/model_zoo/onnx_model_zoo_* ${MODELS_SHARE_PATH}/onnx_model_zoo
-#
-#          ls -laR ${MODELS_SHARE_PATH}
 
       - name: ONNX Models Tests
         run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_xfail
