@@ -13,7 +13,6 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-
 OutputVector translate_unique_with_counts_op(const NodeContext& node) {
     default_op_checks(node, 1, {"UniqueWithCounts"});
 
@@ -22,6 +21,7 @@ OutputVector translate_unique_with_counts_op(const NodeContext& node) {
     auto node_name = node.get_name();
 
     auto unique = make_shared<v10::Unique>(x, false, ov::element::i32, ov::element::i32);
+    set_node_name(node_name, unique);
 
     // story 'y', 'idx', and 'count' outputs from Unique in separate variables
     auto y = unique->output(0);
