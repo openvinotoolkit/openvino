@@ -97,9 +97,9 @@ jobs:
 
   - script: |
       set -e
-      apt-get update && apt-get install -y lsb-release git git-lfs
+      sudo apt-get update && sudo apt-get install -y lsb-release git git-lfs
       git-lfs install
-      apt-get clean all
+      sudo apt-get clean all
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
     displayName: 'Install dependencies'
