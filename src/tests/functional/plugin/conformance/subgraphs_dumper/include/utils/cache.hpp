@@ -28,7 +28,7 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #endif
 #ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-#endifs
+#endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif
