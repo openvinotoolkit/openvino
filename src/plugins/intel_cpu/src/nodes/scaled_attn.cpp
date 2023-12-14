@@ -567,10 +567,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
         // q: [B, H, L1, S]
         const auto & permute_axes = config.config.permute_axes;
-        B = permute_axes.empty() ? q_input.size(0) : q_input.size(permute_axes[0]);
-        H = permute_axes.empty() ? q_input.size(1) : q_input.size(permute_axes[1]);
-        L1 = permute_axes.empty() ? q_input.size(2) : q_input.size(permute_axes[2]);
-        S = q_input.size(-1);
 
         PlainTensor present_key, present_value;
         if (!permute_axes.empty()) {

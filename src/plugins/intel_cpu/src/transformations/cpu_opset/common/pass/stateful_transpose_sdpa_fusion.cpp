@@ -92,6 +92,26 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
             read_cvt_k_node = ov::as_type_ptr<opset1::Convert>(pattern_map.at(convert_past_k).get_node_shared_ptr());
             read_cvt_v_node = ov::as_type_ptr<opset1::Convert>(pattern_map.at(convert_past_v).get_node_shared_ptr());
         }
+
+        // check broadcast arg has all ones
+        auto check_bcst = [&](const std::shared_ptr<Node>& ptr) {
+            const auto constant_k_node = ov::as_type_ptr<opset6::Constant>(ptr);
+            const auto& k_targe_shape = constant_k_node->cast_vector<int32_t>();
+            return std::all_of(k_targe_shape.begin(), k_targe_shape.end(), [](int i) {
+                return i == 1;
+            });
+        };
+
+        if (pattern_map.count(constant_k)) {
+            if (!check_bcst(pattern_map.at(constant_k).get_node_shared_ptr()))
+                return false;
+        }
+
+        if (pattern_map.count(constant_v)) {
+            if (!check_bcst(pattern_map.at(constant_v).get_node_shared_ptr()))
+                return false;
+        }
+
         opset6::Assign* assign_k_node = nullptr, *assign_v_node = nullptr;
         opset1::Convert* assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;
         find_assign(concat_k_node, assign_k_node, assign_cvt_k_node);
