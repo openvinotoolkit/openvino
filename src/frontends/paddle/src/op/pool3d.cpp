@@ -6,7 +6,6 @@
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -41,9 +40,6 @@ static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shap
     pad_height_bottom], [pad_width_left, pad_width_right], [0,0]].
     Otherwise, the pool padding size will be a square of an int.*/
     auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
-
-    // Default is empty for 'adaptive max pooling'
-    auto data_format = node.get_attribute<std::string>("data_format", {});
 
     switch (paddings.size()) {
     case 3:
@@ -174,15 +170,17 @@ NamedOutputs pool3d(const NodeContext& node) {
         }
 
         if (pooling_type == "max") {
-            return node.default_single_output_mapping(
-                {std::make_shared<ov::opset6::MaxPool>(data,
-                                                       ov::Strides(strides.begin(), strides.end()),
-                                                       pad_begin,
-                                                       pad_end,
-                                                       ov::Shape{kernel_d, kernel_h, kernel_w},
-                                                       rounding_type,
-                                                       auto_pad)},
-                {"Out"});
+            std::vector<Output<Node>> pool_outputs;
+            pool_outputs = std::make_shared<default_opset::MaxPool>(data,
+                                                                    ov::Strides(strides.begin(), strides.end()),
+                                                                    ov::Strides{1, 1, 1},
+                                                                    pad_begin,
+                                                                    pad_end,
+                                                                    ov::Shape{kernel_d, kernel_h, kernel_w},
+                                                                    rounding_type,
+                                                                    auto_pad)
+                               ->outputs();
+            return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
         } else {
             bool exclude_pad = node.get_attribute<bool>("exclusive", false);
             return node.default_single_output_mapping(

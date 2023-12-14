@@ -356,6 +356,7 @@ static const std::vector<std::string> models{
     std::string("max3dPool_test7"),
     std::string("max3dPool_test8"),
     std::string("max3dPool_test9"),
+    std::string("max3dRetureMask"),
     std::string("meshgrid/meshgrid.pdmodel"),
     std::string("multiclass_nms_by_background"),
     std::string("multiclass_nms_by_class_id"),

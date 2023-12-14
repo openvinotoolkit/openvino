@@ -239,6 +239,18 @@ def main():
         }
         pool3d(pooling_type + "3d" + "Pool_test9", data1_NCDHW, paddle_attrs)
 
+    paddle_attrs = {
+        "pool_size": 9,
+        "pool_type": "max",
+        "pool_stride": [3, 3, 3],
+        "pool_padding": [[0, 0], [0, 0], [2, 1], [1, 2], [1, 2]],
+        "ceil_mode": False,
+        "exclusive": True,
+        "return_mask": True,
+        "data_format": "NCDHW",
+    }
+    pool3d("max3dRetureMask", data_NCDHW, paddle_attrs)
+
     # adaptive_pool3
     for i, pooling_type in enumerate(pooling_types):
         paddle_attrs = {"pool_size": [2, 2, 2], "pool_type": pooling_type}
