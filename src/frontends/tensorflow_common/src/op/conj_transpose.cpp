@@ -4,6 +4,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/concat.hpp"
 #include "common_op_table.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -34,12 +35,12 @@ OutputVector translate_conj_transpose_op(const NodeContext& node){
 
     auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
 	
-	auto real = make_shared<v8::Gather>(data, real_index, gather_axis);
-    auto imag = make_shared<v8::Gather>(data, imag_index, gather_axis);
+	auto real = make_shared<v8::Gather>(data, real_index, gather_axis)->output(0);
+    auto imag = make_shared<v8::Gather>(data, imag_index, gather_axis)->output(0);
 
 	
 	auto const_minus_one = make_shared<v0::Constant>(element::i32, Shape{}, -1);
-	auto imag = make_shared<v1::Multiply>(imag, const_minus_one);
+	imag = make_shared<v0::MatMul>(imag, const_minus_one, false, false);
 	
 
 	auto conj_tensor = make_shared<v0::Concat>(OutputVector{real, imag}, -1)->output(0);
