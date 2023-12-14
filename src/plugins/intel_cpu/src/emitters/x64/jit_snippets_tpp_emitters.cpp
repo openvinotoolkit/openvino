@@ -293,9 +293,7 @@ VectorDims EltwiseTppEmitter::get_projected_subtensor(const snippets::lowered::P
     OPENVINO_ASSERT(subtensor.size() <= shape.size(), "Subtersor can't have more dimensins than a shape");
     auto shape_it = shape.rbegin();
     for (auto sub_it = subtensor.rbegin(); sub_it != subtensor.rend(); sub_it++, shape_it++) {
-        if (*shape_it == 1)
-            *sub_it = 1;
-        OPENVINO_ASSERT(*sub_it <= *shape_it, "Subtensor element can't be larger than a shape element");
+        *sub_it = std::min(*sub_it, *shape_it);
     }
     return subtensor;
 }

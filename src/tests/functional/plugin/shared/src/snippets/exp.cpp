@@ -43,6 +43,7 @@ void Exp::SetUp() {
     auto data0 = std::make_shared<op::v0::Parameter>(type, inputDynamicShapes[0]);
     auto axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 3);
     auto exp = std::make_shared<op::v1::ReduceMax>(data0, axis, true);
+    // auto exp = std::make_shared<op::v0::Relu>(data0);
     function = std::make_shared<ov::Model>(NodeVector{exp}, ParameterVector{data0});
 
     setInferenceType(type);

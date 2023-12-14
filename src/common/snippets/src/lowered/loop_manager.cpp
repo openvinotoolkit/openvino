@@ -352,6 +352,8 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
             }
         }
     }
+    // TODO: why do we calculate loop work amount based only on exit points? This leads to invalid 
+    // value for Reduce operations. Update this logic to support Reduce ops!
 
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
