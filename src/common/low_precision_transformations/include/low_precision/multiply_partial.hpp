@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
+#include "openvino/pass/pattern/matcher.hpp"
 #include "low_precision/eltwise_base_transformation.hpp"
 
 namespace ov {
@@ -23,7 +23,7 @@ class LP_TRANSFORMATIONS_API MultiplyPartialTransformation : public EltwiseBaseT
 public:
     OPENVINO_RTTI("MultiplyPartialTransformation", "0");
     MultiplyPartialTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
