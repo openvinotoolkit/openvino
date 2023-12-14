@@ -149,10 +149,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                             extracted_model->get_ops().size() - input_info.size() - extracted_model->get_results().size();
                         if (matched_ops.size() > 0.75 * extracted_model_op_cnt) {
                             if (cached_model_op_cnt > extracted_model_op_cnt) {
-                                std::cout << "MATCHED_OP_RETURN!" << std::endl;
                                 return;
                             }
-                            std::cout << "MATCHED_OP_UPDATE" << std::endl;
                             m_graph_cache_bytesize += (extracted_model->get_graph_size() - cached_model.first->get_graph_size());
                             m_graph_cache.erase(cached_model.first);
                             ov::conformance::MetaInfo meta(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);

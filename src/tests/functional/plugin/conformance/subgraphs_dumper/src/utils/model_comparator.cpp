@@ -191,10 +191,7 @@ ModelComparator::get_matched_op_patterns(const ov::NodeVector& ordered_ops) {
     }
     std::sort(matched_nodes.begin(), matched_nodes.end(),
              [](const std::vector<size_t>& a, const std::vector<size_t>& b){ return a.size() > b.size(); });
-    if (matched_nodes.empty()) {
-        return matched_nodes;
-    }
-    while (matched_nodes.rbegin()->size() == 1) {
+    while (!matched_nodes.empty() && matched_nodes.rbegin()->size() == 1) {
         matched_nodes.pop_back();
     }
     return matched_nodes;

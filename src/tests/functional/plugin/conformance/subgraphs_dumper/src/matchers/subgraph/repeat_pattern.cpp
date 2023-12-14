@@ -127,7 +127,7 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
     if (start_op_vec.size() < 2 || ordered_ops.size() < 3) {
         return {{}};
     }
-    is_recursive_extraction = true;
+    // is_recursive_extraction = true;
     // prepare node vectors contains potential patterns from start_node to output
     // first one is biggest subgraph, last one is smallest one
     auto pattern_cnt = start_op_vec.size();
@@ -262,21 +262,14 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
                                              bool is_save_borders_only) {
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>> extracted_patterns;
     auto ordered_ops = model->get_ordered_ops();
-    auto op_cnt = ordered_ops.size();
+    if (ordered_ops.size() < 2) {
+        return extracted_patterns;
+    }
     auto matched_nodes_pattern = model_comparator->get_matched_op_patterns(ordered_ops);
 
-    auto it = matched_nodes_pattern.begin();
-    while (it != matched_nodes_pattern.end()) {
-        std::vector<size_t> matched_nodes;
-        if (it != matched_nodes_pattern.begin()) {
-            if ((std::prev(it)->size() - it->size()) > 0) {
-                matched_nodes = *it;
-            }
-        } else {
-            matched_nodes = *it;
-        }
-        ++it;
-        if (matched_nodes.size() < 2) {
+    for (size_t i = 0; i < matched_nodes_pattern.size(); ++i) {
+        auto matched_nodes = matched_nodes_pattern[i];
+        if (matched_nodes.size() < 2 || i > 0 && matched_nodes.size() == matched_nodes_pattern[i - 1].size()) {
             continue;
         }
         for (auto& nodes_vector : get_patterns_by_nodes(matched_nodes, ordered_ops)) {
@@ -285,8 +278,8 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
                     continue;
                 }
                 auto extracted_pattern = ov::util::generate_model(nodes_vector.front(), is_save_const, is_save_borders_only);
-                const auto& extracted_model = extracted_pattern.first;
-                const auto& extracted_input_info = extracted_pattern.second;
+                auto extracted_model = extracted_pattern.first;
+                auto extracted_input_info = extracted_pattern.second;
                 if (extracted_model == nullptr) {
                     continue;
                 }
