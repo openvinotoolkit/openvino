@@ -287,7 +287,7 @@ class CompiledModel(CompiledModelBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :type inputs: Any, optional
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
@@ -297,7 +297,7 @@ class CompiledModel(CompiledModelBase):
 
     def __call__(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         share_inputs: bool = True,
         share_outputs: bool = False,
         *,
@@ -332,7 +332,7 @@ class CompiledModel(CompiledModelBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :type inputs: Any, optional
         :param share_inputs: Enables `share_inputs` mode. Controls memory usage on inference's inputs.
 
                               If set to `False` inputs the data dispatcher will safely copy data

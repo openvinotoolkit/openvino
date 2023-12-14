@@ -68,6 +68,8 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
 }
 
 ov::element::Type get_ov_type(const py::array& array) {
+    // More about character codes:
+    // https://numpy.org/doc/stable/reference/arrays.scalars.html
     char ctype = array.dtype().kind();
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
@@ -76,6 +78,8 @@ ov::element::Type get_ov_type(const py::array& array) {
 }
 
 ov::element::Type get_ov_type(py::dtype& dtype) {
+    // More about character codes:
+    // https://numpy.org/doc/stable/reference/arrays.scalars.html
     char ctype = dtype.kind();
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
@@ -112,14 +116,6 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
-    // Slow approach ~x5:
-    // py::list _list;
-    // for(size_t i = 0; i < t.get_size(); ++i) {
-    //     PyObject* _unicode_obj = PyBytes_FromStringAndSize(&data[i][0], data[i].length());
-    //     _list.append(_unicode_obj);
-    //     Py_XDECREF(_unicode_obj);
-    // }
-    // return py::array(_list);
     auto data = t.data<std::string>();
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
         return x.length() < y.length();
@@ -148,16 +144,6 @@ py::array string_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
-    // List is helpful to store PyObjects, can it be replaced?
-    // Maybe storing them in C++ vector and get max length via
-    // PyUnicode_GET_LENGTH or PyUnicode_GetLength
-    // but there is a problem of detecting endianness.
-    // In [2]: np.dtype("<U4")
-    // Out[2]: dtype('<U4')
-    // In [3]: np.dtype("|U4")
-    // Out[3]: dtype('<U4')
-    // auto dtype = py::dtype("|U" + ...); <-- promise a fallback to system native
-
     // Approach that is compact and faster than np.char.decode(tensor.data):
     auto data = t.data<std::string>();
     py::list _list;
@@ -204,6 +190,8 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
 }
 
 void fill_string_tensor_data(ov::Tensor& tensor, py::array& array) {
+    // More about character codes:
+    // https://numpy.org/doc/stable/reference/arrays.scalars.html
     if (array.dtype().kind() == 'S') {
         fill_tensor_from_bytes(tensor, array);
     } else if (array.dtype().kind() == 'U') {
@@ -272,7 +260,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     // Special case for string data type.
     if (t.get_element_type() == ov::element::string) {
         PyErr_WarnEx(PyExc_RuntimeWarning,
-                     "Data of string type will be copied! Please use dedicated functions "
+                     "Data of string type will be copied! Please use dedicated properties "
                      "`str_data` and `bytes_data` to avoid confusion while accessing "
                      "Tensor's contents.",
                      1);
