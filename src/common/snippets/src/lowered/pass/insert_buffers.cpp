@@ -186,7 +186,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             // Output connector is automatically filled from PortDescriptor
             const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
             linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(*entry_port.get(), buffer_expr->get_output_port_connector(0));
+            entry_port->replace_input_port_connector(buffer_expr->get_output_port_connector(0));
             buffer_expr->set_loop_ids(buffer_loop_ids);
         }
     }
@@ -241,7 +241,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                 for (const auto& buffer : buffers) {
                     const auto& buffer_out = buffer->get_output_port_connector(0);
                     const auto buffer_consumers_inputs = buffer_out->get_consumers();
-                    linear_ir.replace_input(buffer_consumers_inputs, output_connector);
+                    replace_input_port_connectors(buffer_consumers_inputs, output_connector);
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
                     linear_ir.erase(linear_ir.find_after(expr_it, buffer));
                 }
@@ -286,7 +286,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             // Output port connector is automatically filled from PortDescriptor
             const auto buffer_expr = linear_ir.create_expression(buffer, node_outs);
             linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(potential_consumers, buffer_expr->get_output_port_connector(0));
+            replace_input_port_connectors(potential_consumers, buffer_expr->get_output_port_connector(0));
             buffer_expr->set_loop_ids(buffer_loop_ids);
         }
     }

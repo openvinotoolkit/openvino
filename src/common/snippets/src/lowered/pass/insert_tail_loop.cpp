@@ -292,7 +292,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                     const auto insert_pos = linear_ir.find(fst_consumer->get_expr());
                     auto fill_expr = linear_ir.create_expression(fill, {input});
                     linear_ir.insert(insert_pos, fill_expr);
-                    linear_ir.replace_input(consumers, fill_expr->get_output_port_connector(0));
+                    replace_input_port_connectors(consumers, fill_expr->get_output_port_connector(0));
                     // in_reg == out_reg since we want to modify vector reg inplace
                     const auto reg = expr->get_input_port_descriptor(0)->get_reg();
                     fill_expr->get_input_port_descriptor(0)->set_reg(reg);

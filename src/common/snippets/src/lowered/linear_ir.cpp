@@ -167,30 +167,6 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
     return found->second;
 }
 
-void LinearIR::replace_input(const std::set<ExpressionPort>& consumers, const PortConnectorPtr& to) {
-    for (const auto& consumer_input : consumers) {
-        replace_input(consumer_input, to);
-    }
-}
-
-void LinearIR::replace_input(const ExpressionPort& expr_port, const PortConnectorPtr& to) {
-    const auto port = expr_port.get_index();
-    const auto& expr = expr_port.get_expr();
-
-    OPENVINO_ASSERT(expr_port.get_type() == ExpressionPort::Type::Input, "Failed to replace: target input port must have Input type");
-    OPENVINO_ASSERT(expr_port.get_index() < expr->get_input_count(), "Failed to replace: target input port must be less than input count!");
-
-    const auto& from = expr->get_input_port_connector(port);
-    if (from == to)
-        return;
-
-    if (!to->found_consumer(expr_port)) {
-        to->add_consumer(expr_port);
-    }
-    from->remove_consumer(expr_port);
-    expr->replace_input(port, to);
-}
-
 void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed) {
     const auto& node = expr->get_node();
     if (!io_allowed && (is_type<ov::op::v0::Result>(node) || is_type<ov::op::v0::Parameter>(node)))

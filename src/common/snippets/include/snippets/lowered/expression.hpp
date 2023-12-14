@@ -47,6 +47,8 @@ public:
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
+    void set_input_port_connector(size_t port, PortConnectorPtr to);
+
     void validate() const;
 
     ExpressionPort get_input_port(size_t i);
@@ -66,8 +68,6 @@ protected:
     //       The method must be used only by Linear IR builder of expressions!
     Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
     void update_node_and_connectors(const std::vector<PortConnectorPtr>& new_inputs, const std::shared_ptr<Node>& new_node);
-
-    void replace_input(size_t port, PortConnectorPtr to);
 
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};

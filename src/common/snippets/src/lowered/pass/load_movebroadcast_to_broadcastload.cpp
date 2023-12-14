@@ -58,7 +58,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
             expr_it = linear_ir.insert(insertion_pos, broadcastload_expr);
             linear_ir.erase(linear_ir.find_before(mv_expr_it, parent_expr));
             linear_ir.erase(mv_expr_it);
-            linear_ir.replace_input(move_consumers, broadcastload_expr->get_output_port_connector(0));
+            replace_input_port_connectors(move_consumers, broadcastload_expr->get_output_port_connector(0));
             modified |= true;
         }
     }

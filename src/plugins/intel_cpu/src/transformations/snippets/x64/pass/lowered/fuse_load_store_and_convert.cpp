@@ -61,7 +61,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
 
     linear_ir.erase(std::find(linear_ir.cbegin(), convert_expr_it, load_expr));
     linear_ir.erase(convert_expr_it);
-    linear_ir.replace_input(convert_consumers, load_convert_expr->get_output_port_connector(0));
+    replace_input_port_connectors(convert_consumers, load_convert_expr->get_output_port_connector(0));
     return true;
 }
 
@@ -113,7 +113,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
 
     linear_ir.erase(std::find(convert_expr_it, linear_ir.cend(), store_expr));
     linear_ir.erase(convert_expr_it);
-    linear_ir.replace_input(store_consumers, store_convert_expr->get_output_port_connector(0));
+    replace_input_port_connectors(store_consumers, store_convert_expr->get_output_port_connector(0));
     return true;
 }
 

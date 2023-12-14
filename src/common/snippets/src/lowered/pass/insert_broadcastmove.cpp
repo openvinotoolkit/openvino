@@ -61,7 +61,7 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                 PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), connectors[i]->get_source().get_descriptor_ptr()->clone());
                 const auto broadcast_expr = linear_ir.create_expression(broadcast, {connectors[i]});
                 linear_ir.insert(expr_it, broadcast_expr);
-                linear_ir.replace_input(expr->get_input_port(i), broadcast_expr->get_output_port_connector(0));
+                expr->set_input_port_connector(i, broadcast_expr->get_output_port_connector(0));
                 // Note that BroadcastMove modified the next expr input shape, so we need to set update
                 // expr's input port descriptor to reflect the changes
                 expr->get_input_port_descriptor(i)->set_shape(broadcast_expr->get_output_port_descriptor(0)->get_shape());

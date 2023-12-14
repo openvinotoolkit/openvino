@@ -81,9 +81,6 @@ public:
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
-    void replace_input(const std::set<ExpressionPort>& consumers, const PortConnectorPtr& to);
-    void replace_input(const ExpressionPort& expr_port, const PortConnectorPtr& to);
-
     /**
     * @brief Move an expression from the position "from" to the position immediately before "to".
      * Note: this method does NOT take care about data dependencies and no relevant checks are performed.
