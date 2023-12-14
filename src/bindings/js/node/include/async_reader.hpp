@@ -18,7 +18,7 @@ public:
     ReaderWorker(const Napi::Env& env, ReadModelArgs* args)
         : Napi::AsyncWorker{env, "ReaderWorker"},
           _deferred{env},
-          _args{args} {}
+          _args{args}, _model{} {}
 
     Napi::Promise GetPromise();
 
