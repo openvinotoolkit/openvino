@@ -428,6 +428,10 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
                 // Node::getPrimitiveDescriptorType() returns i8 for u8
                 return ov::element::i8;
             }
+            if (netType == ov::element::u32) {
+                // Node::getPrimitiveDescriptorType() returns i32 for u32
+                return ov::element::i32;
+            }
             return netType;
         }
 
