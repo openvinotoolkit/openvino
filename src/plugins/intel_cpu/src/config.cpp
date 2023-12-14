@@ -4,6 +4,10 @@
 
 #include "config.h"
 
+#include <algorithm>
+#include <map>
+#include <string>
+
 #include "cpu/cpu_config.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
@@ -13,10 +17,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
-
-#include <algorithm>
-#include <map>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -76,20 +76,18 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.set_property(key, val.as<std::string>());
             if (key == ov::affinity.name()) {
-                if (!changedCpuPinning) {
-                    changedCpuPinning = true;
-                    try {
-                        const auto affinity_val = val.as<ov::Affinity>();
-                        enableCpuPinning =
-                            (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
-                                                                                                               : false;
-                    } catch (const ov::Exception&) {
-                        OPENVINO_THROW("Wrong value ",
-                                       val.as<std::string>(),
-                                       "for property key ",
-                                       key,
-                                       ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
-                    }
+                changedCpuPinning = true;
+                try {
+                    const auto affinity_val = val.as<ov::Affinity>();
+                    enableCpuPinning =
+                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
+                                                                                                           : false;
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("Wrong value ",
+                                   val.as<std::string>(),
+                                   "for property key ",
+                                   key,
+                                   ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
             }
             if (key == ov::num_streams.name()) {
@@ -317,8 +315,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-            //fp16 precision is used as default precision on ARM for non-convolution networks
-            //fp16 ACL convolution is slower than fp32
+            // fp16 precision is used as default precision on ARM for non-convolution networks
+            // fp16 ACL convolution is slower than fp32
             if (modelType != ModelType::CNN)
                 inferencePrecision = ov::element::f16;
 #else
