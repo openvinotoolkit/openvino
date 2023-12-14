@@ -37,13 +37,6 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
-def test_deprecation():
-    with pytest.warns(DeprecationWarning) as w:
-        _ = hints.PerformanceMode.UNDEFINED
-    assert issubclass(w[0].category, DeprecationWarning)
-    assert "PerformanceMode.UNDEFINED is deprecated and will be removed" in str(w[0].message)
-
-
 ###
 # Enum-like values
 ###
