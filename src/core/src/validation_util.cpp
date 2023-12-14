@@ -17,6 +17,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "ov_optional.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
 
@@ -1070,23 +1071,30 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
-static ov::OutputVector get_inputs(const std::shared_ptr<ov::Node>& node,
-                                   const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
+static ov::optional<ov::OutputVector> get_inputs_from_map(
+    const std::shared_ptr<ov::Node>& node,
+    const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
     size_t num_inputs = node->get_input_size();
 
     ov::OutputVector inputs;
     inputs.reserve(num_inputs);
 
+    bool node_has_input_from_map = false;
+
     for (size_t i = 0; i < num_inputs; i++) {
         auto input = node->input_value(i);
         if (node_map.count(input) > 0) {
             inputs.push_back(node_map.at(input));
+            node_has_input_from_map = true;
         } else {
             inputs.push_back(input);
         }
     }
 
-    return inputs;
+    if (node_has_input_from_map)
+        return inputs;
+
+    return {};
 }
 
 std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
@@ -1127,17 +1135,26 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
             return nullptr;
         }
 
-        auto converted = ov::util::try_convert_inputs(node, get_inputs(node, node_map));
+        auto original_node = node;
+
+        ov::optional<OutputVector> new_inputs = get_inputs_from_map(node, node_map);
+        if (new_inputs) {
+            node = node->clone_with_new_inputs(*new_inputs);
+        }
+
+        if (!node->has_evaluate()) {
+            node = ov::util::try_convert_inputs(node);
+        }
 
         OutputVector outputs(node->get_output_size());
-        if (converted->constant_fold(outputs, converted->input_values())) {
+        if (node->constant_fold(outputs, node->input_values())) {
             stack.pop();
             for (size_t i = 0; i < outputs.size(); i++) {
-                node_map[node->output(i)] = outputs[i].get_node_shared_ptr();
+                node_map[original_node->output(i)] = outputs[i].get_node_shared_ptr();
             }
         } else {
             for (size_t i = node->get_input_size(); i > 0; i--) {
-                auto input = node->input_value(i - 1);
+                auto input = original_node->input_value(i - 1);
                 if (node_map.count(input) == 0 && !ov::op::util::is_constant(input.get_node())) {
                     stack.push(input.get_node_shared_ptr());
                 }

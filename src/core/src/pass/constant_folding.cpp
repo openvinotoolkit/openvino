@@ -9,6 +9,8 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -69,18 +71,31 @@ static void remove_original_input_precision_attribute(ov::Input<ov::Node>& input
 }
 
 static bool node_requires_type_conversion(const std::shared_ptr<const ov::Node>& node) {
-    if (node->has_evaluate())
+    if (node->get_input_size() == 0)
         return false;
+    if (node->has_evaluate()) {
+        return false;
+    }
+    // ReadValue or Assign cannot be cloned with new inputs with different precision
+    if (ov::is_type<ov::op::util::ReadValueBase>(node) || ov::is_type<ov::op::util::AssignBase>(node)) {
+        return false;
+    }
+    // ConvertLike has constant_fold function but doesn't have has_evaluate function
+    if (ov::is_type<ov::op::v1::ConvertLike>(node)) {
+        return false;
+    }
     const auto unsupported_types = ov::util::unsupported_types();
     for (size_t i = 0; i < node->get_input_size(); i++) {
         if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_input_element_type(i)) !=
-            unsupported_types.end())
+            unsupported_types.end()) {
             return true;
+        }
     }
     for (size_t i = 0; i < node->get_output_size(); i++) {
         if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_output_element_type(i)) !=
-            unsupported_types.end())
+            unsupported_types.end()) {
             return true;
+        }
     }
     return false;
 }
@@ -150,6 +165,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 }
             }
 
+            bool needs_validate = false;
             // if CF was unsuccessful remove original precision attribute from inputs
             for (size_t i = 0; i < original_node->get_input_size(); i++) {
                 auto input = original_node->input(i);
@@ -162,9 +178,13 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     replacements[0].get_node()->set_friendly_name(
                         original_node->get_input_node_ptr(i)->get_friendly_name());
                     input.replace_source_output(replacements[0]);
-                    rewritten = true;
+                    needs_validate = true;
                 }
             }
+            if (needs_validate) {
+                original_node->validate_and_infer_types();
+            }
+            rewritten = needs_validate;
         }
     }
 

@@ -18,16 +18,6 @@ element::TypeVector unsupported_types();
 ///        the new inputs and returns the new node.
 ///
 /// \param node
-/// \param inputs               - vector of new inputs to the node
-///
-/// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
-OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node, OutputVector&& inputs);
-
-/// \brief If the node has constant inputs with types that (before constant_fold) should be converted to f32 - the
-///        function converts and constantfolds those inputs to f32. Then, the function clones the node with
-///        the new inputs and returns the new node.
-///
-/// \param node
 ///
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
 OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node);
