@@ -127,32 +127,36 @@ class TestTransformersModel(TestTorchConvertModel):
             example = dict(encoded_input)
         elif 'xclip' in mi.tags:
             from transformers import XCLIPVisionModel
+            
             model = XCLIPVisionModel.from_pretrained(name)
-            example = (torch.randn(*(16, 3, 224, 224), dtype=torch.float32), )
+            example = (torch.randn(*(16, 3, 224, 224), dtype=torch.float32), )  # needs video as input
         elif 'audio-spectrogram-transformer' in mi.tags:
             example = (torch.randn(*(1, 1024, 128), dtype=torch.float32), )
-        elif 'mega' in mi.tags: # 'mnaylor/mega-base-wikitext':
+        elif 'mega' in mi.tags:
             from transformers import AutoModel
+            
             model = AutoModel.from_pretrained(name)
             example = model.dummy_inputs
+            example.update({'output_attentions': True, 'output_hidden_states': True, 'return_dict': True})
         elif 'bros' in mi.tags:
             from transformers import AutoProcessor, AutoModel
+            
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModel.from_pretrained(name)
-
             encoding = processor("to the moon!", return_tensors="pt")
             bbox = torch.randn([1, 6, 8], dtype=torch.float32)
             example = dict(input_ids=encoding["input_ids"], bbox=bbox, attention_mask=encoding["attention_mask"])
         elif 'upernet' in mi.tags:
             from transformers import AutoProcessor, UperNetForSemanticSegmentation
+            
             processor = AutoProcessor.from_pretrained(name)
             model = UperNetForSemanticSegmentation.from_pretrained(name)
             example = dict(processor(images=self.image, return_tensors="pt"))
         elif 'deformable_detr' in mi.tags or 'universal-image-segmentation' in mi.tags:
             from transformers import AutoProcessor, AutoModel
+            
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModel.from_pretrained(name)
-
             example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
@@ -329,7 +333,7 @@ class TestTransformersModel(TestTorchConvertModel):
             processor = VivitImageProcessor.from_pretrained(name)
             encoded_input = processor(images=frames, return_tensors="pt")
             example = (encoded_input.pixel_values,)
-        elif "tvlt" in mi.tags:  # 'ZinengTang/tvlt-base'
+        elif "tvlt" in mi.tags:
             from transformers import AutoProcessor
             processor = AutoProcessor.from_pretrained(name)
             num_frames = 8
