@@ -1703,7 +1703,7 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
     }
 }
 
-TEST_P(CachingTest, TestCacheFileWithCompiledModelFormat) {
+TEST_P(CachingTest, TestCacheFileWithCompiledModelRuntimeProperties) {
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -1714,19 +1714,19 @@ TEST_P(CachingTest, TestCacheFileWithCompiledModelFormat) {
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const ov::AnyMap&) {
             return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
-                                                 ov::internal::compiled_model_format.name(),
-                                                 ov::internal::compiled_model_format_supported.name()};
+                                                 ov::internal::compiled_model_runtime_properties.name(),
+                                                 ov::internal::compiled_model_runtime_properties_supported.name()};
         }));
-    const std::string compiled_model_format("Mock compiled model format segment.");
-    EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_format.name(), _))
+    const std::string compiled_model_runtime_properties("Mock compiled model format segment.");
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_runtime_properties.name(), _))
         .Times(AtLeast(1))
-        .WillRepeatedly(Return(compiled_model_format));
-    EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_format_supported.name(), _))
+        .WillRepeatedly(Return(compiled_model_runtime_properties));
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_runtime_properties_supported.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([&](const std::string&, const ov::AnyMap& options) {
-            auto it = options.find(ov::internal::compiled_model_format.name());
+            auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
             ov::Any ret = true;
-            if (it == options.end() || it->second.as<std::string>() != compiled_model_format)
+            if (it == options.end() || it->second.as<std::string>() != compiled_model_runtime_properties)
                 ret = false;
             return ret;
         }));
@@ -1754,10 +1754,10 @@ TEST_P(CachingTest, TestCacheFileWithCompiledModelFormat) {
                 ostr << inp.rdbuf();
                 content = ostr.str();
             }
-            auto index = content.find(compiled_model_format.c_str());
-            std::string new_compiled_model_format(compiled_model_format.size(), '0');
+            auto index = content.find(compiled_model_runtime_properties.c_str());
+            std::string new_compiled_model_runtime_properties(compiled_model_runtime_properties.size(), '0');
             if (index != std::string::npos) {
-                content.replace(index, compiled_model_format.size(), new_compiled_model_format);
+                content.replace(index, compiled_model_runtime_properties.size(), new_compiled_model_runtime_properties);
             } else {
                 return;  // skip test
             }
@@ -1766,7 +1766,7 @@ TEST_P(CachingTest, TestCacheFileWithCompiledModelFormat) {
         }
     }
     m_post_mock_net_callbacks.pop_back();
-    {  // Step 2. compiled_model_format mismatch, cache will be silently removed
+    {  // Step 2. compiled_model_runtime_properties mismatch, cache will be silently removed
         EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);

@@ -175,10 +175,9 @@ Plugin::Plugin() {
         m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
     }
 
-    // Set common info for compiled_model_format
+    // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
-    m_compiled_model_format["OV_VERSION"] = ov_version.buildNumber;
-    m_compiled_model_format_device_id = m_default_device_id;
+    m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
@@ -192,7 +191,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context->get_engine().get_device_info());
-    m_compiled_model_format_device_id = device_id;
 
     auto transformed_model = clone_and_transform_model(model, config);
     {
@@ -212,7 +210,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
-    m_compiled_model_format_device_id = device_id;
 
     auto transformed_model = clone_and_transform_model(model, config);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
@@ -340,43 +337,48 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
     }
 
+    ov::AnyMap actual_runtime_info;
+    auto prepare_actual_runtime_info = [&]() {
+        // Suppose all devices share the same version driver.
+        auto device_id = m_default_device_id;
+        OPENVINO_ASSERT(m_device_map.find(device_id) != m_device_map.end(),
+                        "[GPU] compiled_model_runtime_properties: Couldn't find device for GPU with id ",
+                        device_id);
+        actual_runtime_info["DRIVER_VERSION"] = m_device_map.at(device_id)->get_info().driver_version;
+        // More items can be inserted if needed
+    };
     // Below properties depend on the device ID.
-    if (name == ov::internal::compiled_model_format.name()) {
-        auto model_format_map = m_compiled_model_format;
-        OPENVINO_ASSERT(m_device_map.find(m_compiled_model_format_device_id) != m_device_map.end(),
-                        "[GPU] compiled_model_format: Couldn't find device for GPU with id ",
-                        m_compiled_model_format_device_id);
-        // Set specified device info for compiled_model_format
-        model_format_map["DEVICE_ID"] = m_compiled_model_format_device_id;
-        model_format_map["DRIVER_VERSION"] =
-            m_device_map.at(m_compiled_model_format_device_id)->get_info().driver_version;
-        auto model_format = ov::Any(model_format_map);
-        return decltype(ov::internal::compiled_model_format)::value_type(std::move(model_format.as<std::string>()));
-    } else if (name == ov::internal::compiled_model_format_supported.name()) {
+    if (name == ov::internal::compiled_model_runtime_properties.name()) {
+        prepare_actual_runtime_info();
+        auto model_runtime_info = m_compiled_model_runtime_properties;
+        // Set specified device info for compiled_model_runtime_properties
+        model_runtime_info.insert(actual_runtime_info.begin(), actual_runtime_info.end());
+        auto model_format = ov::Any(model_runtime_info);
+        return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
+            std::move(model_format.as<std::string>()));
+    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
-        auto it = options.find(ov::internal::compiled_model_format.name());
+        prepare_actual_runtime_info();
+        auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
         if (it == options.end()) {
             res = false;
             return res;
         }
         ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-        // Check common info of compiled_model_format
-        for (auto& item : m_compiled_model_format) {
+        // Check common info of compiled_model_runtime_properties
+        for (auto& item : m_compiled_model_runtime_properties) {
             auto it = input_map.find(item.first);
             if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                 res = false;
                 return res;
             }
         }
-        // Check specified device info of compiled_model_format
-        auto id = input_map.find("DEVICE_ID");
-        auto ver = input_map.find("DRIVER_VERSION");
-        if (id == input_map.end() || ver == input_map.end()) {
-            res = false;
-        } else {
-            auto _it = m_device_map.find(id->second.as<std::string>());
-            if (_it == m_device_map.end() || _it->second->get_info().driver_version != ver->second.as<std::string>()) {
+        // Check specified device info of compiled_model_runtime_properties
+        for (const auto& it : actual_runtime_info) {
+            auto item = input_map.find(it.first);
+            if (item == input_map.end() || item->second.as<std::string>() != it.second.as<std::string>()) {
                 res = false;
+                break;
             }
         }
         return res;
@@ -566,7 +568,6 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
     static const std::vector<ov::PropertyName> caching_properties =  {
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::driver_version.name(), PropertyMutability::RO},
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
     };
@@ -622,8 +623,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_format.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_format_supported.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
     return supported_internal_properties;
 }
 

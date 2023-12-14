@@ -1436,15 +1436,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
-            std::string compiled_model_format("");
-            if (device_supports_internal_property(plugin, ov::internal::compiled_model_format.name())) {
-                compiled_model_format =
-                    plugin.get_property(ov::internal::compiled_model_format.name(), {}).as<std::string>();
+            std::string compiled_model_runtime_properties;
+            if (device_supports_internal_property(plugin, ov::internal::compiled_model_runtime_properties.name())) {
+                compiled_model_runtime_properties =
+                    plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
                 networkStream << ov::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath),
-                                                        compiled_model_format);
+                                                        compiled_model_runtime_properties);
                 execNetwork->export_model(networkStream);
             });
         } catch (...) {
@@ -1478,13 +1478,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     OPENVINO_THROW("Original model file is changed");
                 }
                 if (util::contains(plugin.get_property(ov::internal::supported_properties),
-                                   ov::internal::compiled_model_format_supported.name())) {
-                    ov::AnyMap compiled_model_format = {
-                        {ov::internal::compiled_model_format.name(), std::string(header.getRuntimeInfo())}};
-                    auto res = plugin.get_property(ov::internal::compiled_model_format_supported.name(),
-                                                   compiled_model_format);
+                                   ov::internal::compiled_model_runtime_properties_supported.name())) {
+                    ov::AnyMap compiled_model_runtime_properties = {
+                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.getRuntimeInfo())}};
+                    auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
+                                                   compiled_model_runtime_properties);
                     if (!res.as<bool>()) {
-                        OPENVINO_THROW("Original model format has been changed, not supported anymore!");
+                        OPENVINO_THROW("Original model runtime properties have been changed, not supported anymore!");
                     }
                 } else {
                     if (header.getIeVersion() != ov::get_openvino_version().buildNumber) {
