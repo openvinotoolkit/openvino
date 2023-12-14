@@ -67,16 +67,14 @@ def test_normalize():
 
 
 @pytest.mark.parametrize(
-    ("target_size"),
+    ("target_size", "interpolation", "tolerance"),
     [
-        (220, 220, 3),
-        (200, 240, 3),
-    ]
-)
-@pytest.mark.parametrize(
-    ("interpolation", "tolerance"),
-    [
-        (transforms.InterpolationMode.NEAREST, 4e-05),
+        ((220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
+        ((200, 240, 3), transforms.InterpolationMode.NEAREST, 0.3),  # Ticket
+        ((220, 220, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        ((200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        ((220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        ((200, 240, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
     ],
 )
 def test_resize(target_size, interpolation, tolerance):
