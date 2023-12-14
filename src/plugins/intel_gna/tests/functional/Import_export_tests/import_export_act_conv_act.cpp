@@ -119,7 +119,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
+        auto relu1 = std::make_shared<ov::opset1::Relu>(params[0]);
 
         size_t num_out_channels = 8;
         size_t kernel_size = 8;
@@ -137,8 +137,8 @@ protected:
                                                      true,
                                                      filter_weights);
 
-        auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu2)};
+        auto relu2 = std::make_shared<ov::opset1::Relu>(conv);
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(relu2)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
     }
 
