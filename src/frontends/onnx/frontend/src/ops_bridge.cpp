@@ -29,6 +29,7 @@
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
+#include "op/bitwise_not.hpp"
 #include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
@@ -351,6 +352,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
+    REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);

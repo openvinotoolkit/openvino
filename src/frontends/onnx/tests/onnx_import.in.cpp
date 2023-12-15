@@ -7029,3 +7029,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(), 
+                                                                        SERIALIZED_ZOO, 
+                                                                        "onnx/bitwise_not.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>(Shape{5}, {5, 10, 200, 35, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {-6, -11, -201, -36, -2});
+
+    test_case.run();
+}
