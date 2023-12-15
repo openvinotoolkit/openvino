@@ -114,7 +114,7 @@ ov::AnyMap Plugin::pre_process_config(const ov::AnyMap& orig_config) const {
             } else {
                 converted_val = legacy_val;
             }
-            property.second = converted_val;
+            property.second = std::move(converted_val);
         }
     }
     return properties;
@@ -541,7 +541,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
     // clone the model, in case of reshape conflict
-    auto_s_context->m_model = cloned_model;
+    auto_s_context->m_model = std::move(cloned_model);
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
@@ -815,7 +815,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
             });
             return iter != devices.end();
         };
-        auto device_with_default_id = [](std::string& device) {
+        auto device_with_default_id = [](std::string& device) -> std::string {
             // AUTO assume the default device ID will be "0" for the single device.
             return device.find(".") == std::string::npos ? device + ".0" : device;
         };

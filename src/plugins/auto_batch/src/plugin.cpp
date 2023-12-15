@@ -49,7 +49,7 @@ DeviceInformation Plugin::parse_batch_device(const std::string& device_with_batc
             OPENVINO_THROW("Batch value for '", deviceName, "' must be > 0, while ", batch, "is passed");
         }
     }
-    return {deviceName, {{}}, static_cast<uint32_t>(batch)};
+    return {std::move(deviceName), {{}}, static_cast<uint32_t>(batch)};
 }
 
 DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_config,
@@ -386,7 +386,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remo
     if (it == remote_properties.end())
         OPENVINO_THROW("Value for ov::device::priorities is not set");
 
-    auto val = it->second.as<std::string>();
+    const auto& val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     return get_core()->get_default_context(metaDevice.device_name);
 }
