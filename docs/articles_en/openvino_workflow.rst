@@ -26,7 +26,7 @@ OpenVINO offers multiple workflows, depending on the use case and personal or pr
 This section will give you a detailed view of how you can go from preparing your model,
 through optimizing it, to executing inference, and deploying your solution.
 
-Once you obtain a model in one of the :doc:`supported model formats <Supported_Model_Formats>`,
+Once you obtain a model in one of the :doc:`supported model formats <openvino_docs_model_processing_introduction>`,
 you can decide how to proceed:
 
 .. tab-set::

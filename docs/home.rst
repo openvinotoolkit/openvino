@@ -62,7 +62,7 @@ OpenVINO 2023.2
       See latest benchmark numbers for OpenVINO and OpenVINO Model Server
 
    .. grid-item-card:: Flexible Workflow
-      :link: Supported_Model_Formats
+      :link: openvino_docs_model_processing_introduction
       :link-alt: Supported Model Formats     
       :link-type: doc
 

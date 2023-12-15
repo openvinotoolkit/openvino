@@ -32,10 +32,10 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
   This approach offers the best possible results and is the recommended one,
   especially for production-ready solutions. Consider storing your model in this format to minimize first-inference latency, 
   perform model optimizations, and save space on your drive, in some cases. Explicit conversion can be done in two ways:
-|
+
   * the `Python API functions <#convert-a-model-with-python-convert-model>`__ (``openvino.convert_model`` and ``openvino.save_model``) 
   * the `ovc <#convert-a-model-in-cli-ovc>`__  command line tool. 
-|
+  
   Once saved as :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>` (a set of ``.xml`` and ``.bin`` files), 
   the model may be deployed with maximum performance. Because it is already optimized
   for `OpenVINO inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`__, it can be read, compiled, and inferred with no additional delay. 
