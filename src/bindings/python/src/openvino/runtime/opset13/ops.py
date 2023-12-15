@@ -309,7 +309,7 @@ def constant(
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
             display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
-            return Constant(dtype, Shape(_value.shape), _value.reshape(-1).tolist())
+            return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
         else:
             _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
