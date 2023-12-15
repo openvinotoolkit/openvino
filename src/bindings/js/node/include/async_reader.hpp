@@ -18,19 +18,17 @@ public:
     ReaderWorker(const Napi::Env& env, ReadModelArgs* args)
         : Napi::AsyncWorker{env, "ReaderWorker"},
           _deferred{env},
+          _args{args},
           _model{} {
-        if (!args) {
-            OPENVINO_THROW("Invalid pointer to ReadModelArgs.\n");
-        }
-        _args = args;
+        OPENVINO_ASSERT(_args, "Invalid pointer to ReadModelArgs.");
     }
 
     Napi::Promise GetPromise();
 
 protected:
-    /** @name AsyncWorkerMethods 
+    /** @name AsyncWorkerMethods
      * Methods to safely move data betweeb the event loop and worker threads.
-    */
+     */
     ///@{
     void Execute() override;
     void OnOK() override;
