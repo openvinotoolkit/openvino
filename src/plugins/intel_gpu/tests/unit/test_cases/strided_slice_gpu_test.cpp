@@ -1100,6 +1100,73 @@ public:
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
         }
     }
+
+    void test_3d_all_dynamic_with_new_axis() {
+        auto& engine = get_test_engine();
+        auto l_input = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto l_begin = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+        auto l_end = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+
+        auto stride = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        set_values<int64_t>(stride, {1, 1, 1});
+
+        topology topology(
+            input_layout("input", l_input),
+            input_layout("begin", l_begin),
+            input_layout("end", l_end),
+            data("stride", stride),
+            strided_slice("strided_slice",
+                input_info("input"),
+                input_info("begin"),
+                input_info("end"),
+                input_info("stride"),
+                {}, {}, {1, 0, 0}, {}, {}, {})
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto program = program::build_program(engine, topology, config, false, false, false);
+        ASSERT_NE(program, nullptr);
+
+        auto out_size_act = program->get_outputs()[0]->get_output_layouts(0)[0].get_partial_shape().size();
+        auto out_size_exp = size_t(4);
+        ASSERT_EQ(out_size_act, out_size_exp);
+    }
+
+    void test_3d_all_dynamic_with_shrink_axis() {
+        auto& engine = get_test_engine();
+
+        auto l_input = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto l_begin = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+        auto l_end = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+
+        auto stride = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        set_values<int64_t>(stride, {1, 1, 1});
+
+        topology topology(
+            input_layout("input", l_input),
+            input_layout("begin", l_begin),
+            input_layout("end", l_end),
+            data("stride", stride),
+            strided_slice("strided_slice",
+                input_info("input"),
+                input_info("begin"),
+                input_info("end"),
+                input_info("stride"),
+                {}, {}, {}, {1, 0, 0}, {}, {})
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto program = program::build_program(engine, topology, config, false, false, false);
+        ASSERT_NE(program, nullptr);
+
+        auto out_size_act = program->get_outputs()[0]->get_output_layouts(0)[0].get_partial_shape().size();
+        auto out_size_exp = size_t(2);
+        ASSERT_EQ(out_size_act, out_size_exp);
+    }
 };
 
 class strided_slice_gpu_constants: public ::testing::Test {
@@ -2576,4 +2643,13 @@ TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all_cached) {
 // test_2x2x2x2_full_activation
 TEST_F(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
     this->test_2x2x2x2_full_legacy_activation(true);
+}
+
+
+TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_new_axis) {
+    this->test_3d_all_dynamic_with_new_axis();
+}
+
+TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_shrink_axis) {
+    this->test_3d_all_dynamic_with_shrink_axis();
 }

@@ -68,6 +68,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
         input_shapes.push_back(input_shape);
     }
     ov::op::v0::Concat op;
+    op.set_friendly_name(desc->id);
     op.set_concatenation_axis(axis_index);
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
     return { layout {output_shapes[0], output_dt, output_format} };

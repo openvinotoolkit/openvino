@@ -44,20 +44,59 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     if ((begin_data.empty() && !constant_mem.count(1))
         || (end_data.empty() && !constant_mem.count(2))
         || (strides_data.empty() && !constant_mem.count(3))) {
+        auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
+            size_t count = 0;
+            for (size_t i = 0; i < mask.size(); i++)
+                if (mask[i]) count++;
+            return count;
+        };
+
         auto input0_pshape = input0_layout.get_partial_shape();
         auto input0_len = input0_pshape.size();
-        auto out_shape = ov::PartialShape::dynamic(input0_len);
+        auto num_of_new_axis_bit = num_of_axis_mask_bit(desc->new_axis_mask);
+        auto num_of_shrink_axis_bit = num_of_axis_mask_bit(desc->shrink_axis_mask);
+
+        auto output_len = input0_len;
+        if (num_of_new_axis_bit)
+            output_len += num_of_new_axis_bit;
+        else if (num_of_shrink_axis_bit)
+            output_len -= num_of_shrink_axis_bit;
+
+        auto output_shape = ov::PartialShape::dynamic(output_len);
         if (input0_layout.is_dynamic()) {
-            // fill with static shape until it finds dynamic
-            for (size_t i = 0; i < input0_len; i++) {
-                if (input0_pshape[i].is_static())
-                    out_shape[i] = input0_pshape[i];
-                else
+            // Fill with static shape until it finds dynamic while scaling output shape size based on the attributes
+            //    1) new_axis_mask    : increase by the number of bits in new_axis_mask.
+            //    2) shrink_axis_mask : decrease by the number of bits in shrink_mask.
+            //
+            // Notice :
+            //     According to op implementation,
+            //     new_axis_mask has higher priority than shrink_axis_mask,
+            //     so that in case where bits of new_axis_mask is at the same position to that of shrink_axis_mask,
+            //     the bits of shrink_axis_mask are ignored.
+            //
+            // To-Do :
+            //    1) Consider the case where ellipsis_mask is enabled.
+            //    2) Consider each combination of new_axis_mask, shrink_axis_mask and ellipsis_mask.
+            size_t output_idx = 0;
+            size_t input_idx = 0;
+            for (size_t i = 0; i < output_len; i++) {
+                if (num_of_new_axis_bit && desc->new_axis_mask[i]) {
+                    output_shape[output_idx++] = {1};
+                    continue;
+                } else if (num_of_shrink_axis_bit && desc->shrink_axis_mask[i]) {
+                    continue;
+                }
+
+                if (input0_pshape[input_idx].is_static()) {
+                    output_shape[output_idx++] = input0_pshape[input_idx];
+                    input_idx++;
+                } else {
                     break;
+                }
             }
         }
 
-        return { layout{out_shape, input0_layout.data_type, format::get_default_format(input0_len)} };
+        return { layout{output_shape, input0_layout.data_type, format::get_default_format(output_len)} };
     }
 
     ov::op::v1::StridedSlice op;
