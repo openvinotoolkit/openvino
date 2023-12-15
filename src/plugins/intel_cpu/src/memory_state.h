@@ -36,9 +36,9 @@ public:
     //ov::IVariableState
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
     ov::SoPtr<ov::ITensor> get_state() const override;
-    void reset() final;
-    bool is_reset_state() const final;
-    void commit() final;
+    void reset() override final; // NOLINT
+    bool is_reset_state() const override final; // NOLINT
+    void commit() override final; // NOLINT
 
 protected:
     virtual MemoryPtr internal_state_mem() const = 0;
