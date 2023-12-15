@@ -171,7 +171,7 @@ xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to to
 xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
 xfail_issue_125486 = xfail_test(reason="Gelu operation is not supported")
 xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
-xfail_issue_125487 = xfail_test(reason="GridSample doesn't support cubic and linear modes, and 4D tensor")
+skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support cubic and linear modes, and 4D tensor") # Need to enable after bumping to 1.15
 skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")

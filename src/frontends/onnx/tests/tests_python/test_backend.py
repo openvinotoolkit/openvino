@@ -76,7 +76,7 @@ from tests import (
     xfail_issue_125485,
     xfail_issue_125486,
     xfail_issue_125488,
-    xfail_issue_125487,
+    skip_issue_125487,
     skip_issue_125489,
     xfail_issue_125491,
     xfail_issue_125492,
@@ -730,7 +730,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_image_decoder_decode_webp_rgb_cpu",
     ),
     (
-        xfail_issue_125487,
+        skip_issue_125487,
         "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_0_additional_1_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_1_additional_1_cpu",

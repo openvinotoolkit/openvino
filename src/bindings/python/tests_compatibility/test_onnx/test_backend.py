@@ -881,7 +881,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_nearest_align_corners_1_cpu",
     ),
     (
-        _issue_125489,
+        skip_issue_125489,
         "OnnxBackendNodeModelTest.test_isinf_float16_cpu",
     ),
     (
