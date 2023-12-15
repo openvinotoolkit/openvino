@@ -18,10 +18,10 @@ class ScaledDotProductAttentionV13StaticShapeInferenceTest : public OpStaticShap
 TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, default_ctor) {
     op = make_op();
 
-    input_shapes = ShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 1, 5}, {}};
+    input_shapes = ShapeVector{{3, 2, 3, 4}, {2, 5, 4}, {1, 5, 6}, {1, 3, 5}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
-    EXPECT_EQ(output_shapes.front(), StaticShape({2, 3, 6}));
+    EXPECT_EQ(output_shapes.front(), StaticShape({3, 2, 3, 6}));
 }
 
 TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, dynamic_shapes) {
@@ -33,7 +33,7 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, dynamic_shapes) {
     auto causal = false;
     op = make_op(query, key, value, attention_mask, scale, causal);
 
-    input_shapes = ShapeVector{{2, 1, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}};
+    input_shapes = ShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 3, 6}));
