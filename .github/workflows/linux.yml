@@ -53,7 +53,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -385,7 +385,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount/caches:/mount/caches"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
   CXX_Unit_Tests:
@@ -403,7 +403,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount/caches:/mount/caches"]}'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CPU_Functional_Tests:
@@ -419,7 +419,7 @@ jobs:
   # container:
   #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
   #   volumes:
-  #     - /mount/caches:/mount/caches
+  #     - /mount:/mount
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
@@ -434,22 +434,7 @@ jobs:
   # container:
   #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
   #   volumes:
-  #     - /mount/caches:/mount/caches
-  TensorFlow_Hub_Performance_Models_Tests:
-    name: TensorFlow Hub Performance Models tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_tensorflow_hub_performance_models_tests.yml
-    with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
-      event: ${{ github.event_name }}
-
-  # TODO: Switch back to self-hosted runners
-  # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-  #   volumes:
-  #     - /mount/caches:/mount/caches
+  #     - /mount:/mount
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
@@ -470,7 +455,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'
@@ -591,7 +576,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
-            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, TensorFlow_Hub_Performance_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
+            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -2,41 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/pad.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <string>
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov;
-using namespace test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/pad.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 using PadLayerGPUTestParamSet = std::tuple<
         InputShape,                                     // Input shape
-        ElementType,                                    // Input element type
+        ov::element::Type,                              // Input element type
         std::vector<int64_t>,                           // padsBegin
         std::vector<int64_t>,                           // padsEnd
         float,                                          // argPadValue
-        std::vector<ngraph::helpers::InputLayerType>,   // for {begin, end, padValue}
-        ov::op::PadMode                                 // padMode
->;
+        std::vector<ov::test::utils::InputLayerType>,   // for {begin, end, padValue}
+        ov::op::PadMode>;                               // padMode
 
 class PadLayerGPUTest : public testing::WithParamInterface<PadLayerGPUTestParamSet>,
-                        virtual public SubgraphBaseTest {
+                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PadLayerGPUTestParamSet> obj) {
         InputShape shapes;
-        ElementType elementType;
+        ov::element::Type model_type;
         std::vector<int64_t> padsBegin, padsEnd;
         ov::op::PadMode padMode;
         float argPadValue;
-        std::vector<helpers::InputLayerType> inputLayerTypes;
-        std::tie(shapes, elementType, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = obj.param;
+        std::vector<ov::test::utils::InputLayerType> inputLayerTypes;
+        std::tie(shapes, model_type, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -44,7 +41,7 @@ public:
         for (const auto& item : shapes.second) {
             results << ov::test::utils::vec2str(item) << "_";
         }
-        results << "Prc=" << elementType << "_";
+        results << "Prc=" << model_type << "_";
         results << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
         results << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
         if (padMode == ov::op::PadMode::CONSTANT) {
@@ -63,24 +60,24 @@ protected:
     void SetUp() override {
         InputShape shapes;
         ov::op::PadMode padMode;
-        std::vector<helpers::InputLayerType> inputLayerTypes;
+        std::vector<ov::test::utils::InputLayerType> inputLayerTypes;
         std::tie(shapes, inType, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
-        if (inputLayerTypes[0] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[0] == ov::test::utils::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(padsBegin.size())}, std::vector<ov::Shape>(shapes.second.size(), {padsBegin.size()})));
         }
-        if (inputLayerTypes[1] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[1] == ov::test::utils::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(padsEnd.size())}, std::vector<ov::Shape>(shapes.second.size(), {padsEnd.size()})));
         }
 
         init_input_shapes(inputShapes);
 
         // Add empty shape for parameter input of scalar 'pad_value'
-        if (inputLayerTypes[2] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[2] == ov::test::utils::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(ov::PartialShape({}));
             for (size_t i = 0; i < shapes.second.size(); ++i) {
                 for (size_t k = 0; k < targetStaticShapes.size(); ++k) {
@@ -95,43 +92,43 @@ protected:
 
         std::shared_ptr<ov::Node> pads_begin, pads_end, arg_pad_value;
         // padsBegin
-        if (inputLayerTypes[0] == helpers::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ov::Shape{padsBegin.size()}));
+        if (inputLayerTypes[0] == ov::test::utils::InputLayerType::PARAMETER) {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{padsBegin.size()}));
             functionParams.back()->set_friendly_name("padsBegin");
             pads_begin = functionParams.back();
         } else {
-            pads_begin = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{padsBegin.size()}, padsBegin.data());
+            pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsBegin.size()}, padsBegin.data());
         }
 
         // padsEnd
-        if (inputLayerTypes[1] == helpers::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ov::Shape{padsEnd.size()}));
+        if (inputLayerTypes[1] == ov::test::utils::InputLayerType::PARAMETER) {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{padsEnd.size()}));
             functionParams.back()->set_friendly_name("padsEnd");
             pads_end = functionParams.back();
         } else {
-            pads_end = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{padsEnd.size()}, padsEnd.data());
+            pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsEnd.size()}, padsEnd.data());
         }
 
         // argPadValue
-        if (inputLayerTypes[2] == helpers::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(inType, ov::PartialShape({})));
+        if (inputLayerTypes[2] == ov::test::utils::InputLayerType::PARAMETER) {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape({})));
             functionParams.back()->set_friendly_name("padValue");
             arg_pad_value = functionParams.back();
         } else {
-            arg_pad_value = std::make_shared<ngraph::opset3::Constant>(inType, ngraph::Shape{}, &argPadValue);
+            arg_pad_value = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, &argPadValue);
         }
 
-        auto pad = std::make_shared<ngraph::opset3::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
+        auto pad = std::make_shared<ov::op::v1::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < pad->get_output_size(); ++i) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(pad->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(pad->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, functionParams, "PadLayerGPUTest");
+        function = std::make_shared<ov::Model>(results, functionParams, "PadLayerGPUTest");
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
@@ -155,8 +152,11 @@ protected:
                 data[0] = argPadValue;
             } else {
                 if (funcInput.get_element_type().is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }
@@ -166,15 +166,12 @@ protected:
     }
 };
 
-TEST_P(PadLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(PadLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-
-const std::vector<ElementType> inputPrecisions = {
-        ElementType::f32
+const std::vector<ov::element::Type> inputPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<float> argPadValue = {0.f, -1.f};
@@ -185,11 +182,11 @@ const std::vector<ov::op::PadMode> padMode = {
         ov::op::PadMode::SYMMETRIC
 };
 
-const std::vector<std::vector<helpers::InputLayerType>> isConstantInput = {
-    {helpers::InputLayerType::CONSTANT, helpers::InputLayerType::CONSTANT, helpers::InputLayerType::CONSTANT},
-    {helpers::InputLayerType::CONSTANT, helpers::InputLayerType::PARAMETER, helpers::InputLayerType::CONSTANT},
-    {helpers::InputLayerType::CONSTANT, helpers::InputLayerType::PARAMETER, helpers::InputLayerType::PARAMETER},
-    {helpers::InputLayerType::PARAMETER, helpers::InputLayerType::PARAMETER, helpers::InputLayerType::PARAMETER}
+const std::vector<std::vector<ov::test::utils::InputLayerType>> isConstantInput = {
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER}
 };
 
 //====================== Dynamic Shapes Tests 2D ======================
@@ -210,7 +207,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd2D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+                ::testing::Values(ov::op::PadMode::CONSTANT)),
         PadLayerGPUTest::getTestCaseName
 );
 
@@ -246,7 +243,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+                ::testing::Values(ov::op::PadMode::CONSTANT)),
         PadLayerGPUTest::getTestCaseName
 );
 
@@ -282,7 +279,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+                ::testing::Values(ov::op::PadMode::CONSTANT)),
         PadLayerGPUTest::getTestCaseName
 );
 
@@ -299,6 +296,4 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padMode)),
         PadLayerGPUTest::getTestCaseName
 );
-
 } // namespace
-} // namespace GPULayerTestsDefinitions

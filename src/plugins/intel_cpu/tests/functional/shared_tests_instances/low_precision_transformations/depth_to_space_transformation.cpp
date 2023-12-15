@@ -9,7 +9,6 @@
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
-using namespace ngraph::opset1;
 
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
@@ -17,9 +16,9 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
+const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> modes = {
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
 const std::vector<ngraph::PartialShape> inputShapesBS2 = {

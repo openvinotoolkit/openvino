@@ -5,8 +5,8 @@
 #include "eltwise.hpp"
 
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "gtest/gtest.h"
+#include "internal_properties.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -85,7 +85,11 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 break;
         }
     }
-    return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = params.start_from;
+    in_data.range = params.range;
+    in_data.resolution = params.resolution;
+    return ov::test::utils::create_and_fill_tensor(type, shape, in_data);
 }
 
 void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -151,9 +155,9 @@ void EltwiseLayerCPUTest::SetUp() {
 #endif
 
     if (enforceSnippets) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
     } else {
-        configuration.insert({"SNIPPETS_MODE", "DISABLE"});
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
     }
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
     std::shared_ptr<ov::Node> secondaryInput;

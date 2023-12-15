@@ -21,7 +21,7 @@ class IsFunctionQuantizedTransformationValues {
 public:
     ov::Shape shape;
     ov::element::Type precision;
-    ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
     bool constantSubgraphOnParameters;
     bool inputOnParameters;
 
@@ -44,8 +44,8 @@ public:
             replace_node(fakeQuantize->get_input_node_shared_ptr(3), input);
         }
 
-        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
-        model = std::make_shared<ov::Model>(results, ngraph::ParameterVector{ input }, "IsFunctionQuantizedFunction");
+        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
+        model = std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "IsFunctionQuantizedFunction");
         model->validate_nodes_and_infer_types();
     }
 

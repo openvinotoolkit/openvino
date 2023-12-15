@@ -114,12 +114,14 @@ OP_CONVERTER(strided_slice);
 OP_CONVERTER(sum);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
+OP_CONVERTER(tanh_shrink);
 OP_CONVERTER(tensor_array_to_tensor);
 OP_CONVERTER(tile);
 OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
+OP_CONVERTER(unique);
 OP_CONVERTER(unstack);
 OP_CONVERTER(where);
 OP_CONVERTER(while_);
@@ -244,12 +246,14 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"tanh_shrink", op::tanh_shrink},
             {"tensor_array_to_tensor", op::tensor_array_to_tensor},
             {"tile", op::tile},
             {"top_k_v2", op::top_k_v2},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
+            {"unique", op::unique},
             {"unstack", op::unstack},
             {"where", op::where},
             {"while", op::while_},

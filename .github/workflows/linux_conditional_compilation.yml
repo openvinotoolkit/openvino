@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -49,7 +50,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -191,7 +192,7 @@ jobs:
           pushd ${SELECTIVE_BUILD_STAT_DIR}
             tar -czvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
           popd
-          
+
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz \
               install_dependencies/install_openvino_dependencies.sh
@@ -200,6 +201,7 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
               tests/ov_cpu_func_tests \
+              tests/libtemplate_extension.so \
               tests/functional_test_utils/layer_tests_summary/*
           popd
 
@@ -238,7 +240,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -331,3 +333,17 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
+
+  Overall_Status:
+    name: ci/gha_overall_status_linux_cc
+    needs: [Smart_CI, Build, CC_Build, CPU_Functional_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
