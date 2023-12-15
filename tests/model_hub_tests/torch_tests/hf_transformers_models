@@ -252,7 +252,7 @@ microsoft/speecht5_tts,speecht5,xfail,Tracing error: hangs with no error (probab
 microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
-microsoft/xclip-base-patch32,xclip,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
+microsoft/xclip-base-patch32,xclip
 microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem

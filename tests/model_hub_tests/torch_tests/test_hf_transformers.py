@@ -129,9 +129,10 @@ class TestTransformersModel(TestTorchConvertModel):
             from transformers import XCLIPVisionModel
             
             model = XCLIPVisionModel.from_pretrained(name)
-            example = (torch.randn(*(16, 3, 224, 224), dtype=torch.float32), )  # needs video as input
+            # needs video as input
+            example = {'pixel_values': torch.randn(*(16, 3, 224, 224), dtype=torch.float32)}
         elif 'audio-spectrogram-transformer' in mi.tags:
-            example = (torch.randn(*(1, 1024, 128), dtype=torch.float32), )
+            example = {'input_values': torch.randn(*(1, 1024, 128), dtype=torch.float32)}
         elif 'mega' in mi.tags:
             from transformers import AutoModel
             
