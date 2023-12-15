@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
 #include "nodes/executors/transpose.hpp"
-#include <utils/general_utils.h>
+#endif
 
 namespace ov {
 namespace intel_cpu {
