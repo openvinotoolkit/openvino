@@ -145,6 +145,9 @@ public:
     exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
                        const std::vector<size_t>& loop_ids, const constExprIt& place,
                        const std::set<ExpressionPort>& consumers = {});
+    exprIt replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                        const std::vector<size_t>& loop_ids, const constExprIt& place,
+                        const std::vector<ExpressionPtr>& old_exprs);
 
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

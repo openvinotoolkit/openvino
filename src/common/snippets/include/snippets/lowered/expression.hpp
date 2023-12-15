@@ -53,6 +53,9 @@ public:
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
+    std::vector<ExpressionPort> get_input_ports();
+    std::vector<ExpressionPort> get_output_ports();
+
     void updateShapes();
     virtual bool needShapeInfer() const {return true; }
 

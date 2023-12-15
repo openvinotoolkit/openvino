@@ -313,6 +313,59 @@ LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node
     return insert_node(new_node, new_inputs, loop_ids, place, consumers_py_port);
 }
 
+LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                                        const std::vector<size_t>& loop_ids, const constExprIt& place,
+                                        const std::vector<ExpressionPtr>& old_exprs) {
+    OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    OPENVINO_ASSERT(std::all_of(old_exprs.cbegin(), old_exprs.cend(), [&loop_ids](const ExpressionPtr& expr) { return expr->get_loop_ids() == loop_ids; }),
+                    "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
+    OPENVINO_ASSERT(new_node->get_output_size() == old_exprs.back()->get_output_count(),
+                    "Failed to replace node: node output port count is not equal to output count of last old expression");
+
+    auto is_old_expr = [&old_exprs](const ExpressionPtr& expr) {
+        return std::find(old_exprs.cbegin(), old_exprs.cend(), expr) != old_exprs.cend();
+    };
+    auto is_input_source = [&new_inputs](const ExpressionPort& source) {
+        return std::any_of(new_inputs.cbegin(), new_inputs.cend(), [&source](const PortConnectorPtr& input) { return input->get_source() == source; });
+    };
+
+    // Validate
+    const auto last_old_expr = old_exprs.back();
+    std::vector<std::set<ExpressionPort>> consumers(last_old_expr->get_output_count());
+    for (const auto& old_expr : old_exprs) {
+        for (const auto& input : old_expr->get_input_port_connectors()) {
+            const auto& source = input->get_source();
+            OPENVINO_ASSERT(is_old_expr(source.get_expr()) || is_input_source(source),
+                            "Failed to replace nodes: not all output ports of existing expressions will be connected!");
+        }
+        for (const auto& port_connector : old_expr->get_output_port_connectors()) {
+            const auto old_expr_consumers = port_connector->get_consumers();
+            if (old_expr != last_old_expr) {
+                for (const auto& consumer : old_expr_consumers) {
+                    OPENVINO_ASSERT(is_old_expr(consumer.get_expr()),
+                                    "Failed to replace nodes: not all input ports of existing expressions will be connected!");
+                }
+            } else {
+                consumers[port_connector->get_source().get_index()] = old_expr_consumers;
+            }
+        }
+    }
+    for (size_t i = 0; i < new_node->get_output_size(); ++i)
+        snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(new_node->output(i), last_old_expr->get_output_port_descriptor(0)->clone());
+
+    const auto new_expr_it = insert_node(new_node, new_inputs, loop_ids, place, consumers);
+    const auto input_ports = new_expr_it->get()->get_input_ports();
+    const auto output_ports = new_expr_it->get()->get_output_ports();
+    for (const auto& old_expr : old_exprs) {
+        for (size_t i = 0; i < old_expr->get_input_count(); ++i)
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports, true);
+        for (size_t i = 0; i < old_expr->get_input_count(); ++i)
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports, false);
+        erase(find(old_expr));
+    }
+    return new_expr_it;
+}
+
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)
                                        : ShapeInferSnippetsNode(),
                                          m_exprs{std::make_shared<container>(body_exprs)} {

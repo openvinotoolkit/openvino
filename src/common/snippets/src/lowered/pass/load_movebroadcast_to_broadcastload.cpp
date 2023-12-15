@@ -16,7 +16,6 @@ namespace pass {
 
 bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::LoadMoveBroadcastToBroadcastLoad")
-    const auto& loop_manager = linear_ir.get_loop_manager();
     bool modified = false;
 
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
@@ -24,7 +23,6 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
         const auto& op = expr->get_node();
         // Match on MoveBroadcast because MoveBroadcast is rare node in bodies
         if (const auto move_broadcast = ov::as_type_ptr<op::BroadcastMove>(op)) {
-            const auto mv_expr_it = expr_it;
             const auto& interm_connector = expr->get_input_port_connector(0);
             const auto parent_expr = interm_connector->get_source().get_expr();
             const auto load = ov::as_type_ptr<op::Load>(parent_expr->get_node());
@@ -46,16 +44,8 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
 
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
             const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), *outshape.rbegin(), load->get_offset());
-            PortDescriptorUtils::set_port_descriptor_ptr(broadcastload->output(0), expr->get_output_port(0).get_descriptor_ptr()->clone());
-            expr_it = linear_ir.insert_node(broadcastload, { parent_expr->get_input_port_connector(0) }, parent_expr->get_loop_ids(), std::next(expr_it),
-                                            { expr->get_output_port_connector(0)->get_consumers() });
-            const auto broadcastload_expr = *expr_it;
-
-            // Update the corresponding Loops with
-            loop_manager->update_loops_port(parent_expr->get_loop_ids(), parent_expr->get_input_port(0), {broadcastload_expr->get_input_port(0)}, true);
-
-            linear_ir.erase(linear_ir.find_before(mv_expr_it, parent_expr));
-            linear_ir.erase(mv_expr_it);
+            expr_it = linear_ir.replace_node(broadcastload, { parent_expr->get_input_port_connector(0) }, parent_expr->get_loop_ids(),
+                                             std::next(expr_it), { parent_expr, expr });
             modified |= true;
         }
     }

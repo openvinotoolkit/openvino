@@ -14,8 +14,7 @@
 
 bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowered::LinearIR& linear_ir,
                                                                   snippets::lowered::LinearIR::constExprIt& convert_it) {
-    const auto convert_expr_it = convert_it;
-    const auto& convert_expr = *convert_expr_it;
+    const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
     const auto& input_connector = convert_expr->get_input_port_connector(0);
     if (convert->get_destination_type() != ov::element::f32 && convert->get_destination_type() != ov::element::i32)
@@ -29,6 +28,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
         ov::is_type<snippets::op::BroadcastLoad>(load_expr->get_node()))
         return false;
 
+    const auto& load_input = load_expr->get_input_port_connector(0);
     const auto consumers = input_connector->get_consumers();
     if (consumers.size() != 1)
         return false;
@@ -46,25 +46,13 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
     }
 
-    const auto& load_loop_ids = load_expr->get_loop_ids();
-    const auto out_port = convert_expr->get_output_port(0);
-    const auto convert_consumers = out_port.get_connected_ports();
-    snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(load_convert->output(0), out_port.get_descriptor_ptr()->clone());
-    convert_it = linear_ir.insert_node(load_convert, { load_expr->get_input_port_connector(0) }, load_loop_ids, std::next(convert_expr_it), convert_consumers);
-    const auto load_convert_expr = *convert_it;
+    convert_it = linear_ir.replace_node(load_convert, { load_input }, load_expr->get_loop_ids(), std::next(convert_it), {load_expr, convert_expr});
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    loop_manager->update_loops_port(load_loop_ids, load_expr->get_input_port(0), {load_convert_expr->get_input_port(0)}, true);
-    loop_manager->update_loops_port(load_loop_ids, convert_expr->get_output_port(0), {load_convert_expr->get_output_port(0)}, false);
-
-    linear_ir.erase(std::find(linear_ir.cbegin(), convert_expr_it, load_expr));
-    linear_ir.erase(convert_expr_it);
     return true;
 }
 
 bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::lowered::LinearIR& linear_ir,
                                                                    snippets::lowered::LinearIR::constExprIt& convert_it) {
-    const auto convert_expr_it = convert_it;
     const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
     const auto& input_connector = convert_expr->get_input_port_connector(0);
@@ -95,20 +83,8 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
     }
 
-    const auto& convert_loop_ids = convert_expr->get_loop_ids();
+    convert_it = linear_ir.replace_node(store_convert, { input_connector }, convert_expr->get_loop_ids(), std::next(convert_it), {convert_expr, store_expr});
 
-    const auto out_port = store_expr->get_output_port(0);
-    const auto store_consumers = out_port.get_connected_ports();
-    snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(store_convert->output(0), out_port.get_descriptor_ptr()->clone());
-    convert_it = linear_ir.insert_node(store_convert, { input_connector }, convert_loop_ids, std::next(convert_it), store_consumers);
-    const auto store_convert_expr = *convert_it;
-
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    loop_manager->update_loops_port(convert_loop_ids, convert_expr->get_input_port(0), {store_convert_expr->get_input_port(0)}, true);
-    loop_manager->update_loops_port(convert_loop_ids, store_expr->get_output_port(0), {store_convert_expr->get_output_port(0)}, false);
-
-    linear_ir.erase(std::find(convert_expr_it, linear_ir.cend(), store_expr));
-    linear_ir.erase(convert_expr_it);
     return true;
 }
 

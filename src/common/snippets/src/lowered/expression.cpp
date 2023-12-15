@@ -181,6 +181,24 @@ ExpressionPort Expression::get_output_port(size_t i) {
     return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Output, i);
 }
 
+std::vector<ExpressionPort> Expression::get_input_ports() {
+    std::vector<ExpressionPort> ports;
+    ports.reserve(get_input_count());
+    for (size_t i = 0; i < get_input_count(); ++i) {
+        ports.push_back(std::move(get_input_port(i)));
+    }
+    return ports;
+}
+
+std::vector<ExpressionPort> Expression::get_output_ports() {
+    std::vector<ExpressionPort> ports;
+    ports.reserve(get_output_count());
+    for (size_t i = 0; i < get_output_count(); ++i) {
+        ports.push_back(std::move(get_output_port(i)));
+    }
+    return ports;
+}
+
 void Expression::updateShapes() {
     OPENVINO_ASSERT(m_shapeInference, "Attempt to UpdateShapes without initialized shapeInference");
     IShapeInferSnippets::Result result;

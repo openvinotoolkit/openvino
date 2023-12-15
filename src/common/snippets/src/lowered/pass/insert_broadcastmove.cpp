@@ -65,7 +65,6 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                 expr->get_input_port_descriptor(i)->set_shape(broadcast_expr->get_output_port_descriptor(0)->get_shape());
 
                 // Copy Loop identifies
-                broadcast_expr->set_loop_ids(loop_ids);
                 loop_manager->update_loops_port(loop_ids, expr->get_input_port(0), {broadcast_expr->get_input_port(0)}, true);
 
                 modified = true;
