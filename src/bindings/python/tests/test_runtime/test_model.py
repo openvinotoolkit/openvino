@@ -21,6 +21,7 @@ from openvino import (
     set_batch,
     get_batch,
     serialize,
+    save_model,
 )
 from openvino.runtime import Output
 from openvino.runtime.op.util import VariableInfo, Variable
@@ -566,3 +567,9 @@ def test_model_add_remove_variable():
     assert variable_by_id.info.variable_id == "var_id_667"
     model.remove_variable(variable_1)
     assert len(model.get_variables()) == 1
+
+
+def test_save_model_with_none():
+    with pytest.raises(AttributeError) as e:
+        save_model(model=None, output_model="model.xml")
+    assert "'model' argument is required and cannot be None." in str(e.value)
