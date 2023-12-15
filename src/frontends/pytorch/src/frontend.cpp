@@ -29,6 +29,7 @@
 #include "transforms/aten_stack_list_construct_replacer.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
+#include "transforms/fftn_complex_replacer.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/irfftn_complex_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
@@ -198,6 +199,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
     manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::FFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
