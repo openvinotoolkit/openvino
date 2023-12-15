@@ -48,7 +48,7 @@ def test_string_tensor_data_warning():
     tensor = ov.Tensor(data, shared_memory=False)
     with pytest.warns(RuntimeWarning) as w:
         _ = tensor.data
-    assert "Data of string type will be copied! Please use dedicated functions" in str(w[0].message)
+    assert "Data of string type will be copied! Please use dedicated properties" in str(w[0].message)
 
 
 @pytest.mark.parametrize(
