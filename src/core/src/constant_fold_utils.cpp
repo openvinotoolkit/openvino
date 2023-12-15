@@ -65,18 +65,25 @@ static std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared
 };
 
 std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::shared_ptr<ov::Node>& node) {
+    return ov::util::convert_to_supported_precision(node, node->input_values());
+}
+
+std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::shared_ptr<ov::Node>& node,
+                                                                   OutputVector&& inputs) {
     size_t num_inputs = node->get_input_size();
     if (num_inputs == 0)
         return node;
 
     bool requires_conversion = false;
+    bool inputs_changed = false;
 
     const auto unsupported_types = ov::util::unsupported_types();
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_input_element_type(i)) !=
+        if (std::find(unsupported_types.begin(), unsupported_types.end(), inputs[i].get_element_type()) !=
             unsupported_types.end()) {
             requires_conversion = true;
         }
+        inputs_changed = inputs_changed || node->input_value(i) != inputs[i];
     }
 
     for (size_t i = 0; i < node->get_output_size(); i++) {
@@ -87,23 +94,22 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
     }
 
     if (!requires_conversion) {
+        if (inputs_changed) {
+            return node->clone_with_new_inputs(inputs);
+        }
         return node;
     }
 
-    OutputVector inputs;
-    inputs.reserve(num_inputs);
     for (size_t i = 0; i < num_inputs; i++) {
-        const auto& input_type = node->get_input_element_type(i);
+        const auto& input_type = inputs[i].get_element_type();
         if (std::find(unsupported_types.begin(), unsupported_types.end(), input_type) != unsupported_types.end()) {
-            auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), ov::element::f32);
-            OutputVector outputs(1);
-            if (convert->constant_fold(outputs, convert->input_values())) {
-                inputs.push_back(outputs[0]);
+            auto convert = std::make_shared<ov::op::v0::Convert>(inputs[i], ov::element::f32);
+            OutputVector replacements(1);
+            if (convert->constant_fold(replacements, convert->input_values())) {
+                inputs[i] = replacements[0];
             } else {
-                inputs.push_back(convert);
+                inputs[i] = convert;
             }
-        } else {
-            inputs.push_back(node->input_value(i));
         }
     }
 
@@ -139,7 +145,10 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
 }
 
 bool ov::util::constant_fold_node(const std::shared_ptr<Node>& node, OutputVector& output_constants) {
-    auto converted = convert_to_supported_precision(node);
+    auto converted = node;
+    if (ov::util::node_requires_precision_conversion(node)) {
+        converted = convert_to_supported_precision(node);
+    }
 
     auto num_outputs = converted->get_output_size();
     if (output_constants.size() < num_outputs)

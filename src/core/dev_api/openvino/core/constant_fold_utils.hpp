@@ -24,6 +24,9 @@ OPENVINO_API bool node_requires_precision_conversion(const std::shared_ptr<const
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
 OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(const std::shared_ptr<Node>& node);
 
+OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(const std::shared_ptr<Node>& node,
+                                                                  OutputVector&& inputs);
+
 /// \brief Function constantfolds a node.
 ///        It converts the node inputs if necessary, runs Node::constant_fold
 ///        and then converts its outputs to original type (if necessary).

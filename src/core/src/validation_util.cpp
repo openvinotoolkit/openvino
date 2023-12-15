@@ -1071,30 +1071,23 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
-static ov::optional<ov::OutputVector> get_inputs_from_map(
-    const std::shared_ptr<ov::Node>& node,
-    const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
+static ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
+                                            const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
     size_t num_inputs = node->get_input_size();
 
     ov::OutputVector inputs;
     inputs.reserve(num_inputs);
 
-    bool node_has_input_from_map = false;
-
     for (size_t i = 0; i < num_inputs; i++) {
         auto input = node->input_value(i);
         if (node_map.count(input) > 0) {
             inputs.push_back(node_map.at(input));
-            node_has_input_from_map = true;
         } else {
             inputs.push_back(input);
         }
     }
 
-    if (node_has_input_from_map)
-        return inputs;
-
-    return {};
+    return inputs;
 }
 
 std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
@@ -1137,14 +1130,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
 
         auto original_node = node;
 
-        ov::optional<OutputVector> new_inputs = get_inputs_from_map(node, node_map);
-        if (new_inputs) {
-            node = node->clone_with_new_inputs(*new_inputs);
-        }
-
-        if (ov::util::node_requires_precision_conversion(node)) {
-            node = ov::util::convert_to_supported_precision(node);
-        }
+        node = ov::util::convert_to_supported_precision(node, get_inputs_from_map(node, node_map));
 
         OutputVector outputs(node->get_output_size());
         if (node->constant_fold(outputs, node->input_values())) {
