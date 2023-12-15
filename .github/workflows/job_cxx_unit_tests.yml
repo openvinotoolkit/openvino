@@ -111,6 +111,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests
+        if: fromJSON(inputs.affected-components).PDPD_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
