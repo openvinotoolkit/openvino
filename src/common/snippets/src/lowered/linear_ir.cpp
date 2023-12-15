@@ -290,6 +290,29 @@ VectorDims LinearIR::get_master_shape() const {
     return master_shape;
 }
 
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                                       const std::vector<size_t>& loop_ids, const constExprIt& place,
+                                       const std::vector<std::set<ExpressionPort>>& consumers) {
+    const auto new_expr = create_expression(new_node, new_inputs);
+    new_expr->set_loop_ids(loop_ids);
+
+    OPENVINO_ASSERT(consumers.empty() || consumers.size() == new_expr->get_output_count(),
+                    "Failed to insert node: count of consumer sets must be sero or equal to output port count");
+    for (size_t i = 0; i < consumers.size(); ++i) {
+        const auto& port_consumers = consumers[i];
+        replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
+    }
+
+    return insert(place, new_expr);
+}
+
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                                       const std::vector<size_t>& loop_ids, const constExprIt& place,
+                                       const std::set<ExpressionPort>& consumers) {
+    const auto consumers_py_port = consumers.empty() ? std::vector<std::set<ExpressionPort>>{} : std::vector<std::set<ExpressionPort>>{ consumers };
+    return insert_node(new_node, new_inputs, loop_ids, place, consumers_py_port);
+}
+
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)
                                        : ShapeInferSnippetsNode(),
                                          m_exprs{std::make_shared<container>(body_exprs)} {

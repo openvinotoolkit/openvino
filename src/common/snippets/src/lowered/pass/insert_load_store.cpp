@@ -52,11 +52,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto loop_ids = consumer_expr->get_loop_ids();
         const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
-        const auto load_expr = linear_ir.create_expression(load, {output_connector});
-        linear_ir.insert(linear_ir.find_after(data_expr_it, consumer_expr), load_expr);
-        consumer_input.replace_input_port_connector(load_expr->get_output_port_connector(0));
-        // Copy Loop identifies
-        load_expr->set_loop_ids(loop_ids);
+        const auto load_expr =
+            *linear_ir.insert_node(load, {output_connector}, loop_ids, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
 
         // Need to update all the corresponding Loops with the same Entry Point
         const auto& prev_entry_point = consumer_input;
@@ -83,12 +80,8 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
-    const auto store_expr = linear_ir.create_expression(store, {input_connector});
     const auto& insertion_pos = linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr).base();
-    linear_ir.insert(insertion_pos, store_expr);
-    data_expr->set_input_port_connector(0, store_expr->get_output_port_connector(0));
-    // Copy Loop identifies
-    store_expr->set_loop_ids(loop_ids);
+    const auto store_expr = *linear_ir.insert_node(store, {input_connector}, loop_ids, insertion_pos, { data_expr->get_input_port(0) });
 
     // Need to update all the corresponding Loops with the same Exit Point
     const auto prev_exit_point = parent_output;

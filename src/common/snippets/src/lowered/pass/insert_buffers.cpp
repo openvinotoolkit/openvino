@@ -183,11 +183,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
-            // Output connector is automatically filled from PortDescriptor
-            const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
-            linear_ir.insert(pos, buffer_expr);
-            entry_port->replace_input_port_connector(buffer_expr->get_output_port_connector(0));
-            buffer_expr->set_loop_ids(buffer_loop_ids);
+            linear_ir.insert_node(buffer, {input_connector}, buffer_loop_ids, pos, { *entry_port });
         }
     }
 
@@ -284,10 +280,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             //             |    <- It should be new PortConnector
             //            Relu
             // Output port connector is automatically filled from PortDescriptor
-            const auto buffer_expr = linear_ir.create_expression(buffer, node_outs);
-            linear_ir.insert(pos, buffer_expr);
-            replace_input_port_connectors(potential_consumers, buffer_expr->get_output_port_connector(0));
-            buffer_expr->set_loop_ids(buffer_loop_ids);
+            linear_ir.insert_node(buffer, node_outs, buffer_loop_ids, pos, { potential_consumers });
         }
     }
 }

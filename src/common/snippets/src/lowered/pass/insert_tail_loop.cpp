@@ -289,15 +289,12 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                         auto rhs_it = linear_ir.find(rhs.get_expr());
                         return std::distance(linear_ir.cbegin(), lhs_it) < std::distance(linear_ir.cbegin(), rhs_it);
                     });
-                    const auto insert_pos = linear_ir.find(fst_consumer->get_expr());
-                    auto fill_expr = linear_ir.create_expression(fill, {input});
-                    linear_ir.insert(insert_pos, fill_expr);
-                    replace_input_port_connectors(consumers, fill_expr->get_output_port_connector(0));
+                    const auto fill_expr = *linear_ir.insert_node(fill, {input}, expr->get_loop_ids(), linear_ir.find(fst_consumer->get_expr()), consumers);
+
                     // in_reg == out_reg since we want to modify vector reg inplace
                     const auto reg = expr->get_input_port_descriptor(0)->get_reg();
                     fill_expr->get_input_port_descriptor(0)->set_reg(reg);
                     fill_expr->get_output_port_descriptor(0)->set_reg(reg);
-                    fill_expr->set_loop_ids(expr->get_loop_ids());
                 }
             }
         } else if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::op::MemoryAccess>(op)) {

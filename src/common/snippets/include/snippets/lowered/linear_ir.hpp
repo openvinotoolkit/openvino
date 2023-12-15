@@ -136,6 +136,16 @@ public:
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
 
+    /* ------ Helpers for work with LinearIR ----- */
+    // Create new expression fron the `node`, insert to the `place` of LinearIR and
+    // replace input PortConnectors for `consumers`
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                       const std::vector<size_t>& loop_ids, const constExprIt& place,
+                       const std::vector<std::set<ExpressionPort>>& consumers);
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                       const std::vector<size_t>& loop_ids, const constExprIt& place,
+                       const std::set<ExpressionPort>& consumers = {});
+
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
