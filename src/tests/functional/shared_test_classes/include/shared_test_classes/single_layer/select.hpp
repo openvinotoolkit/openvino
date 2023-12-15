@@ -15,7 +15,7 @@ namespace LayerTestsDefinitions {
 typedef std::tuple<
         std::vector<std::vector<size_t>>,  // mask, then, else shapes
         InferenceEngine::Precision,        // then, else precision
-        ngraph::op::AutoBroadcastSpec,     // broadcast
+        ov::op::AutoBroadcastSpec,     // broadcast
         std::string> selectTestParams;     // device name
 
 class SelectLayerTest : public testing::WithParamInterface<selectTestParams>, virtual public LayerTestsUtils::LayerTestsCommon {

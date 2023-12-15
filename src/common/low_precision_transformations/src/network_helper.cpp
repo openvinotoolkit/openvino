@@ -9,23 +9,23 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <numeric>
+#include <queue>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <queue>
-#include <numeric>
 
-#include "openvino/core/rt_info.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -741,9 +741,7 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
             subgraph = std::make_shared<ov::opset6::Round>(subgraph, ov::opset6::Round::RoundMode::HALF_TO_EVEN);
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto result = ov::get_constant_from_source(subgraph);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto result = ov::util::get_constant_from_source(subgraph);
         if (result != nullptr) {
             return foldConvert(result, original_et);
         }

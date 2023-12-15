@@ -10,7 +10,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -20,6 +19,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -99,9 +99,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         if (ov::shape_size(shape) != 1) {
             eltwise_const_input =
                 std::make_shared<ov::op::v1::Transpose>(eltwise_const_input, transpose->input_value(1));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto const_node = ov::util::get_constant_from_source(eltwise_const_input)) {
                 eltwise_const_input = const_node;
             }
         }
@@ -180,11 +178,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
-                                                       reduction_axes->cast_vector<int64_t>(),
-                                                       reduction->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& non_negative_axes = ov::util::normalize_axes(reduction->get_friendly_name(),
+                                                                 reduction_axes->cast_vector<int64_t>(),
+                                                                 reduction->get_input_partial_shape(0).rank());
         reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ov::NodeVector new_ops;
