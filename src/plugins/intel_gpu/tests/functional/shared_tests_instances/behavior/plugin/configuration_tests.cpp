@@ -68,6 +68,8 @@ namespace {
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU}},
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
              {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
+            {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
+             {ov::num_streams.name(), "AUTO"}},
         };
     };
 

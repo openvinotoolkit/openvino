@@ -11,7 +11,8 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 using CustomOpI64CPUTestParams = std::tuple<ElementType, InputShape>;
 
 class CustomOpI64 : public ov::op::Op {
@@ -101,11 +102,13 @@ protected:
 
         init_input_shapes({inputShape});
         ov::ParameterVector inputParams;
+        ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+            auto param = std::make_shared<ov::op::v0::Parameter>(inType, shape);
+            inputParams.push_back(param);
+            paramsOuts.push_back(param);
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
-        auto customOp = std::make_shared<CustomOpI64>(paramOuts);
+        auto customOp = std::make_shared<CustomOpI64>(paramsOuts);
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(customOp)};
         function = std::make_shared<ov::Model>(results, inputParams, "customOpTest");
@@ -149,4 +152,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          ::testing::Combine(::testing::Values(ElementType::i32), ::testing::Values(inputShapes)),
                          CustomOpConvertI64CPUTest::getTestCaseName);
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -11,8 +11,8 @@
 #include "graph_iterator_saved_model.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "tensor_bundle.pb.h"
-#include "trackable_object_graph.pb.h"
+#include "ov_tensorflow/tensor_bundle.pb.h"
+#include "ov_tensorflow/trackable_object_graph.pb.h"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
 #    include "snappy.h"
@@ -126,7 +126,7 @@ void VariablesIndex::read_bundle_header() {
     auto item = m_variables_index.find("");
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
-    ::ov_tensorflow::BundleHeaderProto bundleHeader;
+    ::tensorflow::BundleHeaderProto bundleHeader;
     FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "Bundle Header: Cannot parse Bundle Header");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().producer() == 1, "Bundle Header: Unsupported producer version");
@@ -145,7 +145,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
         return;
     }
 
-    ::ov_tensorflow::BundleEntryProto entry;
+    ::tensorflow::BundleEntryProto entry;
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "CMO: Cannot parse Bundle Entry");
 
@@ -155,7 +155,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
     FRONT_END_GENERAL_CHECK(shard != m_data_files.end(), "CMO: data files isn't found");
 
     std::vector<char> data(entry.size());
-    ::ov_tensorflow::TrackableObjectGraph tog;
+    ::tensorflow::TrackableObjectGraph tog;
 
     // TODO: have to understand this offset
     // It looks like reinterpret_cast artifact
@@ -244,13 +244,13 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
 struct PtrNode {
     using SharedPtrNode = std::shared_ptr<PtrNode>;
 
-    const ::ov_tensorflow::NodeDef* node;
+    const ::tensorflow::NodeDef* node;
     std::vector<SharedPtrNode> inputs;
     std::vector<SharedPtrNode> outputs;
 
     PtrNode() : node(nullptr), inputs(), outputs() {}
 
-    PtrNode(const ::ov_tensorflow::NodeDef& src_node) {
+    PtrNode(const ::tensorflow::NodeDef& src_node) {
         node = &src_node;
     }
 
@@ -308,14 +308,14 @@ struct PtrNode {
     }
 };
 
-static void read_stateful_partitioned_call(const std::shared_ptr<::ov_tensorflow::GraphDef> graph_def,
-                                           const ::ov_tensorflow::NodeDef& partCall,
+static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+                                           const ::tensorflow::NodeDef& partCall,
                                            std::map<std::string, PtrNode::SharedPtrNode>& node_dictionary) {
     FRONT_END_GENERAL_CHECK(partCall.op() == "StatefulPartitionedCall", "Passed node isn't StatefulPartitionedCall");
 
     std::string func_name = partCall.attr().at("f").func().name();
 
-    const ::ov_tensorflow::FunctionDef* func_def = nullptr;
+    const ::tensorflow::FunctionDef* func_def = nullptr;
     for (const auto& func : graph_def->library().function()) {
         if (func.signature().name() == func_name) {
             func_def = &func;
@@ -365,7 +365,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::ov_tensorflow
     }
 }
 
-void VariablesIndex::map_assignvariable(const std::shared_ptr<::ov_tensorflow::GraphDef> graph_def,
+void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
                                         std::map<std::string, std::string>& variables_map) {
     std::map<std::string, PtrNode::SharedPtrNode> nodes;
 

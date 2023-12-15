@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
 #include "nodes/executors/transpose.hpp"
-#include <utils/general_utils.h>
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -18,7 +16,7 @@ namespace node {
 
 class Reorder : public Node {
 public:
-    Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     Reorder(const std::string& name, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
@@ -51,6 +49,10 @@ public:
 
     void setOptimized(bool isOptimized) {
         this->isOptimized = isOptimized;
+    }
+
+    bool getOptimized() const {
+        return isOptimized;
     }
 
     bool canBeInPlace() const override {

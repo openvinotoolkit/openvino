@@ -41,8 +41,11 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::PerfCountBegin::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::PerfCountEnd::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::IntermediateMemoryBuffer::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::NewMemoryBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Fill::get_type_info_static()] = dummy_functor;
 
@@ -106,13 +109,13 @@ std::shared_ptr<ov::snippets::op::Subgraph>
                                           const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes,
                                           const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common,
                                           const ov::snippets::lowered::pass::PassPipeline& lowered_post_common,
-                                          const std::shared_ptr<ov::snippets::Generator>& generator) {
+                                          const std::shared_ptr<ov::snippets::Generator>& generator,
+                                          const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
-    subgraph->set_master_shape(master_shape);
     subgraph->set_tile_rank(2);
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
-    subgraph->generate(backend_passes, lowered_pre_common, lowered_post_common);
+    subgraph->generate({}, {}, {}, backend_passes, lowered_pre_common, lowered_post_common, factory);
     return subgraph;
 }
 

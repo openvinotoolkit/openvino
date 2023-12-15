@@ -1,8 +1,6 @@
 The attention center model with OpenVINO™
 =========================================
 
-
-
 This notebook demonstrates how to use the `attention center
 model <https://github.com/google/attention-center/tree/main>`__ with
 OpenVINO. This model is in the `TensorFlow Lite
@@ -51,20 +49,40 @@ The attention center model has been trained with images from the `COCO
 dataset <https://cocodataset.org/#home>`__ annotated with saliency from
 the `SALICON dataset <http://salicon.net/>`__.
 
-**Table of contents**:
+**Table of contents:**
 
-- `Imports <#imports>`__
-- `Download the attention-center model <#download-the-attention-center-model>`__
 
-  - `Convert Tensorflow Lite model to OpenVINO IR format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+-  `Imports <#imports>`__
+-  `Download the attention-center
+   model <#download-the-attention-center-model>`__
 
-- `Select inference device <#select-inference-device>`__
-- `Prepare image to use with attention-center model <#prepare-image-to-use-with-attention-center-model>`__
-- `Load input image <#load-input-image>`__
-- `Get result with OpenVINO IR model <#get-result-with-openvino-ir-model>`__
+   -  `Convert Tensorflow Lite model to OpenVINO IR
+      format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
 
-Imports 
-###############################################################################################################################
+-  `Select inference device <#select-inference-device>`__
+-  `Prepare image to use with attention-center
+   model <#prepare-image-to-use-with-attention-center-model>`__
+-  `Load input image <#load-input-image>`__
+-  `Get result with OpenVINO IR
+   model <#get-result-with-openvino-ir-model>`__
+
+.. code:: ipython3
+
+    %pip install "openvino>=2023.2.0"
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: openvino>=2023.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2023.2.0)
+    Requirement already satisfied: numpy>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (1.23.5)
+    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (2023.2.1)
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports
+-------
+
 
 
 .. code:: ipython3
@@ -76,20 +94,20 @@ Imports
     from pathlib import Path
     import matplotlib.pyplot as plt
     
-    from openvino.tools import mo
-    from openvino.runtime import serialize, Core
+    import openvino as ov
 
 
 .. parsed-literal::
 
-    2023-08-15 23:14:52.395540: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-08-15 23:14:52.429075: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-12-06 23:32:10.485958: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-12-06 23:32:10.520826: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-08-15 23:14:52.969814: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-06 23:32:11.062803: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Download the attention-center model 
-###############################################################################################################################
+Download the attention-center model
+-----------------------------------
+
 
 
 Download the model as part of `attention-center
@@ -109,20 +127,21 @@ include model in folder ``./model``.
     remote: Counting objects: 100% (168/168), done.[K
     remote: Compressing objects: 100% (132/132), done.[K
     remote: Total 168 (delta 73), reused 114 (delta 28), pack-reused 0[K
-    Receiving objects: 100% (168/168), 26.22 MiB | 4.18 MiB/s, done.
+    Receiving objects: 100% (168/168), 26.22 MiB | 3.34 MiB/s, done.
     Resolving deltas: 100% (73/73), done.
 
 
-Convert Tensorflow Lite model to OpenVINO IR format 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Convert Tensorflow Lite model to OpenVINO IR format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 The attention-center model is pre-trained model in TensorFlow Lite
 format. In this Notebook the model will be converted to OpenVINO IR
-format with Model Optimizer. This step will be skipped if the model have
-already been converted. For more information about Model Optimizer,
-please, see the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+format with model conversion API. For more information about model
+conversion, see this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+This step is also skipped if the model is already converted.
 
 Also TFLite models format is supported in OpenVINO by TFLite frontend,
 so the model can be passed directly to ``core.read_model()``. You can
@@ -135,11 +154,11 @@ find example in
     
     ir_model_path = Path("./model/ir_center_model.xml")
     
-    core = Core()
+    core = ov.Core()
     
     if not ir_model_path.exists():
-        model = mo.convert_model(tflite_model_path)
-        serialize(model, ir_model_path.as_posix())
+        model = ov.convert_model(tflite_model_path, input=[('image:0', [1,480,640,3], ov.Type.f32)])
+        ov.save_model(model, ir_model_path)
         print("IR model saved to {}".format(ir_model_path))
     else:
         print("Read IR model from {}".format(ir_model_path))
@@ -151,11 +170,12 @@ find example in
     IR model saved to model/ir_center_model.xml
 
 
-Select inference device 
-###############################################################################################################################
+Select inference device
+-----------------------
 
 
-Select device from dropdown list for running inference using OpenVINO:
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -181,10 +201,13 @@ Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
+    if "GPU" in device.value:
+        core.set_property(device_name=device.value, properties={'INFERENCE_PRECISION_HINT': ov.Type.f32})
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Prepare image to use with attention-center model 
-###############################################################################################################################
+Prepare image to use with attention-center model
+------------------------------------------------
+
 
 
 The attention-center model takes an RGB image with shape (480, 640) as
@@ -235,8 +258,9 @@ input.
     
             plt.imshow(cv2.cvtColor(image_to_print, cv2.COLOR_BGR2RGB))
 
-Load input image 
-###############################################################################################################################
+Load input image
+----------------
+
 
 
 Upload input image using file loading button
@@ -264,8 +288,17 @@ Upload input image using file loading button
 
     import io
     import PIL
+    from urllib.request import urlretrieve
+    
+    img_path = Path("data/coco.jpg")
+    img_path.parent.mkdir(parents=True, exist_ok=True)
+    urlretrieve(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        img_path,
+    )
+    
     # read uploaded image
-    image = PIL.Image.open(io.BytesIO(load_file_widget.value[-1]['content'])) if load_file_widget.value else PIL.Image.open("../data/image/coco.jpg")
+    image = PIL.Image.open(io.BytesIO(list(load_file_widget.value.values())[-1]['content'])) if load_file_widget.value else PIL.Image.open(img_path)
     image.convert("RGB")
     
     input_image = Image((480, 640), image=(np.ascontiguousarray(image)[:, :, ::-1]).astype(np.uint8))
@@ -275,16 +308,21 @@ Upload input image using file loading button
 
 .. parsed-literal::
 
-    2023-08-15 23:15:04.645356: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
-    Skipping registering GPU devices...
+    2023-12-06 23:32:25.308665: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2023-12-06 23:32:25.308704: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2023-12-06 23:32:25.308709: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2023-12-06 23:32:25.308855: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2023-12-06 23:32:25.308869: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2023-12-06 23:32:25.308873: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 
-.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_14_1.png
+.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_15_1.png
 
 
-Get result with OpenVINO IR model 
-###############################################################################################################################
+Get result with OpenVINO IR model
+---------------------------------
+
 
 
 .. code:: ipython3
@@ -305,5 +343,5 @@ Get result with OpenVINO IR model
 
 
 
-.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_16_1.png
+.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_17_1.png
 

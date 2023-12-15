@@ -4,13 +4,7 @@
 
 import numpy as np
 
-# TODO: remove this WA and refactor OVDict when Python3.8
-# becomes minimal supported version.
-try:
-    from functools import singledispatchmethod
-except ImportError:
-    from singledispatchmethod import singledispatchmethod  # type: ignore[no-redef]
-
+from functools import singledispatchmethod
 from collections.abc import Mapping
 from typing import Dict, Set, Tuple, Union, Iterator, Optional
 from typing import KeysView, ItemsView, ValuesView

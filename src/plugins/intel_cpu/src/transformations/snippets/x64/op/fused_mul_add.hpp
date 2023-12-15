@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,7 +14,7 @@ namespace intel_cpu {
  * @brief Fused Multiply Add
  * @ingroup snippets
  */
-class FusedMulAdd : public ngraph::op::Op {
+class FusedMulAdd : public ov::op::Op {
 public:
     OPENVINO_OP("FusedMulAdd", "SnippetsOpset");
 
@@ -24,6 +24,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    const ov::op::AutoBroadcastSpec& get_autob() const override;
 };
 
 } // namespace intel_cpu

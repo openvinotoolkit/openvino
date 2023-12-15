@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "common_test_utils/graph_comparator.hpp"
+#include "openvino/op/ops.hpp"
 #include "matchers/single_op/single_op.hpp"
 #include "utils/node.hpp"
+#include "utils/attribute_visitor.hpp"
+#include "utils/model_comparator.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
@@ -27,6 +26,14 @@ iMatcherConfig::Ptr SingleOpMatcher::get_config(const std::shared_ptr<ov::Node> 
 
 void SingleOpMatcher::set_strict_shape_match(bool strict_shape_match) {
     is_strict_shape_match = strict_shape_match;
+}
+
+void SingleOpMatcher::set_match_attrib(bool match_attrib) {
+    is_match_attributes = match_attrib;
+}
+
+void SingleOpMatcher::set_match_in_types(bool match_in_types) {
+    is_match_in_types = match_in_types;
 }
 
 bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
@@ -52,6 +59,15 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
         }
         if (partial_shape.is_dynamic() != ref_partial_shape.is_dynamic()) {
             return false;
+        }
+        if (is_match_in_types) {
+            const auto& in_node = node->get_input_node_shared_ptr(port_id);
+            const auto& in_node_ref = ref->get_input_node_shared_ptr(port_id);
+            if (ov::util::is_node_to_skip(in_node) || ov::util::is_node_to_skip(in_node_ref)) {
+                continue;
+            } else if (in_node->get_type_info() != in_node_ref->get_type_info()) {
+                return false;
+            }
         }
     }
     return true;
@@ -84,8 +100,34 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
 
 bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
                                   const std::shared_ptr<ov::Node> &ref) const {
-    // todo: iefode: to provide correct with ingored attributes
-    return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
+    util::ReadAttributes visitor_node, visitor_ref;
+    node->visit_attributes(visitor_node);
+    ref->visit_attributes(visitor_ref);
+
+    {
+        auto node_bodies = visitor_node.get_model_attributes_map();
+        auto ref_node_bodies = visitor_ref.get_model_attributes_map();
+        bool is_match = true;
+
+        auto model_comparator = ov::util::ModelComparator::get();
+        auto match_coefficient = model_comparator->get_match_coefficient();
+        model_comparator->set_match_coefficient(1.f);
+        for (const auto& body : node_bodies) {
+            if (!ref_node_bodies.count(body.first)) {
+                is_match = false;
+                break;
+            }
+            if (!model_comparator->match(body.second, ref_node_bodies.at(body.first))) {
+                is_match = false;
+                break;
+            }
+        }
+        model_comparator->set_match_coefficient(match_coefficient);
+        if (!is_match) {
+            return false;
+        }
+    }
+    return visitor_node.get_attributes_map() == visitor_ref.get_attributes_map();
 }
 
 bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
@@ -100,13 +142,15 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
     if (!same_op_type(node, ref)) {
         return false;
     }
+    if (is_match_attributes) {
+        if (!match_attrs(node, ref) && !ov::util::is_node_to_skip(node)) {
+            return false;
+        }
+    }
     if (!match_inputs(node, ref)) {
         return false;
     }
     if (!match_outputs(node, ref)) {
-        return false;
-    }
-    if (!match_attrs(node, ref) && !is_node_to_skip(node)) {
         return false;
     }
     return true;

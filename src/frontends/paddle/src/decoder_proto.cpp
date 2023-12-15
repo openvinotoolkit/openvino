@@ -19,9 +19,9 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 
-using namespace ::ov_paddle::framework;
+using namespace ::paddle::framework;
 
-ov::element::Type get_ov_type(const ::ov_paddle::framework::proto::VarType_Type& type) {
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type) {
     static const std::map<proto::VarType_Type, ov::element::Type> type_map{
         {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
         {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
@@ -73,6 +73,10 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     default:
         FRONT_END_GENERAL_CHECK(false, "Conversion from PaddlePaddle to OpenVINO data type is not supported.");
     }
+}
+
+int64_t DecoderProto::get_version() const {
+    return get_place()->get_version();
 }
 
 ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& type_info) const {
@@ -189,7 +193,7 @@ std::vector<proto::OpDesc_Attr> DecoderProto::decode_attribute_helper(const std:
 
 namespace {
 inline std::map<std::string, OutputVector> map_for_each_input_impl(
-    const google::protobuf::RepeatedPtrField<::ov_paddle::framework::proto::OpDesc_Var>& c,
+    const google::protobuf::RepeatedPtrField<::paddle::framework::proto::OpDesc_Var>& c,
     const std::function<Output<Node>(const std::string&, size_t)>& func) {
     size_t idx = 0;
     std::map<std::string, OutputVector> res;

@@ -20,14 +20,10 @@ std::string get_node_version(const std::shared_ptr<ov::Node>& node, const std::s
 std::string get_node_version(const ov::NodeTypeInfo& node_type_info) {
     std::string op_name = node_type_info.name + std::string("-");
     std::string opset_version = node_type_info.get_version();
-    if (not_aligned_op_version.count(node_type_info)) {
-        op_name += std::to_string(not_aligned_op_version.at(node_type_info));
-    } else {
-        std::string opset_name = "opset";
-        auto pos = opset_version.find(opset_name);
-        if (pos != std::string::npos) {
-            op_name += opset_version.substr(pos + opset_name.size());
-        }
+    std::string opset_name = "opset";
+    auto pos = opset_version.find(opset_name);
+    if (pos != std::string::npos) {
+        op_name += opset_version.substr(pos + opset_name.size());
     }
     return op_name;
 }

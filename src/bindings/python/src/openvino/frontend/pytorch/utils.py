@@ -107,6 +107,17 @@ def get_value_from_getattr(getattr_node, self_module):
         module = getattr(module, attr_name)
     return module
 
+def graph_has_ops(graph, op_types:list) -> bool:
+    res = False
+    for n in graph.nodes():
+        if any(kind in n.kind() for kind in op_types):
+            return True
+        for b in n.blocks():
+            res = graph_has_ops(b, op_types)
+        if res:
+            return res
+    return res
+    
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
@@ -118,6 +129,7 @@ pt_to_ov_type_map = {
     "torch.float64": OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
+    "torch.int16": OVType.i16,
     "torch.int32": OVType.i32,
     "torch.int64": OVType.i64,
     "torch.bool": OVType.boolean,

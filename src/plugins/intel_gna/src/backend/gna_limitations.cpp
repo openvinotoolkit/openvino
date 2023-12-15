@@ -677,7 +677,7 @@ constexpr uint32_t Limitations::kBytesPerCropElement;
 constexpr uint32_t Limitations::kBytesPerConcatElement;
 constexpr uint32_t Limitations::kMemoryPageSize;
 
-thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};
+ov::threading::ThreadLocal<std::shared_ptr<Limitations>> Limitations::kInstance{nullptr};
 
 Limitations::Limitations(const DeviceVersion& target) {
     m_use_only_16bit_conv_weights =
@@ -689,7 +689,13 @@ Limitations::Limitations(const DeviceVersion& target) {
 }
 
 void Limitations::init(const DeviceVersion& compile_target) {
-    k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
+    auto& localInstance = kInstance.local();
+    localInstance.reset(new Limitations(compile_target));
+}
+
+void Limitations::deinit() {
+    auto& localInstance = kInstance.local();
+    localInstance.reset();
 }
 
 size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input) {

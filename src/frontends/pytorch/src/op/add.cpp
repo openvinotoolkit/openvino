@@ -15,7 +15,9 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_add(const NodeContext& context) {
+using namespace ov::op;
+
+OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     num_inputs_check(context, 2, 3);
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
@@ -26,12 +28,28 @@ OutputVector translate_add(const NodeContext& context) {
         // Case when two lists gets concatenated
         FRONT_END_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
-    align_eltwise_input_types(context, lhs, rhs, true);
-    if (!context.input_is_none(2)) {
-        auto converted_alpha = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(context.get_input(2), rhs));
-        rhs = context.mark_node(std::make_shared<ov::op::v1::Multiply>(converted_alpha, rhs));
+    if (inplace) {
+        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
+            rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
+    } else {
+        align_eltwise_input_types(context, lhs, rhs, true);
     }
-    return {context.mark_node(std::make_shared<ov::op::v1::Add>(lhs, rhs))};
+    if (!context.input_is_none(2)) {
+        auto converted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(2), rhs));
+        rhs = context.mark_node(std::make_shared<v1::Multiply>(converted_alpha, rhs));
+    }
+    auto add = context.mark_node(std::make_shared<v1::Add>(lhs, rhs));
+    if (inplace)
+        context.mutate_input(0, add);
+    return {add};
+};
+
+OutputVector translate_add(const NodeContext& context) {
+    return translate_add_common(context, false);
+};
+
+OutputVector translate_add_(const NodeContext& context) {
+    return translate_add_common(context, true);
 };
 
 }  // namespace op

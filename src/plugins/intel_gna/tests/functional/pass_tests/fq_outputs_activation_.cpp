@@ -80,20 +80,22 @@ protected:
         auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
         ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(inputVector[0], ngPrc, outputCount, 1);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < outputCount; ++i) {
             auto relu = ngraph::builder::makeActivation(split->output(i),
                                                         ngraph::element::f32,
                                                         ngraph::helpers::ActivationTypes::Sigmoid);
-            auto reluFQNode = std::make_shared<ngraph::opset8::FakeQuantize>(relu,
-                                                                             inputLowNode,
-                                                                             inputHighNode,
-                                                                             inputLowNode,
-                                                                             inputHighNode,
-                                                                             levels);
-            results.push_back(std::make_shared<ngraph::opset8::Result>(reluFQNode));
+            auto reluFQNode = std::make_shared<ov::op::v0::FakeQuantize>(relu,
+                                                                         inputLowNode,
+                                                                         inputHighNode,
+                                                                         inputLowNode,
+                                                                         inputHighNode,
+                                                                         levels);
+            results.push_back(std::make_shared<ov::op::v0::Result>(reluFQNode));
         }
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQOutputsActivation");
     }

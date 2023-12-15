@@ -56,8 +56,6 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     auto ngDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngDataPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
     const auto sequenceLenNode = [&] {
         const size_t B = inputShape[0];
@@ -82,13 +80,15 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     int C = inputShape.at(2);
     blankIndex = std::min(blankIndex, C - 1);
 
-    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ngraph::op::v6::CTCGreedyDecoderSeqLen>(
-            ngraph::builder::makeCTCGreedyDecoderSeqLen(paramOuts[0], sequenceLenNode,
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ov::op::v6::CTCGreedyDecoderSeqLen>(
+            ngraph::builder::makeCTCGreedyDecoderSeqLen(paramsIn[0], sequenceLenNode,
                                                         blankIndex, mergeRepeated, ngIdxPrc));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results;
     for (int i = 0; i < ctcGreedyDecoderSeqLen->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoderSeqLen");
 }

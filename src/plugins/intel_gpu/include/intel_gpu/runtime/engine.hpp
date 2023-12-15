@@ -79,6 +79,8 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
 
+    virtual bool check_allocatable(const layout& layout, allocation_type type) = 0;
+
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
 

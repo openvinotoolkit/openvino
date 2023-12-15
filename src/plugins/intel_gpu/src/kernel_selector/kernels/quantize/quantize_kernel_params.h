@@ -14,7 +14,6 @@ struct quantize_params : public base_params {
     quantize_params()
     : base_params(KernelType::QUANTIZE)
     , levels(0)
-    , packed_binary_output(false)
     , scale_shift_opt(false)
     , has_post_scale(true)
     , has_post_shift(true)
@@ -38,7 +37,6 @@ struct quantize_params : public base_params {
     , out_shift(0.0f) { }
 
     int levels;
-    bool packed_binary_output;
     bool scale_shift_opt;
     bool has_post_scale;
     bool has_post_shift;
@@ -65,8 +63,6 @@ struct quantize_params : public base_params {
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
-        if (packed_binary_output)
-            k.EnableQuantizePackedBinaryOutput();
         if (scale_shift_opt)
             k.EnableQuantizeScaleShiftOpt();
         return k;

@@ -14,7 +14,6 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
-#include "binary_convolution_inst.h"
 #include "quantize_inst.h"
 
 #include <vector>

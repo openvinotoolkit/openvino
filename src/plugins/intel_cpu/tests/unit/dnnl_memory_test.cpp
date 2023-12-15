@@ -11,7 +11,6 @@
 #include <condition_variable>
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 
 TEST(MemoryTest, SedDataCheck) {
     GTEST_SKIP();
@@ -25,7 +24,7 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     dnnl::memory dnnl_mem1;
     dnnl::memory dnnl_mem2;
-    auto desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 2});
+    auto desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 2});
     Memory cpu_mem1(eng, desc);
 
     std::atomic<bool> lock{true};
@@ -53,10 +52,10 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     for (size_t i = 0; i < number_of_attempts; ++i) {
         dnnl::memory dnnl_mem;
-        auto desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 2});
+        auto desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 2});
         Memory cpu_mem1(eng, desc);
         Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryMngr());
-        auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 20});
+        auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 20});
 
         std::atomic<bool> lock{true};
 
@@ -76,4 +75,29 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
         worker2.join();
         ASSERT_EQ(dnnl_mem.get_data_handle(), cpu_mem2.getData());
     }
+}
+
+TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
+    // in the context of this test, unsupported precision means a precision unsupported by oneDNN
+    const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    CpuBlockedMemoryDesc memDescSupportedPrc(ov::element::f32, {5, 4, 7, 10});
+    MemoryPtr testMemory;
+    ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescSupportedPrc));
+    ASSERT_TRUE(testMemory->isAllocated());
+    dnnl::memory dnnl_memory;
+    void* raw_data_ptr = nullptr;
+    ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
+    ASSERT_FALSE(nullptr == raw_data_ptr);
+    ASSERT_NO_THROW(dnnl_memory = testMemory->getPrimitive());
+    ASSERT_TRUE(dnnl_memory);
+
+    CpuBlockedMemoryDesc memDescUnSupportedPrc(ov::element::i64, {5, 4, 7, 10});
+    ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescUnSupportedPrc));
+    ASSERT_TRUE(testMemory->isAllocated());
+    raw_data_ptr = nullptr;
+    ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
+    ASSERT_FALSE(nullptr == raw_data_ptr);
+    dnnl_memory = dnnl::memory();
+    ASSERT_THROW(dnnl_memory = testMemory->getPrimitive(), ov::Exception);
+    ASSERT_FALSE(dnnl_memory);
 }

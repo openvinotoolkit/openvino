@@ -23,25 +23,41 @@ consists of the following steps:
 
 **Table of contents:**
 
-- `Prerequisites <#prerequisites>`__
-- `Imports <#imports>`__
 
-  - `Download, quantize and sparsify the model, using Hugging Face Optimum API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
 
-- `Benchmark quantized dense inference performance <#benchmark-quantized-dense-inference-performance>`__
-- `Benchmark quantized sparse inference performance <#benchmark-quantized-sparse-inference-performance>`__
-- `When this might be helpful <#when-this-might-be-helpful>`__
+   -  `Download, quantize and sparsify the model, using Hugging Face
+      Optimum
+      API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
+
+-  `Benchmark quantized dense inference
+   performance <#benchmark-quantized-dense-inference-performance>`__
+-  `Benchmark quantized sparse inference
+   performance <#benchmark-quantized-sparse-inference-performance>`__
+-  `When this might be helpful <#when-this-might-be-helpful>`__
 
 Prerequisites
-###############################################################################################################################
+-------------
+
+
 
 .. code:: ipython3
 
-    !pip install -q "openvino==2023.1.0.dev20230811"
-    !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx transformers>=4.33.0 --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Imports
-###############################################################################################################################
+-------
+
+
 
 .. code:: ipython3
 
@@ -55,26 +71,22 @@ Imports
 
 .. parsed-literal::
 
-    2023-09-08 23:03:46.012098: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-08 23:03:46.047135: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-08 23:03:46.594018: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/deepspeed.py:23: FutureWarning: transformers.deepspeed module is deprecated and will be removed in a future version. Please import deepspeed modules directly from transformers.integrations
-      warnings.warn(
+    2023-12-06 23:02:39.282111: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-12-06 23:02:39.316382: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-12-06 23:02:40.030243: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -104,8 +116,8 @@ model card on Hugging Face.
 
 .. parsed-literal::
 
-    Compiling the model...
-    Set CACHE_DIR to /opt/home/k8sworker/.cache/huggingface/hub/models--OpenVINO--bert-base-uncased-sst2-int8-unstructured80/snapshots/dc44eb46300882463d50ee847e0f6485bad3cdad/model_cache
+    Compiling the model to CPU ...
+    Setting OpenVINO CACHE_DIR to /opt/home/k8sworker/.cache/huggingface/hub/models--OpenVINO--bert-base-uncased-sst2-int8-unstructured80/snapshots/dc44eb46300882463d50ee847e0f6485bad3cdad/model_cache
 
 
 .. parsed-literal::
@@ -140,7 +152,9 @@ the IRs into a single folder.
 
 
 Benchmark quantized dense inference performance
-###############################################################################################################################
+-----------------------------------------------
+
+
 
 Benchmark dense inference performance using parallel execution on four
 CPU cores to simulate a small instance in the cloud infrastructure.
@@ -171,11 +185,90 @@ as an example. It is recommended to tune based on your applications.
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    /bin/bash: benchmark_app: command not found
+
+
+.. parsed-literal::
+
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] CPU
+    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 60.26 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
+    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [?,?]
+    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [?,?]
+    [ INFO ] Model outputs:
+    [ INFO ]     logits (node: logits) : f32 / [...] / [?,2]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
+    [ INFO ] Reshape model took 24.75 ms
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
+    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [1,64]
+    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,64]
+    [ INFO ] Model outputs:
+    [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 1092.05 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: torch_jit
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+    [ INFO ]   NUM_STREAMS: 4
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 4
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+    [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+    [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+    [ INFO ] Fill input 'input_ids' with random values 
+    [ INFO ] Fill input 'attention_mask' with random values 
+    [ INFO ] Fill input 'token_type_ids' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 27.56 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            8952 iterations
+    [ INFO ] Duration:         60029.00 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        26.46 ms
+    [ INFO ]    Average:       26.52 ms
+    [ INFO ]    Min:           25.37 ms
+    [ INFO ]    Max:           40.49 ms
+    [ INFO ] Throughput:   149.13 FPS
 
 
 Benchmark quantized sparse inference performance
-###############################################################################################################################
+------------------------------------------------
+
+
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -207,11 +300,90 @@ for which a layer will be enabled.
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    /bin/bash: benchmark_app: command not found
+
+
+.. parsed-literal::
+
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] CPU
+    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 61.56 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
+    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [?,?]
+    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [?,?]
+    [ INFO ] Model outputs:
+    [ INFO ]     logits (node: logits) : f32 / [...] / [?,2]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
+    [ INFO ] Reshape model took 24.68 ms
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
+    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [1,64]
+    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,64]
+    [ INFO ] Model outputs:
+    [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 1029.24 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: torch_jit
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+    [ INFO ]   NUM_STREAMS: 4
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 4
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 0.75
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+    [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+    [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+    [ INFO ] Fill input 'input_ids' with random values 
+    [ INFO ] Fill input 'attention_mask' with random values 
+    [ INFO ] Fill input 'token_type_ids' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 29.95 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            8984 iterations
+    [ INFO ] Duration:         60026.81 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        26.52 ms
+    [ INFO ]    Average:       26.59 ms
+    [ INFO ]    Min:           23.89 ms
+    [ INFO ]    Max:           40.95 ms
+    [ INFO ] Throughput:   149.67 FPS
 
 
 When this might be helpful
-###############################################################################################################################
+--------------------------
+
+
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple

@@ -68,7 +68,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /** \brief Check shape_infer for transpose on static shapes. */
 TEST_P(StaticShapeInferenceTest, transpose_static) {
-    auto output_shapes = shape_inference(transpose.get(), {input_shape, transpose_order});
+    auto output_shapes = shape_inference(transpose.get(), {input_shape, StaticShape{transpose_order.size()}});
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], exp_shape);
 }
@@ -79,7 +79,7 @@ TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
     const auto order = std::vector<size_t>{1, 2, 0};
     const auto transpose = make_transpose(input_shape, order);
 
-    auto output_shapes = shape_inference(transpose.get(), {StaticShape{2, 6, 3}, order});
+    auto output_shapes = shape_inference(transpose.get(), {StaticShape{2, 6, 3}, StaticShape{order.size()}});
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({6, 3, 2}));
 }
 
@@ -96,7 +96,7 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
     const std::unordered_map<size_t, ov::Tensor> const_map = {{1, const_tensor}};
 
     auto output_shapes = std::vector<StaticShape>{StaticShape{}};
-    output_shapes = shape_inference(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, const_map);
+    output_shapes = shape_inference(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape({0})}, const_map);
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({4, 6, 2, 8}));
 }

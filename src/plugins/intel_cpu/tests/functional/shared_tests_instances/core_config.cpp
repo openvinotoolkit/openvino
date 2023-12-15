@@ -34,6 +34,9 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
             test->configuration.insert({ov::hint::inference_precision.name(), ov::element::f32.to_string()});
         }
     #endif
+        // todo: issue: 123320
+        test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
+        test->convert_precisions.insert({ov::element::f16, ov::element::f32});
 }
 
 } // namespace test

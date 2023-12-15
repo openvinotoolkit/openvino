@@ -6,6 +6,9 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+# GNA plugin will be removed before 2024.0 together with API 1.0
+ov_disable_deprecated_warnings()
+
 add_subdirectory(legacy)
 
 set(TARGET_NAME "openvino_intel_gna_plugin")
@@ -93,7 +96,7 @@ if(BUILD_SHARED_LIBS)
     set(gna_component gna)
 else()
     # during static build all plugins are part of the core, thus the dependencies as well
-    set(gna_component core)
+    set(gna_component ${OV_CPACK_COMP_CORE})
 endif()
 
 file(GLOB_RECURSE gna_libraries "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
@@ -122,14 +125,16 @@ if(NOT BUILD_SHARED_LIBS)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
     install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
             DESTINATION ${OV_CPACK_IE_CMAKEDIR}
-            COMPONENT ${gna_component})
+            COMPONENT ${gna_component}
+            ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 
     # install .lib file on Windows
     if(WIN32)
         file(GLOB_RECURSE gna_libraries  "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
         install(FILES ${gna_libraries}
                 DESTINATION ${OV_CPACK_LIBRARYDIR}
-                COMPONENT ${gna_component})
+                COMPONENT ${gna_component}
+                ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     endif()
 endif()
 

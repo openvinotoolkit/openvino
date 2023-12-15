@@ -47,13 +47,13 @@ void ActivationConcatsEltwise::SetUp() {
     auto concat_const_1 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
     auto concat_const_2 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
 
-    auto concat_1 = ngraph::builder::makeConcat({concat_const_1, relu}, 1);
-    auto concat_2 = ngraph::builder::makeConcat({concat_const_2, relu}, 1);
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_const_1, relu}, 1);
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_const_2, relu}, 1);
 
     auto eltw = ngraph::builder::makeEltwise(concat_1, concat_2, ngraph::helpers::EltwiseTypes::ADD);
 
-    auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({1, inputSize + concatSize}));
-    auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(eltw, reshape_pattern, false);
+    auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({1, inputSize + concatSize}));
+    auto final_reshape = std::make_shared<ov::op::v1::Reshape>(eltw, reshape_pattern, false);
     function = std::make_shared<ngraph::Function>(final_reshape, input, "ActivationConcatsEltwise");
 }
 }  // namespace SubgraphTestsDefinitions

@@ -20,6 +20,7 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transforms.hpp"
+#include "transforms/align_types_removal.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
@@ -35,8 +36,9 @@
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
-#include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
+#include "transforms/prim_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
+#include "transforms/reverseprop_resolver.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
@@ -177,6 +179,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
         element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
@@ -192,19 +195,23 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleParameters>();
+    manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
     manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
-    manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
+    manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
+    manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
+    manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    // Second pass of AlignTypesRemoval after all converting transformations
+    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 
     apply_pytorch_conversion_transforms(model);

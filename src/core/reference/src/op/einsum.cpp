@@ -404,7 +404,7 @@ void transpose_input(ov::TensorVector& inputs,
                          reinterpret_cast<char*>(output_ptr.data<T>()),
                          input_shape,
                          element_type.size(),
-                         permutation.data(),
+                         permutation,
                          output_shape);
 
     // update a vector of inputs and input subscripts

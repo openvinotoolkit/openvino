@@ -11,5 +11,9 @@ namespace test {
 TEST_P(LoopLayerTest, Inference) {
     run();
 }
+
+TEST_P(StaticShapeLoopLayerTest, Inference) {
+    run();
+}
 }  // namespace test
 }  // namespace ov

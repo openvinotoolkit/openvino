@@ -21,7 +21,7 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 
-using namespace ::ov_paddle::framework::proto;
+using namespace ::paddle::framework::proto;
 
 class InputModel::InputModelImpl {
 public:
@@ -34,6 +34,9 @@ public:
                    const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> get_inputs() const;
     std::vector<Place::Ptr> get_outputs() const;
+    int64_t get_version() const {
+        return m_fw_ptr->version().version();
+    }
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
     void override_all_outputs(const std::vector<Place::Ptr>& outputs);
     void override_all_inputs(const std::vector<Place::Ptr>& inputs);
@@ -279,7 +282,7 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
         if (!var_desc.persistable())
             continue;
 
-        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::ov_paddle::framework::proto::VarType::LOD_TENSOR);
+        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
         const auto& tensor = var_desc.type().lod_tensor().tensor();
         Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
         const auto& type = get_ov_type(tensor.data_type());
@@ -324,7 +327,7 @@ void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
         if (!var_desc.persistable())
             continue;
 
-        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::ov_paddle::framework::proto::VarType::LOD_TENSOR);
+        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
         FRONT_END_GENERAL_CHECK(weight_stream != nullptr && weight_stream->peek() != EOF,
                                 "PaddlePaddle *.pdiparams format weight file doesn't exist!");
         /*
@@ -350,8 +353,8 @@ void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
         std::unique_ptr<char[]> buf(new char[size]);
         weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
 
-        std::unique_ptr<::ov_paddle::framework::proto::VarType_TensorDesc> tensor_desc(
-            new ::ov_paddle::framework::proto::VarType_TensorDesc());
+        std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
+            new ::paddle::framework::proto::VarType_TensorDesc());
         tensor_desc->ParseFromArray(buf.get(), size);
         Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
         const auto& type = get_ov_type(tensor_desc->data_type());
@@ -587,6 +590,10 @@ std::vector<Place::Ptr> InputModel::get_inputs() const {
 
 std::vector<Place::Ptr> InputModel::get_outputs() const {
     return _impl->get_outputs();
+}
+
+int64_t InputModel::get_version() const {
+    return _impl->get_version();
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const {

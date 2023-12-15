@@ -49,20 +49,15 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 ov::hetero::InferRequest::~InferRequest() = default;
 
 ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov::Output<const ov::Node>& port) const {
-    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
-        return node1 == node2 ||
-               (node1->get_friendly_name() == node2->get_friendly_name() &&
-                node1->get_type_info() == node2->get_type_info() &&
-                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
-    };
-
-    for (const auto& kvp : m_port_to_subrequest_idx) {
-        if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
-            check_nodes(kvp.first.get_node(), port.get_node())) {
-            return m_subrequests[kvp.second];
-        }
+    auto found_port = find_port(port);
+    ov::Output<const ov::Node> internal_port;
+    OPENVINO_ASSERT(found_port.found(), "Cannot find infer request for port ", port);
+    if (found_port.is_input()) {
+        internal_port = get_inputs().at(found_port.idx);
+    } else {
+        internal_port = get_outputs().at(found_port.idx);
     }
-    OPENVINO_THROW("Cannot find infer request for port ", port);
+    return m_subrequests[m_port_to_subrequest_idx.at(internal_port)];
 }
 
 ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {

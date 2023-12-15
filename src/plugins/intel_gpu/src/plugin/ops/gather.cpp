@@ -106,7 +106,12 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
 
         // Set tensors for crop shape and offset
         ov::Shape start_offset(input_shape.size());
-        start_offset[0] = static_cast<size_t>(result);
+        int32_t new_offset0 = static_cast<int32_t>(result);
+        if (support_neg_ind && new_offset0 < 0) {
+            new_offset0 += static_cast<int32_t>(start_offset.size());
+        }
+
+        start_offset[0] = static_cast<size_t>(new_offset0);
         auto offsetTensor = tensor_from_dims(start_offset, 0);
         auto outTensor = tensor_from_dims(out_shape, 1);
 

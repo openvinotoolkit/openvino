@@ -56,8 +56,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
             // Dynamic batch allocates output using upper bound
             R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-            // need dynamic shapes
-            R"(.*RangeLayerTest.*)",
             // need dynamic rank
             R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
@@ -75,6 +73,8 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
+            // Issue: 124060
+            R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
@@ -86,10 +86,10 @@ std::vector<std::string> disabledTestPatterns() {
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
-            R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.CompareWithRefs.*)",
-            R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
+            R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
+            R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",
             // Issue: 111440
-            R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
+            R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
             // New plugin work with tensors, so it means that blob in old API can have different pointers
             R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
             R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
@@ -113,7 +113,15 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT.*MatMulWithConstantTransformation.*)",
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
             R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
-            // Dynamic state unsupported for now
-            R"(.*MemoryDynamicBatch.*)",
+            // Issue: 123493
+            R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
+            // Issue: 123507
+            R"(.*ReverseLayerTest.*mask.*f16.*)",
+            // Issue: 123516
+            R"(.*RandomUniformLayerTest.*f16.*)",
+            // Issue: 125165
+            R"(smoke_Nms9LayerTest.*)",
+            // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
+            R"(smoke_MemoryTest.*)",
     };
 }

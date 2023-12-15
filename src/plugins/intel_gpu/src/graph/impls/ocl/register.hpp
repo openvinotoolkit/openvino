@@ -7,7 +7,6 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
-#include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
@@ -42,6 +41,7 @@
 #include "intel_gpu/primitives/lstm_dynamic_input.hpp"
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/multinomial.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
@@ -59,6 +59,7 @@
 #include "intel_gpu/primitives/resample.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/rms.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
@@ -92,7 +93,6 @@ REGISTER_OCL(activation);
 REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(batch_to_space);
-REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
@@ -126,6 +126,7 @@ REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);
+REGISTER_OCL(multinomial);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);
@@ -146,6 +147,7 @@ REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
 REGISTER_OCL(reverse);
 REGISTER_OCL(reverse_sequence);
+REGISTER_OCL(rms);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);

@@ -4,20 +4,12 @@
 
 #include "internal/pass/transform_if.hpp"
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
-
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
 #include "internal/op/tensorarray_write.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "openvino/frontend/paddle/exception.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 
 using namespace std;
 using namespace ov;
@@ -28,7 +20,7 @@ using namespace ov::frontend::paddle::op::default_opset;
 // The contional_block only has "then" branch, while If op requires both "then" and "else" branch the same time.
 // Thus a "pass-through" model is built on purpose for "else" branch with the same outputs as "then" branch.
 ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr<Model>> funcs) {
-    const auto cond_label = ngraph::pattern::wrap_type<ov::op::internal::ConditionalBlock>();
+    const auto cond_label = pattern::wrap_type<ov::op::internal::ConditionalBlock>();
 
     matcher_pass_callback callback = [funcs](pattern::Matcher& m) -> bool {
         const auto conditional_block =
@@ -104,6 +96,6 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(cond_label, "condtionalblock_if");
+    auto m = std::make_shared<pattern::Matcher>(cond_label, "condtionalblock_if");
     this->register_matcher(m, callback);
 }

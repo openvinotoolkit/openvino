@@ -4,18 +4,18 @@
 
 #include <vector>
 
-#include "single_layer_tests/shuffle_channels.hpp"
+#include "single_op_tests/shuffle_channels.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::ShuffleChannelsLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::U8,
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16,
+    ov::element::u8,
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {
-    {3, 4, 9, 5}, {2, 16, 24, 15}, {1, 32, 12, 25}
+const std::vector<std::vector<ov::Shape>> inputShapes = {
+    {{3, 4, 9, 5}}, {{2, 16, 24, 15}}, {{1, 32, 12, 25}}
 };
 
 const std::vector<std::tuple<int, int>> shuffleParameters = {
@@ -28,11 +28,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_ShuffleChannels,
                          ShuffleChannelsLayerTest,
                          ::testing::Combine(::testing::ValuesIn(shuffleParameters),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);
 
@@ -41,11 +37,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D,
                          ShuffleChannelsLayerTest,
                          ::testing::Combine(::testing::Values(std::tuple<int, int>(1, 3)),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({18, 30, 36})),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(
+                                                std::vector<ov::Shape>({{18, 30, 36}}))),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);
 
@@ -53,11 +46,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D,
                          ShuffleChannelsLayerTest,
                          ::testing::Combine(::testing::Values(std::tuple<int, int>(1, 3)),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({18, 30})),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(
+                                                std::vector<ov::Shape>({{18, 30}}))),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);
 
@@ -65,10 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D,
                          ShuffleChannelsLayerTest,
                          ::testing::Combine(::testing::Values(std::tuple<int, int>(0, 3)),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({30})),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(
+                                                std::vector<ov::Shape>({{30}}))),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);

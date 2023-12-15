@@ -40,15 +40,17 @@ void SplitConcatMultiInputsTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, splitsNum);
+
     ngraph::OutputVector concatInputs = split->outputs();
 
-    auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concatInputs, 1);
 
     if (withFC) {
         auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
             ov::test::utils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
-        auto matmul = std::make_shared<ngraph::op::MatMul>(concat, mul_const, false, true);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(concat, mul_const, false, true);
         function = std::make_shared<ngraph::Function>(matmul, params, "SplitConcatMultiInputs");
     } else {
         function = std::make_shared<ngraph::Function>(concat, params, "SplitConcatMultiInputs");

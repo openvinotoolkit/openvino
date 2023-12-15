@@ -87,43 +87,43 @@ const std::vector<std::vector<size_t>> target5dShapes = {
         {1, 1, 4, 4, 4},
 };
 
-const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
-        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR,
-        ngraph::op::v4::Interpolate::InterpolateMode::CUBIC,
-        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
+const std::vector<ov::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
+        ov::op::v4::Interpolate::InterpolateMode::LINEAR,
+        ov::op::v4::Interpolate::InterpolateMode::CUBIC,
+        ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
+const std::vector<ov::op::v4::Interpolate::InterpolateMode> nearestMode = {
+        ov::op::v4::Interpolate::InterpolateMode::NEAREST,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> linearOnnxMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
+const std::vector<ov::op::v4::Interpolate::InterpolateMode> linearOnnxMode = {
+        ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
+const std::vector<ov::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
+        ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+        ov::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ov::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+        ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+const std::vector<ov::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
+        ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
-        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
-        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
-        ngraph::op::v4::Interpolate::NearestMode::CEIL,
-        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
+const std::vector<ov::op::v4::Interpolate::NearestMode> nearestModes = {
+        ov::op::v4::Interpolate::NearestMode::SIMPLE,
+        ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+        ov::op::v4::Interpolate::NearestMode::FLOOR,
+        ov::op::v4::Interpolate::NearestMode::CEIL,
+        ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
-        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+const std::vector<ov::op::v4::Interpolate::NearestMode> defaultNearestMode = {
+        ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
 };
 
 const std::vector<std::vector<size_t>> pads = {
@@ -308,9 +308,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Basic, Interpolate11LayerTest, ::t
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);
 
-const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesPillow = {
-        ngraph::op::v4::Interpolate::InterpolateMode::BILINEAR_PILLOW,
-        ngraph::op::v4::Interpolate::InterpolateMode::BICUBIC_PILLOW,
+const std::vector<ov::op::v4::Interpolate::InterpolateMode> modesPillow = {
+        ov::op::v4::Interpolate::InterpolateMode::BILINEAR_PILLOW,
+        ov::op::v4::Interpolate::InterpolateMode::BICUBIC_PILLOW,
 };
 
 const std::vector<InferenceEngine::Precision> pillowModePrecisions = {
@@ -321,9 +321,9 @@ const std::vector<InferenceEngine::Precision> pillowModePrecisions = {
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, Interpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
-            ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES),
-            ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
-            ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::SIMPLE),
+            ::testing::Values(ov::op::v4::Interpolate::ShapeCalcMode::SCALES),
+            ::testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
+            ::testing::Values(ov::op::v4::Interpolate::NearestMode::SIMPLE),
             ::testing::Values(false),
             ::testing::Values(std::vector<size_t>{0, 0, 1, 1}),
             ::testing::Values(std::vector<size_t>{0, 0, 1, 1}),
@@ -345,9 +345,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, Interpolate11LayerTest, ::
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
-            ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES),
-            ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
-            ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::SIMPLE),
+            ::testing::Values(ov::op::v4::Interpolate::ShapeCalcMode::SCALES),
+            ::testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
+            ::testing::Values(ov::op::v4::Interpolate::NearestMode::SIMPLE),
             ::testing::Values(false),
             ::testing::Values(std::vector<size_t>{0, 0, 1, 1}),
             ::testing::Values(std::vector<size_t>{0, 0, 1, 1}),
@@ -369,9 +369,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11La
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
-            ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES),
-            ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
-            ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::SIMPLE),
+            ::testing::Values(ov::op::v4::Interpolate::ShapeCalcMode::SCALES),
+            ::testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
+            ::testing::Values(ov::op::v4::Interpolate::NearestMode::SIMPLE),
             ::testing::Values(false),
             ::testing::Values(std::vector<size_t>{0, 0, 1, 1}),
             ::testing::Values(std::vector<size_t>{0, 0, 1, 1}),
@@ -393,9 +393,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11Laye
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
-            ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES),
-            ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
-            ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::SIMPLE),
+            ::testing::Values(ov::op::v4::Interpolate::ShapeCalcMode::SCALES),
+            ::testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN),
+            ::testing::Values(ov::op::v4::Interpolate::NearestMode::SIMPLE),
             ::testing::Values(false),
             ::testing::Values(std::vector<size_t>{2, 1, 0, 0}),
             ::testing::Values(std::vector<size_t>{2, 1, 0, 0}),

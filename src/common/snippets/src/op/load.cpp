@@ -79,7 +79,6 @@ IShapeInferSnippets::Result LoadReshape::ShapeInfer::infer(const std::vector<Vec
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     return {{utils::get_planar_vdims(input_shapes[0], m_order)}, ShapeInferStatus::success};
 }
-
 }// namespace op
 }// namespace snippets
 }// namespace ov

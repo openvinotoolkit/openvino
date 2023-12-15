@@ -79,8 +79,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return (TransposeDecomposition::supported_cases.count(order_value) != 0) ||
-                       (is_brgemm_case && FuseTransposeBrgemm::supported_cases.count(order_value) != 0);
+                return (TransposeDecomposition::is_supported_transpose_order(order_value)) ||
+                       (is_brgemm_case && FuseTransposeBrgemm::is_supported_transpose_order(order_value));
             }
         }
         return false;

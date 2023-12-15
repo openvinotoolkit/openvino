@@ -10,8 +10,11 @@ function(ov_branch_name VAR REPO_ROOT)
                 COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
                 WORKING_DIRECTORY ${REPO_ROOT}
                 OUTPUT_VARIABLE GIT_BRANCH
+                RESULT_VARIABLE EXIT_CODE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set (${VAR} ${GIT_BRANCH} PARENT_SCOPE)
+        if(EXIT_CODE EQUAL 0)
+            set(${VAR} ${GIT_BRANCH} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
@@ -21,22 +24,31 @@ function(ov_commit_hash VAR REPO_ROOT)
                 COMMAND ${GIT_EXECUTABLE} rev-parse --short=11 HEAD
                 WORKING_DIRECTORY ${REPO_ROOT}
                 OUTPUT_VARIABLE GIT_COMMIT_HASH
+                RESULT_VARIABLE EXIT_CODE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
+        if(EXIT_CODE EQUAL 0)
+            set(${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
 function(ov_commit_number VAR REPO_ROOT)
+    set(GIT_COMMIT_NUMBER_FOUND OFF)
     if(GIT_FOUND)
         execute_process(
                 COMMAND ${GIT_EXECUTABLE} rev-list --count --first-parent HEAD
                 WORKING_DIRECTORY ${REPO_ROOT}
                 OUTPUT_VARIABLE GIT_COMMIT_NUMBER
+                RESULT_VARIABLE EXIT_CODE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set (${VAR} ${GIT_COMMIT_NUMBER} PARENT_SCOPE)
-    else()
+        if(EXIT_CODE EQUAL 0)
+            set(GIT_COMMIT_NUMBER_FOUND ON)
+            set(${VAR} ${GIT_COMMIT_NUMBER} PARENT_SCOPE)
+        endif()
+    endif()
+    if(NOT GIT_COMMIT_NUMBER_FOUND)
         # set zeros since git is not available
-        set (${VAR} "000" PARENT_SCOPE)
+        set(${VAR} "000" PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -140,7 +152,7 @@ macro(ov_parse_ci_build_number repo_root)
         ov_branch_name(GIT_BRANCH "${repo_root}")
         ov_commit_hash(GIT_COMMIT_HASH "${repo_root}")
 
-        if(NOT GIT_BRANCH STREQUAL "master")
+        if(NOT GIT_BRANCH MATCHES "^(master|HEAD)$")
             set(GIT_BRANCH_POSTFIX "-${GIT_BRANCH}")
         endif()
 
@@ -152,28 +164,6 @@ macro(ov_parse_ci_build_number repo_root)
     else()
         unset(the_whole_version_is_defined_by_ci)
     endif()
-endmacro()
-
-macro (addVersionDefines FILE)
-    message(WARNING "'addVersionDefines' is deprecated. Please, use 'ov_add_version_defines'")
-
-    set(__version_file ${FILE})
-    if(NOT IS_ABSOLUTE ${__version_file})
-        set(__version_file "${CMAKE_CURRENT_SOURCE_DIR}/${__version_file}")
-    endif()
-    if(NOT EXISTS ${__version_file})
-        message(FATAL_ERROR "${FILE} does not exists in current source directory")
-    endif()
-    foreach (VAR ${ARGN})
-        if (DEFINED ${VAR} AND NOT "${${VAR}}" STREQUAL "")
-            set_property(
-                SOURCE ${__version_file}
-                APPEND
-                PROPERTY COMPILE_DEFINITIONS
-                ${VAR}="${${VAR}}")
-        endif()
-    endforeach()
-    unset(__version_file)
 endmacro()
 
 macro (ov_add_version_defines FILE TARGET)

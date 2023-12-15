@@ -49,7 +49,7 @@ void ConvolutionReluSequenceTest::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(convParamsAll.inputShape))};
-    auto lastOutputs = ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params).front();
+    std::shared_ptr<ov::Node> lastOutputs = params.front();
     auto inputChannels = convParamsAll.inputShape[1];
 
     for (auto&& single : convParamsAll.sequenceDesc) {
@@ -73,12 +73,12 @@ void ConvolutionReluSequenceTest::SetUp() {
                 ngraph::builder::makeConvolution(
                     lastOutputs,
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
-                    dilation, ngraph::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
-        lastOutputs = std::make_shared<ngraph::opset1::Relu>(conv);
+                    dilation, ov::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
+        lastOutputs = std::make_shared<ov::op::v0::Relu>(conv);
         if (single.poolingWindow.size() == 2 &&
                 (single.poolingWindow[0] != 1 ||
                  single.poolingWindow[1] != 1)) {
-            lastOutputs = std::make_shared<ngraph::opset3::MaxPool>(lastOutputs, single.poolingStride,
+            lastOutputs = std::make_shared<ov::op::v1::MaxPool>(lastOutputs, single.poolingStride,
                 ngraph::Shape{ 0, 0 },
                 ngraph::Shape{ 0, 0 },
                 single.poolingWindow);
@@ -86,7 +86,7 @@ void ConvolutionReluSequenceTest::SetUp() {
         inputChannels = single.numOutChannels;
     }
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lastOutputs)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lastOutputs)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution_relu_sequence");
 }
 }  // namespace SubgraphTestsDefinitions

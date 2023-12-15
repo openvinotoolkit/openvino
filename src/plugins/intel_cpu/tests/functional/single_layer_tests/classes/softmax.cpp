@@ -6,12 +6,10 @@
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<softmaxCPUTestParams>& obj) {
     CPUSpecificParams cpuParams;
@@ -53,13 +51,10 @@ void SoftMaxLayerCPUTest::SetUp() {
     selectedType = makeSelectedTypeStr(selectedType, inType);
     init_input_shapes({config.inputShape});
     ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
+    for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-    }
-    const auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), config.axis);
+    const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), config.axis);
 
     function = makeNgraphFunction(inType, params, softMax, "SoftMax");
 }
@@ -72,4 +67,5 @@ TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {
 namespace SoftMax {
 
 }  // namespace SoftMax
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

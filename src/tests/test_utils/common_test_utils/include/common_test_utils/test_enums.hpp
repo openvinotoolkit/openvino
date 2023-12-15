@@ -56,7 +56,11 @@ enum EltwiseTypes {
     POWER,
     FLOOR_MOD,
     MOD,
-    ERF
+    ERF,
+    BITWISE_AND,
+    BITWISE_NOT,
+    BITWISE_OR,
+    BITWISE_XOR
 };
 
 enum SqueezeOpType {
@@ -152,6 +156,11 @@ enum class DFTOpType {
     INVERSE
 };
 
+enum class QuantizationGranularity {
+    Pertensor,
+    Perchannel
+};
+
 enum class TensorIteratorBody {
     RNN,
     GRU,
@@ -159,6 +168,12 @@ enum class TensorIteratorBody {
     // CNN todo: implement
 };
 
+enum class MemoryTransformation {
+    NONE,
+    LOW_LATENCY_V2,
+    LOW_LATENCY_V2_REGULAR_API,
+    LOW_LATENCY_V2_ORIGINAL_INIT
+};
 // clang-format on
 
 std::ostream& operator<<(std::ostream& os, const ReductionType& m);
@@ -190,6 +205,10 @@ std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::SortResultType
 std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::DecayFunction type);
 
 std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
+
+std::ostream& operator<<(std::ostream& os, QuantizationGranularity type);
+
+std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
 }  // namespace utils
 }  // namespace test

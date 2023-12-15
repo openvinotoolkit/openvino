@@ -126,7 +126,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name();
         ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(cloned_model);
-        ov::pass::VisualizeTree(path_base + ".dot").run_on_model(cloned_model);
+        ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
     transform_model(cloned_model, config);
@@ -147,7 +147,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name() + "_" +  "transformed_func";
         ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(cloned_model);
-        ov::pass::VisualizeTree(path_base + "_transformed.dot").run_on_model(cloned_model);
+        ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
     return cloned_model;
 }
@@ -312,40 +312,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    {
-        cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
-
-        CompiledModel::Ptr compiled_model;
-        bool is_dynamic;
-        ib >> is_dynamic;
-
-        if (is_dynamic) {
-            std::string xmlString, xmlInOutString;
-            ov::Tensor data_tensor;
-
-            ov::pass::StreamSerialize::DataHeader hdr = {};
-            model.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
-
-            // read blob content
-            model.seekg(hdr.consts_offset);
-            if (hdr.consts_size) {
-                data_tensor = ov::Tensor(ov::element::u8, {hdr.consts_size});
-                model.read(static_cast<char*>(data_tensor.data()), hdr.consts_size);
-            }
-
-            // read XML content
-            model.seekg(hdr.model_offset);
-            xmlString.resize(hdr.model_size);
-            model.read(&xmlString[0], hdr.model_size);
-
-            auto transformed_model = get_core()->read_model(xmlString, data_tensor, true);
-            compiled_model = std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
-        } else {
-            compiled_model = std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config);
-        }
-
-        return compiled_model;
-    }
+    cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
+    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {

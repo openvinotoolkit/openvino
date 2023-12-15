@@ -4,16 +4,16 @@
 
 #include <vector>
 
-#include "single_layer_tests/region_yolo.hpp"
+#include "single_op_tests/region_yolo.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::RegionYoloLayerTest;
 
-const std::vector<ngraph::Shape> inShapes_caffe = {
+const std::vector<std::vector<size_t>> in_shapes_caffe = {
     {1, 125, 13, 13}
 };
 
-const std::vector<ngraph::Shape> inShapes_mxnet = {
+const std::vector<std::vector<size_t>> in_shapes_mxnet = {
     {1, 75, 52, 52},
     {1, 75, 32, 32},
     {1, 75, 26, 26},
@@ -22,7 +22,7 @@ const std::vector<ngraph::Shape> inShapes_mxnet = {
     {1, 75, 8, 8}
 };
 
-const std::vector<ngraph::Shape> inShapes_v3 = {
+const std::vector<std::vector<size_t>> in_shapes_v3 = {
     {1, 255, 52, 52},
     {1, 255, 26, 26},
     {1, 255, 13, 13}
@@ -41,8 +41,8 @@ const size_t coords = 4;
 const int start_axis = 1;
 const int end_axis = 3;
 
-const auto testCase_yolov3 = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_v3),
+const auto test_case_yolov3 = ::testing::Combine(
+    ::testing::ValuesIn(in_shapes_v3),
     ::testing::Values(classes[0]),
     ::testing::Values(coords),
     ::testing::Values(num_regions[1]),
@@ -50,12 +50,12 @@ const auto testCase_yolov3 = ::testing::Combine(
     ::testing::Values(masks[2]),
     ::testing::Values(start_axis),
     ::testing::Values(end_axis),
-    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::Values(ov::element::f32),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto testCase_yolov3_mxnet = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_mxnet),
+const auto test_case_yolov3_mxnet = ::testing::Combine(
+    ::testing::ValuesIn(in_shapes_mxnet),
     ::testing::Values(classes[1]),
     ::testing::Values(coords),
     ::testing::Values(num_regions[1]),
@@ -63,12 +63,12 @@ const auto testCase_yolov3_mxnet = ::testing::Combine(
     ::testing::Values(masks[1]),
     ::testing::Values(start_axis),
     ::testing::Values(end_axis),
-    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::Values(ov::element::f32),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto testCase_yolov2_caffe = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_caffe),
+const auto test_case_yolov2_caffe = ::testing::Combine(
+    ::testing::ValuesIn(in_shapes_caffe),
     ::testing::Values(classes[1]),
     ::testing::Values(coords),
     ::testing::Values(num_regions[0]),
@@ -76,10 +76,10 @@ const auto testCase_yolov2_caffe = ::testing::Combine(
     ::testing::Values(masks[0]),
     ::testing::Values(start_axis),
     ::testing::Values(end_axis),
-    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::Values(ov::element::f32),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3, RegionYoloLayerTest, testCase_yolov3, RegionYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnet, RegionYoloLayerTest, testCase_yolov3_mxnet, RegionYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffe, RegionYoloLayerTest, testCase_yolov2_caffe, RegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3, RegionYoloLayerTest, test_case_yolov3, RegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnet, RegionYoloLayerTest, test_case_yolov3_mxnet, RegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffe, RegionYoloLayerTest, test_case_yolov2_caffe, RegionYoloLayerTest::getTestCaseName);

@@ -20,7 +20,7 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArgs;
     std::vector<float> inputArg;
-    ngraph::op::AutoBroadcastSpec broadcast;
+    ov::op::AutoBroadcastSpec broadcast;
     std::tie(levels, constShape, fqDirectArgs, inputArg, broadcast) = fqParams;
 
     std::ostringstream result;
@@ -57,7 +57,7 @@ void FakeQuantizeLayerTest::SetUp() {
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArg;
     std::vector<float> inputArg;
-    ngraph::op::AutoBroadcastSpec broadcast;
+    ov::op::AutoBroadcastSpec broadcast;
     std::tie(levels, constShape, fqDirectArg, inputArg, broadcast) = fqParams;
     if (inputArg.size() == 3) {
         inputDataMin = inputArg[0];
@@ -69,7 +69,6 @@ void FakeQuantizeLayerTest::SetUp() {
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     UpdateSeed();
 
@@ -81,10 +80,10 @@ void FakeQuantizeLayerTest::SetUp() {
         }
         std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                   << "ngraphSeed = " << ngraphSeed << std::endl;
-        fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
+        fakeQNode = ngraph::builder::makeFakeQuantize(params[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
         fakeQNode = ngraph::builder::makeFakeQuantize(
-            paramOuts[0],
+            params[0],
             ngPrc,
             levels,
             constShape,
@@ -93,9 +92,9 @@ void FakeQuantizeLayerTest::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
+    auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(fakeQNode);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
     configuration = config.second;
 }
