@@ -137,8 +137,10 @@ class TestTransformersModel(TestTorchConvertModel):
             from transformers import AutoModel
             
             model = AutoModel.from_pretrained(name)
-            example = model.dummy_inputs
-            example.update({'output_attentions': True, 'output_hidden_states': True, 'return_dict': True})
+            model.config.output_attentions = True
+            model.config.output_hidden_states = True
+            model.config.return_dict = True
+            example = dict(model.dummy_inputs)
         elif 'bros' in mi.tags:
             from transformers import AutoProcessor, AutoModel
             
