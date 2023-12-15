@@ -93,8 +93,9 @@ public:
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
+        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         if (inType == ElementType::bf16) {
-            configuration.insert({"ENFORCE_BF16", "YES"});
+            configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
         }
         init_input_shapes(inputShapes);
@@ -158,10 +159,10 @@ public:
         pastk_assign->set_friendly_name("pastk_w");
         pastv_assign->set_friendly_name("pastv_w");
 
-        ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
+        ov::OutputVector results{add};
         if (hasShapeOf) {
-            results.push_back(std::make_shared<ov::op::v0::Result>(pastk_shapeof));
-            results.push_back(std::make_shared<ov::op::v0::Result>(pastv_shapeof));
+            results.push_back(pastk_shapeof);
+            results.push_back(pastv_shapeof);
         }
         SinkVector sinks{pastk_assign, pastv_assign};
         function = std::make_shared<Function>(results, sinks, inputParams, "ConcatTranposeSDP");
