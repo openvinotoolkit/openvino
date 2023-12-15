@@ -5,6 +5,7 @@
 
 #include <napi.h>
 
+/** @brief A structure with data that will be associated with the instance of the ov.js node-addon. */
 struct AddonData {
     Napi::FunctionReference* compiled_model_prototype;
     Napi::FunctionReference* core_prototype;

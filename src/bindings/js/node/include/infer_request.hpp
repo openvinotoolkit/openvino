@@ -4,7 +4,7 @@
 #pragma once
 #include <napi.h>
 
-#include <openvino/runtime/infer_request.hpp>
+#include "openvino/runtime/infer_request.hpp"
 
 class InferRequestWrap : public Napi::ObjectWrap<InferRequestWrap> {
 public:
@@ -18,12 +18,12 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript InferRequest class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     /** @brief This method is called during initialization of OpenVino native add-on.
      * It exports JavaScript InferRequest class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     void set_infer_request(const ov::InferRequest& infer_request);
     /**
@@ -32,7 +32,7 @@ public:
      * @param infer_request ov::InferRequest to wrap.
      * @return Javascript InferRequest as Napi::Object. (Not InferRequestWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::InferRequest infer_request);
+    static Napi::Object wrap(Napi::Env env, ov::InferRequest infer_request);
 
     /**
      * @brief Sets an input/output tensor to infer on.

@@ -129,16 +129,34 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                         if (subgraph == cached_model.first) {
                             auto meta = m_graph_cache[subgraph];
                             meta.set_input_info(graph_in_info);
+                            m_graph_cache_bytesize += (graph->get_graph_size() - subgraph->get_graph_size());
                             m_graph_cache.erase(subgraph);
                             m_graph_cache.insert({graph, meta});
-                            m_graph_cache_bytesize += (graph->get_graph_size() - subgraph->get_graph_size());
+                        } else {
+                            m_graph_cache[cached_model.first].update(model_path,
+                                                                     subgraph_in_info,
+                                                                     model_op_cnt,
+                                                                     this_op_cnt,
+                                                                     extractor_name);
                         }
-                        m_graph_cache[cached_model.first].update(model_path,
-                                                                subgraph_in_info,
-                                                                model_op_cnt,
-                                                                this_op_cnt,
-                                                                extractor_name);
                         return;
+                    } else {
+                        auto matched_ops = std::get<3>(m_model_comparator->is_subgraph(extracted_model, cached_model.first));
+                        auto cached_model_op_cnt =
+                            cached_model.first->get_ops().size() - cached_model.second.get_input_info().size() -
+                            cached_model.first->get_results().size();
+                        auto extracted_model_op_cnt =
+                            extracted_model->get_ops().size() - input_info.size() - extracted_model->get_results().size();
+                        if (matched_ops.size() > 0.75 * extracted_model_op_cnt) {
+                            if (cached_model_op_cnt > extracted_model_op_cnt) {
+                                return;
+                            }
+                            m_graph_cache_bytesize += (extracted_model->get_graph_size() - cached_model.first->get_graph_size());
+                            m_graph_cache.erase(cached_model.first);
+                            ov::conformance::MetaInfo meta(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
+                            m_graph_cache.insert({extracted_model, meta});
+                            return;
+                        }
                     }
                 }
             }
@@ -158,8 +176,10 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     if (pattern_model_size < cached_model_size) {
         m_graph_cache_bytesize -= (cached_model_size - pattern_model_size);
         auto meta = m_graph_cache[model_to_update];
+        auto matched_ops = m_model_comparator->get_matched_ops_in_graphs(model_to_update, extracted_model);
         auto new_in_info = ov::util::align_input_info(model_to_update, extracted_model,
-                                                      m_graph_cache.at(model_to_update).get_input_info(), input_info);
+                                                      m_graph_cache.at(model_to_update).get_input_info(), input_info,
+                                                      matched_ops);
         meta.set_input_info(new_in_info);
         m_graph_cache.erase(model_to_update);
         model_to_update = extracted_model;

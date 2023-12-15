@@ -10,7 +10,7 @@
 
 InputModelInfo::InputModelInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputModelInfo>(info){};
 
-Napi::Function InputModelInfo::GetClassConstructor(Napi::Env env) {
+Napi::Function InputModelInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env, "InputModelInfo", {InstanceMethod("setLayout", &InputModelInfo::set_layout)});
 }
 

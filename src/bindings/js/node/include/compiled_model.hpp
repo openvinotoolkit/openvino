@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-#include <openvino/runtime/compiled_model.hpp>
+#include "openvino/runtime/compiled_model.hpp"
 
 class CompiledModelWrap : public Napi::ObjectWrap<CompiledModelWrap> {
 public:
@@ -19,11 +19,11 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript CompiledModel class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
     /** @brief This method is called during initialization of OpenVino native add-on.
      * It exports JavaScript CompiledModel class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     /**
      * @brief Creates JavaScript CompiledModel object and wraps inside of it ov::CompiledModel object.
@@ -31,7 +31,7 @@ public:
      * @param compiled_model ov::CompiledModel to wrap.
      * @return A Javascript CompiledModel as Napi::Object. (Not CompiledModelWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::CompiledModel compiled_model);
+    static Napi::Object wrap(Napi::Env env, ov::CompiledModel compiled_model);
 
     /** @brief Sets a _compiled_model property of a CompiledModelWrap object. Used e.g. when creating CompiledModelWrap
      * object on node-addon side. */

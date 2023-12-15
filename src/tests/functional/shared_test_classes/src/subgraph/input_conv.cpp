@@ -86,7 +86,7 @@ void InputConvTest::SetUp() {
                                                   {0, 0},
                                                   {0, 0},
                                                   {1, 1},
-                                                  ngraph::op::PadType::VALID,
+                                                  ov::op::PadType::VALID,
                                                   outputChannels,
                                                   true,
                                                   generateWeights(outputChannels, kernelShape[1]));
@@ -94,13 +94,13 @@ void InputConvTest::SetUp() {
     if (addReshape) {
         size_t numOutputWidth = (((inputShape[1] * inputShape[2] * inputShape[3] - kernelShape[1] * kernelShape[0]) / (inputShape[1] * stride)) + 1);
         std::vector<size_t> outFormShapes0 = { 1, outputChannels * numOutputWidth };
-        auto pattern0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes0);
-        auto reshape0 = std::make_shared<ngraph::opset1::Reshape>(conv0, pattern0, false);
+        auto pattern0 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes0);
+        auto reshape0 = std::make_shared<ov::op::v1::Reshape>(conv0, pattern0, false);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(reshape0) };
+        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(reshape0) };
         function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
     } else {
-        ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(conv0) };
+        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(conv0) };
         function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
     }
 }

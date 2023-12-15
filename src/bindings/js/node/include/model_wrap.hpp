@@ -5,11 +5,10 @@
 
 #include <napi.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/runtime/core.hpp>
-
 #include "compiled_model.hpp"
 #include "errors.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/core.hpp"
 #include "tensor.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {
@@ -24,12 +23,12 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Model class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     /** @brief This method is called during initialization of OpenVino native add-on.
      * It exports JavaScript Model class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
     /**
@@ -38,19 +37,19 @@ public:
      * @param model a pointer to ov::Model to wrap.
      * @return Javascript Model as Napi::Object. (Not ModelWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
+    static Napi::Object wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
 
     /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);
-    std::string get_name();
-    std::shared_ptr<ov::Model> get_model();
+
+    std::shared_ptr<ov::Model> get_model() const;
 
     /**
      * @brief Helper function to access model inputs.
      * @param info contains passed arguments.
      * Empty info array:
      * @param info Gets a single input of a model. If a model has more than one input, this method
-     * throws ov::Exception. 
+     * throws ov::Exception.
      * One param of type string:
      * @param info[0] Gets input of a model identified by tensor_name.
      * One param of type int:
@@ -63,7 +62,7 @@ public:
      * @param info contains passed arguments.
      * Empty info array:
      * @param info Gets a single output of a model. If a model has more than one output, this method
-     * throws ov::Exception. 
+     * throws ov::Exception.
      * One param of type string:
      * @param info[0] Gets output of a model identified by tensor_name.
      * One param of type int:

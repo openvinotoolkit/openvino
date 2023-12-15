@@ -19,7 +19,7 @@ namespace preprocess {
       auto preprocess = Napi::Object::New(env);
       auto resizeAlgorithm = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
 
-      PrePostProcessorWrap::Init(env, preprocess);
+      PrePostProcessorWrap::init(env, preprocess);
       preprocess.DefineProperty(resizeAlgorithm);
 
       return preprocess;

@@ -3,8 +3,6 @@
 
 #include "helper.hpp"
 
-#include <iostream>
-
 #include "tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
@@ -13,7 +11,7 @@ const std::vector<std::string>& get_supported_types() {
     return supported_element_types;
 }
 
-napi_types napiType(Napi::Value val) {
+napi_types napiType(const Napi::Value& val) {
     if (val.IsTypedArray())
         return val.As<Napi::TypedArray>().TypedArrayType();
     else if (val.IsArray())
@@ -22,7 +20,7 @@ napi_types napiType(Napi::Value val) {
         return val.Type();
 }
 
-bool acceptableType(Napi::Value val, const std::vector<napi_types>& acceptable) {
+bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable) {
     return std::any_of(acceptable.begin(), acceptable.end(), [val](napi_types t) {
         return napiType(val) == t;
     });
@@ -34,9 +32,9 @@ int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
                            const std::vector<napi_types>& acceptable_types) {
     const auto elem = info[idx];
     if (!acceptableType(elem, acceptable_types))
-        throw std::invalid_argument(std::string("Cannot convert argument" + std::to_string(idx)));
+        OPENVINO_THROW(std::string("Cannot convert argument" + std::to_string(idx)));
     if (!elem.IsNumber()) {
-        throw std::invalid_argument(std::string("Passed argument must be a number."));
+        OPENVINO_THROW(std::string("Passed argument must be a number."));
     }
     return elem.ToNumber().Int32Value();
 }
@@ -47,9 +45,9 @@ std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
                                    const std::vector<napi_types>& acceptable_types) {
     const auto elem = info[idx];
     if (!acceptableType(elem, acceptable_types))
-        throw std::invalid_argument(std::string("Cannot convert argument") + std::to_string(idx));
+        OPENVINO_THROW(std::string("Cannot convert argument") + std::to_string(idx));
     if (!elem.IsString()) {
-        throw std::invalid_argument(std::string("Passed argument must be a string."));
+        OPENVINO_THROW(std::string("Passed argument must be a string."));
     }
     return elem.ToString();
 }
@@ -60,9 +58,9 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
                                                    const std::vector<napi_types>& acceptable_types) {
     const auto elem = info[idx];
     if (!acceptableType(elem, acceptable_types))
-        throw std::invalid_argument(std::string("Cannot convert argument") + std::to_string(idx));
+        OPENVINO_THROW(std::string("Cannot convert argument.") + std::to_string(idx));
     if (!elem.IsArray() && !elem.IsTypedArray()) {
-        throw std::invalid_argument(std::string("Passed argument must be of type Array or TypedArray."));
+        OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
     } else if (elem.IsArray()) {
         auto array = elem.As<Napi::Array>();
         size_t arrayLength = array.Length();
@@ -72,7 +70,7 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         for (size_t i = 0; i < arrayLength; ++i) {
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsNumber()) {
-                throw std::invalid_argument(std::string("Passed array must contain only numbers."));
+                OPENVINO_THROW(std::string("Passed array must contain only numbers."));
             }
             Napi::Number num = arrayItem.As<Napi::Number>();
             nativeArray.push_back(static_cast<size_t>(num.Int32Value()));
@@ -83,7 +81,7 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         Napi::TypedArray buf;
         napi_typedarray_type type = elem.As<Napi::TypedArray>().TypedArrayType();
         if ((type != napi_int32_array) && (type != napi_uint32_array)) {
-            throw std::invalid_argument(std::string("Passed argument must be a Int32Array."));
+            OPENVINO_THROW(std::string("Passed argument must be a Int32Array."));
         } else if ((type == napi_uint32_array))
             buf = elem.As<Napi::Uint32Array>();
         else {
@@ -102,7 +100,7 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
     const std::vector<napi_types>& acceptable_types) {
     const auto elem = info[idx];
     if (!elem.IsArray()) {
-        throw std::invalid_argument(std::string("Passed argument must be of type Array."));
+        OPENVINO_THROW(std::string("Passed argument must be of type Array."));
     } else {
         auto array = elem.As<Napi::Array>();
         size_t arrayLength = array.Length();
@@ -112,7 +110,7 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
         for (size_t i = 0; i < arrayLength; ++i) {
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsString()) {
-                throw std::invalid_argument(std::string("Passed array must contain only strings."));
+                OPENVINO_THROW(std::string("Passed array must contain only strings."));
             }
             Napi::String str = arrayItem.As<Napi::String>();
             nativeArray.insert(str.Utf8Value());
@@ -127,11 +125,11 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
                                                    const std::vector<napi_types>& acceptable_types) {
     const auto elem = info[idx];
     if (!acceptableType(elem, acceptable_types))
-        throw std::invalid_argument(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
+        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
     const std::string type = elem.ToString();
     const auto& types = get_supported_types();
     if (std::find(types.begin(), types.end(), type) == types.end())
-        throw std::invalid_argument(std::string("Cannot create ov::element::Type"));
+        OPENVINO_THROW(std::string("Cannot create ov::element::Type"));
 
     return static_cast<ov::element::Type_t>(ov::element::Type(type));
 }
@@ -175,7 +173,7 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
 }
 
 template <>
-ov::Any js_to_cpp<ov::Any>(Napi::Value value, const std::vector<napi_types>& acceptable_types) {
+ov::Any js_to_cpp<ov::Any>(const Napi::Value& value, const std::vector<napi_types>& acceptable_types) {
     if (!acceptableType(value, acceptable_types)) {
         OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::Any"));
     }
@@ -227,7 +225,7 @@ template <>
 Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& info, const ov::PartialShape shape) {
     size_t size = shape.size();
     Napi::Array dimensions = Napi::Array::New(info.Env(), size);
-    
+
     for (size_t i = 0; i < size; i++) {
         ov::Dimension dim = shape[i];
 
@@ -244,7 +242,7 @@ Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& i
             continue;
         }
 
-        dimensions[i] = cpp_to_js<ov::Dimension, Napi::Array>(info, dim);        
+        dimensions[i] = cpp_to_js<ov::Dimension, Napi::Array>(info, dim);
     }
 
     return dimensions;
@@ -288,15 +286,15 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
     return parsed_input;
 }
 
-ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
+ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key) {
     return infer_request.get_tensor(key);
 }
 
-ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
+ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor cast_to_tensor(Napi::Value value) {
+ov::Tensor cast_to_tensor(const Napi::Value& value) {
     if (value.IsObject()) {
         auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(value.ToObject());
         return tensor_wrap->get_tensor();
@@ -305,7 +303,9 @@ ov::Tensor cast_to_tensor(Napi::Value value) {
     }
 }
 
-ov::Tensor cast_to_tensor(Napi::TypedArray typed_array, const ov::Shape& shape, const ov::element::Type_t& type) {
+ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
+                          const ov::Shape& shape,
+                          const ov::element::Type_t& type) {
     /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
     because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
     if (typed_array.ByteOffset() != 0) {
