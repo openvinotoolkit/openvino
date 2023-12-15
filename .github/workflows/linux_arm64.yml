@@ -113,6 +113,12 @@ jobs:
         with:
           version: "v0.7.4"
 
+      - name: Check if sccache vars are set
+        continue-on-error: true
+        run: |
+          if [ -z ${SCCACHE_AZURE_BLOB_CONTAINER+x} ]; then echo "SCCACHE_AZURE_BLOB_CONTAINER is unset"; else echo "SCCACHE_AZURE_BLOB_CONTAINER is set"; fi
+          if [ -z ${SCCACHE_AZURE_CONNECTION_STRING+x} ]; then echo "SCCACHE_AZURE_CONNECTION_STRING is unset"; else echo "SCCACHE_AZURE_CONNECTION_STRING is set"; fi
+
       - name: Start sccache manually
         continue-on-error: true
         run: SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 SCCACHE_AZURE_BLOB_CONTAINER=${{ env.SCCACHE_AZURE_BLOB_CONTAINER }} SCCACHE_AZURE_CONNECTION_STRING=${{ env.SCCACHE_AZURE_CONNECTION_STRING }} ${SCCACHE_PATH}
