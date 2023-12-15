@@ -79,20 +79,20 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
 }
 
 ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
-                                  const ov::Shape& shape,
-                                  const uint32_t range,
-                                  const double_t start_from,
-                                  const int32_t resolution,
-                                  const int seed) {
+                                          const ov::Shape& shape,
+                                          const uint32_t range,
+                                          const double_t start_from,
+                                          const int32_t resolution,
+                                          const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
 #define CASE(X)                                                                     \
     case X:                                                                         \
         fill_data_random_act_dft(tensor.data<element_type_traits<X>::value_type>(), \
-                         shape_size(shape),                                         \
-                         range,                                                     \
-                         start_from,                                                \
-                         resolution,                                                \
-                         seed);                                                     \
+                                 shape_size(shape),                                 \
+                                 range,                                             \
+                                 start_from,                                        \
+                                 resolution,                                        \
+                                 seed);                                             \
         break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
@@ -136,11 +136,11 @@ ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
 #define CASE(X)                                                                     \
     case X:                                                                         \
         fill_data_random_act_dft(tensor.data<element_type_traits<X>::value_type>(), \
-                         shape_size(shape),                                         \
-                         range,                                                     \
-                         start_from,                                                \
-                         resolution,                                                \
-                         seed);                                                     \
+                                 shape_size(shape),                                 \
+                                 range,                                             \
+                                 start_from,                                        \
+                                 resolution,                                        \
+                                 seed);                                             \
         break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
@@ -161,11 +161,11 @@ ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
     case ov::element::Type_t::u4:
     case ov::element::Type_t::nf4:
         fill_data_random_act_dft(static_cast<uint8_t*>(tensor.data()),
-                         tensor.get_byte_size(),
-                         range,
-                         start_from,
-                         resolution,
-                         seed);
+                                 tensor.get_byte_size(),
+                                 range,
+                                 start_from,
+                                 resolution,
+                                 seed);
         break;
     default:
         OPENVINO_THROW("Unsupported element type: ", element_type);
