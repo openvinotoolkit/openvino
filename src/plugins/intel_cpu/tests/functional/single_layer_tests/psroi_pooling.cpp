@@ -69,6 +69,14 @@ public:
 
 protected:
     void SetUp() override {
+        std::vector<float> proposal;
+        ov::Shape featureMapShape;
+        size_t spatialBinsX;
+        size_t spatialBinsY;
+        float spatialScale;
+        size_t groupSize;
+        size_t outputDim;
+        std::string mode;
         PSROIPoolingLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
@@ -104,16 +112,6 @@ protected:
         const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(psroi)};
         function = std::make_shared<ov::Model>(results, params, "PSROIPooling");
     }
-
-public:
-    std::vector<float> proposal;
-    ov::Shape featureMapShape;
-    size_t spatialBinsX;
-    size_t spatialBinsY;
-    float spatialScale;
-    size_t groupSize;
-    size_t outputDim;
-    std::string mode;
 };
 
 TEST_P(PSROIPoolingLayerCPUTest, CompareWithRefs) {
