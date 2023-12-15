@@ -637,7 +637,7 @@ ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& o
 }
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
-    std::cout << "cpu get_property(): name = " << name.c_str() << "start" << std::endl;
+    std::cout << "cpu get_property(): name = " << name.c_str() << " start" << std::endl;
     auto prop = get_property_internal(name, options);
     if (!prop.empty()) {
         std::cout << "cpu get_property(): name = " << name.c_str() << ", value = " << prop.as<std::string>()

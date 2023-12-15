@@ -575,7 +575,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         desc = it->second;
     }
     // Plugin is in registry, but not created, let's create
-    std::cout << "ov::CoreImpl::get_plugin - start " << pluginName.c_str() << std::endl;
     std::shared_ptr<void> so;
     try {
         ov::Plugin plugin;
@@ -716,7 +715,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
-        std::cout << "ov::CoreImpl::get_plugin - start2 " << deviceName.c_str() << std::endl;
+        // std::cout << "ov::CoreImpl::get_plugin - start2 " << deviceName.c_str() << std::endl;
         auto ret = plugins.emplace(deviceName, plugin).first->second;
         std::cout << "ov::CoreImpl::get_plugin - done " << deviceName.c_str() << std::endl;
         return ret;
@@ -952,6 +951,12 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
                       << std::endl;
             const ov::Any p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
+            if (p.empty()) {
+                std::cout << "     GetMetric return empty ov::Any value" << std::endl;
+            }
+            if (devicesIDs.empty()) {
+                std::cout << "     GetMetric return empty devicesIDs value" << std::endl;
+            }
             std::cout << "ov::CoreImpl::get_available_devices: " << deviceName << ": " << propertyName << " = "
                       << p.as<std::string>() << std::endl;
         } catch (const InferenceEngine::Exception&) {
