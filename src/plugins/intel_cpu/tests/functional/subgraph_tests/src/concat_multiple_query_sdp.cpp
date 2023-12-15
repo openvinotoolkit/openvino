@@ -29,14 +29,15 @@ using ConcatMultiQuerySDPParams = std::tuple<ElementType,
  *                                  |
  *       Parameter    ReadValue     |           ReadValue  Parameter
  *           \           /          |               \          /
- *            \         /           |                \        /
+ *            \       Gather        |             Gather      /
+ *             \       /            |                 \      /
  *               Concat         Transpose              Concat
  *                / \               |                 /     \
  *               /   \              |                /       \
  *              /   MultiQuery      |           MultiQuery    \
- *             /      \             |              /           \
+ *             /       \            |              /           \
  *            /     Transpose       |          Transpose        \
- *           /         \            |            /               \
+ *           /           \          |            /               \
  *          Assign      ScaledDotProductAttention              Assign
  *                                  |
  *                               Tranpose
@@ -128,8 +129,13 @@ public:
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
-        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, inputParams[1]}, concat_axis);
-        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, concat_axis);
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
+        beam_idx->set_friendly_name("beam_idx");
+        inputParams.push_back(beam_idx);
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {transposeOrder[0]}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {transposeOrder[0]}));
+        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
 
         auto unsquezeAxis = op::v0::Constant::create(ov::element::i32, {}, {-2});
         auto unsqueezeK = std::make_shared<ov::op::v0::Unsqueeze>(concatK, unsquezeAxis);
@@ -206,7 +212,16 @@ public:
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
-            if (param->get_element_type() == element::f32) {
+            if (param->get_element_type() == element::i32) {
+                ov::Tensor t{ov::element::i32, shape};
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size;
+                }
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
@@ -216,11 +231,12 @@ public:
                 inputs.insert({param, t});
             }
         };
-        // q, k, v
+        // q, k, v, pastkv
         create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
         create_input(function->get_parameters()[1], targetInputStaticShapes[1], idx + 2.0f);
         create_input(function->get_parameters()[2], targetInputStaticShapes[1], idx + 3.0f);
         create_input(function->get_parameters()[3], targetInputStaticShapes[2], idx + 4.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][1]}, idx + 0.0f);
     }
     void prepare() {
         compile_model();
@@ -264,6 +280,7 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     }
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -273,7 +290,7 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
-    {// inputShapes ChatGLM
+    {// inputShapes ChatGLM, greedy search
      {
          // L1, B, H, S
          {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
@@ -283,6 +300,17 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
      },
      // transposeOrder
      {1, 2, 0, 3}},
+    {// beam search
+     {
+         // L1, B, H, S
+         {{-1, -1, 8, 64}, {{10, 4, 8, 64}, {1, 4, 8, 64}, {1, 4, 8, 64}, {1, 4, 8, 64}, {1, 4, 8, 64}}},
+         {{-1, -1, 2, 64}, {{10, 4, 2, 64}, {1, 4, 2, 64}, {1, 4, 2, 64}, {1, 4, 2, 64}, {1, 4, 2, 64}}},
+         // L0, B, H, S
+         {{-1, -1, 2, 64}, {{0, 4, 2, 64}, {10, 4, 2, 64}, {11, 4, 2, 64}, {12, 4, 2, 64}, {13, 4, 2, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
+
 }};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,

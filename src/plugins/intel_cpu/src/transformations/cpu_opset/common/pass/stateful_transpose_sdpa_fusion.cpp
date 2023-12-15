@@ -16,6 +16,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include <utils/general_utils.h>
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 
@@ -30,10 +31,12 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
     auto past_v = wrap_type<opset6::ReadValue>();
     auto convert_past_k = wrap_type<opset1::Convert>({past_k});
     auto convert_past_v = wrap_type<opset1::Convert>({past_v});
-    auto concat_input_k = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_k, convert_past_k});
-    auto concat_input_v = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_v, convert_past_v});
-    auto concat_k = wrap_type<opset6::Concat>({concat_input_k, any_input()});
-    auto concat_v = wrap_type<opset6::Concat>({concat_input_v, any_input()});
+    auto select_input_k = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_k, convert_past_k});
+    auto select_input_v = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_v, convert_past_v});
+    auto gather_input_k = wrap_type<opset8::Gather>({select_input_k, any_input(), any_input()});
+    auto gather_input_v = wrap_type<opset8::Gather>({select_input_v, any_input(), any_input()});
+    auto concat_k = wrap_type<opset6::Concat>({gather_input_k, any_input()});
+    auto concat_v = wrap_type<opset6::Concat>({gather_input_v, any_input()});
 
     // multi-query branch
     auto reshape_k = wrap_type<opset6::Reshape>({concat_k, any_input()});
@@ -81,11 +84,28 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
                     return;
             }
         };
+        auto check_valid_children_type = [] (const ov::Output<ov::Node>& out) {
+            auto children = out.get_target_inputs();
+            for (auto& child : children) {
+                auto node = child.get_node();
+                if (!one_of(node->get_type_info(),
+                    ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
+                    ov::op::v0::ShapeOf::get_type_info_static(),
+                    ov::op::v3::ShapeOf::get_type_info_static(),
+                    ov::op::v0::Convert::get_type_info_static(),
+                    ov::op::v8::Gather::get_type_info_static()))
+                    return false;
+            }
+            return true;
+        };
 
         std::shared_ptr<opset1::Convert> read_cvt_k_node, read_cvt_v_node;
         const auto sdp_node = ov::as_type_ptr<opset13::ScaledDotProductAttention>(root);
         const auto past_k_node = ov::as_type_ptr<opset6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
         const auto past_v_node = ov::as_type_ptr<opset6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
+        if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
+            return false;
+        }
         const auto concat_k_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
         if (pattern_map.count(convert_past_k)) {
@@ -125,10 +145,17 @@ StatefulTransposeSDPAFusion::StatefulTransposeSDPAFusion() {
             return false;
         if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
             return false;
+
+        const auto gather_k_node = ov::as_type_ptr<opset8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
+        const auto gather_v_node = ov::as_type_ptr<opset8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+        if (gather_k_node->input_value(1) != gather_v_node->input_value(1)) {
+            return false;
+        }
         auto args = sdp_node->input_values();
         args[0] = pattern_map.at(q_input).get_node_shared_ptr()->output(0);
         args[1] = concat_k_node->input_value(1);
         args[2] = concat_v_node->input_value(1);
+        args.push_back(gather_k_node->input_value(1));
         args.push_back(read_cvt_k_node ? read_cvt_k_node->output(0) : past_k_node->output(0));
         args.push_back(read_cvt_v_node ? read_cvt_v_node->output(0) : past_v_node->output(0));
         ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;

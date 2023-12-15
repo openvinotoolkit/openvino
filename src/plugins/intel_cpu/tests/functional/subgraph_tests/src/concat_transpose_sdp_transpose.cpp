@@ -29,7 +29,8 @@ using ConcatSDPTransposeTestParams = std::tuple<ElementType,
  *                                  |
  *       Parameter    ReadValue     |           ReadValue  Parameter
  *           \           /          |               \          /
- *            \         /           |                \        /
+ *         Gather       /           |             Gather      /
+ *             \       /            |                 \      /
  *               Concat         Transpose              Concat
  *                / \               |                 /     \
  *               /   \              |                /       \
@@ -127,8 +128,13 @@ public:
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
-        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, inputParams[1]}, concat_axis);
-        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, concat_axis);
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
+        beam_idx->set_friendly_name("beam_idx");
+        inputParams.push_back(beam_idx);
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
         auto transposeV = std::make_shared<ov::op::v1::Transpose>(concatV, preOrder);
 
@@ -190,8 +196,17 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
-        auto create_input = [this](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
-            if (param->get_element_type() == element::f32) {
+        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
+            if (param->get_element_type() == element::i32) {
+                ov::Tensor t{ov::element::i32, shape};
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size;
+                }
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
@@ -201,11 +216,12 @@ public:
                 inputs.insert({param, t});
             }
         };
-        // q, k, v
+        // q, k, v, pastkv
         create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
         create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
         create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
         create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
     }
     void prepare() {
         compile_model();
@@ -245,6 +261,7 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -255,33 +272,27 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {
     {
-     // inputShapes LLama
-     {
-         // B, H, L1, S
-         {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
-         // B, H, L0, S
-         {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
-     },
-     // transposeOrder
-     {0, 1, 2, 3}},
-    {// inputShapes QWen
-     {
-         // B, L1, H, S
-         {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
-         // B, L0, H, S
-         {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
-     },
-     // transposeOrder
-     {0, 2, 1, 3}},
-    {// inputShapes ChatGLM
-     {
-         // L1, B, H, S
-         {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
-         // L0, B, H, S
-         {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}, {11, 1, 8, 64}, {12, 1, 8, 64}, {32, 1, 8, 64}}},
-     },
-     // transposeOrder
-     {1, 2, 0, 3}},
+        // greedy search
+        {{
+            // B, L1, H, S
+            {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
+            // B, L0, H, S
+            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
+         },
+         // transposeOrder
+         {0, 2, 1, 3}
+        },
+        // beam search
+        {{
+            // B, L1, H, S
+            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+            // B, L0, H, S
+            {{-1, -1, 8, 64}, {{4, 0, 8, 64}, {4, 10, 8, 64}, {4, 11, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}}},
+         },
+         // transposeOrder
+         {0, 2, 1, 3}
+        }
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
