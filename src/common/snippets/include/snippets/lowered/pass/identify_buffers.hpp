@@ -60,6 +60,7 @@ public:
 
 private:
     using BufferPool = std::vector<ExpressionPtr>;
+    using BufferMap = std::map<ExpressionPtr, ShiftPtrParams>;
 
     /**
      * @brief Get Buffer Index in Buffer set
@@ -105,6 +106,19 @@ private:
      */
     static bool are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
                              const std::pair<ExpressionPtr, ShiftPtrParams>& rhs);
+
+    /**
+     * @brief Find all buffers that are connected to the current LoopEnd
+     * @param loop_end_expr expression of the target LoopEnd
+     * @return buffer map [buffer expr -> ShiftDataPtrs]
+     */
+    static BufferMap get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr);
+    /**
+     * @brief Find all buffers that are inside the current Loop.
+     * @param loop_end_it expression iterator in LinearIR of the target LoopEnd
+     * @return set of inner buffers
+     */
+    static BufferMap get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it);
 };
 
 } // namespace pass
