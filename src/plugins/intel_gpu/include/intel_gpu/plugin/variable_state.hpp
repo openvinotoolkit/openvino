@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
@@ -15,10 +16,14 @@ namespace intel_gpu {
 class RemoteContextImpl;
 
 struct VariableStateInfo {
-    VariableStateInfo(const std::string& id, const cldnn::layout& layout) : m_id(id), m_layout(layout) {}
+    VariableStateInfo(const std::string& id, const cldnn::layout& layout, ov::element::Type_t user_specified_type = ov::element::undefined)
+        : m_id(id)
+        , m_layout(layout)
+        , m_user_specified_type(user_specified_type) {}
 
     std::string m_id;
     cldnn::layout m_layout;
+    ov::element::Type m_user_specified_type;
 };
 
 class VariableState : public ov::IVariableState {
@@ -38,6 +43,7 @@ public:
 
 private:
     cldnn::layout m_layout;
+    ov::element::Type m_user_specified_type;
     std::shared_ptr<RemoteContextImpl> m_context;
     std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor;
     bool m_is_set = false;
@@ -45,6 +51,7 @@ private:
     size_t actual_size = 0;
 
     void update_device_buffer();
+    ov::element::Type get_user_specified_type() const;
 };
 
 using VariablesMap = std::unordered_map<std::string, VariableState::Ptr>;
