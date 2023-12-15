@@ -330,5 +330,137 @@ TEST_F(RoPECPUTestChatGLM, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
 }
 
+class RoPECPUTestQwen7b : public SubgraphBaseTest {
+public:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& funcInputs = function->inputs();
+
+        auto& input_shape = targetInputStaticShapes[0];
+
+        ov::Tensor t_input =
+            utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, 2, -1.0f, 32768);
+        ov::Tensor t_cos_cache =
+            utils::create_and_fill_tensor(funcInputs[1].get_element_type(), {1, 4096, 1, 128}, 2, -1.0f, 32768);
+        ov::Tensor t_sin_cache =
+            utils::create_and_fill_tensor(funcInputs[1].get_element_type(), {1, 4096, 1, 128}, 2, -1.0f, 32768);
+
+        inputs.clear();
+        inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos_cache});
+        inputs.insert({funcInputs[2].get_node_shared_ptr(), t_sin_cache});
+    }
+
+protected:
+    std::shared_ptr<ov::Model> buildROPE_QWen7b() {
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, 4096 + 4096 + 4096});
+        auto cos_cache = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, -1, 1, 128});
+        auto sin_cache = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, -1, 1, 128});
+
+        auto ListUnpack_389_VariadicSplit = makeOP<opset1::VariadicSplit>({input, 2, {4096, 4096, -1}});
+        auto view_Reshape = makeOP<opset1::Reshape>({ListUnpack_389_VariadicSplit->output(0), {0, 0, 32, 128}},
+                                                    {{"special_zero", true}});
+        auto size_ShapeOf_414 = makeOP<opset3::ShapeOf>({view_Reshape}, {{"output_type", "i32"}});
+        auto size_Gather_416 = makeOP<opset8::Gather>({size_ShapeOf_414, 1, 0}, {{"batch_dims", 0}});
+        auto neg_Multiply = makeOP<opset1::Multiply>({size_Gather_416, -1}, {{"auto_broadcast", "numpy"}});
+        auto slice_Unsqueeze_422 = makeOP<opset1::Unsqueeze>({neg_Multiply, 0});
+        auto ScatterUpdate_261437 = makeOP<opset3::ScatterUpdate>({{0, 0}, {1}, slice_Unsqueeze_422, {0}});
+        auto slice_Slice_425 = makeOP<opset1::StridedSlice>({cos_cache, ScatterUpdate_261437, {0ll, LLONG_MAX}, {1, 1}},
+                                                            {{"begin_mask", {1, 0}},
+                                                             {"end_mask", {1, 0}},
+                                                             {"new_axis_mask", {}},
+                                                             {"shrink_axis_mask", {}},
+                                                             {"ellipsis_mask", {}}});
+        auto slice_Slice_431 =
+            makeOP<opset1::StridedSlice>({slice_Slice_425, {0, 0, 0}, {0ll, 0ll, LLONG_MAX}, {1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 0}},
+                                          {"end_mask", {1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto slice_Slice_437 =
+            makeOP<opset1::StridedSlice>({slice_Slice_431, {0, 0, 0, 0}, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto size_ShapeOf_462 = makeOP<opset3::ShapeOf>({slice_Slice_437}, {{"output_type", "i32"}});
+        auto size_Gather_464 = makeOP<opset8::Gather>({size_ShapeOf_462, {3}, 0}, {{"batch_dims", 0}});
+        auto ScatterUpdate_261533 = makeOP<opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, size_Gather_464, {0}});
+        auto slice_Slice_470 =
+            makeOP<opset1::StridedSlice>({view_Reshape, {0, 0, 0, 0}, ScatterUpdate_261533, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto mul_Multiply = makeOP<opset1::Multiply>({slice_Slice_470, slice_Slice_437}, {{"auto_broadcast", "numpy"}});
+        auto size_ShapeOf_478 = makeOP<opset3::ShapeOf>({slice_Slice_470}, {{"output_type", "i32"}});
+        auto Gather_239390 = makeOP<opset8::Gather>({size_ShapeOf_478, {0, 1, 2}, 0}, {{"batch_dims", 0}});
+        auto size_Gather_489 = makeOP<opset8::Gather>({size_ShapeOf_478, 3, 0}, {{"batch_dims", 0}});
+        auto floor_divide_Divide =
+            makeOP<opset1::Divide>({size_Gather_489, 2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto floor_divide_Floor = makeOP<opset1::Floor>({floor_divide_Divide});
+        auto ListConstruct_493_Reshape_3 =
+            makeOP<opset1::Reshape>({floor_divide_Floor, {-1}}, {{"special_zero", false}});
+        auto ListConstruct_493_Concat =
+            makeOP<opset1::Concat>({Gather_239390, {2}, ListConstruct_493_Reshape_3}, {{"axis", 0}});
+        auto reshape_Reshape =
+            makeOP<opset1::Reshape>({slice_Slice_470, ListConstruct_493_Concat}, {{"special_zero", false}});
+        auto ListUnpack_496_Split = makeOP<opset1::Split>({reshape_Reshape, -2}, {{"num_splits", 2}});
+        auto ListUnpack_496_Squeeze_0 = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(1), -2});
+        auto Constant_296840_compressed = makeConst(element::f16,
+                                                    ov::Shape({
+                                                        1,
+                                                        1,
+                                                        1,
+                                                        1,
+                                                    }),
+                                                    {-1});
+        auto Constant_296840 = makeOP<opset1::Convert>({Constant_296840_compressed}, {{"destination_type", "f32"}});
+        auto neg_Multiply_499 =
+            makeOP<opset1::Multiply>({ListUnpack_496_Squeeze_0, Constant_296840}, {{"auto_broadcast", "numpy"}});
+        auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2});
+        auto cat_Concat = makeOP<opset1::Concat>({neg_Multiply_499, ListUnpack_496_Squeeze}, {{"axis", -1}});
+        auto slice_Slice_449 = makeOP<opset1::StridedSlice>({sin_cache, ScatterUpdate_261437, {0ll, LLONG_MAX}, {1, 1}},
+                                                            {{"begin_mask", {1, 0}},
+                                                             {"end_mask", {1, 0}},
+                                                             {"new_axis_mask", {}},
+                                                             {"shrink_axis_mask", {}},
+                                                             {"ellipsis_mask", {}}});
+        auto slice_Slice_455 =
+            makeOP<opset1::StridedSlice>({slice_Slice_449, {0, 0, 0}, {0ll, 0ll, LLONG_MAX}, {1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 0}},
+                                          {"end_mask", {1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto slice_Slice_461 =
+            makeOP<opset1::StridedSlice>({slice_Slice_455, {0, 0, 0, 0}, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto mul_Multiply_503 = makeOP<opset1::Multiply>({cat_Concat, slice_Slice_461}, {{"auto_broadcast", "numpy"}});
+        auto add_Add = makeOP<opset1::Add>({mul_Multiply, mul_Multiply_503}, {{"auto_broadcast", "numpy"}});
+        return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, ov::ParameterVector{input, cos_cache, sin_cache});
+    }
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        const int batch = 2;
+        const int seq_length = 7;
+        InputShape inpShape = {{batch, -1, 4096 + 4096 + 4096}, {{batch, seq_length, 4096 + 4096 + 4096}}};
+        init_input_shapes({inpShape});
+        function = buildROPE_QWen7b();
+    }
+};
+
+TEST_F(RoPECPUTestQwen7b, smoke_CompareWithRefs) {
+    run();
+    CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
+}
+
 }  // namespace test
 }  // namespace ov
