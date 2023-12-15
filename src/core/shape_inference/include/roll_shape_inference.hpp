@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <openvino/op/roll.hpp>
-
+#include "openvino/op/roll.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -40,9 +40,7 @@ std::vector<TRShape> shape_infer(const Roll* op,
 
     if (data_pshape.rank().is_static()) {
         if (const auto axes = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::normalize_axes(op, data_pshape.size(), *axes);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::normalize_axes(op, data_pshape.size(), *axes);
         }
     }
 
