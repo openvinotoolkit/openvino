@@ -489,11 +489,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput1ToDetectionOutput8);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign3To9);
 
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseAndToLogicalAnd);
-    CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseNotToLogicalNot);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseOrToLogicalOr);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseXorToLogicalXor);
-
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
         CPU_SET_CALLBACK_COMMON(manager,

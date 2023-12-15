@@ -46,9 +46,9 @@ void GatherNDLayerTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
     auto dataNode = params[0];
-    auto gather = std::dynamic_pointer_cast<ngraph::opset5::GatherND>(
+    auto gather = std::dynamic_pointer_cast<ov::op::v5::GatherND>(
             ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
 
@@ -70,9 +70,9 @@ void GatherND8LayerTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
     auto dataNode = params[0];
-    auto gather = std::dynamic_pointer_cast<ngraph::opset8::GatherND>(
+    auto gather = std::dynamic_pointer_cast<ov::op::v8::GatherND>(
         ngraph::builder::makeGatherND8(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(gather) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
 

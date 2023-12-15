@@ -40,7 +40,7 @@ void SpaceToBatchLayerTest::SetUp() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto s2b = ngraph::builder::makeSpaceToBatch(params[0], ngPrc, blockShape, padsBegin, padsEnd);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2b)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(s2b)};
     function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
 }
 }  // namespace LayerTestsDefinitions

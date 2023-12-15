@@ -25,7 +25,7 @@ std::string FakeQuantizeDecompositionTest::getTestCaseName(testing::TestParamInf
     const auto targetDevice = std::get<3>(obj.param);
 
     const auto type_info = operation.first->get_type_info();
-    const auto operationString = ngraph::is_type<ngraph::opset1::Parameter>(operation.first) ?
+    const auto operationString = ngraph::is_type<ov::op::v0::Parameter>(operation.first) ?
         "nullptr" :
         (std::string(type_info.name) + "_" + std::string(type_info.version_id));
 
@@ -55,7 +55,7 @@ void FakeQuantizeDecompositionTest::SetUp() {
 
     init_input_shapes({{values.inputShape, {values.inputShape}}});
 
-    std::shared_ptr<ngraph::Node> op = ngraph::is_type<ngraph::opset1::Parameter>(operation.first) ? nullptr : operation.first;
+    std::shared_ptr<ngraph::Node> op = ngraph::is_type<ov::op::v0::Parameter>(operation.first) ? nullptr : operation.first;
     function = ov::test::snippets::FakeQuantizeFunction::getOperationAndFakeQuantize(
         {values.inputShape},
         values.inputType,

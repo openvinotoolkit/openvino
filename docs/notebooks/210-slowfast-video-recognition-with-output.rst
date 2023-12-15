@@ -43,29 +43,34 @@ This tutorial consists of the following steps
 
 -  `Prepare PyTorch Model <#prepare-pytorch-model>`__
 
-   -  `Install necessary
-      packages <#install-necessary-packages>`__
+   -  `Install necessary packages <#install-necessary-packages>`__
    -  `Imports and Settings <#imports-and-settings>`__
 
 -  `Export to ONNX <#export-to-onnx>`__
--  `Convert ONNX to OpenVINO™ Intermediate
+-  `Convert ONNX to OpenVINO Intermediate
    Representation <#convert-onnx-to-openvino-intermediate-representation>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Verify Model Inference <#verify-model-inference>`__
 
-Prepare PyTorch Model 
----------------------------------------------------------------
+Prepare PyTorch Model
+---------------------
 
-Install necessary packages 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Install necessary packages
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     !pip install -q "openvino>=2023.1.0"
-    !pip install -q fvcore
+    !pip install -q fvcore --extra-index-url https://download.pytorch.org/whl/cpu
 
-Imports and Settings 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Imports and Settings
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -709,8 +714,10 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-Export to ONNX 
---------------------------------------------------------
+Export to ONNX
+--------------
+
+
 
 Now that we have obtained our trained model and checked inference with
 it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
@@ -733,8 +740,10 @@ quantization.
         export_params=True,
     )
 
-Convert ONNX to OpenVINO Intermediate Representation 
-----------------------------------------------------------------------------------------------
+Convert ONNX to OpenVINO Intermediate Representation
+----------------------------------------------------
+
+
 
 Now that our ONNX model is ready, we can convert it to IR format. In
 this format, the network is represented using two files: an ``xml`` file
@@ -765,8 +774,10 @@ using the ``weights`` parameter.
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -797,8 +808,10 @@ select device from dropdown list for running inference using OpenVINO
     # load model on device
     compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
-Verify Model Inference 
-----------------------------------------------------------------
+Verify Model Inference
+----------------------
+
+
 
 Using the compiled model, we run inference on the same sample video and
 print the top 5 predictions again.
