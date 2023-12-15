@@ -25,9 +25,6 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
 
     auto elemType = model_type;
     bool inPrcSigned = elemType.is_signed();
-    int32_t data_start_from;
-    uint32_t data_range;
-    int32_t resolution;
 
     ov::test::utils::InputGenerateData inGenData;
     if (elemType.is_real()) {
