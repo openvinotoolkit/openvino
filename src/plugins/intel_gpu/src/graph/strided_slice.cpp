@@ -46,10 +46,8 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         || (strides_data.empty() && !constant_mem.count(3))) {
         auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
             size_t count = 0;
-            for (size_t i = 0; i < mask.size(); i++) {
-                if (mask[i])
-                    count++;
-            }
+            for (size_t i = 0; i < mask.size(); i++)
+                if (mask[i]) count++;
             return count;
         };
 
@@ -79,17 +77,22 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
             // To-Do :
             //    1) Consider the case where ellipsis_mask is enabled.
             //    2) Consider each combination of new_axis_mask, shrink_axis_mask and ellipsis_mask.
-            size_t out_idx = 0;
-            for (size_t i = 0; i < input0_len; i++) {
-                if (num_of_new_axis_bit && desc->new_axis_mask[i])
-                    output_shape[out_idx++] = {1};
-                else if (num_of_shrink_axis_bit && desc->shrink_axis_mask[i])
+            size_t output_idx = 0;
+            size_t input_idx = 0;
+            for (size_t i = 0; i < output_len; i++) {
+                if (num_of_new_axis_bit && desc->new_axis_mask[i]) {
+                    output_shape[output_idx++] = {1};
                     continue;
+                } else if (num_of_shrink_axis_bit && desc->shrink_axis_mask[i]) {
+                    continue;
+                }
 
-                if (input0_pshape[i].is_static())
-                    output_shape[out_idx++] = input0_pshape[i];
-                else
+                if (input0_pshape[input_idx].is_static()) {
+                    output_shape[output_idx++] = input0_pshape[input_idx];
+                    input_idx++;
+                } else {
                     break;
+                }
             }
         }
 
