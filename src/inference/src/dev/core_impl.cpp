@@ -544,6 +544,13 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
         deviceName = "AUTO";
     stripDeviceName(deviceName, "-");
+
+    auto print_logs = [&](std::string str) {
+        if (deviceName == "NPU") {
+            std::cout << "ov::CoreImpl::get_plugin(NPU): " << str.c_str() << std::endl;
+        }
+    };
+    print_logs(" start ");
     std::map<std::string, PluginDescriptor>::const_iterator it;
     {
         // Global lock to find plugin.
@@ -579,12 +586,14 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     try {
         ov::Plugin plugin;
 
+        print_logs(" load_shared_object ");
         if (desc.pluginCreateFunc) {  // static OpenVINO case or proxy plugin
             std::shared_ptr<ov::IPlugin> plugin_impl;
             desc.pluginCreateFunc(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
         } else {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+            print_logs(" load_shared_object is done");
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin_impl))
@@ -592,6 +601,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             plugin = Plugin{plugin_impl, so};
         }
 
+        print_logs(" set_name ");
         {
             plugin.set_name(deviceName);
 
@@ -653,6 +663,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 #endif
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
             // also, remove device_supports_cache_dir at all
+            print_logs(" device_supports_cache_dir ");
             {
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 if (device_supports_cache_dir(plugin)) {
@@ -688,6 +699,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     }
                 }
 
+                print_logs(" plugin.set_property ");
                 // set global device-id independent settings to plugin
                 plugin.set_property(desc.defaultConfig);
             });
@@ -711,11 +723,11 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
+            print_logs(" TryToRegisterLibraryAsExtensionUnsafe ");
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
-        // std::cout << "ov::CoreImpl::get_plugin - start2 " << deviceName.c_str() << std::endl;
         auto ret = plugins.emplace(deviceName, plugin).first->second;
         std::cout << "ov::CoreImpl::get_plugin - done " << deviceName.c_str() << std::endl;
         return ret;
@@ -952,6 +964,10 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
                           << std::endl;
             }
             const ov::Any p = GetMetric(deviceName, propertyName);
+            if (deviceName == "NPU") {
+                std::cout << "ov::CoreImpl::get_available_devices done: " << deviceName << ": " << propertyName
+                          << std::endl;
+            }
             devicesIDs = p.as<std::vector<std::string>>();
             if (p.empty()) {
                 std::cout << "     GetMetric return empty ov::Any value" << deviceName << std::endl;
@@ -960,8 +976,8 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
                 std::cout << "     GetMetric return empty devicesIDs value for " << deviceName << std::endl;
             }
             if (deviceName == "NPU") {
-                std::cout << "ov::CoreImpl::get_available_devices: " << deviceName << ": " << propertyName << " = "
-                          << p.as<std::string>() << std::endl;
+                std::cout << "ov::CoreImpl::get_available_devices return: " << deviceName << ": " << propertyName
+                          << " = " << p.as<std::string>() << std::endl;
             }
         } catch (const InferenceEngine::Exception&) {
             // plugin is not created by e.g. invalid env
