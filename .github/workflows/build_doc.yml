@@ -68,19 +68,19 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: 'Upload doxygen.log'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: doxygen_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/doxygen.log
 
       - name: 'Upload sphinx.log'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/sphinx.log
 
       - name: 'Upload docs html'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}.zip
           path: build/docs/openvino_docs_html.zip
@@ -99,7 +99,7 @@ jobs:
 
       - name: 'Upload test results'
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_docs_pytest
           path: build/docs/_artifacts/

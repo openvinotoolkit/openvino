@@ -28,7 +28,7 @@ jobs:
     steps:
 
       - name: Download OpenVINO debian packages
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_debian_packages
           path: ${{ env.DEBIAN_PACKAGES_DIR }}
