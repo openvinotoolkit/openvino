@@ -9,6 +9,20 @@ namespace intel_cpu {
 namespace tpp {
 namespace op {
 
+#define GENERAL_AUX_METHODS(OP, OP_TYPE, ...) \
+ std::shared_ptr<Node> OP::clone_with_new_inputs(const OutputVector& new_args) const {\
+    check_new_args_count(this, new_args);\
+    const auto& new_op = std::make_shared<OP>(__VA_ARGS__);\
+    new_op->clone_memory_acess_ports(*this);\
+    return new_op;\
+} \
+ bool OP::visit_attributes(AttributeVisitor& visitor) {\
+    return OP_TYPE::visit_attributes(visitor);\
+}
+
+#define BINARY_AUX_METHODS(BINARY_OP) GENERAL_AUX_METHODS(BINARY_OP, BinaryEltwiseTPP, new_args.at(0), new_args.at(1), this->get_autob())
+#define UNARY_AUX_METHODS(UNARY_OP) GENERAL_AUX_METHODS(UNARY_OP, UnaryEltwiseTPP, new_args.at(0))
+
 bool EltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v1::Add>(node) ||
            ov::is_type<ov::op::v1::Subtract>(node) ||
@@ -35,89 +49,53 @@ Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcast
 : BinaryEltwiseTPP(LIBXSMM_MELTW_TYPE_BINARY_ADD), ov::op::v1::Add(arg0, arg1, auto_broadcast) {
 }
 
-bool Add::visit_attributes(AttributeVisitor& visitor) {
-    return BinaryEltwiseTPP::visit_attributes(visitor);
-}
-
-std::shared_ptr<Node> Add::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    const auto& new_op = std::make_shared<Add>(new_args.at(0), new_args.at(1), this->get_autob());
-    new_op->clone_memory_acess_ports(*this);
-    return new_op;
-}
+BINARY_AUX_METHODS(Add)
 
 Subtract::Subtract(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
         : BinaryEltwiseTPP(LIBXSMM_MELTW_TYPE_BINARY_SUB), ov::op::v1::Subtract(arg0, arg1, auto_broadcast) {
 }
 
-std::shared_ptr<Node> Subtract::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    const auto& new_op = std::make_shared<Subtract>(new_args.at(0), new_args.at(1), this->get_autob());
-    new_op->clone_memory_acess_ports(*this);
-    return new_op;
-}
-
-bool Subtract::visit_attributes(AttributeVisitor& visitor) {
-    return BinaryEltwiseTPP::visit_attributes(visitor);
-}
+BINARY_AUX_METHODS(Subtract)
 
 Multiply::Multiply(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
         : BinaryEltwiseTPP(LIBXSMM_MELTW_TYPE_BINARY_MUL), ov::op::v1::Multiply(arg0, arg1, auto_broadcast) {
 }
 
-std::shared_ptr<Node> Multiply::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    const auto& new_op = std::make_shared<Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
-    new_op->clone_memory_acess_ports(*this);
-    return new_op;
-}
-
-bool Multiply::visit_attributes(AttributeVisitor& visitor) {
-    return BinaryEltwiseTPP::visit_attributes(visitor);
-}
+BINARY_AUX_METHODS(Multiply)
 
 Divide::Divide(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
         : BinaryEltwiseTPP(LIBXSMM_MELTW_TYPE_BINARY_DIV), ov::op::v1::Divide(arg0, arg1, auto_broadcast) {
 }
 
-std::shared_ptr<Node> Divide::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    const auto& new_op = std::make_shared<Divide>(new_args.at(0), new_args.at(1), this->get_autob());
-    new_op->clone_memory_acess_ports(*this);
-    return new_op;
-}
-
-bool Divide::visit_attributes(AttributeVisitor& visitor) {
-    return BinaryEltwiseTPP::visit_attributes(visitor);
-}
+BINARY_AUX_METHODS(Divide)
 
 Exp::Exp(const Output<Node>& arg0) : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_EXP), ov::op::v0::Exp(arg0) {
 }
 
-std::shared_ptr<Node> Exp::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    const auto& new_op = std::make_shared<Exp>(new_args.at(0));
-    new_op->clone_memory_acess_ports(*this);
-    return new_op;
-}
-
-bool Exp::visit_attributes(AttributeVisitor& visitor) {
-    return UnaryEltwiseTPP::visit_attributes(visitor);
-}
+UNARY_AUX_METHODS(Exp)
 
 Relu::Relu(const Output<Node>& arg0) : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_RELU), ov::op::v0::Relu(arg0) {
 }
 
-std::shared_ptr<Node> Relu::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    const auto& new_op = std::make_shared<Relu>(new_args.at(0));
-    new_op->clone_memory_acess_ports(*this);
-    return new_op;
+UNARY_AUX_METHODS(Relu)
+
+Reciprocal::Reciprocal(const Output<Node>& arg) :
+    UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_RECIPROCAL), ov::snippets::op::PowerStatic(arg, -1.f) {
 }
 
-bool Relu::visit_attributes(AttributeVisitor& visitor) {
-    return UnaryEltwiseTPP::visit_attributes(visitor);
+UNARY_AUX_METHODS(Reciprocal)
+
+Square::Square(const Output<Node>& arg) :
+    UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_X2), ov::snippets::op::PowerStatic(arg, 2.f) {
 }
+
+UNARY_AUX_METHODS(Square)
+
+SquareRoot::SquareRoot(const Output<Node>& arg) :
+    UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_SQRT), ov::snippets::op::PowerStatic(arg, 0.5f) {
+}
+
+UNARY_AUX_METHODS(SquareRoot)
 
 } // namespace op
 } // namespace tpp

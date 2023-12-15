@@ -11,6 +11,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/relu.hpp"
+#include "snippets/op/powerstatic.hpp"
 
 #include "libxsmm_typedefs.h"
 
@@ -87,6 +88,31 @@ class Relu : public UnaryEltwiseTPP, public ov::op::v0::Relu {
 public:
     OPENVINO_OP("Relu", "TppOpset", ov::op::v0::Relu);
     Relu(const Output<Node>& arg);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+};
+
+class Reciprocal : public UnaryEltwiseTPP, public ov::snippets::op::PowerStatic {
+public:
+    OPENVINO_OP("Reciprocal", "TppOpset", snippets::op::PowerStatic);
+    Reciprocal(const Output<Node>& arg);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+};
+
+
+class Square : public UnaryEltwiseTPP, public ov::snippets::op::PowerStatic {
+public:
+    OPENVINO_OP("Square", "TppOpset", snippets::op::PowerStatic);
+    Square(const Output<Node>& arg);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+};
+
+class SquareRoot : public UnaryEltwiseTPP, public ov::snippets::op::PowerStatic {
+public:
+    OPENVINO_OP("SquareRoot", "TppOpset", snippets::op::PowerStatic);
+    SquareRoot(const Output<Node>& arg);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 };

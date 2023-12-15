@@ -38,10 +38,12 @@ size_t get_leading_dim(ExpressionPort port) {
     if (has_connected_buffer(port)) {
         shape = port_desc->get_subtensor();
         OPENVINO_ASSERT(is_planar_layout(layout), "Only planar layouts are supported for Buffers");
-        layout.erase(layout.end() - shape.size(), layout.end());
+        const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());
+        if (rank_diff > 0)
+            layout.erase(layout.end() - rank_diff, layout.end());
     }
 
-    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+    OPENVINO_ASSERT(layout.empty() || (layout.back() == layout.size() - 1 && layout.size() == shape.size()),
             "BrgemmTppEmitter detected invalid layout values: check that this shape + layout combination is schedulable");
     const auto dim = [&]() -> size_t {
             switch (port.get_type()) {

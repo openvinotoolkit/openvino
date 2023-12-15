@@ -42,6 +42,8 @@
 #include "transformations/snippets/tpp/pass/eltwise_to_eltwise_tpp.hpp"
 #include "transformations/snippets/tpp/pass/lowered/set_tpp_leading_dim.hpp"
 
+#include "snippets/lowered/pass/dummy_serialize.hpp"
+
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -609,6 +611,8 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"), ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"), ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"),  ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"),
+                           ov::snippets::lowered::pass::DummySerialize, "snsdebug_linear_0.xml", "snsdebug_linear_1.xml");
 #undef SNIPPETS_REGISTER_PASS
     schedule = snippetAttrs.snippet->generate_from_linear_ir(backend_passes, reinterpret_cast<const void*>(jcp));
 }

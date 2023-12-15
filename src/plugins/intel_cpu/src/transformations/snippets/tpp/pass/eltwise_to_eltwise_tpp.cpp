@@ -56,6 +56,8 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
         }
 
         const auto& tpp_eltwise = op::TPPNodeFactory::create(node);
+        if (!tpp_eltwise)
+            std::cerr << "\n";
         OPENVINO_ASSERT(tpp_eltwise, "Failed to create TPP node");
 
         ngraph::replace_node(node, tpp_eltwise);
