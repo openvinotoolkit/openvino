@@ -35,7 +35,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto& pm = matcher->get_pattern_map();
             const auto softmax = pm.at(match_softmax);
             const auto softmax_expr = *expr_it;
-            const auto softmax_loop_ids = softmax_expr->get_loop_ids();
+            const auto& softmax_loop_ids = softmax_expr->get_loop_ids();
             const auto& input_connector = softmax_expr->get_input_port_connector(0);
             const auto& output_connector = softmax_expr->get_output_port_connector(0);
             const auto tensor_out = softmax_expr->get_output_port_descriptor(0)->get_shape();

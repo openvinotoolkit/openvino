@@ -251,14 +251,13 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                                           LinearIR::constExprIt tail_end,
                                           const size_t tail_size) {
     const auto& config = linear_ir.get_config();
-    auto insertFill = [tail_size](const ov::Input<ov::Node>& input) -> std::shared_ptr<ov::Node> {
+    auto insertFill = [tail_size](const ov::Input<ov::Node>& input, const ExpressionPort& source) -> std::shared_ptr<ov::Node> {
         std::shared_ptr<ov::Node> fill = nullptr;
         auto& rt = input.get_rt_info();
         auto fill_rt = rt.find("set_fill");
         if (fill_rt != rt.end()) {
             const auto fill_value = fill_rt->second.as<uint32_t>();
-            fill = std::make_shared<ov::snippets::op::Fill>(input.get_source_output(), tail_size, fill_value);
-            input.get_node()->set_argument(input.get_index(), fill);
+            fill = std::make_shared<ov::snippets::op::Fill>(source.get_expr()->get_node()->output(source.get_index()), tail_size, fill_value);
         }
         return fill;
     };
@@ -279,9 +278,9 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
         if (config.m_need_fill_tail_register &&
             (ov::is_type<ov::op::v1::Maximum>(op) ||
              ov::is_type<ov::op::v1::Add>(op))) {
-            for (size_t i = 0; i < op->inputs().size(); ++i) {
-                if (auto fill = insertFill(op->input(i))) {
-                    const auto& input = expr->get_input_port_connector(i);
+            for (size_t i = 0; i < expr->get_input_count(); ++i) {
+                const auto& input = expr->get_input_port_connector(i);
+                if (auto fill = insertFill(op->input(i), input->get_source())) {
                     const auto consumers = input->get_consumers();
                     // If there are several consumers, fill expression must be inserted before first of them
                     auto fst_consumer = std::min_element(consumers.cbegin(), consumers.cend(), [&](ExpressionPort lhs, ExpressionPort rhs) {
@@ -289,7 +288,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                         auto rhs_it = linear_ir.find(rhs.get_expr());
                         return std::distance(linear_ir.cbegin(), lhs_it) < std::distance(linear_ir.cbegin(), rhs_it);
                     });
-                    const auto fill_expr = *linear_ir.insert_node(fill, {input}, expr->get_loop_ids(), linear_ir.find(fst_consumer->get_expr()), consumers);
+                    const auto fill_expr = *linear_ir.insert_node(fill, expr->get_loop_ids(), linear_ir.find(fst_consumer->get_expr()), consumers);
 
                     // in_reg == out_reg since we want to modify vector reg inplace
                     const auto reg = expr->get_input_port_descriptor(0)->get_reg();

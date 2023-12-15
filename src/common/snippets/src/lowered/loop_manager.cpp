@@ -188,7 +188,7 @@ LoopInfoPtr LinearIR::LoopManager::get_loop_info(size_t index) const {
 }
 
 std::vector<size_t> LinearIR::LoopManager::get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id) {
-    const auto loop_ids = expr->get_loop_ids();
+    const auto& loop_ids = expr->get_loop_ids();
     const auto it = std::find(loop_ids.cbegin(), loop_ids.cend(), loop_id);
     OPENVINO_ASSERT(it != loop_ids.cend(), "Loop ID hasn't been found");
     return std::vector<size_t>(loop_ids.cbegin(), it);
@@ -433,7 +433,7 @@ void LinearIR::LoopManager::fuse_loop_ports(std::vector<LinearIR::LoopManager::L
             }
 
             const auto& consumer = consumer_input.get_expr();
-            const auto loop_ids = consumer->get_loop_ids();
+            const auto& loop_ids = consumer->get_loop_ids();
             if (!is_loop_id_found(loop_ids, loop_id)) {
                 outside_consumers.insert(consumer);
             }

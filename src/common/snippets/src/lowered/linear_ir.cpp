@@ -306,21 +306,33 @@ LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node
     return insert(place, new_expr);
 }
 
-LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                                       const std::vector<size_t>& loop_ids, const constExprIt& place,
-                                       const std::set<ExpressionPort>& consumers) {
-    const auto consumers_py_port = consumers.empty() ? std::vector<std::set<ExpressionPort>>{} : std::vector<std::set<ExpressionPort>>{ consumers };
-    return insert_node(new_node, new_inputs, loop_ids, place, consumers_py_port);
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, const constExprIt& place,
+                                       const std::vector<std::set<ExpressionPort>>& consumers) {
+    std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
+    for (size_t i = 0; i < new_node->get_input_size(); ++i) {
+        const auto& source = new_node->get_input_source_output(i);
+        new_inputs[i] = get_expr_by_node(source.get_node_shared_ptr())->get_output_port_connector(source.get_index());
+    }
+    return insert_node(new_node, new_inputs, loop_ids, place, consumers);
 }
 
-LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                                        const std::vector<size_t>& loop_ids, const constExprIt& place,
-                                        const std::vector<ExpressionPtr>& old_exprs) {
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, const constExprIt& place,
+                                       const std::set<ExpressionPort>& consumers) {
+    const auto consumers_py_port = consumers.empty() ? std::vector<std::set<ExpressionPort>>{} : std::vector<std::set<ExpressionPort>>{ consumers };
+    return insert_node(new_node, loop_ids, place, consumers_py_port);
+}
+
+LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs,
+                                        const std::vector<size_t>& loop_ids, const constExprIt& place) {
     OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
-    OPENVINO_ASSERT(std::all_of(old_exprs.cbegin(), old_exprs.cend(), [&loop_ids](const ExpressionPtr& expr) { return expr->get_loop_ids() == loop_ids; }),
-                    "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
-    OPENVINO_ASSERT(new_node->get_output_size() == old_exprs.back()->get_output_count(),
+     OPENVINO_ASSERT(new_node->get_output_size() == old_exprs.back()->get_output_count(),
                     "Failed to replace node: node output port count is not equal to output count of last old expression");
+
+    std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
+    for (size_t i = 0; i < new_node->get_input_size(); ++i) {
+        const auto& source = new_node->get_input_source_output(i);
+        new_inputs[i] = get_expr_by_node(source.get_node_shared_ptr())->get_output_port_connector(source.get_index());
+    }
 
     auto is_old_expr = [&old_exprs](const ExpressionPtr& expr) {
         return std::find(old_exprs.cbegin(), old_exprs.cend(), expr) != old_exprs.cend();
@@ -329,7 +341,7 @@ LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_nod
         return std::any_of(new_inputs.cbegin(), new_inputs.cend(), [&source](const PortConnectorPtr& input) { return input->get_source() == source; });
     };
 
-    // Validate
+    // Validate removable expressions - they must be a `sequence`
     const auto last_old_expr = old_exprs.back();
     std::vector<std::set<ExpressionPort>> consumers(last_old_expr->get_output_count());
     for (const auto& old_expr : old_exprs) {
@@ -364,6 +376,15 @@ LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_nod
         erase(find(old_expr));
     }
     return new_expr_it;
+}
+
+LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs) {
+    OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    const auto loop_ids = old_exprs.front()->get_loop_ids();
+    OPENVINO_ASSERT(std::all_of(old_exprs.cbegin(), old_exprs.cend(), [&loop_ids](const ExpressionPtr& expr) { return expr->get_loop_ids() == loop_ids; }),
+                    "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
+    const auto insertion_place = std::next(find(old_exprs.back()));
+    return replace_node(new_node, old_exprs, loop_ids, insertion_place);
 }
 
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)

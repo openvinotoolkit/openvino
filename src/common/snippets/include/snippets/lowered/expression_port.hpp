@@ -43,7 +43,7 @@ public:
     std::set<ExpressionPort> get_connected_ports() const;
 
     // Note: It may be called only for input expression ports
-    //       since output ports don't support PortConnector changing (it defines by Expression creation)
+    //       since output ports don't support PortConnector changing (this is determined by the creation of the expression)
     void replace_input_port_connector(std::shared_ptr<PortConnector> to) const;
 
     friend bool operator==(const ExpressionPort& lhs, const ExpressionPort& rhs);

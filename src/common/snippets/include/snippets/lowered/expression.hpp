@@ -59,7 +59,7 @@ public:
     void updateShapes();
     virtual bool needShapeInfer() const {return true; }
 
-    std::vector<size_t> get_loop_ids() const;
+    const std::vector<size_t>& get_loop_ids() const;
     void set_loop_ids(const std::vector<size_t>& loops);
     virtual ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
                                                 const std::shared_ptr<Node>& new_node) const;

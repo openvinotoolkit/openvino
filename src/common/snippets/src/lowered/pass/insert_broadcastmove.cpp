@@ -39,7 +39,7 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
         const auto& descriptors = expr->get_input_port_descriptors();
         if (!supports_broadcasting(node) || descriptors.size() < 2)
             continue;
-        const auto loop_ids = expr->get_loop_ids();
+        const auto& loop_ids = expr->get_loop_ids();
         const auto& connectors = expr->get_input_port_connectors();
         OPENVINO_ASSERT(connectors.size() == descriptors.size(),
                         "Invalid expression configuration: connectors and descriptors size mismatch");
@@ -52,14 +52,14 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
         const auto broadcasted_dim = *std::max_element(last_dims.begin(), last_dims.end());
         for (size_t i = 0; i < last_dims.size(); i++) {
             const auto& parent_port = connectors[i]->get_source();
-            if (last_dims[i] != broadcasted_dim &&
-                !dont_need_broadcasting(parent_port.get_expr()->get_node())) {
+            const auto& parent_node = parent_port.get_expr()->get_node();
+            if (last_dims[i] != broadcasted_dim && !dont_need_broadcasting(parent_node)) {
                 OPENVINO_ASSERT(last_dims[i] == 1,
                                 "Attempt to broadcast non-1 dimension. Target dim: ", broadcasted_dim,
                                 " This dim: ", last_dims[i]);
-                const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), broadcasted_dim);
-                PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), connectors[i]->get_source().get_descriptor_ptr()->clone());
-                const auto broadcast_expr = *linear_ir.insert_node(broadcast, {connectors[i]}, loop_ids, expr_it, { expr->get_input_port(i) });
+                const auto broadcast = std::make_shared<op::BroadcastMove>(parent_node, broadcasted_dim);
+                PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), parent_port.get_descriptor_ptr()->clone());
+                const auto broadcast_expr = *linear_ir.insert_node(broadcast, loop_ids, expr_it, { expr->get_input_port(i) });
                 // Note that BroadcastMove modified the next expr input shape, so we need to set update
                 // expr's input port descriptor to reflect the changes
                 expr->get_input_port_descriptor(i)->set_shape(broadcast_expr->get_output_port_descriptor(0)->get_shape());

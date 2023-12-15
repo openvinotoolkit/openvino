@@ -119,7 +119,7 @@ void Expression::set_input_port_connector(size_t port, PortConnectorPtr to) {
     m_input_port_connectors[port] = std::move(to);
 }
 
-std::vector<size_t> Expression::get_loop_ids() const {
+const std::vector<size_t>& Expression::get_loop_ids() const {
     return m_loop_ids;
 }
 
@@ -185,7 +185,7 @@ std::vector<ExpressionPort> Expression::get_input_ports() {
     std::vector<ExpressionPort> ports;
     ports.reserve(get_input_count());
     for (size_t i = 0; i < get_input_count(); ++i) {
-        ports.push_back(std::move(get_input_port(i)));
+        ports.push_back(get_input_port(i));
     }
     return ports;
 }
@@ -194,7 +194,7 @@ std::vector<ExpressionPort> Expression::get_output_ports() {
     std::vector<ExpressionPort> ports;
     ports.reserve(get_output_count());
     for (size_t i = 0; i < get_output_count(); ++i) {
-        ports.push_back(std::move(get_output_port(i)));
+        ports.push_back(get_output_port(i));
     }
     return ports;
 }
