@@ -123,12 +123,17 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     auto max_stride = max_element->length();
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
     // Adjusting strides to follow the numpy convention:
+    py::array array;
     auto new_strides = t.get_strides();
-    auto element_stride = new_strides[new_strides.size() - 1];
-    for (size_t i = 0; i < new_strides.size(); ++i) {
-        new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+    if (new_strides.size() == 0) {
+        array = py::array(dtype, t.get_shape(), {});
+    } else {
+        auto element_stride = new_strides[new_strides.size() - 1];
+        for (size_t i = 0; i < new_strides.size(); ++i) {
+            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+        }
+        array = py::array(dtype, t.get_shape(), new_strides);
     }
-    auto array = py::array(dtype, t.get_shape(), new_strides);
     // Create an empty array and populate it with utf-8 encoded strings:
     auto ptr = array.data();
     for (size_t i = 0; i < t.get_size(); ++i) {
@@ -166,7 +171,7 @@ void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
     auto data = tensor.data<std::string>();
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
-        data[i] = std::string(ptr, buf.strides[0]);
+        data[i] = std::string(ptr, buf.ndim == 0 ? buf.itemsize : buf.strides[0]);
     }
 }
 

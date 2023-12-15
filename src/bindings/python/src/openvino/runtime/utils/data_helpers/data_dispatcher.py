@@ -59,6 +59,11 @@ def _(
     tensor = get_request_tensor(request, key)
     tensor_type = tensor.get_element_type()
     tensor_dtype = tensor_type.to_dtype()
+    # String edge-case, always copy.
+    # Scalars are also handled by C++.
+    if tensor_type == Type.string:
+        return Tensor(value, shared_memory=False)
+    # Scalars edge-case:
     if value.ndim == 0:
         tensor_shape = tuple(tensor.shape)
         if tensor_dtype == value.dtype and tensor_shape == value.shape:
@@ -82,22 +87,34 @@ def _(
     return Tensor(value, shared_memory=is_shared)
 
 
-@value_to_tensor.register(np.number)
-@value_to_tensor.register(int)
-@value_to_tensor.register(float)
-@value_to_tensor.register(str)
+@value_to_tensor.register(list)
 def _(
-    value: Union[ScalarTypes, str],
+    value: list,
     request: _InferRequestWrapper,
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    # np.number/int/float/str edge-case, copy will occur in both scenarios.
+    return Tensor(value)
+
+
+@value_to_tensor.register(np.number)
+@value_to_tensor.register(int)
+@value_to_tensor.register(float)
+@value_to_tensor.register(str)
+@value_to_tensor.register(bytes)
+def _(
+    value: Union[ScalarTypes, str, bytes],
+    request: _InferRequestWrapper,
+    is_shared: bool = False,
+    key: Optional[ValidKeys] = None,
+) -> Tensor:
+    # np.number/int/float/str/bytes edge-case, copy will occur in both scenarios.
     tensor_type = get_request_tensor(request, key).get_element_type()
     tensor_dtype = tensor_type.to_dtype()
     tmp = np.array(value)
+    # String edge-case -- it converts the data inside of Tensor class.
     # If types are mismatched, convert.
-    if tensor_dtype != tmp.dtype:
+    if tensor_type != Type.string and tensor_dtype != tmp.dtype:
         return Tensor(tmp.astype(tensor_dtype), shared_memory=False)
     return Tensor(tmp, shared_memory=False)
 
@@ -206,8 +223,9 @@ def _(
 @create_shared.register(int)
 @create_shared.register(float)
 @create_shared.register(str)
+@create_shared.register(bytes)
 def _(
-    inputs: Union[Tensor, ScalarTypes, str],
+    inputs: Union[Tensor, ScalarTypes, str, bytes],
     request: _InferRequestWrapper,
 ) -> Tensor:
     return value_to_tensor(inputs, request=request, is_shared=True)
@@ -258,7 +276,10 @@ def _(
         if tuple(tensor.shape) != inputs.shape:
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
-        tensor.data[:] = inputs[:]
+        if tensor.element_type == Type.string:
+            tensor.bytes_data = inputs
+        else:
+            tensor.data[:] = inputs[:]
     else:
         # If shape is "empty", assume this is a scalar value
         set_request_tensor(
@@ -289,6 +310,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
     if the item is of type `np.ndarray`, `np.number`, `int`, `float` or has numpy __array__ attribute.
+    If value is of type `list`, create a Tensor based on it, copy will occur in the Tensor constructor.
     """
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
@@ -301,6 +323,8 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
         # If value object has __array__ attribute, load it to Tensor using np.array
         if isinstance(value, (np.ndarray, np.number, int, float, str)) or hasattr(value, "__array__"):
             update_tensor(value, request, key)
+        elif isinstance(value, list):
+            new_inputs[key] = Tensor(value)
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(value, Tensor):
             new_inputs[key] = value
@@ -312,7 +336,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
 @singledispatch
 def create_copied(
-    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes, str],
+    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes, str, bytes],
     request: _InferRequestWrapper,
 ) -> Union[dict, None]:
     # Check the special case of the array-interface
@@ -348,8 +372,9 @@ def _(
 @create_copied.register(int)
 @create_copied.register(float)
 @create_copied.register(str)
+@create_copied.register(bytes)
 def _(
-    inputs: Union[Tensor, ScalarTypes, str],
+    inputs: Union[Tensor, ScalarTypes, str, bytes],
     request: _InferRequestWrapper,
 ) -> Tensor:
     return value_to_tensor(inputs, request=request, is_shared=False)
