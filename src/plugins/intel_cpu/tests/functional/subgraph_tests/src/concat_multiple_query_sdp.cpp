@@ -89,6 +89,7 @@ public:
     void SetUp() override {
         InputShapeAndTransposeOrder inputShapeAndOrders;
         bool hasShapeOf;
+        ElementType inType;
         std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -258,7 +259,7 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-    if (inType == ov::element::bf16) {
+    if (configuration.count("ENFORCE_BF16")) {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 5);
     } else {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
