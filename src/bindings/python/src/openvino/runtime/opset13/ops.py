@@ -306,7 +306,7 @@ def constant(
         # Expect packed data, use different constructor to handle it correctly:
         if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
-            return Constant(dtype, Shape(_value.shape), _value.reshape(-1).tolist())
+            return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
             display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.reshape(-1).tolist())
