@@ -13,6 +13,8 @@ namespace util {
 OPENVINO_API
 element::TypeVector unsupported_types();
 
+OPENVINO_API bool node_requires_precision_conversion(const std::shared_ptr<const Node>& node);
+
 /// \brief If the node has constant inputs with types that (before constant_fold) should be converted to f32 - the
 ///        function converts and constantfolds those inputs to f32. Then, the function clones the node with
 ///        the new inputs and returns the new node.
@@ -20,7 +22,7 @@ element::TypeVector unsupported_types();
 /// \param node
 ///
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
-OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node);
+OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(const std::shared_ptr<Node>& node);
 
 /// \brief Function constantfolds a node.
 ///        It converts the node inputs if necessary, runs Node::constant_fold

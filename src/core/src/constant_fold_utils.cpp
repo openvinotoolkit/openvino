@@ -5,12 +5,44 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/util/assign_base.hpp"
+#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 ov::element::TypeVector ov::util::unsupported_types() {
     return {ov::element::f16, ov::element::bf16};
+}
+
+bool ov::util::node_requires_precision_conversion(const std::shared_ptr<const ov::Node>& node) {
+    if (node->get_input_size() == 0)
+        return false;
+    if (node->has_evaluate()) {
+        return false;
+    }
+    // ReadValue or Assign cannot be cloned with new inputs with different precision
+    if (ov::is_type<ov::op::util::ReadValueBase>(node) || ov::is_type<ov::op::util::AssignBase>(node)) {
+        return false;
+    }
+    // ConvertLike has constant_fold function but doesn't have has_evaluate function
+    if (ov::is_type<ov::op::v1::ConvertLike>(node)) {
+        return false;
+    }
+    const auto unsupported_types = ov::util::unsupported_types();
+    for (size_t i = 0; i < node->get_input_size(); i++) {
+        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_input_element_type(i)) !=
+            unsupported_types.end()) {
+            return true;
+        }
+    }
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_output_element_type(i)) !=
+            unsupported_types.end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool convert_range_precision(const std::shared_ptr<ov::Node>& node) {
@@ -32,7 +64,7 @@ static std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared
         {ov::op::v4::Range::get_type_info_static(), convert_range_precision},
 };
 
-std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node) {
+std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::shared_ptr<ov::Node>& node) {
     size_t num_inputs = node->get_input_size();
     if (num_inputs == 0)
         return node;
@@ -107,13 +139,13 @@ std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov:
 }
 
 bool ov::util::constant_fold_node(const std::shared_ptr<Node>& node, OutputVector& output_constants) {
-    auto cloned = try_convert_inputs(node);
+    auto converted = convert_to_supported_precision(node);
 
-    auto num_outputs = cloned->get_output_size();
+    auto num_outputs = converted->get_output_size();
     if (output_constants.size() < num_outputs)
         output_constants.resize(num_outputs);
 
-    bool status = cloned->constant_fold(output_constants, cloned->input_values());
+    bool status = converted->constant_fold(output_constants, converted->input_values());
     if (!status)
         return status;
 
@@ -186,8 +218,7 @@ bool ov::util::evaluate_node(const std::shared_ptr<ov::Node>& node,
     }
     // otherwise try to convert input tensors and run the Node::evaluate once again
 
-    // create a cloned node with converted inputs in order to know output precisions
-    auto cloned = try_convert_inputs(node->shared_from_this());
+    auto cloned = convert_to_supported_precision(node->shared_from_this());
 
     const auto unsupported_types = ov::util::unsupported_types();
     ov::TensorVector converted_input_tensors;

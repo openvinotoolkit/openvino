@@ -1142,8 +1142,8 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
             node = node->clone_with_new_inputs(*new_inputs);
         }
 
-        if (!node->has_evaluate()) {
-            node = ov::util::try_convert_inputs(node);
+        if (ov::util::node_requires_precision_conversion(node)) {
+            node = ov::util::convert_to_supported_precision(node);
         }
 
         OutputVector outputs(node->get_output_size());

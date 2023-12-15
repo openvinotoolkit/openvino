@@ -9,8 +9,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -70,47 +68,17 @@ static void remove_original_input_precision_attribute(ov::Input<ov::Node>& input
     }
 }
 
-static bool node_requires_type_conversion(const std::shared_ptr<const ov::Node>& node) {
-    if (node->get_input_size() == 0)
-        return false;
-    if (node->has_evaluate()) {
-        return false;
-    }
-    // ReadValue or Assign cannot be cloned with new inputs with different precision
-    if (ov::is_type<ov::op::util::ReadValueBase>(node) || ov::is_type<ov::op::util::AssignBase>(node)) {
-        return false;
-    }
-    // ConvertLike has constant_fold function but doesn't have has_evaluate function
-    if (ov::is_type<ov::op::v1::ConvertLike>(node)) {
-        return false;
-    }
-    const auto unsupported_types = ov::util::unsupported_types();
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_input_element_type(i)) !=
-            unsupported_types.end()) {
-            return true;
-        }
-    }
-    for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_output_element_type(i)) !=
-            unsupported_types.end()) {
-            return true;
-        }
-    }
-    return false;
+static void mark_node_requires_precision_conversion(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()["requires_precision_conversion"] = true;
 }
 
-static void mark_node_requires_type_conversion(const std::shared_ptr<ov::Node>& node) {
-    node->get_rt_info()["requires_type_conversion"] = true;
+static bool node_has_requires_precision_conversion_attribute(const std::shared_ptr<const ov::Node>& node) {
+    return node->get_rt_info().count("requires_precision_conversion") > 0;
 }
 
-static bool node_has_requires_type_conversion_attribute(const std::shared_ptr<const ov::Node>& node) {
-    return node->get_rt_info().count("requires_type_conversion") > 0;
-}
-
-static void remove_requires_type_conversion_attribute(const std::shared_ptr<ov::Node>& node) {
+static void remove_requires_precision_conversion_attribute(const std::shared_ptr<ov::Node>& node) {
     auto& rt_info = node->get_rt_info();
-    auto it = rt_info.find("requires_type_conversion");
+    auto it = rt_info.find("requires_precision_conversion");
     if (it != rt_info.end()) {
         rt_info.erase(it);
     }
@@ -123,9 +91,9 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     for (auto node : model->get_ordered_ops()) {
         auto original_node = node;
-        if (node_has_requires_type_conversion_attribute(node)) {
-            remove_requires_type_conversion_attribute(node);
-            node = util::try_convert_inputs(node);
+        if (node_has_requires_precision_conversion_attribute(node)) {
+            remove_requires_precision_conversion_attribute(node);
+            node = util::convert_to_supported_precision(node);
         } else if (rewritten) {
             node->validate_and_infer_types();
         }
@@ -220,8 +188,8 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         // become an input to a node that's not constfoldable. Then we need to convert that constant back to
         // that input's original precision.
         save_original_input_precisions(node);
-        if (!node_has_disabled_constant_folding && node_requires_type_conversion(node)) {
-            mark_node_requires_type_conversion(node);
+        if (!node_has_disabled_constant_folding && util::node_requires_precision_conversion(node)) {
+            mark_node_requires_precision_conversion(node);
         }
 
         if (node_has_disabled_constant_folding) {
