@@ -28,24 +28,14 @@ public:
     Napi::Promise GetPromise();
 
 protected:
-    /**
-     * @brief Executes code inside the worker-thread.
-     * It is not safe to access JS engine data structure
-     * here, so everything we need for input and output
-     * should go on `this`.
-     * Avoid calling any methods from node-addon-api
-     * or running any code that might invoke JavaScript.
-     */
-    void Execute();
-
-    /**
-     * @brief Executed when the async work is complete
-     * this function will be run inside the main event loop
-     * so it is safe to use JS engine data again.
-     */
-    void OnOK();
-    void OnError(const Napi::Error& err);
-
+    /** @name AsyncWorkerMethods 
+     * Methods to safely move data betweeb the event loop and worker threads.
+    */
+    ///@{
+    void Execute() override;
+    void OnOK() override;
+    void OnError(const Napi::Error& err) override;
+    ///@}
 private:
     Napi::Promise::Deferred _deferred;
     ReadModelArgs* _args;

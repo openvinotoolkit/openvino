@@ -42,7 +42,7 @@ public:
     /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);
 
-    std::shared_ptr<ov::Model> get_model() const ;
+    std::shared_ptr<ov::Model> get_model() const;
 
     /**
      * @brief Helper function to access model inputs.
