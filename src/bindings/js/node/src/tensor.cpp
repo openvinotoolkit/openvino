@@ -67,7 +67,7 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
     _tensor = tensor;
 }
 
-Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
+Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
     const auto prototype = env.GetInstanceData<AddonData>()->tensor_prototype;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Tensor prototype.");

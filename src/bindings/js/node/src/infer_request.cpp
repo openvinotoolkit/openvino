@@ -52,7 +52,7 @@ void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) 
     _infer_request = infer_request;
 }
 
-Napi::Object InferRequestWrap::Wrap(Napi::Env env, ov::InferRequest infer_request) {
+Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
     Napi::HandleScope scope(env);
     const auto prototype = env.GetInstanceData<AddonData>()->infer_request_prototype;
     if (!prototype) {
@@ -115,7 +115,7 @@ Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
     } else {
         reportError(info.Env(), "InferRequest.getTensor() invalid argument.");
     }
-    return TensorWrap::Wrap(info.Env(), tensor);
+    return TensorWrap::wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_input_tensor(const Napi::CallbackInfo& info) {
@@ -128,7 +128,7 @@ Napi::Value InferRequestWrap::get_input_tensor(const Napi::CallbackInfo& info) {
     } else {
         reportError(info.Env(), "InferRequest.getInputTensor() invalid argument.");
     }
-    return TensorWrap::Wrap(info.Env(), tensor);
+    return TensorWrap::wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) {
@@ -141,7 +141,7 @@ Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) 
     } else {
         reportError(info.Env(), "InferRequest.getInputTensor() invalid argument.");
     }
-    return TensorWrap::Wrap(info.Env(), tensor);
+    return TensorWrap::wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info) {
@@ -152,7 +152,7 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
         auto tensor = _infer_request.get_tensor(node);
         auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(new_tensor);
-        outputs_obj.Set(node.get_any_name(), TensorWrap::Wrap(info.Env(), new_tensor));
+        outputs_obj.Set(node.get_any_name(), TensorWrap::wrap(info.Env(), new_tensor));
     }
     return outputs_obj;
 }
@@ -205,7 +205,7 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 }
 
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
-    return CompiledModelWrap::Wrap(info.Env(), _infer_request.get_compiled_model());
+    return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
 
 struct TsfnContext {
@@ -252,7 +252,7 @@ void performInferenceThread(TsfnContext* context) {
         auto outputs_obj = Napi::Object::New(env);
 
         for (const auto& [key, tensor] : res) {
-            outputs_obj.Set(key, TensorWrap::Wrap(env, tensor));
+            outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
         }
         context->deferred.Resolve({outputs_obj});
     };

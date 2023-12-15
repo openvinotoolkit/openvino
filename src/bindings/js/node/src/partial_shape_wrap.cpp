@@ -44,7 +44,7 @@ Napi::Object PartialShapeWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-Napi::Object PartialShapeWrap::Wrap(Napi::Env env, ov::PartialShape partial_shape) {
+Napi::Object PartialShapeWrap::wrap(Napi::Env env, ov::PartialShape partial_shape) {
     const auto prototype = env.GetInstanceData<AddonData>()->partial_shape_prototype;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to PartialShape prototype.");

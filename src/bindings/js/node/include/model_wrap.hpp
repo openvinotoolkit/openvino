@@ -37,7 +37,7 @@ public:
      * @param model a pointer to ov::Model to wrap.
      * @return Javascript Model as Napi::Object. (Not ModelWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
+    static Napi::Object wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
 
     /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);

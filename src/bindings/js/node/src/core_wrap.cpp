@@ -43,7 +43,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
                                              : _core.read_model(args->model_str, args->weight_tensor);
         delete args;
 
-        return ModelWrap::Wrap(info.Env(), model);
+        return ModelWrap::wrap(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
@@ -72,7 +72,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
     if (model_prototype && model.InstanceOf(model_prototype->Value().As<Napi::Function>())) {
         const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
         const auto& compiled_model = _core.compile_model(m->get_model(), device);
-        return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+        return CompiledModelWrap::wrap(info.Env(), compiled_model);
     } else {
         reportError(info.Env(), "Cannot create Model from Napi::Object.");
         return info.Env().Undefined();
@@ -83,7 +83,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::String& model_path,
                                          const Napi::String& device) {
     const auto& compiled_model = _core.compile_model(model_path, device);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
@@ -92,7 +92,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const std::map<std::string, ov::Any>& config) {
     const auto& mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_obj);
     const auto& compiled_model = _core.compile_model(mw->get_model(), info[1].ToString(), config);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
@@ -100,7 +100,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::String& device,
                                          const std::map<std::string, ov::Any>& config) {
     const auto& compiled_model = _core.compile_model(model_path, device, config);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {

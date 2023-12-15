@@ -32,7 +32,7 @@ public:
      * @param infer_request ov::InferRequest to wrap.
      * @return Javascript InferRequest as Napi::Object. (Not InferRequestWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::InferRequest infer_request);
+    static Napi::Object wrap(Napi::Env env, ov::InferRequest infer_request);
 
     /**
      * @brief Sets an input/output tensor to infer on.

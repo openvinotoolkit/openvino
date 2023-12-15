@@ -31,7 +31,7 @@ public:
      * @param compiled_model ov::CompiledModel to wrap.
      * @return A Javascript CompiledModel as Napi::Object. (Not CompiledModelWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::CompiledModel compiled_model);
+    static Napi::Object wrap(Napi::Env env, ov::CompiledModel compiled_model);
 
     /** @brief Sets a _compiled_model property of a CompiledModelWrap object. Used e.g. when creating CompiledModelWrap
      * object on node-addon side. */

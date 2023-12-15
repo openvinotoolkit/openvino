@@ -38,7 +38,7 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
     _model = model;
 }
 
-Napi::Object ModelWrap::Wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
+Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
     const auto prototype = env.GetInstanceData<AddonData>()->model_prototype;
     if (!prototype) {
@@ -64,7 +64,7 @@ std::shared_ptr<ov::Model> ModelWrap::get_model() const {
 Napi::Value ModelWrap::get_input(const Napi::CallbackInfo& info) {
     if (info.Length() == 0) {
         try {
-            return Output<ov::Node>::Wrap(info.Env(), _model->input());
+            return Output<ov::Node>::wrap(info.Env(), _model->input());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return Napi::Value();
@@ -74,10 +74,10 @@ Napi::Value ModelWrap::get_input(const Napi::CallbackInfo& info) {
         return Napi::Value();
     } else if (info[0].IsString()) {
         const auto& tensor_name = info[0].ToString();
-        return Output<ov::Node>::Wrap(info.Env(), _model->input(tensor_name));
+        return Output<ov::Node>::wrap(info.Env(), _model->input(tensor_name));
     } else if (info[0].IsNumber()) {
         const auto& idx = info[0].As<Napi::Number>().Int32Value();
-        return Output<ov::Node>::Wrap(info.Env(), _model->input(idx));
+        return Output<ov::Node>::wrap(info.Env(), _model->input(idx));
     } else {
         reportError(info.Env(), "Error while getting model outputs.");
         return info.Env().Undefined();
@@ -87,7 +87,7 @@ Napi::Value ModelWrap::get_input(const Napi::CallbackInfo& info) {
 Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
     if (info.Length() == 0) {
         try {
-            return Output<ov::Node>::Wrap(info.Env(), _model->output());
+            return Output<ov::Node>::wrap(info.Env(), _model->output());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return Napi::Value();
@@ -97,10 +97,10 @@ Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
         return Napi::Value();
     } else if (info[0].IsString()) {
         auto tensor_name = info[0].ToString();
-        return Output<ov::Node>::Wrap(info.Env(), _model->output(tensor_name));
+        return Output<ov::Node>::wrap(info.Env(), _model->output(tensor_name));
     } else if (info[0].IsNumber()) {
         auto idx = info[0].As<Napi::Number>().Int32Value();
-        return Output<ov::Node>::Wrap(info.Env(), _model->output(idx));
+        return Output<ov::Node>::wrap(info.Env(), _model->output(idx));
     } else {
         reportError(info.Env(), "Error while getting model outputs.");
         return Napi::Value();
@@ -113,7 +113,7 @@ Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
 
     size_t i = 0;
     for (auto& input : cm_inputs)
-        js_inputs[i++] = Output<ov::Node>::Wrap(info.Env(), input);
+        js_inputs[i++] = Output<ov::Node>::wrap(info.Env(), input);
 
     return js_inputs;
 }
@@ -124,7 +124,7 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
 
     size_t i = 0;
     for (auto& out : cm_outputs)
-        js_outputs[i++] = Output<ov::Node>::Wrap(info.Env(), out);
+        js_outputs[i++] = Output<ov::Node>::wrap(info.Env(), out);
 
     return js_outputs;
 }

@@ -49,7 +49,7 @@ public:
      * @param tensor ov::Tensor to wrap.
      * @return Javascript Tensor as Napi::Object. (Not TensorWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::Tensor tensor);
+    static Napi::Object wrap(Napi::Env env, ov::Tensor tensor);
 
     /**
      * @brief Helper function to access the tensor data as an attribute of JavaScript Tensor.

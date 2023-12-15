@@ -30,7 +30,7 @@ public:
 
     ov::Output<ov::Node> get_output() const;
 
-    static Napi::Object Wrap(Napi::Env env, ov::Output<ov::Node> output);
+    static Napi::Object wrap(Napi::Env env, ov::Output<ov::Node> output);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
 
@@ -63,7 +63,7 @@ public:
 
     ov::Output<const ov::Node> get_output() const;
 
-    static Napi::Object Wrap(Napi::Env env, ov::Output<const ov::Node> output);
+    static Napi::Object wrap(Napi::Env env, ov::Output<const ov::Node> output);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
 

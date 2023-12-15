@@ -33,7 +33,7 @@ public:
      * @param partial_shape ov::PartialShape to wrap.
      * @return Javascript PartialShape as Napi::Object. (Not PartialShapeWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::PartialShape partial_shape);
+    static Napi::Object wrap(Napi::Env env, ov::PartialShape partial_shape);
 
     Napi::Value is_static(const Napi::CallbackInfo& info);
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
