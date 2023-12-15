@@ -164,7 +164,8 @@ void remove_redundant_reorders::run(program& p) {
         bool remove_current = r_node.is_simple_reorder() &&
                               r_dep_node.get_users().size() == 1 &&
                               !r_dep_node.is_output() &&
-                              !r_node.get_primitive()->has_surface_input();
+                              !r_node.get_primitive()->has_surface_input() &&
+                              r_node.get_input_layout().data_padding == r_node.get_output_layout().data_padding;
 
         if (remove_dep) {
             // for chains like
