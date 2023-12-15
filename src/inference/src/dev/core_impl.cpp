@@ -947,18 +947,22 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         if (is_hidden_device(deviceName))
             continue;
         try {
-            std::cout << "ov::CoreImpl::get_available_devices start: " << deviceName << ": " << propertyName
-                      << std::endl;
+            if (deviceName == "NPU") {
+                std::cout << "ov::CoreImpl::get_available_devices start: " << deviceName << ": " << propertyName
+                          << std::endl;
+            }
             const ov::Any p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
             if (p.empty()) {
-                std::cout << "     GetMetric return empty ov::Any value" << std::endl;
+                std::cout << "     GetMetric return empty ov::Any value" << deviceName << std::endl;
             }
             if (devicesIDs.empty()) {
-                std::cout << "     GetMetric return empty devicesIDs value" << std::endl;
+                std::cout << "     GetMetric return empty devicesIDs value for " << deviceName << std::endl;
             }
-            std::cout << "ov::CoreImpl::get_available_devices: " << deviceName << ": " << propertyName << " = "
-                      << p.as<std::string>() << std::endl;
+            if (deviceName == "NPU") {
+                std::cout << "ov::CoreImpl::get_available_devices: " << deviceName << ": " << propertyName << " = "
+                          << p.as<std::string>() << std::endl;
+            }
         } catch (const InferenceEngine::Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const ov::Exception&) {
