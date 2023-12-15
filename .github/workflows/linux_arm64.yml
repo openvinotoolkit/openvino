@@ -113,6 +113,10 @@ jobs:
         with:
           version: "v0.7.4"
 
+      - name: Start sccache manually
+        continue-on-error: true
+        run: SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 SCCACHE_AZURE_BLOB_CONTAINER=${{ env.SCCACHE_AZURE_BLOB_CONTAINER }} SCCACHE_AZURE_CONNECTION_STRING=${{ env.SCCACHE_AZURE_CONNECTION_STRING }} ${SCCACHE_PATH}
+
       - name: Check sccache log
         run: |
           if [[ -f "${SCCACHE_ERROR_LOG}" ]]; then
