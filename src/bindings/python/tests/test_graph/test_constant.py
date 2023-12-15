@@ -362,7 +362,7 @@ def test_raise_for_packed_types(ov_type, src_dtype):
     (Type.f16, np.float16),
 ])
 def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
-    from openvino.runtime import opset13 as opset
+    from openvino.runtime import opset12 as opset
     import openvino as ov
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
