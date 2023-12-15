@@ -18,7 +18,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(RNNSequenceTest).*)",
             R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
-            R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
+            R"(.*(LSTM).*activations=\(relu.*modelType=f16.*)",
 
             // Need to update activation primitive to support any broadcastable constant to enable these cases.
             R"(.*ActivationParamLayerTest.*)",
