@@ -89,7 +89,7 @@ jobs:
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
 
-          extras_to_install="onnx,pytorch"
+          extras_to_install="onnx"
 
           # Find and install OV dev wheel
           pushd ${INSTALL_DIR}/tools
