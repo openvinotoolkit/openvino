@@ -357,9 +357,9 @@ and vertical pool step (*PW*). For example, the first table shows that for a 3x3
 and *W* is limited to 87 when there are 64 input channels.
 
 
-:download:`Table of Maximum Input Tensor Widths (W) vs. Rest of Parameters (Input and Kernel Precision: i16) <../../../docs/articles_en/openvino_workflow/running_inference_with_openvino/Device_Plugins/_assets/GNA_Maximum_Input_Tensor_Widths_i16.csv>`
+:download:`Table of Maximum Input Tensor Widths (W) vs. Rest of Parameters (Input and Kernel Precision: i16) <../../../docs/articles_en/openvino_workflow/running_inference_with_openvino/Device_Plugins/assets/GNA_Maximum_Input_Tensor_Widths_i16.csv>`
 
-:download:`Table of Maximum Input Tensor Widths (W) vs. Rest of Parameters (Input and Kernel Precision: i8) <../../../docs/articles_en/openvino_workflow/running_inference_with_openvino/Device_Plugins/_assets/GNA_Maximum_Input_Tensor_Widths_i8.csv>` 
+:download:`Table of Maximum Input Tensor Widths (W) vs. Rest of Parameters (Input and Kernel Precision: i8) <../../../docs/articles_en/openvino_workflow/running_inference_with_openvino/Device_Plugins/assets/GNA_Maximum_Input_Tensor_Widths_i8.csv>` 
 
 
 .. note:: 
