@@ -5,9 +5,6 @@
 #include "snippets/mha.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_plugin_config.hpp"
-#include "ie_system_conf.h"
 
 namespace ov {
 namespace test {
@@ -48,10 +45,7 @@ static inline std::vector<std::vector<element::Type>> precision_bf16(size_t coun
 
 static std::map<std::string, std::string> enable_callback() {
     return std::map<std::string, std::string>{
-        {
-          InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-          InferenceEngine::PluginConfigInternalParams::ENABLE
-        },
+        {"SNIPPETS_MODE", "ENABLE"},
      };
 }
 

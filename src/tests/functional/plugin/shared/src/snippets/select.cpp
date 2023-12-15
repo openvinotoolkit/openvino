@@ -4,7 +4,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "snippets/select.hpp"
 #include "subgraph_simple.hpp"
 
@@ -14,7 +13,7 @@ namespace snippets {
 
 namespace {
 void generate_data(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& data_inputs, const std::vector<ov::Output<ov::Node>>& model_inputs,
-    const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+    const std::vector<ov::Shape>& targetInputStaticShapes) {
     data_inputs.clear();
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = -1;
@@ -76,13 +75,12 @@ void Select::SetUp() {
     auto f = ov::test::snippets::SelectFunction(inputDynamicShapes);
     function = f.getOriginal();
 
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
-void Select::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void Select::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     generate_data(inputs, function->inputs(), targetInputStaticShapes);
 }
 
@@ -128,13 +126,12 @@ void BroadcastSelect::SetUp() {
     auto f = ov::test::snippets::BroadcastSelectFunction({inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}, broadcastShape);
     function = f.getOriginal();
 
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
-void BroadcastSelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void BroadcastSelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     generate_data(inputs, function->inputs(), targetInputStaticShapes);
 }
 

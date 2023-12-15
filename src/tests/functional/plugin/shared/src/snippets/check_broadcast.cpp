@@ -7,7 +7,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -35,9 +34,9 @@ public:
         const auto result = std::make_shared<ov::op::v0::Result>(parent);
         result->set_friendly_name("result");
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ result },
-            ngraph::ParameterVector{ parameter1, parameter2 },
+        return std::make_shared<ov::Model>(
+            ov::ResultVector{ result },
+            ov::ParameterVector{ parameter1, parameter2 },
             "CheckBroadcastFunction");
     }
 };
@@ -84,9 +83,8 @@ void CheckBroadcast::SetUp() {
         inputDynamicShapes[1],
         input_type,
         test_case_params.broadcast);
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 

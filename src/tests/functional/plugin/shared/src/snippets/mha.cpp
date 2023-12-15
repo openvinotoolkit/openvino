@@ -6,7 +6,6 @@
 #include "snippets/mha.hpp"
 #include "subgraph_mha.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
@@ -39,8 +38,7 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto &item : additionalConfig) {
-            if (item.second == InferenceEngine::PluginConfigParams::YES)
-                result << "_" << item.first << "=" << item.second;
+            result << "_" << item.first << "=" << item.second;
         }
     }
     return result.str();
@@ -58,9 +56,8 @@ void MHA::SetUp() {
     function = subgraph_model->getOriginal();
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 
     setInferenceType(prc);
@@ -75,7 +72,7 @@ void MHA::compile_model() {
     SubgraphBaseTest::compile_model();
 }
 
-void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MHA::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& model_inputs = function->inputs();
     for (int i = 0; i < model_inputs.size(); ++i) {
@@ -95,7 +92,7 @@ std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() {
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul);
 }
 
-void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto model_inputs = function->inputs();
     for (auto& model_input : model_inputs) {
