@@ -8,7 +8,11 @@ KERNEL(ctc_greedy_decoder_ref)(const __global INPUT0_TYPE* probabilities
                               ,const __global INPUT1_TYPE* sequence_indicators
                                     ,__global OUTPUT_TYPE* output_sequences
 #ifdef SECOND_OUTPUT_EXIST
+#ifdef MULTIPLE_OUTPUTS
+                                    ,__global OUTPUT1_TYPE* second_output
+#else
                                     ,__global INPUT2_TYPE* second_output
+#endif
 #endif
                               )
 {

@@ -51,6 +51,7 @@ TEST_P(ctc_greedy_decoder_seq_len_test, shape_infer) {
     auto ctc_greedy_decoder_seq_len_prim = std::make_shared<ctc_greedy_decoder>(
                                    "output",
                                    input_prim_ids,
+                                   p.blank_index[0],
                                    true,
                                    padding(),
                                    data_types::i32,

@@ -72,8 +72,12 @@ KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& param
                      2,  // input and sequence indicatiors
                      GetFusedPrimitiveInputsCount(params));
 
-    if (orgParams.outputs_num == 2) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    if (orgParams.use_multiple_outputs) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+    } else {
+        if (orgParams.outputs_num == 2) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        }
     }
 
     return {kd};

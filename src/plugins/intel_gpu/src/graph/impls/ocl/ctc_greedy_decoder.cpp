@@ -31,12 +31,27 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
         auto has_second_output = !primitive->second_output.empty();
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.merge_repeated = primitive->ctc_merge_repeated;
-        params.blank_index = primitive->blank_index;
-        params.outputs_num = has_second_output ? 2 : 1;
 
-        if (params.outputs_num == 2) {
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        if (primitive->use_multiple_outputs) {
+            if (primitive->blank_index == UINT32_MAX) {
+                params.blank_index = impl_param.get_input_layout(0).spatial(1) - 1;
+            } else {
+                params.blank_index = primitive->blank_index;
+            }
+            params.outputs_num = 2;
+            params.use_multiple_outputs = primitive->use_multiple_outputs;
+
+            params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+
+        } else {
+            params.blank_index = primitive->blank_index;
+            params.outputs_num = has_second_output ? 2 : 1;
+
+            if (params.outputs_num == 2) {
+                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+            }
         }
+
         return {params, optional_params};
     }
 };

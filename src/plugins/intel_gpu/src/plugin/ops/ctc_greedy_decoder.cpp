@@ -43,20 +43,6 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
         }
     }
 
-    uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
-    if (reordered_inputs.size() == 3) {
-        auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-        if (!blank_index_node) {
-            OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
-        }
-        float val;
-        if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
-            OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
-        }
-        blank_index = static_cast<uint32_t>(val);
-        reordered_inputs.pop_back();
-    }
-
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
 
@@ -76,17 +62,47 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
             return output_data_types;
         };
 
+        uint32_t blank_index = UINT32_MAX;
+        if (reordered_inputs.size() == 3) {
+            auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (!blank_index_node) {
+                OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            float val;
+            if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
+                OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            blank_index = static_cast<uint32_t>(val);
+            reordered_inputs.pop_back();
+        }
+
         auto primitive = cldnn::ctc_greedy_decoder(
                     layer_type_name_ID(op),
                     reordered_inputs,
+                    blank_index,
                     ctc_merge_repeated,
                     cldnn::padding({0, 0, 0, 0}, 0),
                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                     op->get_output_size());
         primitive.output_paddings = get_output_paddings();
         primitive.output_data_types = get_output_data_types();
+        primitive.use_multiple_outputs = true;
         p.add_primitive(*op, primitive);
     } else {
+        uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
+        if (reordered_inputs.size() == 3) {
+            auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (!blank_index_node) {
+                OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            float val;
+            if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
+                OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            blank_index = static_cast<uint32_t>(val);
+            reordered_inputs.pop_back();
+        }
+
         std::size_t num_output = op->get_output_size();
 
         std::vector<cldnn::memory::ptr> shared_memory;
