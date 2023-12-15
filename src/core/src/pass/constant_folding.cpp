@@ -94,13 +94,14 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node);
-        } else if (rewritten) {
+        }
+        if (rewritten) {
             node->validate_and_infer_types();
         }
 
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values())) {
-            OPENVINO_ASSERT(!constant_folding_is_disabled(node),
+            OPENVINO_ASSERT(!constant_folding_is_disabled(original_node),
                             "Node folded but constant folding disabled. Check constant_fold implementation for ",
                             node);
             OPENVINO_ASSERT(replacements.size() == node->get_output_size(),
@@ -152,7 +153,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             if (needs_validate) {
                 original_node->validate_and_infer_types();
             }
-            rewritten = needs_validate;
+            rewritten |= needs_validate;
         }
     }
 
