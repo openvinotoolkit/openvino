@@ -441,6 +441,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto auto_s_context = std::make_shared<ScheduleContext>();
     ov::AnyMap filter_property;
     auto str_devices = get_device_list(full_property);
+    std::cout << "auto::compile_model_impl(): get_device_list() = " << str_devices << std::endl;
     // fill in the context for auto
     if (load_config.get_property(ov::enable_profiling)) {
         filter_property.insert({ov::enable_profiling(true)});
@@ -451,7 +452,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     // set performanceHint for AutoCompiledModel
     auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode);
     // filter the device that supports filter configure
+    std::cout << "auto::compile_model_impl(): parse_meta_devices() start: " << std::endl;
     meta_devices = parse_meta_devices(str_devices, full_property);
+    std::cout << "auto::compile_model_impl(): parse_meta_devices() done " << std::endl;
     auto support_devices_by_property = filter_device(meta_devices, filter_property);
     if (support_devices_by_property.empty()) {
         OPENVINO_THROW("There is no device support the current configure");

@@ -943,8 +943,12 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         if (is_hidden_device(deviceName))
             continue;
         try {
+            std::cout << "ov::CoreImpl::get_available_devices start: " << deviceName << ": " << propertyName
+                      << std::endl;
             const ov::Any p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
+            std::cout << "ov::CoreImpl::get_available_devices: " << deviceName << ": " << propertyName << " = "
+                      << p.as<std::string>() << std::endl;
         } catch (const InferenceEngine::Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const ov::Exception&) {
