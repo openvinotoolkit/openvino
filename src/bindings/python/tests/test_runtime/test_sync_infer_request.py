@@ -395,16 +395,16 @@ def test_get_compiled_model(device):
                          [np.float32,
                           np.int32,
                           np.float16])
-@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
+@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal", "reset_via_infer_request"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
 @pytest.mark.skipif(
     os.environ.get("TEST_DEVICE", "CPU") != "CPU",
     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
     "Memory layers fully supported only on CPU",
 )
-def test_query_state_write_buffer(device, input_shape, data_type, mode):
+def test_query_state_write_buffer(input_shape, data_type, mode):
     core = Core()
-
+    device = "CPU"
     from openvino import Tensor
     from openvino.runtime.utils.types import get_dtype
 
@@ -431,6 +431,12 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         elif mode == "reset_memory_state":
             # reset initial state of ReadValue to zero
             mem_state.reset()
+            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
+            # always ones
+            expected_res = np.full(input_shape, 1, dtype=data_type)
+        elif mode == "reset_via_infer_request":
+            # reset initial state of ReadValue to zero
+            request.reset_state()
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
             # always ones
             expected_res = np.full(input_shape, 1, dtype=data_type)
