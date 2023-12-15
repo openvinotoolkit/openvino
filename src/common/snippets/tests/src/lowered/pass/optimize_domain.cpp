@@ -44,9 +44,7 @@ void OptimizeDomainTest::SetUp() {
 
 TEST_P(OptimizeDomainTest, DomainOptimization) {
     auto subgraph = LoweringTests::getTokenizedSubgraph(m_model);
-    auto linear_ir = subgraph->convert_body_to_linear_ir();
-    subgraph->set_min_jit_work_amount(m_domain_opt_params.min_jit_work_amount);
-    subgraph->set_min_parallel_work_amount(m_domain_opt_params.min_parallel_work_amount);
+    auto linear_ir = subgraph->convert_body_to_linear_ir(m_domain_opt_params.min_parallel_work_amount, m_domain_opt_params.min_jit_work_amount);
     size_t loop_depth = 1;
     ov::snippets::lowered::pass::OptimizeDomain(loop_depth).run(*linear_ir);
     const auto& master_shape = linear_ir->get_master_shape();

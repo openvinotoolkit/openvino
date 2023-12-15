@@ -368,7 +368,10 @@ void Snippet::initOptimalPrimitiveDescriptor() {
         output_precisions.push_back(p);
 
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
-    snippetAttrs.snippet->convert_body_to_linear_ir(std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
+    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
+    snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
+                                                    std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
 }
 
 ov::element::Type Snippet::getRuntimePrecision() const {
@@ -577,11 +580,6 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
     if (std::any_of(canonicalShape.begin(), canonicalShape.end(),
                     [](size_t x){return x == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION;}))
         OPENVINO_THROW("Snippets: Canonicalization returned dynamic shape in static pipeline");
-    snippetAttrs.snippet->set_min_parallel_work_amount(static_cast<size_t>(parallel_get_max_threads()));
-
-    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
-    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
-    snippetAttrs.snippet->set_min_jit_work_amount(256);
 
     // generate
     jit_snippets_compile_args jcp;
