@@ -560,3 +560,23 @@ def test_init_from_empty_array(shared_flag, init_value):
     assert tensor.element_type.to_dtype() == init_value.dtype
     assert tensor.byte_size == init_value.nbytes
     assert np.array_equal(tensor.data, init_value)
+
+
+@pytest.mark.parametrize(
+    "init_value",
+    [
+        ([1.0, 2.0, 3.0]),
+        ([21, 37, 42]),
+        ([[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]]),
+        ([[2.2, 6.5], [0.2, 6.7]]),
+    ],
+)
+def test_init_from_list(init_value):
+    tensor = ov.Tensor(init_value)
+    assert np.array_equal(tensor.data, init_value)
+    # Convert to numpy to perform all checks. Memory is not shared,
+    # so it does not matter if data is stored in numpy format.
+    _init_value = np.array(init_value)
+    assert tuple(tensor.shape) == _init_value.shape
+    assert tensor.element_type.to_dtype() == _init_value.dtype
+    assert tensor.byte_size == _init_value.nbytes

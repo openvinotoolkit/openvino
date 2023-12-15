@@ -15,11 +15,6 @@
 
 namespace py = pybind11;
 
-inline std::string to_string(py::handle handle) {
-    auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
-    return PyBytes_AsString(encodedString);
-}
-
 void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
     cls.doc() =

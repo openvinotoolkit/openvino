@@ -612,7 +612,10 @@ def test_inputs_tuple_not_replaced(device, share_inputs):
 def test_invalid_inputs(device, share_inputs):
     request, _, _ = create_simple_request_and_inputs(device)
 
-    inputs = "some_input"
+    class InvalidInput():
+        pass
+
+    inputs = InvalidInput()
 
     with pytest.raises(TypeError) as e:
         request.infer(inputs, share_inputs=share_inputs)
