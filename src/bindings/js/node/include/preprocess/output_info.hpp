@@ -10,11 +10,11 @@ class OutputInfo : public Napi::ObjectWrap<OutputInfo> {
 public:
     OutputInfo(const Napi::CallbackInfo& info);
 
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     Napi::Value tensor(const Napi::CallbackInfo& info);
 
-    void set_output_info(ov::preprocess::OutputInfo& tensor_name);
+    void set_output_info(ov::preprocess::OutputInfo& info);
 
 private:
     ov::preprocess::OutputInfo* _output_info;

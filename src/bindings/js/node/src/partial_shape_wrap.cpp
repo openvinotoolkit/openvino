@@ -21,7 +21,7 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
     }
 }
 
-Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function PartialShapeWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "PartialShapeWrap",
                        {
@@ -32,8 +32,8 @@ Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
                        });
 }
 
-Napi::Object PartialShapeWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object PartialShapeWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);

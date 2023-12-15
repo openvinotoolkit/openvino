@@ -20,7 +20,7 @@ InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<InferRequestWrap>(info),
       _infer_request{} {}
 
-Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function InferRequestWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "InferRequest",
                        {
@@ -36,8 +36,8 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                        });
 }
 
-Napi::Object InferRequestWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object InferRequestWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);

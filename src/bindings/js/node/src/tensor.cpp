@@ -38,7 +38,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 }
 
-Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function TensorWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
@@ -47,8 +47,8 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("getElementType", &TensorWrap::get_element_type)});
 }
 
-Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object TensorWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);

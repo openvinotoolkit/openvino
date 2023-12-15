@@ -8,7 +8,7 @@
 
 PreProcessSteps::PreProcessSteps(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PreProcessSteps>(info){};
 
-Napi::Function PreProcessSteps::GetClassConstructor(Napi::Env env) {
+Napi::Function PreProcessSteps::get_class_constructor(Napi::Env env) {
     return DefineClass(env, "PreProcessSteps", {InstanceMethod("resize", &PreProcessSteps::resize)});
 }
 

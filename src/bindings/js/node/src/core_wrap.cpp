@@ -12,7 +12,7 @@
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
-Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function CoreWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "Core",
                        {
@@ -23,8 +23,8 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
                        });
 }
 
-Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object CoreWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -170,7 +170,7 @@ void compileModelThreadModel(TsfnContextModel* context) {
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextModel* context) {
         Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
+        auto obj = CompiledModelWrap::get_class_constructor(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 
@@ -187,7 +187,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
         Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
+        auto obj = CompiledModelWrap::get_class_constructor(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 

@@ -12,7 +12,7 @@ CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
       _compiled_model{} {}
 
-Napi::Function CompiledModelWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function CompiledModelWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "CompiledModel",
                        {InstanceMethod("createInferRequest", &CompiledModelWrap::create_infer_request),
@@ -22,8 +22,8 @@ Napi::Function CompiledModelWrap::GetClassConstructor(Napi::Env env) {
                         InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs")});
 }
 
-Napi::Object CompiledModelWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object CompiledModelWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);

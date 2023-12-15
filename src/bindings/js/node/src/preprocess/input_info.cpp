@@ -10,7 +10,7 @@
 
 InputInfo::InputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputInfo>(info){};
 
-Napi::Function InputInfo::GetClassConstructor(Napi::Env env) {
+Napi::Function InputInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "InputInfo",
                        {InstanceMethod("tensor", &InputInfo::tensor),
@@ -23,7 +23,7 @@ Napi::Value InputInfo::tensor(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error in tensor(). Function does not take any parameters.");
         return info.Env().Undefined();
     } else {
-        Napi::Object obj = InputTensorInfo::GetClassConstructor(info.Env()).New({});
+        Napi::Object obj = InputTensorInfo::get_class_constructor(info.Env()).New({});
         auto tensor_info = Napi::ObjectWrap<InputTensorInfo>::Unwrap(obj);
         tensor_info->set_input_tensor_info(_input_info->tensor());
         return obj;
@@ -35,7 +35,7 @@ Napi::Value InputInfo::preprocess(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error in preprocess(). Function does not take any parameters.");
         return info.Env().Undefined();
     } else {
-        Napi::Object obj = PreProcessSteps::GetClassConstructor(info.Env()).New({});
+        Napi::Object obj = PreProcessSteps::get_class_constructor(info.Env()).New({});
         auto preprocess_info = Napi::ObjectWrap<PreProcessSteps>::Unwrap(obj);
         preprocess_info->set_preprocess_info(_input_info->preprocess());
         return obj;
@@ -47,7 +47,7 @@ Napi::Value InputInfo::model(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error in model(). Function does not take any parameters.");
         return info.Env().Undefined();
     } else {
-        Napi::Object obj = InputModelInfo::GetClassConstructor(info.Env()).New({});
+        Napi::Object obj = InputModelInfo::get_class_constructor(info.Env()).New({});
         auto model_info = Napi::ObjectWrap<InputModelInfo>::Unwrap(obj);
         model_info->set_input_model_info(_input_info->model());
         return obj;

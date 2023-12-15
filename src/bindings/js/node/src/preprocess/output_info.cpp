@@ -8,7 +8,7 @@
 
 OutputInfo::OutputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<OutputInfo>(info){};
 
-Napi::Function OutputInfo::GetClassConstructor(Napi::Env env) {
+Napi::Function OutputInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env, "OutputInfo", {InstanceMethod("tensor", &OutputInfo::tensor)});
 }
 
@@ -17,7 +17,7 @@ Napi::Value OutputInfo::tensor(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error in tensor(). Function does not take any parameters.");
         return info.Env().Undefined();
     } else {
-        Napi::Object obj = OutputTensorInfo::GetClassConstructor(info.Env()).New({});
+        Napi::Object obj = OutputTensorInfo::get_class_constructor(info.Env()).New({});
         auto tensor_info = Napi::ObjectWrap<OutputTensorInfo>::Unwrap(obj);
         tensor_info->set_output_tensor_info(_output_info->tensor());
         return obj;

@@ -12,7 +12,7 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
       _core{},
       _compiled_model{} {}
 
-Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
                        {InstanceMethod("getName", &ModelWrap::get_name),
@@ -22,8 +22,8 @@ Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
 
-Napi::Object ModelWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object ModelWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);

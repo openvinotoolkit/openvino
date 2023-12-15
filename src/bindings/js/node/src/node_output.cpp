@@ -9,7 +9,7 @@
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info), _output{} {}
 
-Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
+Napi::Function Output<ov::Node>::get_class_constructor(Napi::Env env) {
     return Output::DefineClass(
         env,
         "Output",
@@ -21,8 +21,8 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
          Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
 }
 
-Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object Output<ov::Node>::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -64,7 +64,7 @@ Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<Output<const ov::Node>>(info),
       _output{} {}
 
-Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
+Napi::Function Output<const ov::Node>::get_class_constructor(Napi::Env env) {
     return Output::DefineClass(
         env,
         "ConstOutput",
@@ -76,8 +76,8 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
          Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
 }
 
-Napi::Object Output<const ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object Output<const ov::Node>::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);

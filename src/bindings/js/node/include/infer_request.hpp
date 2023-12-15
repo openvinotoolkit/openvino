@@ -18,12 +18,12 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript InferRequest class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     /** @brief This method is called during initialization of OpenVino native add-on.
      * It exports JavaScript InferRequest class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     void set_infer_request(const ov::InferRequest& infer_request);
     /**
