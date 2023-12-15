@@ -279,7 +279,7 @@ class KVCacheTests: public ::testing::Test {
         const size_t n_features = 10;
         const size_t context_size = 20;
 
-        ov::element::Type element_type = ov::element::f16;
+        ov::element::Type element_type = ov::element::f32;
 
         const bool stateful = true;
 
@@ -418,7 +418,9 @@ class KVCacheTests: public ::testing::Test {
                 compare_tensors({ ref_results[1] }, {matmul_out});
             }
 
-            compare_tensors({ ref_kv_cache }, {infer_request.query_state()[0].get_state()});
+            auto state = infer_request.query_state()[0].get_state();
+            ASSERT_EQ(state.get_element_type(), element_type);
+            compare_tensors({ ref_kv_cache }, {state});
 
             infer_request.reset_state();
         }

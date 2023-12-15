@@ -7,6 +7,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"
+#include "transformations/rt_info/original_precision_attribute.hpp"
 #include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 
@@ -26,7 +27,7 @@ void CreateVariableAccessPrimitive(ProgramBuilder &p, const std::shared_ptr<ov::
 
     auto inputs = p.GetInputInfo(op);
     // Fixme: Extract type from op RTInfo map
-    auto user_specified_type = ov::element::f32;
+    auto user_specified_type = get_original_precision(op);
     const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
                                   inputs,
                                   variable_id,
