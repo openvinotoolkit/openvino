@@ -65,23 +65,25 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
     return tensor;
 }
 
-<<<<<<< HEAD
 // Legacy impl for contrig repo
 // todo: remove this after dependent repos clean up
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
-=======
-ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
->>>>>>>  add generate_inputs to DFT and RDFT
                                   const ov::Shape& shape,
                                   const uint32_t range,
                                   const double_t start_from,
                                   const int32_t resolution,
                                   const int seed) {
-<<<<<<< HEAD
     return create_and_fill_tensor(element_type,
                                   shape,
                                   ov::test::utils::InputGenerateData(start_from, range, resolution, seed));
-=======
+}
+
+ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
+                                  const ov::Shape& shape,
+                                  const uint32_t range,
+                                  const double_t start_from,
+                                  const int32_t resolution,
+                                  const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
 #define CASE(X)                                                             \
     case X:                                                                 \
@@ -122,7 +124,6 @@ ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
     }
 #undef CASE
     return tensor;
->>>>>>>  add generate_inputs to DFT and RDFT
 }
 
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
