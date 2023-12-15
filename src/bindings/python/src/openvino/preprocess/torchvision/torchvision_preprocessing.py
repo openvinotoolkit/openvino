@@ -62,7 +62,7 @@ def _setup_size_sequence(size: Sequence, error_msg: str) -> SequenceType[int]:
     if len(size) == 1:
         return size[0], size[0]
     elif len(size) == 2:
-        return size
+        return size[0], size[1]
     raise ValueError(error_msg)
 
 
@@ -284,13 +284,22 @@ class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         resize_mode_map = {
             InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
+            InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
+            InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_BICUBIC_PILLOW,
         }
         if transform.max_size:
             raise ValueError("Resize with max_size if not supported")
-        if transform.interpolation is not InterpolationMode.NEAREST:
-            raise ValueError("Only InterpolationMode.NEAREST is supported.")
+        if transform.interpolation not in resize_mode_map.keys():
+            raise ValueError(f"Interpolation mode {transform.interpolation} is not supported.")
 
-        h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+        target_h, target_w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+
+        # rescale the smaller image edge
+        current_h, current_w = meta["image_dimensions"]
+        if current_h > current_w:
+            target_h = int(transform.size * (current_h / current_w))
+        elif current_w > current_h:
+            target_w = int(transform.size * (current_w / current_h))
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
@@ -300,9 +309,9 @@ class _(TransformConverterBase):
         input_shape[meta["layout"].get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], h, w)
+        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
         meta["input_shape"] = input_shape
-        meta["image_dimensions"] = (h, w)
+        meta["image_dimensions"] = (target_h, target_w)
 
 
 def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> ov.Model:

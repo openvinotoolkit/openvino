@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
 #include <openvino/op/constant.hpp>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
