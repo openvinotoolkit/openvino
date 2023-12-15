@@ -32,12 +32,10 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
   This approach offers the best possible results and is the recommended one,
   especially for production-ready solutions. Consider storing your model in this format to minimize first-inference latency, 
   perform model optimizations, and save space on your drive, in some cases. Explicit conversion can be done in two ways:
-
-
+|
   * the `Python API functions <#convert-a-model-with-python-convert-model>`__ (``openvino.convert_model`` and ``openvino.save_model``) 
   * the `ovc <#convert-a-model-in-cli-ovc>`__  command line tool. 
-
-
+|
   Once saved as :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>` (a set of ``.xml`` and ``.bin`` files), 
   the model may be deployed with maximum performance. Because it is already optimized
   for `OpenVINO inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`__, it can be read, compiled, and inferred with no additional delay. 
@@ -60,9 +58,7 @@ Model States
 There are three states a model in OpenVINO can be: saved on disk, loaded but not compiled (``ov.Model``) or loaded and compiled (``ov.CompiledModel``).
 
 | **Saved on disk**
-
 |    A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
-|
 |       OpenVINO IR: pair of .xml and .bin files
 |       ONNX: .onnx file
 |       TensorFlow: directory with a .pb file and two subfolders or just a .pb file
@@ -75,7 +71,7 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
 | **Loaded and compiled**
 |   This state is achieved when one or more devices are specified for a model object to run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling inference.
 
-For more information on each function, see the :doc:`OpenVINO Workflow <openvino_workflow>` page.
+For more information on each function, see the :doc:`OpenVINO workflow <openvino_workflow>` page.
 
 Convert a Model with Python: ``convert_model``
 ##############################################

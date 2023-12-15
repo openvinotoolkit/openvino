@@ -58,18 +58,18 @@ OpenVINO uses the following functions for reading, converting, and saving models
       * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
       * OpenVINO files are read directly while other formats are converted automatically.
 
+   .. tab-item:: compile_model
+
+      * Creates an ov.CompiledModel from a file or ov.Model object.
+      * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
+      * OpenVINO files are read directly while other formats are converted automatically.
+
    .. tab-item:: convert_model
 
       * Creates an ov.Model from a file or Python memory object.
       * Supported file formats: ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite.
       * Supported framework objects: PaddlePaddle, TensorFlow and PyTorch.
       * This method is only available in the Python API.
-
-   .. tab-item:: compile_model
-
-      * Creates an ov.CompiledModel from a file or ov.Model object.
-      * Supported file formats: OpenVINO IR, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite. PyTorch files are not directly supported.
-      * OpenVINO files are read directly while other formats are converted automatically.
 
    .. tab-item:: save_model
 
