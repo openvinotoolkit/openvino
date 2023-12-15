@@ -322,7 +322,6 @@ void FullyConnected::prepackMLASWeight() {
         }
         return ptr;
     };
-    const auto weiBlockedDesc = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
     const auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
     // Weights are transposed by MatMulConstTransposesExtraction
     // K is the IC of weight
@@ -330,7 +329,7 @@ void FullyConnected::prepackMLASWeight() {
     K = wgtDims[1];
     N = wgtDims[0];
 
-    mlasPackedPtr = prepareMLASWeight(N, K, weiBlockedDesc->getOrder()[0] == 0);
+    mlasPackedPtr = prepareMLASWeight(N, K, transposedWeights);
 }
 #endif
 
@@ -486,6 +485,13 @@ void FullyConnected::prepareWeightsUsingDummyShape() {
 #endif
 
 void FullyConnected::createPrimitive() {
+    // FuseFCAndTransposeOnWeights transformation may result in weights remaining non transposed.
+    // We can get information about this from the memory descriptor.
+    // order {0, 1} - weights are transposed
+    // order {1, 0} - weights are non transposed
+    const auto weiBlockedDesc = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
+    transposedWeights = weiBlockedDesc->getOrder()[0] == 0;
+
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
         Node::createPrimitive();
@@ -719,14 +725,10 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
-    // todo:
-    const auto weiBlockedDesc = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
     if (decompressionMultiplyPtr)
-        // dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, !weightsNonTransposed);
-        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, weiBlockedDesc->getOrder()[0] == 0);
+        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, transposedWeights);
     if (decompressionSubtractPtr)
-        // dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, !weightsNonTransposed);
-        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, weiBlockedDesc->getOrder()[0] == 0);
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, transposedWeights);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];

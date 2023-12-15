@@ -117,6 +117,8 @@ private:
     bool useWeightsDecompressionImpl = false;
     MemoryCPtr decompressionSubtractPtr = nullptr;
     MemoryCPtr decompressionMultiplyPtr = nullptr;
+
+    bool transposedWeights = true;
 };
 
 }   // namespace node
