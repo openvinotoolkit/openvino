@@ -57,9 +57,6 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "nvidia" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
-           # even for case of system TBB we have installation rules for wheels packages
-           # so, need to skip this explicitly
-           NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml")
             list(APPEND CPACK_COMPONENTS_ALL ${item})

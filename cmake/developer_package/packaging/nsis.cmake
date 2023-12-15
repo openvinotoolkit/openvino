@@ -101,6 +101,9 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL)
+    # tbb
+    unset(OV_CPACK_COMP_TBB_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL)
     # licensing
     unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
     # samples

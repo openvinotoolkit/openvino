@@ -114,12 +114,12 @@ install(TARGETS ${PROJECT_NAME}
         COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
         ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
-ov_set_apple_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
-    # path to OpenVINO C++ libraries
-    ${OV_CPACK_RUNTIMEDIR}
-    # pyopenvino also depends on TBB because of:
-    # pyopenvino => openvino::offline_transformations => TBB optimized openvino::reference
-    ${TBB_LIB_INSTALL_DIR})
+ov_set_install_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
+                     # path to OpenVINO C++ libraries
+                     ${OV_CPACK_RUNTIMEDIR}
+                     # pyopenvino also depends on TBB because of:
+                     # pyopenvino => openvino::offline_transformations => TBB optimized openvino::reference
+                     ${TBB_LIB_INSTALL_DIR})
 
 ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
 

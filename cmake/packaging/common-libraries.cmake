@@ -15,9 +15,6 @@ macro(ov_cpack_settings)
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
            # because in case of VCPKG | CONAN | BREW | CONDA-FORGE distributions, python is either not needed or installed separately
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # even for case of system TBB we have installation rules for wheels packages
-           # so, need to skip this explicitly since they are installed in `host` section
-           NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml")
             list(APPEND CPACK_COMPONENTS_ALL ${item})

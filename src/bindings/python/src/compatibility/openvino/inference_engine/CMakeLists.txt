@@ -85,7 +85,7 @@ add_custom_command(TARGET ${TARGET_NAME}
 )
 
 foreach(target IN LISTS INSTALLED_TARGETS)
-    ov_set_apple_rpath(${target} ${OV_CPACK_PYTHONDIR}/openvino/inference_engine ${OV_CPACK_RUNTIMEDIR})
+    ov_set_install_rpath(${target} ${OV_CPACK_PYTHONDIR}/openvino/inference_engine ${OV_CPACK_RUNTIMEDIR})
 endforeach()
 
 # install
