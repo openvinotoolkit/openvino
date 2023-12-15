@@ -10,13 +10,13 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "validation_util.hpp"
 
 ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);
@@ -61,10 +61,9 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const size_t axis =
-            ov::normalize_axes(scatter->get_friendly_name(), axis_const->cast_vector<int64_t>(), data_pshape.rank())[0];
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis = ov::util::normalize_axes(scatter->get_friendly_name(),
+                                                   axis_const->cast_vector<int64_t>(),
+                                                   data_pshape.rank())[0];
 
         struct Range {
             uint64_t l, r;
