@@ -90,6 +90,13 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_max_batch_size;
 
 /**
+ * @brief Read-only property which determines whether compiled model can be cached
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_can_be_cached;
+
+/**
  * @brief Read-write property<string> to set/get the directory which will be used to store any data cached
  * by plugins.
  * @ingroup ov_property_c_api

@@ -505,6 +505,13 @@ INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
 /**
+ * @brief This key defines whether compiled model can be cached or not
+ *
+ */
+INFERENCE_ENGINE_1_0_DEPRECATED
+DECLARE_CONFIG_KEY(CAN_BE_CACHED);
+
+/**
  * @brief The key to decide whether terminate tbb threads when inference engine destructing.
  *
  * value type: boolean

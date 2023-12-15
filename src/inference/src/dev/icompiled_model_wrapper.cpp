@@ -48,6 +48,8 @@ void InferenceEngine::ICompiledModelWrapper::set_property(const ov::AnyMap& prop
 ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& name) const {
     if (ov::loaded_from_cache == name) {
         return m_model->isLoadedFromCache();
+    } else if (ov::can_be_cached == name) {
+        return m_model->isCanBeCached();
     }
 
     auto get_supported_properties = [&]() {
@@ -64,6 +66,8 @@ ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& 
         }
         supported_properties.emplace_back(ov::supported_properties.name(), ov::PropertyMutability::RO);
         supported_properties.emplace_back(ov::loaded_from_cache.name(), ov::PropertyMutability::RO);
+        supported_properties.emplace_back(ov::can_be_cached.name(), ov::PropertyMutability::RW);
+        // may not be needed
         return supported_properties;
     };
 

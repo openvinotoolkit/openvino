@@ -12,6 +12,7 @@
 #include <tuple>
 #include <cctype>
 #include <memory>
+#include <sys/statvfs.h>
 
 #include "intel_gpu/plugin/legacy_api_helper.hpp"
 #include "intel_gpu/plugin/legacy_remote_context.hpp"
@@ -566,6 +567,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
         ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::can_be_cached.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
@@ -847,6 +849,33 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     GPU_DEBUG_INFO << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
 
     return batch;
+}
+
+bool Plugin::get_can_be_cached(const std::shared_ptr<ov::Model>& model, const std::string& cache_dir) const {
+    // Compute the required amount of memory on disk
+    size_t required_disk_space = 0;
+    try {
+        std::map<std::string, ov::PartialShape> shapes;
+        for (auto& param : model->get_parameters()) {
+            shapes[ov::op::util::get_ie_output_name(param->output(0))] = param->get_output_partial_shape(0);
+        }
+        // Calculate the size of the model in bytes
+        required_disk_space = model->get_model_size(shapes);
+    } catch (...) {
+        GPU_DEBUG_INFO << "[GET_IS_CACHEABLE] Error calculating model size" << std::endl;
+        return false;
+    }
+
+    // Check the available disk space
+    struct statvfs buffer;
+    if (statvfs(cache_dir.c_str(), &buffer) != 0) {
+        GPU_DEBUG_INFO << "[GET_IS_CACHEABLE] Error getting file system statistics" << std::endl;
+        return false;
+    }
+    size_t available_disk_space = buffer.f_bsize * buffer.f_bavail;
+
+    // Compare the required disk space with the available disk space
+    return required_disk_space <= available_disk_space;
 }
 
 }  // namespace intel_gpu

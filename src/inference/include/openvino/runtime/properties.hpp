@@ -619,6 +619,12 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Read-Write property which determines whether caching can be used
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> can_be_cached{"CAN_BE_CACHED"};
+
+/**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
  * @ingroup ov_runtime_cpp_prop_api
  *

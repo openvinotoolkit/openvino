@@ -42,6 +42,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
     wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
+    wrap_property_RO(m_properties, ov::can_be_cached, "can_be_cached");
 
     // Submodule hint
     py::module m_hint =

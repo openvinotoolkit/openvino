@@ -737,8 +737,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
-                                                          const ov::AnyMap& config,
-                                                          bool is_cache_small) const {
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
@@ -759,8 +758,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                            plugin,
                                            parsed._config,
                                            ov::SoPtr<ov::IRemoteContext>{},
-                                           cacheContent,
-                                           is_cache_small);
+                                           cacheContent);
         });
     } else {
         res = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
@@ -1418,26 +1416,25 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
                                                                     ov::Plugin& plugin,
                                                                     const ov::AnyMap& parsedConfig,
                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                    const CacheContent& cacheContent,
-                                                                    bool is_cache_small) const {
+                                                                    const CacheContent& cacheContent) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
     execNetwork = compile_model_with_preprocess(plugin, model, context, parsedConfig);
-    if (cacheContent.cacheManager && device_supports_model_caching(plugin)) {
-        try {
-            // need to export network for further import from "cache"
-            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
-            cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
-                networkStream << ov::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
-                                                        ov::ModelCache::calculate_file_info(cacheContent.modelPath));
-                execNetwork->export_model(networkStream);
-                if (is_cache_small) {
-                    cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
-                }
-            });
-        } catch (...) {
-            cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
-            throw;
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        if (cacheContent.cacheManager && device_supports_model_caching(plugin) && wrapper->get_executable_network()->canBeCached()) {
+            try {
+                // need to export network for further import from "cache"
+                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
+                cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
+                    networkStream << ov::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
+                                                            ov::ModelCache::calculate_file_info(cacheContent.modelPath));
+                    execNetwork->export_model(networkStream);
+                    // cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
+                });
+            } catch (...) {
+                cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
+                throw;
+            }
         }
     }
     return execNetwork;

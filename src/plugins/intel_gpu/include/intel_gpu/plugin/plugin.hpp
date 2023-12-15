@@ -38,6 +38,7 @@ private:
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
     uint32_t get_optimal_batch_size(const ov::AnyMap& options) const;
     uint32_t get_max_batch_size(const ov::AnyMap& options) const;
+    bool get_can_be_cached(std::shared_ptr<ov::Model>& model)
 
     ov::AnyMap preprocess_config(const ov::AnyMap& orig_config) const;
     bool is_metric(const std::string& name) const;

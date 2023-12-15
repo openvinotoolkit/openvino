@@ -169,6 +169,18 @@ public:
      */
     bool isLoadedFromCache() const;
 
+    /**
+     * @brief Raises the flag that model was loaded from cache
+     */
+    void canBeCached();
+
+    /**
+     * @brief Provides an information how model was loaded
+     *
+     * @return true if model was loaded from cache
+     */
+    bool isCanBeCached() const;
+
 protected:
     virtual ~IExecutableNetworkInternal() = default;
 
@@ -215,6 +227,11 @@ protected:
      * @brief If true, it means that model was loaded from cache
      */
     bool _loadedFromCache = false;
+
+    /**
+     * @brief If true, it means that model can be cached
+     */
+    bool _canBeCached = false;
 
     friend InferenceEngine::ICompiledModelWrapper;
     friend InferenceEngine::IPluginWrapper;

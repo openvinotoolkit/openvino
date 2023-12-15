@@ -126,6 +126,14 @@ bool IExecutableNetworkInternal::isLoadedFromCache() const {
     return _loadedFromCache;
 }
 
+void IExecutableNetworkInternal::canBeCached() {
+    _canBeCached = true;
+}
+
+bool IExecutableNetworkInternal::isCanBeCached() const {
+    return _canBeCached;
+}
+
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
