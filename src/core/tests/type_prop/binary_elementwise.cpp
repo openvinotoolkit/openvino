@@ -602,7 +602,7 @@ TEST(type_prop, interval_value_propagation_add_incorrect_dim) {
     const auto const_op = ov::op::v0::Constant::create(ov::element::f32, {1}, {-10});
     OV_EXPECT_THROW(createReshapeSubgraph<ov::op::v1::Add>(op_shape, const_op),
                     ov::NodeValidationFailure,
-                    HasSubstr("Dim size cannot be less than -1"));
+                    HasSubstr("dim[0] has invalid bounds"));
 }
 
 TEST(type_prop, interval_value_propagation_sub_rhs) {
@@ -641,7 +641,7 @@ TEST(type_prop, interval_value_propagation_sub_incorrect_dim) {
     const auto const_op = ov::op::v0::Constant::create(ov::element::f32, {1}, {5});
     OV_EXPECT_THROW(createReshapeSubgraph<ov::op::v1::Subtract>(op_shape, const_op, false),
                     ov::NodeValidationFailure,
-                    HasSubstr("Dim size cannot be less than -1"));
+                    HasSubstr("dim[0] has invalid bounds"));
 }
 
 TEST(type_prop, interval_value_propagation_mul_rhs) {
@@ -681,7 +681,7 @@ TEST(type_prop, interval_value_propagation_mul_incorrect_dim_rhs) {
     const auto const_op = ov::op::v0::Constant::create(ov::element::f32, {1}, {-3});
     OV_EXPECT_THROW(createReshapeSubgraph<ov::op::v1::Multiply>(op_shape, const_op),
                     ov::NodeValidationFailure,
-                    HasSubstr("Dim size cannot be less than -1"));
+                    HasSubstr("dim[0] has invalid bounds"));
 }
 
 TEST(type_prop, interval_value_propagation_mul_incorrect_dim_lhs) {
@@ -690,7 +690,7 @@ TEST(type_prop, interval_value_propagation_mul_incorrect_dim_lhs) {
     const auto const_op = ov::op::v0::Constant::create(ov::element::f32, {1}, {-3});
     OV_EXPECT_THROW(createReshapeSubgraph<ov::op::v1::Multiply>(op_shape, const_op, false),
                     ov::NodeValidationFailure,
-                    HasSubstr("Dim size cannot be less than -1"));
+                    HasSubstr("dim[0] has invalid bounds"));
 }
 
 TEST(type_prop, interval_value_propagation_div_rhs) {
