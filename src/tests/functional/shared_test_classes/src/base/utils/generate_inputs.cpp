@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <math.h>
+
+#include <shared_test_classes/base/ov_subgraph.hpp>
+#include "ngraph/ops.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "openvino/op/ops.hpp"
@@ -246,6 +250,8 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::DetectionOutput>& node,
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
+bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value);
+
 ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -297,6 +303,18 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
         case 4:
             return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
         default: {
+#if 0
+            std::cout << "[EMUTEX DEBUG] [generate] node " << node->get_friendly_name() <<
+                         " input shape " << node->get_input_shape(0) <<
+                         " output shape " << node->get_output_shape(0) <<
+                         " targetShape " << node->get_output_shape(0) << std::endl;
+#endif
+            float min_value = {}, max_value = {};
+            if (get_fq_scalar_range(node, min_value, max_value)) {
+//                std::cout << "[EMUTEX DEBUG] [CHECKPOINT]" << std::endl;
+                return ov::test::utils::create_and_fill_tensor_real_distribution(elemType, targetShape, min_value, max_value, 0);
+            }
+
             InputGenerateData inGenData;
             inGenData.range = 10.f;
             inGenData.resolution = 1.0f;
@@ -305,6 +323,32 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
             return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
         }
     }
+}
+
+bool get_const_scalar_value(const std::shared_ptr<ov::Node>& node, float& value) {
+    auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!const_node)
+        return false;
+
+    auto const_value = const_node->get_vector<float>();
+    // check if it is not scalar
+    if (const_value.size() > 1)
+        return false;
+
+    value = const_value[0];
+    return true;
+}
+
+bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value) {
+    if (!get_const_scalar_value(node->get_input_node_shared_ptr(1), min_value))
+        return false;
+
+    if (!get_const_scalar_value(node->get_input_node_shared_ptr(2), max_value))
+        return false;
+
+    //std::cout << "[EMUTEX DEBUG] [get_fq_scalar_range] min_value " << min_value << " max_value " << max_value << std::endl;
+
+    return true;
 }
 
 ov::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling>& node,
