@@ -22,5 +22,9 @@ void ov::reset_original_precision_attribute(const std::shared_ptr<Node>& node) {
 element::Type_t ov::get_original_precision(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     auto it = rt_info.find(OriginalPrecisionAttribute::get_type_info_static());
-    return it->second.as<element::Type_t>();
+    if (it != rt_info.end()) {
+        return it->second.as<element::Type_t>();
+    } else {
+        return element::Type_t::undefined;
+    }
 }

@@ -24,10 +24,6 @@ TRANSFORMATIONS_API element::Type_t get_original_precision(const std::shared_ptr
 class TRANSFORMATIONS_API OriginalPrecisionAttribute : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("original_precision", "0");
-
-    bool is_copyable() const override {
-        return false;
-    }
 };
 
 }  // namespace ov
