@@ -99,6 +99,7 @@ google/canine-s,canine,xfail,aten::slice: Parameter axis 3 out of the tensor ran
 google/efficientnet-b2,efficientnet,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 1408) larger than the data shape after padding (dim: 9) at axis 0.
 google/electra-base-discriminator,electra
 google/flan-t5-base,t5
+google/fnet-base,fnet
 google/mobilebert-uncased,mobilebert
 google/mobilenet_v1_0.75_192,mobilenet_v1
 google/mt5-base,mt5
