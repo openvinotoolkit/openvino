@@ -19,7 +19,7 @@ Convert to OpenVINO IR
 
 
 :doc:`IR (Intermediate Representation) <openvino_ir>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
-Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__ .
+Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__.
 
 Convert Models
 ##############################################
@@ -537,9 +537,9 @@ Here are code examples of how to use these methods with different model formats:
 * :doc:`How to convert TensorFlow Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`
 * :doc:`How to convert PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>`
 
-To choose the best workflow for your application, read the :doc:`Model Preparation section <openvino_docs_model_processing_introduction>`
+To choose the best workflow for your application, read the :doc:`Model Preparation section <openvino_docs_model_processing_introduction>`.
 
-Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`
+Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
 
 IR Conversion Benefits
 ################################################

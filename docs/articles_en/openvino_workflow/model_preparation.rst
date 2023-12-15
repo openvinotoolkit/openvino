@@ -33,8 +33,10 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
   especially for production-ready solutions. Consider storing your model in this format to minimize first-inference latency, 
   perform model optimizations, and save space on your drive, in some cases. Explicit conversion can be done in two ways:
 
-  * the Python API functions (``openvino.convert_model`` and ``openvino.save_model``) 
-  * the ``ovc`` command line tool. 
+
+  * the `Python API functions <#convert-a-model-with-python-convert-model>`__ (``openvino.convert_model`` and ``openvino.save_model``) 
+  * the `ovc <#convert-a-model-in-cli-ovc>`__  command line tool. 
+
 
   Once saved as :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>` (a set of ``.xml`` and ``.bin`` files), 
   the model may be deployed with maximum performance. Because it is already optimized
@@ -57,13 +59,10 @@ Model States
 
 There are three states a model in OpenVINO can be: saved on disk, loaded but not compiled (``ov.Model``) or loaded and compiled (``ov.CompiledModel``).
 
-.. image:: _static/images/ov_workflow_diagram_convenience.svg
-   :align: center
-   :alt: OpenVINO workflow diagram 
-
 | **Saved on disk**
 
 |    A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
+|
 |       OpenVINO IR: pair of .xml and .bin files
 |       ONNX: .onnx file
 |       TensorFlow: directory with a .pb file and two subfolders or just a .pb file
@@ -83,7 +82,7 @@ Convert a Model with Python: ``convert_model``
 
 The Model conversion API in Python uses the ``openvino.convert_model`` function,
 turning a given model into the `openvino.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__
-object and loading it to memory. Now it can be: saved to a drive with `openvino.save_model``
+object and loading it to memory. Now it can be: saved to a drive with ``openvino.save_model``
 or further :doc:`optimized with NNCF <openvino_docs_model_optimization_guide>`
 prior to saving.
 
@@ -271,7 +270,7 @@ Additional Resources
 
 The following articles describe in detail how to obtain and prepare your model depending on the source model type:
 
-* :doc:`Convert different model formats to the ov.Model format <Supported_Model_Formats>`.
+* :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`.
 * :doc:`Review all available conversion parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
 
 To achieve the best model inference performance and more compact OpenVINO IR representation follow:
