@@ -4,6 +4,7 @@
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"
 #include "intel_gpu/primitives/assign.hpp"
@@ -24,10 +25,13 @@ void CreateVariableAccessPrimitive(ProgramBuilder &p, const std::shared_ptr<ov::
     const auto variable_layout = cldnn::layout{ output_pshape, output_dtype, output_format };
 
     auto inputs = p.GetInputInfo(op);
+    // Fixme: Extract type from op RTInfo map
+    auto user_specified_type = ov::element::f32;
     const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
                                   inputs,
                                   variable_id,
-                                  variable_layout};
+                                  variable_layout,
+                                  user_specified_type};
 
     p.add_primitive(*op, prim);
 }
