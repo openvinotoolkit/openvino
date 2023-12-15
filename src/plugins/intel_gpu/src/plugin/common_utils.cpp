@@ -4,9 +4,11 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -16,14 +18,14 @@
 namespace {
 
 template <typename src_t, typename dst_t>
-void convert_any_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
+void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
     OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
     for (size_t i = 0; i < size; i++)
         dst[i] = static_cast<dst_t>(src[i]);
 }
 
 template <typename src_t, typename dst_t>
-void convert_any_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
+void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
     cldnn::tensor size = layout.get_tensor();
     for (int64_t b = 0; b < size.batch[0]; b++) {
         for (int64_t f = 0; f < size.feature[0]; f++) {
@@ -40,22 +42,22 @@ void convert_any_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
     }
 }
 
-void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size, cldnn::layout layout = {}) {
+void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size, cldnn::layout layout) {
     if (size == 0)
         return;
 
-    if (src_et == dst_et) {
+    if (src_et == dst_et && !layout.data_padding) {
         std::memcpy(dst_ptr, src_ptr, size * src_et.size());
         return;
     }
 
-    #define CASE(s_et, d_et, s_type, d_type) \
-        if (src_et == s_et && dst_et == d_et) { \
-            if (static_cast<bool>(layout.data_padding)) { \
-                return convert_any_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size); \
-            } else { \
-                return convert_any_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout); \
-            } \
+    #define CASE(s_et, d_et, s_type, d_type)                                                                                       \
+        if (src_et == s_et && dst_et == d_et) {                                                                                    \
+            if (static_cast<bool>(layout.data_padding)) {                                                                          \
+                return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout); \
+            } else {                                                                                                               \
+                return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size);          \
+            }                                                                                                                      \
         }
 
     // For unsupported inputs
@@ -79,6 +81,8 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     CASE(ov::element::u32, ov::element::u64, uint32_t, uint64_t);
 
     // For state conversions
+    CASE(ov::element::f32, ov::element::f32, float, float);
+    CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
     CASE(ov::element::f32, ov::element::f16, float, ov::float16);
     CASE(ov::element::f16, ov::element::f32, ov::float16, float);
 
@@ -141,7 +145,7 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size);
+    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
 }
 
 }  // namespace intel_gpu
