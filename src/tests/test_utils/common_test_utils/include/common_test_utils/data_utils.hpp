@@ -196,11 +196,11 @@ void inline fill_data_random(T* pointer,
 
 template <class T>
 void inline fill_data_random_act_dft(T* pointer,
-                             std::size_t size,
-                             const uint32_t range = 10,
-                             double_t start_from = 0,
-                             const int32_t k = 1,
-                             const int seed = 1) {
+                                     std::size_t size,
+                                     const uint32_t range = 10,
+                                     double_t start_from = 0,
+                                     const int32_t k = 1,
+                                     const int seed = 1) {
     if (range == 0) {
         for (std::size_t i = 0; i < size; i++) {
             pointer[i] = static_cast<T>(start_from);
