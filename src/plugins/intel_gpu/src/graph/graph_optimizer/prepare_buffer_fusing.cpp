@@ -155,8 +155,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                 return false;
         }
 
-        // Check that input isn't optimized out non-concatenation except reshape.
-        // Optimized reshape is only allowed concat buffer fusing.
         // _____________    _____________
         // |  Reshape  |    |           |
         // | optimized |    |   node    |
@@ -170,9 +168,15 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         //         |  optimized |
         //         |     out    |
         //         |____________|
-        if (!pred.first->is_type<concatenation>() && !pred.first->is_type<reshape>()
-                && pred.first->can_be_optimized())
+        // the cascaded concat and opmitized reshape input node are not allowed for runtime concat buffer fusing
+        if (pred.first->is_type<reshape>()) {
+            auto reshape_node = pred.first;
+            if (reshape_node->get_dependency(0).is_type<concatenation>() || reshape_node->get_dependency(0).can_be_optimized())
+                return false;
+        // Check that input isn't optimized out non-concatenation except reshape.
+        } else if (!pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
             return false;
+        }
 
         size_t concat_users = 0;
         for (auto& user : pred.first->get_users())
@@ -282,24 +286,6 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     update_in_place_concat_paddings(concat_layout, preds_layouts, node.get_primitive()->axis, false);
     size_t i = 0;
     for (auto& dep : node.get_dependencies()) {
-        if (dep.first->is_type<reshape>()) {
-            auto reshape_node = dep.first;
-            bool is_dynamic = reshape_node->is_dynamic();
-            bool is_planar = format::is_default_format(reshape_node->get_output_layout().format);
-            bool no_pad = !reshape_node->get_output_layout().data_padding && !reshape_node->get_input_layouts().empty()
-                                && !reshape_node->get_input_layout(0).data_padding;
-            // if reshape is the input of concat and it is optimized out,
-            // update padding of dependency node of reshape
-            if (is_dynamic && is_planar && no_pad && !reshape_node->is_output() && !reshape_node->has_fused_primitives()) {
-                // reshape node is set to optimized out.
-                reshape_node->can_be_optimized(true);
-                // update padding info to dynamic padding for the parent of reshape node if the reshape will be optimzied out.
-                auto reshape_dep_out_layout = reshape_node->get_dependency(0).get_output_layout();
-                reshape_dep_out_layout.data_padding = preds_layouts[i].data_padding;
-                reshape_node->get_dependency(0).set_output_layout(reshape_dep_out_layout);
-                reshape_node->get_dependency(0).can_share_buffer(false);
-            }
-        }
         dep.first->set_output_layout(preds_layouts[i]);
         dep.first->can_share_buffer(false);
         ++i;
@@ -656,6 +642,20 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+
+            // If reshape is optimized out and has dynamic padding, merge dynamic padding to the output padding of reshape's input.
+            if (node.can_be_optimized()) {
+                auto reshape_output_layout = node.get_output_layout();
+                auto is_dynamic_pad = reshape_output_layout.data_padding.get_dynamic_pad_dims()
+                                .sizes(format::get_default_format(layout::max_rank()));
+                int count_dynamic_pad = std::count_if(is_dynamic_pad.begin(), is_dynamic_pad.end(), [](cldnn::tensor::value_type val){
+                    return (val != 0);
+                });
+                if (count_dynamic_pad > 0) {
+                    node.get_dependency(0).merge_output_padding(reshape_output_layout.data_padding, 0);
+                    node.get_dependency(0).can_share_buffer(false);
+                }
+            }
         });
         program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {
             // Current implementation allows to avoid copy on read_value primitive

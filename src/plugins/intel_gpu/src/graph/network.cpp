@@ -840,6 +840,8 @@ void network::build_exec_order() {
                     // i.e., We need to make sure that all the preds of them are already updated too.
                     for (auto dep : node->get_dependencies()) {
                         if (!dep.first->is_type<data>()) {
+                            // If the optimized out reshape is the input of optimized out concat,
+                            // Move the input of reshape also is moved to the front of concat.
                             if (dep.first->is_type<reshape>() && dep.first->can_be_optimized()) {
                                 auto reshape_node = dep.first;
                                 add_to_exec_order(reshape_node->get_dependency(0).id());
