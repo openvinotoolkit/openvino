@@ -313,7 +313,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
