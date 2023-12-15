@@ -11,7 +11,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/core/model.hpp"
-
+#include "openvino/openvino.hpp"
+#include "utils/model.hpp"
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
@@ -115,10 +116,11 @@ TEST_F(ModelComparatorTest, match_with_low_coeff) {
 TEST_F(ModelComparatorTest, match_with_in_info) {
     ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     std::map<std::string, ov::conformance::InputInfo>
-        test_in_info({{"test_parameter_0", ov::conformance::InputInfo()}}),
-        test_in_info_1({{"test_parameter_1", ov::conformance::InputInfo({}, 1, 2, true)}});
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info));
-    ASSERT_TRUE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info)));
+        test_in_info({{"test_parameter_0", ov::conformance::InputInfo(ov::Shape{1, 2})}}),
+        test_in_info_({{"test_parameter_0", ov::conformance::InputInfo(ov::Shape{1, 2})}}),
+        test_in_info_1({{"test_parameter_1", ov::conformance::InputInfo(ov::Shape{2, 5}, 1, 2, true)}});
+    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_));
+    ASSERT_TRUE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_)));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1));
     ASSERT_FALSE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1)));
     ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1, test_in_info, test_in_info));

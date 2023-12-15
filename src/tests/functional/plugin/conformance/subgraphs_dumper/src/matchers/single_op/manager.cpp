@@ -23,6 +23,18 @@ void MatchersManager::set_shape_strict_match(bool shape_strict_match) {
     }
 }
 
+void MatchersManager::set_match_attributes(bool match_attribute) {
+    for (const auto& matcher : m_matchers) {
+        matcher.second->set_match_attrib(match_attribute);
+    }
+}
+
+void MatchersManager::set_match_in_types(bool match_in_types) {
+    for (const auto& matcher : m_matchers) {
+        matcher.second->set_match_in_types(match_in_types);
+    }
+}
+
 bool MatchersManager::match(const std::shared_ptr<ov::Node> &node,
                             const std::shared_ptr<ov::Node> &ref) const {
     for (const auto& it : m_matchers) {

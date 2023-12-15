@@ -60,7 +60,10 @@ struct InputInfo {
     }
 
     InputInfo operator=(const InputInfo& input_info) {
-        if (this->is_const != input_info.is_const) {
+        auto default_in_info = InputInfo();
+        if (input_info == default_in_info) {
+            this->is_const = input_info.is_const;
+        } else if (this->is_const != input_info.is_const) {
             throw std::runtime_error("Cast Const to Parameter! Impossible to update Input Info!");
         }
         this->ranges = input_info.ranges;

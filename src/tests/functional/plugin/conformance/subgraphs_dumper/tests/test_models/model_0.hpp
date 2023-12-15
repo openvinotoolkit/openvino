@@ -56,7 +56,7 @@ public:
         {
             PatternBorders ref_pattern_0 = {test_abs_0->inputs(), test_relu_0->outputs()},
                            ref_pattern_1 = {test_abs_1->inputs(), test_relu_1->outputs()};
-            std::vector<std::vector<PatternBorders>> ref_res = {{ref_pattern_0, ref_pattern_1}};
+            std::vector<std::vector<PatternBorders>> ref_res = {{ref_pattern_1, ref_pattern_0}};
             ref_borders = std::move(ref_res);
         }
     }
