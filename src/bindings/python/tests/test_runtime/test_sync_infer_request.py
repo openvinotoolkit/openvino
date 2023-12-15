@@ -402,9 +402,9 @@ def test_get_compiled_model(device):
     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
     "Memory layers fully supported only on CPU",
 )
-def test_query_state_write_buffer(input_shape, data_type, mode):
+def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
-    device = "CPU"
+
     from openvino import Tensor
     from openvino.runtime.utils.types import get_dtype
 
