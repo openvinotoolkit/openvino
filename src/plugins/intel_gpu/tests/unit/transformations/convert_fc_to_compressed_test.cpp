@@ -233,15 +233,15 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed7) {
     }
 }
 
-class testSubgraph : public ov::op::util::SubGraphOp {
+class TestSubgraph : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("testSubgraph", "test", ov::op::util::SubGraphOp);
+    OPENVINO_OP("TestSubgraph", "Test", ov::op::util::SubGraphOp);
 
-    testSubgraph() = default;
+    TestSubgraph() = default;
 
-    testSubgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
+    TestSubgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 
-    testSubgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
+    TestSubgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -265,8 +265,7 @@ private:
 
 };
 
-testSubgraph::testSubgraph(const ov::OutputVector& args,
-                                               const std::shared_ptr<ov::Model>& body)
+TestSubgraph::TestSubgraph(const ov::OutputVector& args, const std::shared_ptr<ov::Model>& body)
     : SubGraphOp(args) {
     SubGraphOp::set_function(body);
     constructor_validate_and_infer_types();
@@ -276,15 +275,14 @@ testSubgraph::testSubgraph(const ov::OutputVector& args,
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
 }
 
-testSubgraph::testSubgraph(const ov::NodeVector& args,
-                                               const std::shared_ptr<ov::Model>& body)
-    : testSubgraph(as_output_vector(args), body) {}
+TestSubgraph::TestSubgraph(const ov::NodeVector& args, const std::shared_ptr<ov::Model>& body)
+    : TestSubgraph(as_output_vector(args), body) {}
 
-std::shared_ptr<ov::Node> testSubgraph::clone_with_new_inputs(const ov::OutputVector& inputs) const {
-    return std::make_shared<testSubgraph>(inputs, body().clone());
+std::shared_ptr<ov::Node> TestSubgraph::clone_with_new_inputs(const ov::OutputVector& inputs) const {
+    return std::make_shared<TestSubgraph>(inputs, body().clone());
 }
 
-void testSubgraph::validate_and_infer_types() {
+void TestSubgraph::validate_and_infer_types() {
     ov::ParameterVector old_parameters;
     for (auto op : body_ptr()->get_parameters()) {
         old_parameters.push_back(op);
@@ -308,7 +306,7 @@ void testSubgraph::validate_and_infer_types() {
     }
 }
 
-bool testSubgraph::visit_attributes(ov::AttributeVisitor& visitor) {
+bool TestSubgraph::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("body", body_ptr());
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
@@ -339,13 +337,13 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed8) {
         auto submodel = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
         ParameterVector subgraph_parameters{submodel->inputs().size()};
         OutputVector args{submodel->inputs().size()};
-        for (size_t j = 0; j < submodel->inputs().size(); j++) {
-            auto const& input = submodel->input(j);
-            subgraph_parameters[j] =
+        for (size_t i = 0; i < submodel->inputs().size(); i++) {
+            auto const& input = submodel->input(i);
+            subgraph_parameters[i] =
                 std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
-            args[j] = subgraph_parameters[j]->output(0);
+            args[i] = subgraph_parameters[i]->output(0);
         }
-        auto subgraph_op = std::make_shared<testSubgraph>(args, submodel);
+        auto subgraph_op = std::make_shared<TestSubgraph>(args, submodel);
         auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(subgraph_op->output(1), transpose);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{std::make_shared<ov::op::v0::Result>(subgraph_op->output(0)), fc}, subgraph_parameters);
@@ -373,13 +371,13 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed8) {
         auto submodel = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
         ParameterVector subgraph_parameters{submodel->inputs().size()};
         OutputVector args{submodel->inputs().size()};
-        for (size_t j = 0; j < submodel->inputs().size(); j++) {
-            auto const& input = submodel->input(j);
-            subgraph_parameters[j] =
+        for (size_t i = 0; i < submodel->inputs().size(); i++) {
+            auto const& input = submodel->input(i);
+            subgraph_parameters[i] =
                 std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
-            args[j] = subgraph_parameters[j]->output(0);
+            args[i] = subgraph_parameters[i]->output(0);
         }
-        auto subgraph_op = std::make_shared<testSubgraph>(args, submodel);
+        auto subgraph_op = std::make_shared<TestSubgraph>(args, submodel);
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(subgraph_op->output(1), transpose_weights, transpose_scale, transpose_zp);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ std::make_shared<ov::op::v0::Result>(subgraph_op->output(0)), fc_compressed }, subgraph_parameters);
