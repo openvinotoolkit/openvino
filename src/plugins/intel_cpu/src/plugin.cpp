@@ -723,7 +723,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices.name()) {
         std::vector<std::string> availableDevices = {""};
-        return decltype(ov::available_devices)::value_type(std::move(availableDevices));
+        return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities.name()) {
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
