@@ -10,7 +10,9 @@ from functools import partial
 from hashlib import sha256
 
 import torch
-from torch._dynamo.backends.common import fake_tensor_unsupported
+from torch._decomp import decomposition_table, get_decompositions, register_decomposition
+from torch._decomp.decompositions import aten, pw_cast_for_opmath
+from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 from torch.fx.experimental.proxy_tensor import make_fx
@@ -21,7 +23,7 @@ from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_decompositions, _get_device, _get_model_caching
 
 from openvino.runtime import Core, Type, PartialShape
 
@@ -111,9 +113,46 @@ def ts_openvino(subgraph, example_inputs):
         log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
+@register_decomposition(aten.convolution_backward)
+@pw_cast_for_opmath
+def convolution_backward(
+    grad_output,
+    input,
+    weight,
+    bias,
+    stride,
+    padding,
+    dilation,
+    transposed,
+    output_padding,
+    groups,
+    output_mask,
+):
+
+    # Compute the gradient of the input tensor
+    grad_input = torch.nn.functional.conv_transpose2d(
+        grad_output, weight, stride=stride, padding=padding, dilation=dilation, groups=groups
+    )
+
+    # Compute the gradient of the weight tensor
+    grad_weight = torch.nn.functional.conv_transpose2d(
+        #input, weight.transpose(0,1), stride=stride, padding=padding, dilation=dilation, groups=groups
+        input, weight.transpose(0,1), stride=stride, padding=padding, dilation=dilation, groups=groups
+    )
+
+    # Compute the gradient of the bias tensor
+    if bias is not None:
+        grad_bias = grad_output.sum([0, 2, 3], keepdim=True)
+    else:
+        grad_bias = None
+
+    return grad_input, grad_weight, grad_bias
+
+aot_ovgraphs = aot_autograd(fw_compiler=openvino, bw_compiler=openvino)
+register_backend(name="aot_openvino", compiler_fn=aot_ovgraphs)
 
 def fx_openvino(subgraph, example_inputs, options):
-    try:
+    #try:
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -134,7 +173,7 @@ def fx_openvino(subgraph, example_inputs, options):
                 return _call
         if inputs_reversed:
             example_inputs.reverse()
-        model = make_fx(subgraph)(*example_inputs)
+        model = make_fx(subgraph, decomposition_table=get_decompositions(_get_decompositions(options)))(*example_inputs)
         with torch.no_grad():
             model.eval()
         partitioner = Partitioner()
@@ -151,9 +190,9 @@ def fx_openvino(subgraph, example_inputs, options):
                           executor_parameters=executor_parameters, options=options)
             return res
         return _call
-    except Exception as e:
-        log.debug(f"Failed in OpenVINO execution: {e}")
-        return compile_fx(subgraph, example_inputs)
+    #except Exception as e:
+        #log.debug(f"Failed in OpenVINO execution: {e}")
+        #return compile_fx(subgraph, example_inputs)
 
 def reset():
     clear_caches()

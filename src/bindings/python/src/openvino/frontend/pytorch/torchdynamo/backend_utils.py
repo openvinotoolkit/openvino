@@ -13,7 +13,7 @@ def _get_device(options) -> Optional[Any]:
     core = Core()
     device = "CPU"
 
-    if "device" in options:
+    if options is not None and "device" in options:
         device = options["device"]
     else:
         device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
@@ -27,8 +27,16 @@ def _get_device(options) -> Optional[Any]:
 
     return device
 
+
+def _get_decompositions(options) -> Optional[Any]:
+    decompositions = []
+    if options is not None and "decompositions" in options:
+        decompositions = options["decompositions"]
+    return decompositions
+
+
 def _is_cache_dir_in_config(options) -> Optional[Any]:
-    if "config" in options:
+    if options is not None and "config" in options:
         cfg = options["config"]
         if "CACHE_DIR" in cfg:
             return True
