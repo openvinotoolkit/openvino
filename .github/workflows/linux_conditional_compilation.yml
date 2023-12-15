@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -332,3 +333,17 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
+
+  Overall_Status:
+    name: ci/gha_overall_status_linux_cc
+    needs: [Smart_CI, Build, CC_Build, CPU_Functional_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

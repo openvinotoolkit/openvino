@@ -16,7 +16,7 @@ class ModelComparator {
 public:
     using Ptr = std::shared_ptr<ModelComparator>;
     // { is_match, subgraph, graph, matched_nodes -> {subgraph_op_name, graph_op_name}}
-    using IsSubgraphTuple = std::tuple<bool, std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>, std::map<std::string, std::string>>;
+    using IsSubgraphTuple = std::tuple<bool, std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>, std::unordered_map<std::string, std::string>>;
     using InputInfo = ov::conformance::InputInfo;
     // { model, subgraph, graph, subgraph_in_info, model_in_info, }
     using ExtractedSubgraphTuple = std::tuple<bool, std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>, std::map<std::string, InputInfo>>;
@@ -46,10 +46,22 @@ public:
                 const std::shared_ptr<ov::Model> &ref_model,
                 const std::map<std::string, InputInfo> &in_info,
                 const std::map<std::string, InputInfo> &in_info_ref);
+
+    // {{matched_node_id}}
+    std::vector<std::vector<size_t>>
+    get_matched_op_patterns(const ov::NodeVector& ordered_nodes);
+
+    // { op_name_subgraph, op_name_graph}
+    std::unordered_map<std::string, std::string>
+    get_matched_ops_in_graphs(const std::shared_ptr<ov::Model>& subgraph,
+                              const std::shared_ptr<ov::Model>& graph,
+                              bool is_check_inputs = false) const;
                                 
     void set_match_coefficient(float _match_coefficient);
     float get_match_coefficient() { return match_coefficient; }
     void set_shape_strict_match(bool is_shape_strict_match);
+    void set_match_attributes(bool match_attributes);
+    void set_match_in_types(bool match_in_types);
 
 protected:
     ov::tools::subgraph_dumper::MatchersManager m_manager = ov::tools::subgraph_dumper::MatchersManager();
