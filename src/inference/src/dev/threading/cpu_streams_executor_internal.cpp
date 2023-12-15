@@ -25,6 +25,7 @@ void get_cur_stream_info(const int stream_id,
     int stream_total = 0;
     size_t stream_info_id = 0;
     bool cpu_reserve = cpu_reservation;
+    bool ecore_used = false;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total += streams_info_table[i][NUMBER_OF_STREAMS];
         if (stream_id < stream_total) {
@@ -39,9 +40,10 @@ void get_cur_stream_info(const int stream_id,
     if (core_type == ALL_PROC) {
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
-                if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
+                if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
+                    ecore_used = true;
+                } else if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
                     max_threads_per_core = 2;
-                    break;
                 }
             } else {
                 break;
@@ -62,8 +64,13 @@ void get_cur_stream_info(const int stream_id,
         stream_type = STREAM_WITH_OBSERVE;
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
+        // Pcore only or Ecore only with no cpu binding in hybrid cores machine
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type != ALL_PROC) {
             stream_type = STREAM_WITH_CORE_TYPE;
+        } else if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type == ALL_PROC &&
+                   !ecore_used) {  // Latency mode and enable hyper threading in hybrid cores machine
+            stream_type = STREAM_WITH_CORE_TYPE;
+            core_type = MAIN_CORE_PROC;
         } else if (proc_type_table.size() > 1 && numa_node_id >= 0) {
             stream_type = STREAM_WITH_NUMA_ID;
         }
