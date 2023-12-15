@@ -101,7 +101,7 @@ protected:
                                                     ngraph::helpers::PoolingTypes::MAX);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maxpool)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "ActMaxpoolReordering");
     }
 };

@@ -19,11 +19,15 @@ align_input_info(const std::shared_ptr<ov::Model>& model,
                  const std::shared_ptr<ov::Model>& model_ref,
                  const std::map<std::string, ov::conformance::InputInfo> &in_info,
                  const std::map<std::string, ov::conformance::InputInfo> &in_info_ref,
-                 const std::map<std::string, std::string> &matched_op = {});
+                 const std::unordered_map<std::string, std::string> &matched_op);
+
+// get set nodes of subgraph after start_node                
+void
+get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
+                      const std::shared_ptr<ov::Node>& node);
 
 inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>>
 generate_model(ov::NodeVector& nodes,
-               std::unordered_set<std::string>& checked_ops,
                bool is_copy_constants = true,
                bool is_save_only_borders = false) {
     // map to recover graph using cloned nodes and original connections
@@ -39,7 +43,6 @@ generate_model(ov::NodeVector& nodes,
         size_t functional_node_cnt = 0;
         for (const auto& node : nodes) {
             auto orig_node_name = node->get_friendly_name();
-            checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
                                      clone_node(node, is_copy_constants, false, orig_node_name) });
             

@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -28,15 +27,15 @@
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
-        bool is_int_model = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
+        bool is_int_model = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
         if (is_int_model) {
             return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+            if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
                     return "FP32";
@@ -115,7 +114,7 @@ ov::AnyMap Plugin::pre_process_config(const ov::AnyMap& orig_config) const {
             } else {
                 converted_val = legacy_val;
             }
-            property.second = converted_val;
+            property.second = std::move(converted_val);
         }
     }
     return properties;
@@ -542,7 +541,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
     // clone the model, in case of reshape conflict
-    auto_s_context->m_model = cloned_model;
+    auto_s_context->m_model = std::move(cloned_model);
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
@@ -816,7 +815,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
             });
             return iter != devices.end();
         };
-        auto device_with_default_id = [](std::string& device) {
+        auto device_with_default_id = [](std::string& device) -> std::string {
             // AUTO assume the default device ID will be "0" for the single device.
             return device.find(".") == std::string::npos ? device + ".0" : device;
         };

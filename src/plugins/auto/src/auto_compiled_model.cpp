@@ -26,7 +26,8 @@ AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                       "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
