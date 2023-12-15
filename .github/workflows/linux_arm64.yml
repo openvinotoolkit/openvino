@@ -67,7 +67,9 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_aarch64_Release
+      SCCACHE_ERROR_LOG: /__w/openvino/openvino/sccache_log.txt
+      SCCACHE_LOG: 'debug'
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
     if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
 
@@ -110,6 +112,12 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
           version: "v0.7.4"
+
+      - name: Check sccache log
+        run: |
+          if [[ -f "${SCCACHE_ERROR_LOG}" ]]; then
+            cat ${SCCACHE_ERROR_LOG}
+          fi
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -159,11 +167,23 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
+      - name: Check sccache log
+        run: |
+          if [[ -f "${SCCACHE_ERROR_LOG}" ]]; then
+            cat ${SCCACHE_ERROR_LOG}
+          fi
+
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Check sccache log
+        run: |
+          if [[ -f "${SCCACHE_ERROR_LOG}" ]]; then
+            cat ${SCCACHE_ERROR_LOG}
+          fi
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
