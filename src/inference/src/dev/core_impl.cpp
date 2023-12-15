@@ -568,12 +568,14 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         // Always use global mutex if iterate over plugins or pluginRegistry
         std::lock_guard<std::mutex> g_lock(get_mutex());
         auto it_plugin = plugins.find(deviceName);
-        if (it_plugin != plugins.end())
+        if (it_plugin != plugins.end()) {
             return it_plugin->second;
+        }
 
         desc = it->second;
     }
     // Plugin is in registry, but not created, let's create
+    std::cout << "ov::CoreImpl::get_plugin - start " << pluginName.c_str() << std::endl;
     std::shared_ptr<void> so;
     try {
         ov::Plugin plugin;
@@ -714,7 +716,10 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
-        return plugins.emplace(deviceName, plugin).first->second;
+        std::cout << "ov::CoreImpl::get_plugin - start2 " << deviceName.c_str() << std::endl;
+        auto ret = plugins.emplace(deviceName, plugin).first->second;
+        std::cout << "ov::CoreImpl::get_plugin - done " << deviceName.c_str() << std::endl;
+        return ret;
     } catch (const InferenceEngine::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
                        ov::util::from_file_path(desc.libraryLocation),

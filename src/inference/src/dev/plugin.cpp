@@ -112,6 +112,7 @@ ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& para
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
+    std::cout << "ov::Plugin::get_property - " << name.c_str() << std::endl;
     OV_PLUGIN_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {
@@ -176,6 +177,8 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                 return true;
             }
         }
+        auto ret = m_ptr->get_property(name, arguments);
+        std::cout << "ov::Plugin::get_property - " << name.c_str() << "   done"<<std::endl;
         return {m_ptr->get_property(name, arguments), {m_so}};
     });
 }
