@@ -7,9 +7,9 @@
 #include "helper.hpp"
 #include "partial_shape_wrap.hpp"
 
-Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
+Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info), _output{} {}
 
-Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
+Napi::Function Output<ov::Node>::get_class_constructor(Napi::Env env) {
     return Output::DefineClass(
         env,
         "Output",
@@ -21,8 +21,8 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
          Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
 }
 
-Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object Output<ov::Node>::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -37,7 +37,7 @@ ov::Output<ov::Node> Output<ov::Node>::get_output() const {
     return _output;
 }
 
-Napi::Object Output<ov::Node>::Wrap(Napi::Env env, ov::Output<ov::Node> output) {
+Napi::Object Output<ov::Node>::wrap(Napi::Env env, ov::Output<ov::Node> output) {
     const auto prototype = env.GetInstanceData<AddonData>()->output_prototype;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Output prototype.");
@@ -53,16 +53,18 @@ Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Output<ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
-    return PartialShapeWrap::Wrap(info.Env(), _output.get_partial_shape());
+    return PartialShapeWrap::wrap(info.Env(), _output.get_partial_shape());
 }
 
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
 }
 
-Output<const ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<const ov::Node>>(info) {}
+Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<Output<const ov::Node>>(info),
+      _output{} {}
 
-Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
+Napi::Function Output<const ov::Node>::get_class_constructor(Napi::Env env) {
     return Output::DefineClass(
         env,
         "ConstOutput",
@@ -74,8 +76,8 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
          Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
 }
 
-Napi::Object Output<const ov::Node>::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object Output<const ov::Node>::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -90,7 +92,7 @@ ov::Output<const ov::Node> Output<const ov::Node>::get_output() const {
     return _output;
 }
 
-Napi::Object Output<const ov::Node>::Wrap(Napi::Env env, ov::Output<const ov::Node> output) {
+Napi::Object Output<const ov::Node>::wrap(Napi::Env env, ov::Output<const ov::Node> output) {
     const auto prototype = env.GetInstanceData<AddonData>()->const_output_prototype;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to ConstOutput prototype.");
@@ -106,7 +108,7 @@ Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Output<const ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
-    return PartialShapeWrap::Wrap(info.Env(), _output.get_partial_shape());
+    return PartialShapeWrap::wrap(info.Env(), _output.get_partial_shape());
 }
 
 Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {

@@ -16,7 +16,7 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     }
 }
 
-Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function PrePostProcessorWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "PrePostProcessorWrap",
                        {InstanceMethod("input", &PrePostProcessorWrap::input),
@@ -24,8 +24,8 @@ Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
 }
 
-Napi::Object PrePostProcessorWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object PrePostProcessorWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -41,7 +41,7 @@ Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Wrong number of parameters.");
         return info.Env().Undefined();
     }
-    Napi::Object obj = InputInfo::GetClassConstructor(info.Env()).New({});
+    Napi::Object obj = InputInfo::get_class_constructor(info.Env()).New({});
     auto input_info = Napi::ObjectWrap<InputInfo>::Unwrap(obj);
     if (info.Length() == 0) {
         input_info->set_input_info(_ppp->input());
@@ -61,7 +61,7 @@ Napi::Value PrePostProcessorWrap::output(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Wrong number of parameters.");
         return info.Env().Undefined();
     }
-    Napi::Object obj = OutputInfo::GetClassConstructor(info.Env()).New({});
+    Napi::Object obj = OutputInfo::get_class_constructor(info.Env()).New({});
     auto output_info = Napi::ObjectWrap<OutputInfo>::Unwrap(obj);
     if (info.Length() == 0) {
         output_info->set_output_info(_ppp->output());

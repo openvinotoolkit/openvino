@@ -5,13 +5,12 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <openvino/openvino.hpp>
-
 #include "element_type.hpp"
 #include "errors.hpp"
 #include "helper.hpp"
 #include "model_wrap.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/openvino.hpp"
 #include "preprocess/input_info.hpp"
 #include "preprocess/output_info.hpp"
 
@@ -27,11 +26,11 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript PrePostProcessor class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
     /** @brief This method is called during initialization of OpenVino native add-on.
      * It exports JavaScript PrePostProcessor class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     Napi::Value input(const Napi::CallbackInfo& info);
 

@@ -96,8 +96,7 @@ describe('Tensor shape', () => {
   it('Array argument to create ov::Shape can only contain numbers', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, ['1', 3, 224, 224], data),
-      {message: 'Invalid tensor argument. '
-    + 'Passed array must contain only numbers.'});
+      {message: /Passed array must contain only numbers/});
   });
 
   it('ov::Shape from TypedArray -> Int32Array', () => {
@@ -110,7 +109,7 @@ describe('Tensor shape', () => {
     const shape = Float32Array.from([1, 224, 224, 3]);
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, data),
-      /Invalid tensor argument./
+      /Cannot convert argument./
     );
   });
 
@@ -118,7 +117,7 @@ describe('Tensor shape', () => {
     const shape = Int32Array.from([1, 224, 224, 3]);
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape.buffer, data),
-      /Invalid tensor argument./
+      /Cannot convert argument./
     );
   });
 });

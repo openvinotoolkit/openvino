@@ -10,9 +10,9 @@
 #include "model_wrap.hpp"
 #include "read_model_args.hpp"
 
-CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), env(info.Env()) {}
+CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
-Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function CoreWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "Core",
                        {
@@ -23,8 +23,8 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
                        });
 }
 
-Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object CoreWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -36,26 +36,19 @@ Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    ReadModelArgs* args;
-
     try {
+        ReadModelArgs* args;
         args = new ReadModelArgs(info);
-    } catch(std::runtime_error& err) {
+        auto model = args->model_str.empty() ? _core.read_model(args->model_path, args->bin_path)
+                                             : _core.read_model(args->model_str, args->weight_tensor);
+        delete args;
+
+        return ModelWrap::wrap(info.Env(), model);
+    } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
         return info.Env().Undefined();
     }
-
-    std::shared_ptr<ov::Model> model;
-
-    if (args->model_str.empty())
-        model = _core.read_model(args->model_path, args->bin_path);
-    else
-        model = _core.read_model(args->model_str, args->weight_tensor);
-
-    delete args;
-
-    return ModelWrap::Wrap(info.Env(), model);
 }
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
@@ -79,7 +72,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
     if (model_prototype && model.InstanceOf(model_prototype->Value().As<Napi::Function>())) {
         const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
         const auto& compiled_model = _core.compile_model(m->get_model(), device);
-        return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+        return CompiledModelWrap::wrap(info.Env(), compiled_model);
     } else {
         reportError(info.Env(), "Cannot create Model from Napi::Object.");
         return info.Env().Undefined();
@@ -87,27 +80,27 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                                const Napi::String& model_path,
-                                                const Napi::String& device) {
+                                         const Napi::String& model_path,
+                                         const Napi::String& device) {
     const auto& compiled_model = _core.compile_model(model_path, device);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                                const Napi::Object& model_obj,
-                                                const Napi::String& device,
-                                                const std::map<std::string, ov::Any>& config) {
+                                         const Napi::Object& model_obj,
+                                         const Napi::String& device,
+                                         const std::map<std::string, ov::Any>& config) {
     const auto& mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_obj);
     const auto& compiled_model = _core.compile_model(mw->get_model(), info[1].ToString(), config);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                                const Napi::String& model_path,
-                                                const Napi::String& device,
-                                                const std::map<std::string, ov::Any>& config) {
+                                         const Napi::String& model_path,
+                                         const Napi::String& device,
+                                         const std::map<std::string, ov::Any>& config) {
     const auto& compiled_model = _core.compile_model(model_path, device, config);
-    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
@@ -177,7 +170,7 @@ void compileModelThreadModel(TsfnContextModel* context) {
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextModel* context) {
         Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
+        auto obj = CompiledModelWrap::get_class_constructor(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 
@@ -194,7 +187,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
         Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
+        auto obj = CompiledModelWrap::get_class_constructor(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 
@@ -206,7 +199,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
 }
 
 Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
+    auto env = info.Env();
     if (info[0].IsObject() && info[1].IsString()) {
         auto context_data = new TsfnContextModel(env);
         auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());

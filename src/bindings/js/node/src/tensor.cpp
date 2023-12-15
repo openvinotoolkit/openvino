@@ -38,7 +38,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 }
 
-Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
+Napi::Function TensorWrap::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
@@ -47,8 +47,8 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("getElementType", &TensorWrap::get_element_type)});
 }
 
-Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = GetClassConstructor(env);
+Napi::Object TensorWrap::init(Napi::Env env, Napi::Object exports) {
+    const auto& prototype = get_class_constructor(env);
 
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
@@ -59,7 +59,7 @@ Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-ov::Tensor TensorWrap::get_tensor() {
+ov::Tensor TensorWrap::get_tensor() const {
     return this->_tensor;
 }
 
@@ -67,7 +67,7 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
     _tensor = tensor;
 }
 
-Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
+Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
     const auto prototype = env.GetInstanceData<AddonData>()->tensor_prototype;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Tensor prototype.");

@@ -7,8 +7,9 @@
 #include "helper.hpp"
 
 namespace element {
-    Napi::Object init(Napi::Env env, Napi::Object exports);
+/** @brief Exports JavaScript element enum. */
+Napi::Object init(Napi::Env env, Napi::Object exports);
 
-    /** \brief Creates JS object to represent C++ enum class Type_t with possible element types */
-    Napi::Value add_element_namespace(const Napi::CallbackInfo& info);
-};
+/** \brief Creates JS object to represent C++ enum class Type_t with element types supported in ov.js*/
+Napi::Value add_element_namespace(const Napi::CallbackInfo& info);
+};  // namespace element

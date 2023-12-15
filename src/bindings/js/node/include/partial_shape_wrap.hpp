@@ -4,10 +4,10 @@
 #pragma once
 
 #include <napi.h>
-#include <openvino/core/partial_shape.hpp>
 
 #include "errors.hpp"
 #include "helper.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 class PartialShapeWrap : public Napi::ObjectWrap<PartialShapeWrap> {
 public:
@@ -21,21 +21,19 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript PartialShape class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino native add-on.
+    static Napi::Function get_class_constructor(Napi::Env env);
+    /** @brief This method is called during initialization of OpenVino node-addon.
      * It exports JavaScript PartialShape class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
-    ov::PartialShape get_partial_shape();
-    void set_partial_shape(const ov::PartialShape& partial_shape);
     /**
      * @brief Creates JavaScript PartialShape object and wraps inside of it ov::PartialShape object.
      * @param env The environment in which to construct a JavaScript object.
      * @param partial_shape ov::PartialShape to wrap.
      * @return Javascript PartialShape as Napi::Object. (Not PartialShapeWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::PartialShape partial_shape);
+    static Napi::Object wrap(Napi::Env env, ov::PartialShape partial_shape);
 
     Napi::Value is_static(const Napi::CallbackInfo& info);
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
@@ -43,5 +41,5 @@ public:
     Napi::Value get_dimensions(const Napi::CallbackInfo& info);
 
 private:
-    ov::PartialShape _partial_shape;       
+    ov::PartialShape _partial_shape;
 };

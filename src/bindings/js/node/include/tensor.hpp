@@ -3,15 +3,15 @@
 
 #pragma once
 
-#include <openvino/core/shape.hpp>
-#include <openvino/core/type/element_type.hpp>
-#include <openvino/runtime/compiled_model.hpp>
-#include <openvino/runtime/tensor.hpp>
+#include <napi.h>
 
 #include "element_type.hpp"
 #include "errors.hpp"
 #include "helper.hpp"
-#include "napi.h"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 class TensorWrap : public Napi::ObjectWrap<TensorWrap> {
 public:
@@ -34,14 +34,14 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Tensor class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     /** @brief This method is called during initialization of OpenVino native add-on.
      * It exports JavaScript Tensor class.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
-    ov::Tensor get_tensor();
+    ov::Tensor get_tensor() const;
     void set_tensor(const ov::Tensor& tensor);
     /**
      * @brief Creates JavaScript Tensor object and wraps inside of it ov::Tensor object.
@@ -49,7 +49,7 @@ public:
      * @param tensor ov::Tensor to wrap.
      * @return Javascript Tensor as Napi::Object. (Not TensorWrap object)
      */
-    static Napi::Object Wrap(Napi::Env env, ov::Tensor tensor);
+    static Napi::Object wrap(Napi::Env env, ov::Tensor tensor);
 
     /**
      * @brief Helper function to access the tensor data as an attribute of JavaScript Tensor.

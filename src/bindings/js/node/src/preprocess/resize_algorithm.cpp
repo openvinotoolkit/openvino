@@ -3,15 +3,15 @@
 
 #include "preprocess/resize_algorithm.hpp"
 
-#include <iostream>
-#include <openvino/runtime/core.hpp>
 #include <typeinfo>
 
+#include "openvino/runtime/core.hpp"
+
 Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
-    Napi::Object enumObj = Napi::Object::New(info.Env());
+    auto enumObj = Napi::Object::New(info.Env());
     std::vector<Napi::PropertyDescriptor> pds;
 
-    std::string resizeAlgorithms[] = {"RESIZE_LINEAR", "RESIZE_CUBIC", "RESIZE_NEAREST"};
+    std::array<std::string, 3> resizeAlgorithms = {"RESIZE_LINEAR", "RESIZE_CUBIC", "RESIZE_NEAREST"};
 
     for (auto& algorithm : resizeAlgorithms) {
         pds.push_back(

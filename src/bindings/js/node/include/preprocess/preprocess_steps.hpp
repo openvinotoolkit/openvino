@@ -5,14 +5,14 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/preprocess_steps.hpp>
+#include "openvino/core/preprocess/preprocess_steps.hpp"
 
 
 class PreProcessSteps : public Napi::ObjectWrap<PreProcessSteps> {
 public:
     PreProcessSteps(const Napi::CallbackInfo& info);
 
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     Napi::Value resize(const Napi::CallbackInfo& info);
 

@@ -5,13 +5,13 @@
 
 #include <napi.h>
 
-#include <openvino/core/preprocess/output_tensor_info.hpp>
+#include "openvino/core/preprocess/output_tensor_info.hpp"
 
 class OutputTensorInfo : public Napi::ObjectWrap<OutputTensorInfo> {
 public:
     OutputTensorInfo(const Napi::CallbackInfo& info);
 
-    static Napi::Function GetClassConstructor(Napi::Env env);
+    static Napi::Function get_class_constructor(Napi::Env env);
 
     Napi::Value set_element_type(const Napi::CallbackInfo& info);
 

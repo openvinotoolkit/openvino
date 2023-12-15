@@ -17,18 +17,18 @@
 #include "tensor.hpp"
 
 /** @brief Initialize native add-on */
-Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
+Napi::Object init_all(Napi::Env env, Napi::Object exports) {
     auto addon_data = new AddonData();
     env.SetInstanceData<AddonData>(addon_data);
 
-    ModelWrap::Init(env, exports);
-    CoreWrap::Init(env, exports);
-    CompiledModelWrap::Init(env, exports);
-    InferRequestWrap::Init(env, exports);
-    TensorWrap::Init(env, exports);
-    Output<const ov::Node>::Init(env, exports);
-    Output<ov::Node>::Init(env, exports);
-    PartialShapeWrap::Init(env, exports);
+    ModelWrap::init(env, exports);
+    CoreWrap::init(env, exports);
+    CompiledModelWrap::init(env, exports);
+    InferRequestWrap::init(env, exports);
+    TensorWrap::init(env, exports);
+    Output<const ov::Node>::init(env, exports);
+    Output<ov::Node>::init(env, exports);
+    PartialShapeWrap::init(env, exports);
     
     preprocess::init(env, exports);
     element::init(env, exports);
@@ -37,4 +37,4 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
 }
 
 /** @brief Register and initialize native add-on */
-NODE_API_MODULE(addon_openvino, InitAll)
+NODE_API_MODULE(addon_openvino, init_all)
