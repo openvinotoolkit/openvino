@@ -286,10 +286,10 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
      // transposeOrder
      {1, 2, 0, 3}},
 }};
-
+// TODO: BF16 test is disabled due to CI machine limitation
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);
