@@ -77,7 +77,7 @@ from tests import (
     xfail_issue_125486,
     xfail_issue_125488,
     xfail_issue_125487,
-    xfail_issue_125489,
+    skip_issue_125489,
     xfail_issue_125491,
     xfail_issue_125492,
     xfail_issue_125493,
@@ -745,7 +745,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_nearest_align_corners_1_cpu",
     ),
     (
-        xfail_issue_125489,
+        skip_issue_125489,
         "OnnxBackendNodeModelTest.test_isinf_float16_cpu",
     ),
     (
