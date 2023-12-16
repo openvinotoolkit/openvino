@@ -825,9 +825,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_v9_single_box) {
     test_case.run();
 }
 
+#if (defined _WIN32 || defined _WIN64)
+// Ticket: 127743
+OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_score_threshold) {
+#else
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_default_score_threshold) {
+#endif
     auto model = convert_model("nms_default_score_threshold.onnx");
-
     auto test_case = ov::test::TestCase(model, s_device);
 
     test_case.add_input(
