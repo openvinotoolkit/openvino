@@ -815,15 +815,24 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
 
     auto B = beam_idx.size(0);
     size_t L0 = 0;
-    auto is_reset = m_k_state->is_reset_state();
+    auto is_reset = m_k_state->is_reset_state() || m_v_state->is_reset_state();
     if (is_reset) {
+        OPENVINO_ASSERT(m_k_state->is_reset_state() == m_v_state->is_reset_state(),
+            "KV state must be reset simultaneously, please also reset state for ",
+            (m_k_state->is_reset_state() ? "V" : "K"));
         auto inputNumber = getOriginalInputsNumber();
         auto&& init_graph_v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
         L0 = init_graph_v_dims.at(order[2]);
+        auto B_init = init_graph_v_dims.at(order[0]);
+        OPENVINO_ASSERT(B == B_init, "beam idx batch: ", B, " is not equal to batch of init subgraph: ", B_init);
     } else if (hidden_state_k) {
         auto block_desc = hidden_state_k->getDescWithType<BlockedMemoryDesc>();
-        L0 = block_desc->getShape().getStaticDims()[1];
+        auto&& dims = block_desc->getShape().getStaticDims();
+        auto B_state = dims[0];
+        L0 = dims[1];
+        OPENVINO_ASSERT(B == B_state, "beam idx batch: ", B, " is not equal to batch of state: ", B_state);
     }
+    OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
     if (B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
@@ -944,9 +953,14 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         auto inputNumber = getOriginalInputsNumber();
         auto&& init_graph_v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
         L0 = init_graph_v_dims.at(order[2]);
+        auto B_init = init_graph_v_dims.at(order[0]);
+        OPENVINO_ASSERT(B == B_init, "pastkv batch: ", B, " is not equal to batch of init subgraph: ", B_init);
     } else if (internal_mem_k) {
         auto block_desc = internal_mem_k->getDescWithType<BlockedMemoryDesc>();
-        L0 = block_desc->getShape().getStaticDims()[order[2]];
+        auto&& dims = block_desc->getShape().getStaticDims();
+        auto B_state = dims[order[0]];
+        L0 = dims[order[2]];
+        OPENVINO_ASSERT(B == B_state, "pastkv batch: ", B, " is not equal to batch of state: ", B_state);
     }
 
     // resize buffer

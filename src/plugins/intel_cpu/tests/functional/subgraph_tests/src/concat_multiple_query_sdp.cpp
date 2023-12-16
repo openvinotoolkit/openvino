@@ -169,7 +169,7 @@ public:
         const auto reshapeOrder = get_reshape_order(inputDynamicShapes[0], transposeOrder);
 
         auto postOrder =
-            ov::op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{0, 2, 1, 3});  // BHLS -> BLHS
+            ov::op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{2, 0, 1, 3});  // BHLS -> LBHS
         auto transposeSDP = std::make_shared<ov::op::v1::Transpose>(sdp, postOrder);
 
         auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
