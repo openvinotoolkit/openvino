@@ -211,7 +211,8 @@ def generate_add_model() -> openvino._pyopenvino.Model:
 
 def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.Model:
     input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667", data_type, input_shape)
+    init_val = ops.constant(np.zeros(input_shape), data_type)
+    rv = ops.read_value(init_val, "var_id_667", data_type, input_shape)
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")

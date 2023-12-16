@@ -127,10 +127,10 @@ public:
         return getType() == Type::MemoryInput;
     }
 
-    void execute(dnnl::stream strm) override {/*pass*/}
-    void executeDynamicImpl(dnnl::stream strm) override {/*pass*/}
-
-    void createPrimitive() override;
+    bool needShapeInfer() const override;
+    bool isExecutable() const override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
@@ -149,6 +149,7 @@ private:
     MemoryPtr assignedMem = nullptr;
     MemoryNodeVirtualEdge::Holder* holder = nullptr;
     ProxyMemoryMngrPtr memMngr = nullptr;
+    bool isExecutableFlag = true;
 };
 
 class MemoryInput : public MemoryInputBase {

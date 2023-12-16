@@ -119,12 +119,12 @@ bool Assign::evaluate(TensorVector& outputs,
 
     const auto var_value = variable_values.find(m_variable)->second;
     var_value->set_reset(false);
-    auto buffer = var_value->get_state();
-    buffer.set_shape(inputs[0].get_shape());
+    auto memory_buffer = var_value->get_state();
+    memory_buffer.set_shape(inputs[0].get_shape());
     outputs[0].set_shape(inputs[0].get_shape());
 
     std::memcpy(outputs[0].data(), inputs[0].data(), inputs[0].get_byte_size());
-    std::memcpy(buffer.data(), inputs[0].data(), inputs[0].get_byte_size());
+    std::memcpy(memory_buffer.data(), inputs[0].data(), inputs[0].get_byte_size());
 
     return true;
 }

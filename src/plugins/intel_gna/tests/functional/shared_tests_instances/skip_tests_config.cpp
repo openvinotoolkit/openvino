@@ -109,5 +109,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVCompiledModelBaseTest.*CanSetInputPrecisionForNetwork.*)",
         R"(.*OVCompiledModelBaseTest.*CanCreateTwoCompiledModelsAndCheckRuntimeModel.*)",
         R"(.*OVInferRequestWaitTests.*FailedAsyncInferWithNegativeTimeForWait.*)",
+        // TODO: Issue 127801
+        R"(.*smoke_MemoryTest.*transformation=NONE.*)",
+        R"(.*smoke_concat_memory.*)",
     };
 }

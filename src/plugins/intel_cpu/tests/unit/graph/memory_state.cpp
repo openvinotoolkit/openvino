@@ -8,6 +8,8 @@
 #include "ov_models/builders.hpp"
 #include "nodes/memory.hpp"
 #include "nodes/softmax.h"
+#include "nodes/shapeof.h"
+#include "nodes/convert.h"
 
 using namespace ov::intel_cpu;
 
@@ -199,4 +201,110 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
         auto state_out_mem = state->output_mem()->getData();
         ASSERT_NE(state_out_mem, memory_output_inp_mem);
     }
+}
+
+/*
+
+           ┌────────┐
+           │ Param  │
+           └───┬────┘
+               │
+               │
+           ┌───┴────┐
+           │MemInput│
+           └────────┘
+            /     \
+           /       \
+   ┌────────┐     ┌────────┐
+   │DummyUp │     │ ShapeOf│
+   └───┬────┘     └───┬────┘
+       │              │
+       │              │
+   ┌───┴────┐     ┌───┴────┐
+   │ MemOut │     │Subgraph│
+   └────────┘     └───┬────┘
+                      │
+                      │
+                  ┌───┴────┐
+                  │ Output │
+                  └────────┘
+
+*/
+
+TEST(MemStateGraphTest, smoke_ShapeOf_no_Inplace_Conflicts) {
+    const ov::element::Type_t test_prec = ov::element::Type_t::f32;
+    const ov::Shape test_shape{1, 3, 8, 16};
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(test_prec, test_shape);
+
+    // The ReadValue/Assign operations must be used in pairs in the model.
+    // For each such a pair, its own variable object must be created.
+    const std::string variable_name("variable0");
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{test_shape, test_prec, variable_name});
+
+    // creat ngraph ops to build CPU nodes
+    auto read = std::make_shared<ov::op::v6::ReadValue>(param, variable);
+    auto shapeof = std::make_shared<ov::op::v0::ShapeOf>(read);
+    auto convert = std::make_shared<ov::op::v0::Convert>(shapeof, test_prec);
+    auto softmax = std::make_shared<ov::op::v1::Softmax>(convert, 0);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read, variable);
+    auto res = std::make_shared<ov::op::v0::Result>(softmax);
+
+    std::unordered_set<NodePtr> nodes_set;
+    std::vector<EdgePtr> graph_edges;
+
+    auto add_edge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
+        auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
+        child->addEdge(edge);
+        graph_edges.push_back(edge);
+        nodes_set.insert(parent);
+        nodes_set.insert(child);
+    };
+
+    //create graph context
+
+    Config conf;
+    conf.rtCacheCapacity = 0;
+    auto context = std::make_shared<GraphContext>(conf, nullptr, nullptr, false);
+
+    auto input_node = std::make_shared<node::Input>(param, context);
+    auto memory_input = std::make_shared<node::MemoryInput>(read, context);
+    auto dummy = std::make_shared<cpu_unit_test::DummyNode>(
+        test_shape, test_prec,
+        "first_dummy",
+        "DummyNode",
+        context,
+        LayoutType::ncsp,
+        Edge::LOOK::LOOK_UP,
+        true);
+
+    auto memory_output = std::make_shared<node::MemoryOutput>(assign, context);
+    auto shapeof_node = std::make_shared<node::ShapeOf>(shapeof, context);
+    auto softmax_node = std::make_shared<node::SoftMax>(softmax, context);
+    auto convert_node = std::make_shared<node::Convert>(convert, context);
+    auto output_node = std::make_shared<node::Input>(res, context);
+
+    convert_node->setOriginalInputPrecisionAtPort(0, ov::element::i32);
+
+    add_edge(input_node, memory_input, 0, 0);
+    add_edge(memory_input, shapeof_node, 0, 0);
+    add_edge(memory_input, dummy, 0, 0);
+
+    add_edge(dummy, memory_output, 0, 0);
+
+    add_edge(shapeof_node, convert_node, 0, 0);
+    add_edge(convert_node, softmax_node, 0, 0);
+    add_edge(softmax_node, output_node, 0, 0);
+
+    std::vector<NodePtr> graph_nodes(nodes_set.begin(), nodes_set.end());
+
+    Graph graph;
+    graph.CreateGraph(graph_nodes, graph_edges, context, "test_graph");
+
+    auto&& nodes = graph.GetNodes();
+    auto itr = std::find_if(nodes.begin(), nodes.end(),
+        [](const NodePtr& node){ return Type::Reorder == node->getType(); });
+
+    ASSERT_EQ(itr, nodes.end());
 }
