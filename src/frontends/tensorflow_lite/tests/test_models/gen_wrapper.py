@@ -14,11 +14,7 @@ out_folder = sys.argv[2]
 mark_file = sys.argv[3]
 
 assert gen_script.endswith('.py'), "Unexpected script: " + gen_script
-try:
-    subprocess.run([sys.executable, gen_script, out_folder], env=os.environ, check=True)
-except subprocess.CalledProcessError as cpe:
-    if cpe.returncode == 2:
-        exit(2)
+subprocess.run([sys.executable, gen_script, out_folder], env=os.environ)
 
 # Create mark file indicating that script was executed
 with open(mark_file, "w") as fp:
