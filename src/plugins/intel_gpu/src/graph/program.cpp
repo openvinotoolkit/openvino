@@ -601,6 +601,9 @@ void program::pre_optimize_graph(bool is_internal) {
     // Call shape_of subgraphs markup second time to update newely added nodes after graph
     // optimization passes
     apply_opt_pass<mark_shape_of_subgraphs>(true);
+
+    // Set gathers that might be skipped at runtime as can_be_optimized.
+    apply_opt_pass<dynamic_shape_gather_opts>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
