@@ -88,8 +88,8 @@ FFTNComplexReplacer::FFTNComplexReplacer() {
 
         // Handle norm parameter indicating normalization mode to use. Defaults to "backward".
         std::string norm;
-        if (const auto& fw_node_mode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(
-                fftn_op->input_value(3).get_node_shared_ptr())) {
+        if (const auto& fw_node_mode =
+                std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(fftn_op->input_value(3).get_node_shared_ptr())) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
                 norm = attrs.at("string_value");
@@ -137,9 +137,7 @@ FFTNComplexReplacer::FFTNComplexReplacer() {
                 rval = true;
             }
         }
-        add_exception_to_fw_node(
-            fftn_op,
-            "aten::fft_fftn: Unsupported output node. Only aten::real is supported.");
+        add_exception_to_fw_node(fftn_op, "aten::fft_fftn: Unsupported output node. Only aten::real is supported.");
         return rval;
     };
 
