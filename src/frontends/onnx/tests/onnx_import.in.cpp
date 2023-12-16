@@ -7031,9 +7031,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(), 
-                                                                        SERIALIZED_ZOO, 
-                                                                        "onnx/bitwise_not.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/bitwise_not.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
