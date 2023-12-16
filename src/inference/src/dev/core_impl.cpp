@@ -757,15 +757,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                        "Please, check your environment\n",
                        ex.what(),
                        "\n");
-    } catch (...) {
-        std::cout << "Failed to create plugin " << deviceName << "... " << std::endl;
-        OPENVINO_THROW("Failed to create plugin ",
-                       ov::util::from_file_path(desc.libraryLocation),
-                       " for device ",
-                       deviceName,
-                       "\n",
-                       "Please, check your environment\n",
-                       "\n");
+    } catch (std::runtime_error& ex) {
+        std::cout << "Failed to create plugin ... " << deviceName << ": " << ex.what() << std::endl;
+        throw std::runtime_error(ex.what());
     }
 }
 
