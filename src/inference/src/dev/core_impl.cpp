@@ -595,7 +595,13 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             print_logs(" load_shared_object is done");
             std::shared_ptr<ov::IPlugin> plugin_impl;
-            reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
+            auto creat_func =
+                reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function));
+            // reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so,
+            // ov::create_plugin_function))(plugin_impl);
+            print_logs(" get_symbol is done");
+            creat_func(plugin_impl);
+            print_logs(" create_plugin_function is done");
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin_impl))
                 wrapper->set_shared_object(so);
             plugin = Plugin{plugin_impl, so};
@@ -663,7 +669,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 #endif
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
             // also, remove device_supports_cache_dir at all
-            print_logs(" device_supports_cache_dir ");
+            // print_logs(" device_supports_cache_dir ");
             {
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 if (device_supports_cache_dir(plugin)) {
@@ -723,7 +729,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            print_logs(" TryToRegisterLibraryAsExtensionUnsafe ");
+            // print_logs(" TryToRegisterLibraryAsExtensionUnsafe ");
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
@@ -732,6 +738,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         std::cout << "ov::CoreImpl::get_plugin - done " << deviceName.c_str() << std::endl;
         return ret;
     } catch (const InferenceEngine::Exception& ex) {
+        std::cout << "Failed to create plugin " << deviceName << ": " << ex.what() << std::endl;
         OPENVINO_THROW("Failed to create plugin ",
                        ov::util::from_file_path(desc.libraryLocation),
                        " for device ",
@@ -741,6 +748,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                        ex.what(),
                        "\n");
     } catch (const ov::Exception& ex) {
+        std::cout << "Failed to create plugin " << deviceName << ": " << ex.what() << std::endl;
         OPENVINO_THROW("Failed to create plugin ",
                        ov::util::from_file_path(desc.libraryLocation),
                        " for device ",
@@ -748,6 +756,15 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                        "\n",
                        "Please, check your environment\n",
                        ex.what(),
+                       "\n");
+    } catch (...) {
+        std::cout << "Failed to create plugin " << deviceName << "... " << std::endl;
+        OPENVINO_THROW("Failed to create plugin ",
+                       ov::util::from_file_path(desc.libraryLocation),
+                       " for device ",
+                       deviceName,
+                       "\n",
+                       "Please, check your environment\n",
                        "\n");
     }
 }
