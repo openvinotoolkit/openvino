@@ -1,0 +1,58 @@
+ir_version: 6
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "data"
+    input: "indices"
+    output: "output"
+    name: "GatherND_1"
+    op_type: "GatherND"
+    domain: "com.microsoft"
+  }
+  name: "test_graph"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: INT
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "indices"
+    type {
+      tensor_type {
+        elem_type: INT
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: INT
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
