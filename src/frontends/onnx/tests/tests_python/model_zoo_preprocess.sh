@@ -56,8 +56,8 @@ while getopts "homfd:s:" opt; do
 done
 shift $((OPTIND -1))
 
-MODEL_ZOO_DIR="$MODELS_DIR/model_zoo"
-ONNX_MODELS_DIR="$MODEL_ZOO_DIR/onnx_model_zoo_$ONNX_SHA"
+MODEL_ZOO_DIR="$MODELS_DIR"
+ONNX_MODELS_DIR="$MODEL_ZOO_DIR/onnx_model_zoo"
 MSFT_MODELS_DIR="$MODEL_ZOO_DIR/MSFT"
 
 function pull_and_postprocess_onnx_model_zoo() {
