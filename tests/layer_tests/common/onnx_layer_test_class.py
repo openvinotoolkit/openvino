@@ -45,5 +45,5 @@ class OnnxRuntimeLayerTest(CommonLayerTest):
 def onnx_make_model(graph_def, **args):
     from onnx import helper
     if not 'opset_imports' in args:
-        args['opset_imports'] = [helper.make_opsetid("", 19)]   # Last released opset
+        args['opset_imports'] = [helper.make_opsetid("", 18)]   # Last released opset
     return helper.make_model(graph_def, **args)
