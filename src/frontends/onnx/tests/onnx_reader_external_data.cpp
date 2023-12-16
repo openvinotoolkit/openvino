@@ -15,8 +15,8 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "onnx_utils.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace std;
 using namespace ov;
@@ -82,7 +82,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_incorrect_size_exception) {
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_optional_fields) {
     const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
-                                                                "external_data/external_data_optional_fields.onnx");
+                                                            "external_data/external_data_optional_fields.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
@@ -137,8 +137,8 @@ TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_greater
 
 TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_in_two_pages_scope) {
     const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
-                                                                "external_data/"
-                                                                "offset_not_aligned_with_page_in_two_pages_scope.onnx");
+                                                            "external_data/"
+                                                            "offset_not_aligned_with_page_in_two_pages_scope.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
@@ -151,7 +151,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_in_two_page
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_in_different_paths) {
     const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
-                                                                "external_data/external_data_different_paths.onnx");
+                                                            "external_data/external_data_different_paths.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
@@ -180,7 +180,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_two_tensors_data_in_the_same_file) {
 TEST_P(OnnxFeMmapFixture, onnx_external_invalid_external_data_exception) {
     try {
         const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
-                                                                    "external_data/external_data_file_not_found.onnx");
+                                                                "external_data/external_data_file_not_found.onnx");
         Core core;
         core.set_property(enable_mmap(GetParam()));
         core.read_model(path);
@@ -205,7 +205,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
     } catch (const Exception& ex) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             string("tensor.data, offset: 4096, "
-                                        "data_length: 16)"),
+                                   "data_length: 16)"),
                             ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
@@ -214,8 +214,8 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
 
 TEST_P(OnnxFeMmapFixture, onnx_external_invalid_data_length) {
     try {
-        const auto path = test::utils::getModelFromTestModelZoo(
-            string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data_invalid_data_length.onnx");
+        const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                                "external_data/external_data_invalid_data_length.onnx");
         Core core;
         core.set_property(enable_mmap(GetParam()));
         core.read_model(path);
@@ -223,7 +223,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_data_length) {
     } catch (const Exception& ex) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             string("tensor.data, offset: 0, "
-                                        "data_length: 30000000000)"),
+                                   "data_length: 30000000000)"),
                             ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
@@ -232,7 +232,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_data_length) {
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_sanitize_path) {
     const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
-                                                                "external_data/external_data_sanitize_test.onnx");
+                                                            "external_data/external_data_sanitize_test.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
@@ -245,7 +245,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_sanitize_path) {
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_in_constant_node) {
     const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
-                                                                "external_data/external_data_in_constant_node.onnx");
+                                                            "external_data/external_data_in_constant_node.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
