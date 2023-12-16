@@ -798,6 +798,10 @@ void ScaledDotProductAttention::gatherConcatPastkv(const MemoryPtr& mem_cur_k, c
 }
 
 void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, size_t L1) {
+    std::vector<size_t> order = {0, 1, 2, 3};
+    if (!m_config.config.permute_axes.empty()) {
+        order = m_config.config.permute_axes;
+    }
     PlainTensor beam_idx, beam_table_k, beam_table_v;
     auto hidden_state_k = m_k_state->hidden_state_mem();
     auto hidden_state_v = m_v_state->hidden_state_mem();
@@ -809,7 +813,7 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     if (is_reset) {
         auto inputNumber = getOriginalInputsNumber();
         auto&& init_graph_v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
-        L0 = init_graph_v_dims.at(m_config.reverse_order[2]);
+        L0 = init_graph_v_dims.at(order[2]);
     } else if (hidden_state_k) {
         auto block_desc = hidden_state_k->getDescWithType<BlockedMemoryDesc>();
         L0 = block_desc->getShape().getStaticDims()[1];
@@ -922,7 +926,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     auto reverse = [&reverse_order] (const std::vector<size_t>& cur) {
         std::vector<size_t> result(cur.size());
         for (size_t i = 0; i < cur.size(); i++) {
-            result[reverse_order[i]] = cur[i];
+            result[i] = cur[reverse_order[i]];
         }
         return result;
     };
@@ -933,17 +937,17 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     if (is_reset) {
         auto inputNumber = getOriginalInputsNumber();
         auto&& init_graph_v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
-        L0 = init_graph_v_dims.at(m_config.reverse_order[2]);
+        L0 = init_graph_v_dims.at(order[2]);
     } else if (internal_mem_k) {
         auto block_desc = internal_mem_k->getDescWithType<BlockedMemoryDesc>();
-        L0 = block_desc->getShape().getStaticDims()[reverse_order[2]];
+        L0 = block_desc->getShape().getStaticDims()[order[2]];
     }
 
     // resize buffer
     if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
-        auto new_shape = reverse({B, H, (L0 + L1) * 2, S});
+        auto new_shape = {B, H, (L0 + L1) * 2, S};
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
-            Shape(new_shape),
+            Shape(reverse(new_shape)),
             new_shape,
             order);
 
@@ -971,9 +975,9 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         m_k_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
         m_v_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
     }
-    auto new_shape = reverse({B, H, (L0 + L1), S});
+    auto new_shape = {B, H, (L0 + L1), S};
     auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
-        Shape(new_shape),
+        Shape(reverse(new_shape)),
         new_shape,
         order,
         0,
@@ -1016,6 +1020,18 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // only support bf16 and f32
     if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
         rtPrecision = ov::element::f32;
+
+    size_t H_idx = 1;
+    if (!m_config.config.permute_axes.empty()) {
+        H_idx = m_config.config.permute_axes[1];
+    }
+    const auto& qDims = getInputShapeAtPort(0).getDims();
+    const auto& kDims = getInputShapeAtPort(1).getDims();
+    // if multi-query, enforce fp32 TODO: support BF16
+    if (qDims[H_idx] != kDims[H_idx]) {
+        rtPrecision = ov::element::f32;
+    }
+
     return rtPrecision;
 }
 

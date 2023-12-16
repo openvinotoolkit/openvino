@@ -9,14 +9,13 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset1.hpp"
-
+#include "itt.hpp"
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -100,11 +99,9 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
         [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto axis = ov::normalize_axis(concat->get_friendly_name(),
-        concat->get_axis(),
-        concat->get_output_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto axis = ov::util::normalize_axis(concat->get_friendly_name(),
+                                               concat->get_axis(),
+                                               concat->get_output_partial_shape(0).rank());
 
     OutputVector dataNodes;
     NodeVector convertNodes;
@@ -217,9 +214,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const size_t normalizedAxis = ov::normalize_axis(concat->get_friendly_name(), axis, outRank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const size_t normalizedAxis = ov::util::normalize_axis(concat->get_friendly_name(), axis, outRank);
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }
