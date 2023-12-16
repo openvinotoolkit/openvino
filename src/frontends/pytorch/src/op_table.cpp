@@ -233,6 +233,8 @@ OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
 OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_expand_fx);
+OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
+OP_CONVERTER(translate_fake_quantize_per_tensor_affine_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
@@ -605,6 +607,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
 const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
     return {
         {"aten._adaptive_avg_pool2d.default", op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>},
+        {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default", op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::skip_node},
         {"aten._unsafe_view.default", op::translate_reshape},
@@ -637,6 +640,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.eq.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten.exp.default", op::translate_1to1_match_1_inputs<opset10::Exp>},
         {"aten.expand.default", op::translate_expand_fx},
+        {"aten.fake_quantize_per_channel_affine_cachemask.default", op::translate_fake_quantize_per_channel_affine_fx},
         {"aten.fill.Scalar", op::translate_fill},
         {"aten.full.default", op::translate_full},
         {"aten.gather.default", op::translate_gather},
