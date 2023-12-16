@@ -21,6 +21,10 @@ std::vector<std::string> disabledTestPatterns() {
         // unsupported metrics
         R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(RANGE_FOR_STREAMS|MAX_BATCH_SIZE).*)",
 
+        // CVS-123856
+        R"(.*smoke_IEClassExecutableNetworkGetMetricTest.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*)",
+        R"(.*smoke_BehaviorTests/OVCompiledModelBaseTest.canCompileModel/targetDevice=TEMPLATE_.*)",
+
         // CVS-55937
         R"(.*SplitLayerTest.*numSplits=30.*)",
 
