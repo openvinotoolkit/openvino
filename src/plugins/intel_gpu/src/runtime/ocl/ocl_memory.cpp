@@ -108,7 +108,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& other, bool block
             // If other is gpu_usm, down cast to gpu_buffer is not possible.
             // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
             auto& mem_inst = downcast<const gpu_usm>(other);
-            return copy_from(stream, mem_inst.buffer_ptr(), blocking);
+            return copy_from(stream, mem_inst.buffer_ptr(), blocking, 0, 0);
         }
     case allocation_type::cl_mem:
         {
@@ -129,7 +129,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& other, bool block
     }
 }
 
-event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr, bool blocking) {
+event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr, bool blocking, size_t dst_offset, size_t data_size) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
@@ -137,7 +137,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr, bool bloc
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, blocking, 0, size(), host_ptr, nullptr, ev_ocl);
+    data_size = (data_size == 0) ? size() : data_size;
+    cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, blocking, dst_offset, data_size, host_ptr, nullptr, ev_ocl);
 
     return ev;
 }
@@ -314,11 +315,13 @@ event::ptr gpu_image2d::copy_from(stream& stream, const memory& other, bool bloc
     return ev;
 }
 
-event::ptr gpu_image2d::copy_from(stream& stream, const void* host_ptr, bool blocking) {
+event::ptr gpu_image2d::copy_from(stream& stream, const void* host_ptr, bool blocking, size_t dst_offset, size_t data_size) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
     }
+    OPENVINO_ASSERT(dst_offset == 0, "[GPU] dst_offset should be zero for gpu_image2d::copy_from.");
+    OPENVINO_ASSERT(data_size == 0, "[GPU] data_size should be zero for gpu_image2d::copy_from.");
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
@@ -517,19 +520,25 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other, bool blocking
     return ev;
 }
 
-event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blocking) {
+event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blocking, size_t dst_offset, size_t data_size) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
     }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto dst_ptr = get_buffer().get();
+    if (dst_offset > 0) {
+        auto tmp_dst_ptr = reinterpret_cast<char*>(dst_ptr);
+        tmp_dst_ptr += dst_offset;
+        dst_ptr = reinterpret_cast<void*>(tmp_dst_ptr);
+    }
+    data_size = (data_size == 0) ? _bytes_count : data_size;
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
     cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
                                               dst_ptr,
                                               host_ptr,
-                                              _bytes_count,
+                                              data_size,
                                               blocking,
                                               nullptr,
                                               ev_ocl);

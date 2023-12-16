@@ -70,7 +70,7 @@ struct memory {
     void set_reused(bool reused = true) { _reused = reused; }
 
     virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool blocking = true) = 0;
-    virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool blocking = true) = 0;
+    virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool blocking = true, size_t dst_offset = 0, size_t data_size = 0) = 0;
 
     virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) { return other.copy_from(stream, *this, blocking); }
     virtual event::ptr copy_to(stream& /* stream */, void* /* host_ptr */, bool blocking = true) = 0;
@@ -112,7 +112,7 @@ struct simple_attached_memory : memory {
     event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override {
         OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
     }
-    event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool /* blocking */) override {
+    event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool /* blocking */, size_t /* dst_offset */, size_t /* data_size */) override {
         OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
     }
     event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override {
