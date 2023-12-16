@@ -265,8 +265,30 @@ void primitive_inst::update_shape() {
     }
 
     if (get_node().is_type<read_value>()) {
-        const auto& variable_id = get_node().as<read_value>().get_primitive()->variable_id;
-        auto new_layout = get_network().get_variable(variable_id).get_layout();
+        auto prim = get_node().as<read_value>().get_primitive();
+        const auto& variable_id = prim->variable_id;
+        auto& variable = get_network().get_variable(variable_id);
+        // Initial variable shape is taken from variable itself
+        auto new_layout = variable.get_layout();
+
+        // If variable is not set and we have an initializer - use it's shape as shape of variable
+        if (!variable.is_set() && _impl_params->input_layouts.size() == 1) {
+            new_layout = _impl_params->get_input_layout(0);
+        }
+
+        // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace dynamic dims with 0
+        if (new_layout.is_dynamic()) {
+            auto pshape = new_layout.get_partial_shape();
+            for (auto& d : pshape) {
+                if (d.is_dynamic()) {
+                    d = 0;
+                }
+            }
+            new_layout.set_partial_shape(pshape);
+        }
+
+        variable.set_layout(new_layout);
+
         if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
             _impl_params->state_layout = new_layout;
             input_shape_changed = true;
@@ -299,7 +321,7 @@ void primitive_inst::update_shape() {
             }
         }
         if (!subgraph_input_changed) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgrap and input shape is not changed\n";
+            GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             reset_shape_change();
             return;
         }
@@ -402,20 +424,6 @@ void primitive_inst::update_shape() {
         get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
         _impl_params->state_layout = _impl_params->get_output_layout();
     }
-
-    if (get_node().is_type<read_value>()) {
-        auto desc = get_node().as<read_value>().get_primitive();
-        if (_impl_params->output_layouts[0].is_dynamic()) {
-            auto pshape = _impl_params->output_layouts[0].get_partial_shape();
-            for (auto& d : pshape) {
-                if (d.is_dynamic()) {
-                    d = 0;
-                }
-            }
-            _impl_params->output_layouts[0].set_partial_shape(pshape);
-        }
-        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
-    }
 }
 
 event::ptr primitive_inst::realloc_if_needed() {
@@ -445,10 +453,17 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
+    // read_value/assign nodes are supposed to always use variable memory
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
         std::string variable_id = stateful_prim->variable_id();
-        auto variable = get_network().get_variable(variable_id);
+        auto& variable = get_network().get_variable(variable_id);
         variable.set_layout(actual_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": use variable memory " << variable.get_memory()
+                               << " (size=" << variable.get_memory()->size() << ")" << std::endl;
+        // For nodes that can be optimized, variable memory is used as output memory
+        // so there is no need for output memory reallocation
+        if (can_be_optimized())
+            return ev;
     }
 
     // Update output layout with respect to FC's fake alignment
@@ -1389,7 +1404,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
+    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
+                                              _node.get_preferred_impl_type() == impl_types::cpu;
     auto use_lockable_memory =
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||

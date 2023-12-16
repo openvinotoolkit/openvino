@@ -39,13 +39,13 @@ jobs:
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -110,17 +110,23 @@ jobs:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
+      - name: Reformat unsupported ops file
+        if: '!cancelled()'
+        run: |
+          python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
+  
       - name: Available storage after tests
         run: |
           echo "Available storage:"
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST-torch*
           if-no-files-found: 'error'

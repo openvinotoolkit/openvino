@@ -114,6 +114,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/stateful_transpose_sdpa_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -488,11 +489,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput1ToDetectionOutput8);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign3To9);
 
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseAndToLogicalAnd);
-    CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseNotToLogicalNot);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseOrToLogicalOr);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseXorToLogicalXor);
-
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
         CPU_SET_CALLBACK_COMMON(manager,
@@ -666,6 +662,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulTransposeSDPAFusion);
     postLPTPassManager.run_passes(model);
 }
 
