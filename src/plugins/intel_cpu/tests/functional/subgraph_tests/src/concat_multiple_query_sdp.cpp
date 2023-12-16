@@ -266,6 +266,14 @@ public:
             outputTensor.copy_to(copy);
             outputs.push_back(copy);
         }
+        auto states = inferRequest.query_state();
+        for (auto&& state : states) {
+            auto state_tensor = state.get_state();
+            ov::Tensor copy{state_tensor.get_element_type(), state_tensor.get_shape()};
+            state_tensor.copy_to(copy);
+            outputs.push_back(copy);
+        }
+
         reset();
 
         return outputs;

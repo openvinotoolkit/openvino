@@ -916,8 +916,10 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     }
     // second token itself
     for (size_t i = 0; i < B; i++) {
-        beam_table_k.at<int32_t>({i, L0}) = i;
-        beam_table_v.at<int32_t>({i, L0}) = i;
+        for (size_t j = 0; j < L1; j++) {
+            beam_table_k.at<int32_t>({i, L0 + j}) = i;
+            beam_table_v.at<int32_t>({i, L0 + j}) = i;
+        }
     }
 }
 
@@ -962,7 +964,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         L0 = dims[order[2]];
         OPENVINO_ASSERT(B == B_state, "pastkv batch: ", B, " is not equal to batch of state: ", B_state);
     }
-
+    OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
     if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
         auto new_shape = {B, H, (L0 + L1) * 2, S};
@@ -1013,13 +1015,19 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         past_v = past_v.permute(order);
     }
     if (L0 > 0 && is_reset) {
-        PlainTensor init_k, init_v;
         auto inputNumber = getOriginalInputsNumber();
-        init_k.reset(getParentEdgeAt(inputNumber - 2)->getMemoryPtr());
-        init_v.reset(getParentEdgeAt(inputNumber - 1)->getMemoryPtr());
-        init_k = init_k.permute(order);
-        init_v = init_v.permute(order);
-        attn_memcpy(init_k, init_v, past_k, past_v);
+        auto k_mem = getParentEdgeAt(inputNumber - 2)->getMemoryPtr();
+        auto v_mem = getParentEdgeAt(inputNumber - 1)->getMemoryPtr();
+        auto&& k_shape = k_mem->getShape();
+        auto&& v_shape = v_mem->getShape();
+        if (!k_shape.hasZeroDims() && !v_shape.hasZeroDims()) {
+            PlainTensor init_k, init_v;
+            init_k.reset(k_mem);
+            init_v.reset(v_mem);
+            init_k = init_k.permute(order);
+            init_v = init_v.permute(order);
+            attn_memcpy(init_k, init_v, past_k, past_v);
+        }
     }
 
     attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
