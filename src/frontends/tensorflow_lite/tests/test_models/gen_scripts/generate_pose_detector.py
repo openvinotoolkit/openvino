@@ -6,7 +6,7 @@
 import numpy as np
 import os
 import sys
-import urllib.request
+import requests
 import zipfile
 
 src_url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
@@ -20,7 +20,8 @@ if not os.path.exists(path_to_model_dir):
 if not os.path.exists(tflite_model_path):
     if not os.path.exists(task_file_path):
         try:
-            urllib.request.urlretrieve(src_url, task_file_path)
+            response = requests.get(src_url, allow_redirects=True, verify=False)
+            open(task_file_path, 'wb').write(response.content)
         except:
             print(f"ERROR: Cannot download model archive, try to download it manually from {src_url} and place to {task_file_path}")
             exit(2)
