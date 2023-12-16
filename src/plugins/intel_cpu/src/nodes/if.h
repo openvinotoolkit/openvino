@@ -54,7 +54,7 @@ private:
 
         MemoryPtr srcMemPtr;
         std::deque<MemoryPtr> dstMemPtrs;
-        std::deque<MemoryDescPtr> backupDstMemPtrs;
+        std::deque<MemoryDescPtr> originalDstMemDescs;
 
         ptrdiff_t size;
     };

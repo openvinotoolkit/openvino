@@ -26,7 +26,7 @@ If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryP
 
     // Backup dstMemPtrs
     for (auto& ptr : dstMemPtrs) {
-        backupDstMemPtrs.push_back(ptr->getDescPtr()->clone());
+        originalDstMemDescs.push_back(ptr->getDescPtr()->clone());
     }
 }
 
@@ -49,7 +49,7 @@ void If::PortMapHelper::redefineTo() {
         auto newShape = srcMemPtr->getStaticDims();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
             // Only the shape is updated, the memory type remains unchanged
-            dstMemPtrs[j]->redefineDesc(backupDstMemPtrs[j]->cloneWithNewDims(newShape));
+            dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
 
         size = srcMemPtr->getShape().getElementsCount();
