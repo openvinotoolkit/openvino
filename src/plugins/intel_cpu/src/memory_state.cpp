@@ -52,6 +52,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
 
     Memory mem(get_engine(), state_desc, src);
     input_mem()->load(mem);
+    reset_state_flag = false;
 }
 
 void VariableStateBase::set_state(const ov::SoPtr<ov::ITensor>& state) {
