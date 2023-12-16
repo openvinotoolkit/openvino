@@ -505,6 +505,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         bool has_out_transpose = config.config.output_BLHxS;
         bool fuse_causal_attn = config.config.fuse_causal_attn;
         bool is_causal = config.config.is_causal;
+        bool fuse_concat = config.config.fuse_concat;
         auto input_num = inputs.size();
         PlainTensor present_key, present_value;
 
@@ -547,8 +548,13 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         L0 = present_key.size(2) - L1;
         auto Hk = k_input.size(1);
 
-        k_input.assert_dims({B, Hk, L1, S});
-        v_input.assert_dims({B, Hk, L1, S});
+        if (fuse_concat) {
+            k_input.assert_dims({B, Hk, L1, S});
+            v_input.assert_dims({B, Hk, L1, S});
+        } else {
+            k_input.assert_dims({B, Hk, L0 + L1, S});
+            v_input.assert_dims({B, Hk, L0 + L1, S});
+        }
         present_key.assert_dims({B, Hk, L0 + L1, S});
         present_value.assert_dims({B, Hk, L0 + L1, S});
         if (beam_table)
