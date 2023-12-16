@@ -42,7 +42,7 @@ class TestFFTN(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
-    def test_rfftn(self, ie_device, precision, ir_version, input_shape, dim, s, norm):
+    def test_fftn(self, ie_device, precision, ir_version, input_shape, dim, s, norm):
         self.input_shape = input_shape
         # Unfrozen test would fail due to issues with prim::GetAttr containing lists, strings or none.
         self._test(*self.create_model(dim, s, norm), ie_device, precision, ir_version, custom_eps=1e-3,
