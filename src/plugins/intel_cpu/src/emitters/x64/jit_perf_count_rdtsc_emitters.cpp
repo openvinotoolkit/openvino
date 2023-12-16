@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #include "jit_emitter.hpp"
 #include "jit_perf_count_rdtsc_emitters.hpp"
@@ -85,4 +85,4 @@ void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t> &in_i
 
 }   // namespace intel_cpu
 }   // namespace ov
-#endif // CPU_DEBUG_CAPS
+#endif // SNIPPETS_DEBUG_CAPS

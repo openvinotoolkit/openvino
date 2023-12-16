@@ -14,7 +14,7 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef SNIPPETS_DEBUG_CAPS
 // Snippets performance count mode
 // Disabled - default, w/o perf count for snippets
 // Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf count data for each thread.
@@ -35,7 +35,7 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef SNIPPETS_DEBUG_CAPS
     PerfCountMode perf_count_mode = PerfCountMode::Disabled;
 #endif
     // Some Subgraphs doesn't support domain optimization due to operations' semantics

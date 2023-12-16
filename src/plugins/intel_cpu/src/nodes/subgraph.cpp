@@ -406,14 +406,14 @@ void Snippet::prepareParams() {
         }
     };
 
-#ifndef CPU_DEBUG_CAPS
+#ifndef SNIPPETS_DEBUG_CAPS
     getOrCreateExecutor();
 #else
     snippets::lowered::Config config;
     if (config.perf_count_mode == snippets::lowered::PerfCountMode::Disabled) {
         getOrCreateExecutor();
     } else {
-        // in case perf count is enabled, disable executor cache by default to not miss up number for different subgraph.
+        // in case perf count is enabled, disable executor cache by default to not mix up perf counters for different subgraphs.
         execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
     }
 #endif

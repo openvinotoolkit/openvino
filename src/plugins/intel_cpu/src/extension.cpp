@@ -161,7 +161,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Subgraph, ov::snippets::op)
         NGRAPH_OP(VectorBuffer, ov::snippets::op)
         NGRAPH_OP(RankNormalization, ov::snippets::op)
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
         NGRAPH_OP(PerfCountBegin, ov::snippets::op)
         NGRAPH_OP(PerfCountEnd, ov::snippets::op)
 #endif
@@ -171,7 +171,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
         NGRAPH_OP_X64(PerfCountRdtscBegin, ov::intel_cpu)
         NGRAPH_OP_X64(PerfCountRdtscEnd, ov::intel_cpu)
 #endif

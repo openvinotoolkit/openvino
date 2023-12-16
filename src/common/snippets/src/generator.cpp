@@ -80,7 +80,7 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::RankNormalization>(op)
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef SNIPPETS_DEBUG_CAPS
         || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)
         || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
 #endif

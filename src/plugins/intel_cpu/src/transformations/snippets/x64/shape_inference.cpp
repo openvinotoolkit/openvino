@@ -39,7 +39,7 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertTruncation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertTruncation, PassThroughShapeInfer),
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::PerfCountRdtscBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::PerfCountRdtscEnd, EmptyShapeInfer),
 #endif

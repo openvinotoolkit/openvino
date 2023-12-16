@@ -55,7 +55,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef SNIPPETS_DEBUG_CAPS
         SHAPE_INFER_PREDEFINED(op::PerfCountBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::PerfCountEnd, EmptyShapeInfer),
 #endif
