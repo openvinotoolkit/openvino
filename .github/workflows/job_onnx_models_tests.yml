@@ -32,13 +32,13 @@ jobs:
       ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
