@@ -46,6 +46,7 @@ from tests import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
+    skip_bitwise_ui64,
     xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
@@ -390,8 +391,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
-        xfail_issue_99949,
+        skip_bitwise_ui64,
         "OnnxBackendNodeModelTest.test_bitwise_and_ui64_bcast_3v1d_cpu",
+    ),
+    (
+        xfail_issue_99949,
         "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
