@@ -181,7 +181,6 @@ xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
                                        "Not equal to tolerance")
 xfail_issue_122775 = xfail_test(reason="test_resize_downsample_scales_linear_cpu - "
                                        "Not equal to tolerance")
-xfail_issue_127812 = xfail_test(reason="Reduce* doesn't support zero dimensions")
 skip_issue_127649 = pytest.mark.skip(reason="Not equal to tolerance rtol=0.001, atol=1e-07 - "
                                              "Mismatched elements: 1 / 1000 (0.1%)")
 
