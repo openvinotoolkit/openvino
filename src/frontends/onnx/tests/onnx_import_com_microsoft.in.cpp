@@ -14,12 +14,12 @@
 // clang-format on
 
 #include "common_test_utils/file_utils.hpp"
-#include "default_opset.hpp"
 #include "common_test_utils/test_case.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "default_opset.hpp"
+#include "ngraph/file_util.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
-#include "ngraph/file_util.hpp"
-#include "common_test_utils/test_control.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -1354,10 +1354,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/gather_nd.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/com.microsoft/gather_nd.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
     const std::vector<int> data{{0, 1}, {2, 3}};
