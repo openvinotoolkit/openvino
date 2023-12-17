@@ -6,9 +6,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "transpose_shape_inference.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -78,9 +78,7 @@ bool Transpose::evaluate_upper(ov::TensorVector& output_values) const {
 }
 
 bool Transpose::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return get_input_tensor(ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_input_tensor(ORDER).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v1
 }  // namespace op

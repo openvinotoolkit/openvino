@@ -56,7 +56,6 @@
 
 using namespace dnnl;
 using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -605,6 +604,43 @@ void Graph::AllocateWithReuse() {
                 erase = true;
                 break;
             }
+
+            // Special allocation for string tensors
+            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
+                StringMemory::StringMemoryMngrPtr mngr;
+                if (edge->getParent()->isConstant()) {
+                    if (edge->getParent()->getType() == Type::Input) {
+                        auto constNode = static_cast<node::Input *>(edge->getParent().get());
+                        edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
+                    } else {
+                        edge->externalAllocate(context->getWeightsCache());
+                    }
+                    auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
+                    OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
+                            edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
+                    mngr = stringMemory->getStringMemoryMngrPtr();
+                } else {
+                    auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
+                    edge->reuse(memory);
+                    mngr = memory->getStringMemoryMngrPtr();
+                }
+                for (auto& edge_c : cluster) {
+                    if (edge_c == edge) {
+                        continue;
+                    }
+                    OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
+                    if (edge_c->getStatus() == Edge::Status::NotAllocated) {
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), mngr);
+                        edge_c->reuse(memory);
+                    } else {
+                        OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
+                            edge_c->getChild()->getName(), "' has an unexpected status: ", static_cast<int>(edge_c->getStatus()));
+                    }
+                }
+                erase = true;
+                continue;
+            }
+
             // Special allocation for constants
             if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
                 continue;
@@ -904,7 +940,10 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
             auto ext_tensor_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(input);
             auto actualDesc = edgeMemory->getDescPtr();
 
-            if (!actualDesc->isCompatible(*ext_tensor_desc)) {
+            if (actualDesc->getPrecision() == element::string) {
+                StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
+                edgeMemory->load(ext_mem);
+            } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
                 edgeMemory->load(ext_mem, false);
             } else {
@@ -983,7 +1022,10 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
+        if (actualDesc->getPrecision() == element::string) {
+            StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
+            outBloMem.load(intr_blob);
+        } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {

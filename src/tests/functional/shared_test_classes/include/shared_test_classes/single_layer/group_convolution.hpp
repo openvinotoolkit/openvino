@@ -22,7 +22,7 @@ typedef std::tuple<
         InferenceEngine::SizeVector,
         size_t,
         size_t,
-        ngraph::op::PadType> groupConvSpecificParams;
+        ov::op::PadType> groupConvSpecificParams;
 typedef std::tuple<
         groupConvSpecificParams,
         InferenceEngine::Precision,

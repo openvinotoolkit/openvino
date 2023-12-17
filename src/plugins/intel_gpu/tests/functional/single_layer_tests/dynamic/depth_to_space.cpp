@@ -39,10 +39,10 @@ public:
         }
         results << "Prc=" << inType << "_";
         switch (mode) {
-            case DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
                 results << "BLOCKS_FIRST_";
                 break;
-            case DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
                 results << "DEPTH_FIRST_";
                 break;
             default:
@@ -56,7 +56,7 @@ public:
 protected:
     void SetUp() override {
         InputShape shapes;
-        DepthToSpace::DepthToSpaceMode mode;
+        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         std::tie(shapes, inType, mode, blockSize) = this->GetParam();
 
@@ -86,9 +86,9 @@ const std::vector<ov::element::Type> input_types = {
         ov::element::i8
 };
 
-const std::vector<DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
+const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
 // ======================== Static Shapes Tests ========================
