@@ -19,7 +19,8 @@ test_net_xml, test_net_bin = model_path()
 
 def create_function_with_memory(input_shape, data_type):
     input_data = ng.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ng.read_value(input_data, "var_id_667")
+    init_val = ng.constant(np.zeros(input_shape), data_type)
+    rv = ng.read_value(init_val, "var_id_667")
     add = ng.add(rv, input_data, name="MemoryAdd")
     node = ng.assign(add, "var_id_667")
     res = ng.result(add, "res")
