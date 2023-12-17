@@ -241,7 +241,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
 
     for (auto& node : ops) {
         // skip precision sensitive nodes
-        if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
+        if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression && !is_subgraph)
             continue;
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {

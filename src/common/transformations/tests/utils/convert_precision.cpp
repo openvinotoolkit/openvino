@@ -2443,3 +2443,108 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_typ
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;
 }
+
+class TestSubgraph : public ov::op::util::SubGraphOp {
+public:
+    OPENVINO_OP("TestSubgraph", "Test", ov::op::util::SubGraphOp);
+
+    TestSubgraph() = default;
+
+    TestSubgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
+
+    void validate_and_infer_types() override;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+
+private:
+    const ov::Model& body() const {
+        return *m_bodies[0];
+    }
+    ov::Model& body() {
+        return *m_bodies[0];
+    }
+    const std::shared_ptr<ov::Model>& body_ptr() const {
+        return m_bodies[0];
+    }
+    std::shared_ptr<ov::Model>& body_ptr() {
+        return m_bodies[0];
+    }
+
+};
+
+TestSubgraph::TestSubgraph(const ov::OutputVector& args, const std::shared_ptr<ov::Model>& body)
+    : SubGraphOp(args) {
+    SubGraphOp::set_function(body);
+    constructor_validate_and_infer_types();
+    for (size_t i = 0; i < body->get_parameters().size(); ++i)
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
+    for (size_t i = 0; i < body->get_output_size(); ++i)
+        m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
+}
+
+std::shared_ptr<ov::Node> TestSubgraph::clone_with_new_inputs(const ov::OutputVector& inputs) const {
+    return std::make_shared<TestSubgraph>(inputs, body().clone());
+}
+
+void TestSubgraph::validate_and_infer_types() {
+    ov::ParameterVector old_parameters;
+    for (auto op : body_ptr()->get_parameters()) {
+        old_parameters.push_back(op);
+    }
+
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        body_ptr()->replace_parameter(
+            i,
+            std::make_shared<ov::op::v0::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
+    }
+
+    body_ptr()->validate_nodes_and_infer_types();
+
+    for (size_t i = 0; i < body_ptr()->get_parameters().size(); i++) {
+        body_ptr()->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
+    }
+
+    set_output_size(body_ptr()->get_output_size());
+    for (size_t i = 0; i < get_output_size(); ++i) {
+        set_output_type(i, body_ptr()->get_output_element_type(i), body_ptr()->get_output_partial_shape(i));
+    }
+}
+
+TEST(TransformationTests, ConvertPrecision_with_SubgraphOp) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto submodel = make_shared<ov::Model>(NodeVector{mul_1}, ov::ParameterVector{input_1});
+        ParameterVector graph_parameters{submodel->inputs().size() + 1};
+        OutputVector args{submodel->inputs().size()};
+        for (size_t i = 0; i < submodel->inputs().size(); i++) {
+            auto const& input = submodel->input(i);
+            graph_parameters[i] =
+                make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
+            args[i] = graph_parameters[i]->output(0);
+        }
+        auto subgraph_op = make_shared<TestSubgraph>(args, submodel);
+        auto matmul_1 = make_shared<opset10::MatMul>(subgraph_op->output(0), input_2);
+        graph_parameters[submodel->inputs().size()] = input_2;
+        f = make_shared<Model>(NodeVector{matmul_1}, graph_parameters);
+
+        pass::Manager manager;
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        ASSERT_NO_THROW(manager.run_passes(f));
+    }
+}
