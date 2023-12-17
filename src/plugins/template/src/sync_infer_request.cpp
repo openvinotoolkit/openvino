@@ -91,9 +91,8 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
             ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
             variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
         }
-        auto state = std::make_shared<VariableState>(
-            variable->get_info().variable_id,
-            get_tensor_impl(variable_context.get_variable_value(variable)->get_state()));
+        auto state = std::make_shared<VariableState>(variable->get_info().variable_id,
+                                                     variable_context.get_variable_value(variable));
         m_variable_states.emplace_back(state);
     }
     m_eval_context.emplace("VariableContext", variable_context);
