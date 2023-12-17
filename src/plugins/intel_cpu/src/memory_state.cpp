@@ -230,9 +230,11 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto buff = reinterpret_cast<int*>(m_hidden_state->getData());
     for (size_t i = 0; i < size_B; ++i) {
         for (size_t j = 0; j < size_L; ++j) {
-            buff[i * size_B + j] = i;
+            buff[i * size_L + j] = i;
         }
     }
+    m_internal_mem_max_size = dense_internal_desc->getCurrentMemSize() / dense_internal_desc->getPrecision().size();
+    m_hidden_state_max_size = mem_desc->getCurrentMemSize() / mem_desc->getPrecision().size();
 }
 
 void VariableStateKVcache::reset_impl() {

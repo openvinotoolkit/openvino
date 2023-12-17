@@ -591,7 +591,9 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             }
         }
 
-        if (L1 > 1) {
+        // second token, or first token with pastkv fusing
+        bool use_one_token = L1 == 1 || (fuse_concat && L0 > 0);
+        if (!use_one_token) {
             // multi-token version
             kernel(strm, q_input, k_input, v_input, {}, use_attn_mask ? attn_mask : PlainTensor(),
                    output_emb, has_out_transpose, auto_causal, scale_input);
@@ -620,17 +622,17 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
     } else {
         const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
         m_config.config = node->get_config();
-    }
-    // BHLS->LBHS.. lookup table
-    std::vector<size_t> order;
-    if (m_config.config.permute_axes.empty()) {
-        order = {0, 1, 2, 3};
-    } else {
-        order = m_config.config.permute_axes;
-    }
-    m_config.reverse_order.resize(order.size());
-    for (size_t i = 0; i < order.size(); i++) {
-        m_config.reverse_order[order[i]] = i;
+        // BHLS->LBHS.. lookup table
+        std::vector<size_t> order;
+        if (m_config.config.permute_axes.empty()) {
+            order = {0, 1, 2, 3};
+        } else {
+            order = m_config.config.permute_axes;
+        }
+        m_config.reverse_order.resize(order.size());
+        for (size_t i = 0; i < order.size(); i++) {
+            m_config.reverse_order[order[i]] = i;
+        }
     }
 }
 
