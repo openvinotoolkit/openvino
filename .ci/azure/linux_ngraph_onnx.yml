@@ -87,7 +87,7 @@ jobs:
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo apt install nfs-common -y
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
-      mkdir -p $(MODELS_DIR)/models_data
+      mkdir -p $(MODELS_DIR)
     displayName: 'Make dirs'
 
   - checkout: self
@@ -97,13 +97,15 @@ jobs:
 
   - script: |
       set -e
-      apt-get update && apt-get install -y lsb-release && apt-get clean all
+      sudo apt-get update && sudo apt-get install -y lsb-release git git-lfs
+      git-lfs install
+      sudo apt-get clean all
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
     displayName: 'Install dependencies'
 
   - script:
-      src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d $(MODELS_DIR)/models_data -o -s "$(ONNX_MODEL_ZOO_SHA)"
+      src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d $(MODELS_DIR) -o -s "$(ONNX_MODEL_ZOO_SHA)"
     displayName: 'Update models'
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
@@ -120,7 +122,7 @@ jobs:
   - script: |
       sudo docker run \
         --name openvino-onnx-ci-container \
-        --volume $(MODELS_DIR)/models_data/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo \
+        --volume $(MODELS_DIR)/onnx_model_zoo:/root/.onnx/model_zoo/onnx_model_zoo \
         --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image \
         /bin/bash -c "$(TOX_COMMAND)"
     displayName: 'Docker run $(BUILD_TYPE)'

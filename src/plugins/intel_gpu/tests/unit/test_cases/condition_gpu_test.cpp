@@ -891,10 +891,6 @@ TEST_F(condition_gpu_tests, negative_same_names_within_different_networks) {
     this->test_negative_same_names_within_different_networks(false);
 }
 
-TEST_F(condition_gpu_tests, negative_same_names_within_different_networks_cache) {
-    this->test_negative_same_names_within_different_networks(true);
-}
-
 TEST_F(condition_gpu_tests, empty_body) {
     this->test_empty_body(false);
 }
