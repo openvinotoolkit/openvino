@@ -20,8 +20,6 @@
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
 

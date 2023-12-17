@@ -16,8 +16,6 @@
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
