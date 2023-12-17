@@ -27,7 +27,8 @@ namespace ov {
 namespace intel_gpu {
 
 template <typename T>
-void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false, bool weights_compressed = false) {
+void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false,
+                        bool weights_compressed = false) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
