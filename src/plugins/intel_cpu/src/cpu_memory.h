@@ -401,9 +401,7 @@ public:
 
     void* getData() const override;
 
-    size_t getSize() const override { // In bytes
-        return m_size;
-    }
+    size_t getSize() const override; // In bytes
 
     const Shape& getShape() const override {
         return m_mem_desc->getShape();
@@ -431,7 +429,6 @@ private:
     dnnl::engine m_engine;
     MemoryDescPtr m_mem_desc;
     StringMemoryMngrPtr m_manager;
-    size_t m_size;
 };
 
 using MemoryPtr = std::shared_ptr<IMemory>;
