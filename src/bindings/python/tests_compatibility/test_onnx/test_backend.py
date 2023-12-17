@@ -82,6 +82,7 @@ from tests_compatibility import (
     xfail_issue_125492,
     xfail_issue_125493,
     xfail_issue_125495,
+    xfail_issue_127812,
 )
 from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -912,6 +913,16 @@ tests_expected_to_fail = [
         xfail_issue_125495,
         "OnnxBackendNodeModelTest.test_reduce_max_bool_inputs_cpu",
         "OnnxBackendNodeModelTest.test_reduce_min_bool_inputs_cpu",
+    ),
+    (
+        xfail_issue_127812,
+        "OnnxBackendNodeModelTest.test_reduce_l1_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_l2_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_sum_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_sum_empty_set_non_reduced_axis_zero_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_sum_square_empty_set_expanded_cpu",
     ),
 ]
 

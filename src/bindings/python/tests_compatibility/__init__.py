@@ -188,3 +188,4 @@ xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")
 xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
 xfail_issue_125495 = xfail_test(reason="ReduceMin/Max doesn't support boolean")
+xfail_issue_127812 = xfail_test(reason="Reduce* doesn't support zero dimensions")
