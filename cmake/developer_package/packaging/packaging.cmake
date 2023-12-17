@@ -29,14 +29,18 @@ macro(ov_install_static_lib target comp)
 endmacro()
 
 #
-# ov_set_apple_rpath(<target> <lib_install_path> <dependency_install_path> ...)
+# ov_set_install_rpath(<target> <lib_install_path> <dependency_install_path> ...)
 #
+# macOS:
 # Sets LC_RPATH properties for macOS MACH-O binaries to ensure that libraries can find their dependencies
 # when macOS system integrity protection (SIP) is enabled (DYLD_LIBRARY_PATH is ignored in this case).
 # Note, that this is important when binaries are dynamically loaded at runtime (e.g. via Python).
 #
-function(ov_set_apple_rpath TARGET_NAME lib_install_path)
-    if(APPLE AND CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$")
+# NPM:
+# we need to set RPATH, because archive must be self-sufficient
+#
+function(ov_set_install_rpath TARGET_NAME lib_install_path)
+    if(APPLE AND CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$" OR CPACK_GENERATOR STREQUAL "NPM")
         unset(rpath_list)
         foreach(dependency_install_path IN LISTS ARGN)
             file(RELATIVE_PATH dependency_rpath "/${lib_install_path}" "/${dependency_install_path}")
@@ -44,10 +48,7 @@ function(ov_set_apple_rpath TARGET_NAME lib_install_path)
             list(APPEND rpath_list "${dependency_rpath}")
         endforeach()
 
-        set_target_properties(${TARGET_NAME} PROPERTIES
-            MACOSX_RPATH ON
-            INSTALL_RPATH "${rpath_list}"
-            INSTALL_NAME_DIR "@rpath")
+        set_target_properties(${TARGET_NAME} PROPERTIES INSTALL_RPATH "${rpath_list}")
     endif()
 endfunction()
 

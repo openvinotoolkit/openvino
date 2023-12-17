@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
