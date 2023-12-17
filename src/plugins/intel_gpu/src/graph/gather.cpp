@@ -59,6 +59,9 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
     }
+    if (impl_param.typed_desc<gather>()->compressed_weights) {
+        output_type = impl_param.typed_desc<gather>()->decompressed_type;
+    }
 
     return layout{output_type,
                   output_format,
@@ -75,6 +78,9 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
     auto output_type = input0_layout.data_type;
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
+    }
+    if (impl_param.typed_desc<gather>()->compressed_weights) {
+        output_type = impl_param.typed_desc<gather>()->decompressed_type;
     }
 
     ov::op::v8::Gather op;
@@ -111,6 +117,14 @@ std::string gather_inst::to_string(gather_node const& node) {
     gather_info.add("axis", desc->axis);
     gather_info.add("batch_dim", desc->batch_dim);
     gather_info.add("output shape", cldnn::to_string(desc->output_shape));
+    gather_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
+    if (desc->compressed_weights) {
+        gather_info.add("decompression scale id", desc->decompression_scale);
+        gather_info.add("decompression zp id", desc->decompression_zero_point);
+        if (desc->decompression_zero_point_scalar.has_value()) {
+            gather_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
+        }
+    }
 
     node_info->add("gather info", gather_info);
     node_info->dump(primitive_description);
