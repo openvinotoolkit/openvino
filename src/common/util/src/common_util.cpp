@@ -51,7 +51,7 @@ size_t ov::util::hash_combine(const std::vector<size_t>& list) {
 
 std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {
     auto lines = ov::util::split(str, '\n');
-    std::stringstream res; 
+    std::stringstream res;
     const char* const prefix_c = prefix.c_str();
     for (auto line : lines) {
         if (line.find(prefix_c) == 0) {
