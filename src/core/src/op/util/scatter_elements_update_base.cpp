@@ -6,9 +6,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -23,7 +23,7 @@ util::ScatterElementsUpdateBase::ScatterElementsUpdateBase(const Output<Node>& d
 
 void util::ScatterElementsUpdateBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_ScatterElementsUpdateBase_validate_and_infer_types);
-    OPENVINO_SUPPRESS_DEPRECATED_START
+
     const auto& data_et = get_input_element_type(0);
     const auto& indices_et = get_input_element_type(1);
     const auto& updates_et = get_input_element_type(2);
@@ -44,8 +44,7 @@ void util::ScatterElementsUpdateBase::validate_and_infer_types() {
                           data_et,
                           " and: ",
                           updates_et);
-    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
     auto out_et = get_input_element_type(0);
     std::ignore = element::Type::merge(out_et, get_input_element_type(0), get_input_element_type(2));
     set_output_type(0, out_et, output_shape);
@@ -111,9 +110,7 @@ int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const TensorVector&
 
     const auto axis = get_tensor_data_as<int64_t>(axis_input)[0];
     const auto data_rank = static_cast<int64_t>(inputs[0].get_shape().size());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::normalize_axis(this, axis, data_rank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return ov::util::normalize_axis(this, axis, data_rank);
 }
 }  // namespace op
 }  // namespace ov

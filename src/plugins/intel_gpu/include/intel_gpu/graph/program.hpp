@@ -98,6 +98,9 @@ public:
             _processing_order.erase(i);
         }
 
+        void save(cldnn::BinaryOutputBuffer& ob) const;
+        void load(cldnn::BinaryInputBuffer& ib, program& p);
+
     private:
         list_of_nodes _processing_order;
         std::map<program_node*, node_iterator> processing_order_iterators;
@@ -159,6 +162,7 @@ public:
     bool is_internal_program() const { return is_internal; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
+    const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
@@ -226,9 +230,7 @@ public:
     // Reverses connection - user becomes dependency.
 
     void remove_nodes(std::vector<program_node*>& to_remove);
-    void dump_program(const char* stage,
-                      bool with_full_info,
-                      std::function<bool(program_node const&)> const& filter = nullptr) const;
+    void dump_program(const char* stage, bool with_full_info) const;
 
     const primitives_info& get_primitives_info() const;
     data_types get_inference_precision(const program_node& node) const;
@@ -282,6 +284,10 @@ public:
     static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
     static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+    bool is_loaded_from_cache() const { return _loaded_from_cache; }
+
 private:
     uint32_t prog_id = 0;
     engine& _engine;
@@ -293,6 +299,7 @@ private:
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
+    std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
     bool is_internal;
     bool _is_body_program;
@@ -301,6 +308,7 @@ private:
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
     std::shared_ptr<ICompilationContext> _compilation_context;
+    bool _loaded_from_cache = false;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

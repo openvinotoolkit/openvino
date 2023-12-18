@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
 
@@ -47,7 +47,7 @@ jobs:
           git diff > samples_diff.diff
         working-directory: samples/python
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: samples_diff
@@ -65,7 +65,7 @@ jobs:
           git diff > pyopenvino_diff.diff
         working-directory: src/bindings/python/src/openvino
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: pyopenvino_diff
@@ -83,7 +83,7 @@ jobs:
           git diff > wheel_diff.diff
         working-directory: src/bindings/python/wheel
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: wheel_diff

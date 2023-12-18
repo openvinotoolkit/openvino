@@ -14,6 +14,7 @@
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
 #include "base/behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -80,7 +81,7 @@ protected:
         std::tie(targetDevice, userConfig) = GetParam();
         target_device = targetDevice;
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         configuration = userConfig.first;
         std::string ext = userConfig.second;
         std::string::size_type pos = 0;

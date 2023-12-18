@@ -57,14 +57,13 @@ void RunVariadicSplitSupportedTest(DeviceVersion device_version, std::vector<Var
     for (const auto& item : test_vectors) {
         std::tie(input_shape, axis, split_lengths, result) = item;
 
-        auto split = std::make_shared<ngraph::opset9::VariadicSplit>(
-            std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, input_shape),
-            ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({1}), {axis}),
-            ngraph::opset9::Constant::create(ngraph::element::i64,
-                                             ngraph::Shape({split_lengths.size()}),
-                                             split_lengths));
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(
+            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, input_shape),
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({1}), {axis}),
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({split_lengths.size()}), split_lengths));
         ASSERT_TRUE(Limitations::is_split_supported(split, false) == result);
     }
+    Limitations::deinit();
 }
 
 TEST(CheckSplitSupported, CheckVariadicSplitSupported_GNA3_5) {
@@ -102,12 +101,13 @@ void RunSplitSupportedTest(DeviceVersion device_version, std::vector<SplitParame
     Limitations::init(device_version);
     for (const auto& item : test_vectors) {
         std::tie(input_shape, axis, num_splits, result) = item;
-        auto split = std::make_shared<ngraph::opset9::Split>(
-            std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, input_shape),
-            ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis}),
+        auto split = std::make_shared<ov::op::v1::Split>(
+            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, input_shape),
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis}),
             num_splits);
         ASSERT_TRUE(Limitations::is_split_supported(split, false) == result);
     }
+    Limitations::deinit();
 }
 
 TEST(CheckSplitSupported, CheckSplitSupported_GNA3_5) {

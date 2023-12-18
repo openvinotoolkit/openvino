@@ -27,9 +27,7 @@ public:
     }
 
     void reset_state() {
-        for (auto&& state : inferRequest.query_state()) {
-            state.reset();
-        }
+        inferRequest.reset_state();
     }
 
     static void float_compare(const float* expected_res, const float* actual_res, size_t size) {

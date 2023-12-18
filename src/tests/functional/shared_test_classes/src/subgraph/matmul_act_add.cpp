@@ -37,11 +37,11 @@ void MatMulActAddTest::SetUp() {
     auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { outFormShapes[1], inputSize },
         ov::test::utils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
 
-    auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], mul_const, false, true);
 
-    auto tanh = std::make_shared<ngraph::op::Tanh>(matmul);
-    auto eltw = std::make_shared<ngraph::opset8::Add>(matmul, tanh);
-    auto res = std::make_shared<ngraph::op::Result>(eltw);
+    auto tanh = std::make_shared<ov::op::v0::Tanh>(matmul);
+    auto eltw = std::make_shared<ov::op::v1::Add>(matmul, tanh);
+    auto res = std::make_shared<ov::op::v0::Result>(eltw);
     function = std::make_shared<ngraph::Function>(res, params, "MatMul_Act_Add");
 }
 } // namespace SubgraphTestsDefinitions

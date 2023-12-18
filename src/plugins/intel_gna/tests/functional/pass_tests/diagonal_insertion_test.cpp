@@ -24,11 +24,10 @@ using namespace ngraph;
 using namespace ngraph::builder;
 using namespace ngraph::element;
 using namespace ngraph::op;
-using namespace ngraph::opset9;
 using namespace std;
 
-using DiagonalInsertionTestParams = tuple<map<string, string>,   // Configuration
-                                          vector<vector<float>>  // FakeQuantize min/max params
+using DiagonalInsertionTestParams = tuple<map<std::string, std::string>,  // Configuration
+                                          vector<vector<float>>           // FakeQuantize min/max params
                                           >;
 
 constexpr uint16_t fq_levels = numeric_limits<uint16_t>::max();
@@ -68,34 +67,35 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
         return ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shapes))};
     }
 
-    shared_ptr<FakeQuantize> CreateFQNode(const Type& type,
-                                          const shared_ptr<ov::Node>& node,
-                                          float fq_min,
-                                          float fq_max,
-                                          std::size_t levels) {
+    shared_ptr<ov::op::v0::FakeQuantize> CreateFQNode(const Type& type,
+                                                      const shared_ptr<ov::Node>& node,
+                                                      float fq_min,
+                                                      float fq_max,
+                                                      std::size_t levels) {
         //
         auto fq_inp_min = makeConstant<float>(type, {1}, {fq_min});
         auto fq_inp_max = makeConstant<float>(type, {1}, {fq_max});
         auto fq_out_min = makeConstant<float>(type, {1}, {fq_min});
         auto fq_out_max = makeConstant<float>(type, {1}, {fq_max});
-        return make_shared<FakeQuantize>(node, fq_inp_min, fq_inp_max, fq_out_min, fq_out_max, levels);
+        return make_shared<ov::op::v0::FakeQuantize>(node, fq_inp_min, fq_inp_max, fq_out_min, fq_out_max, levels);
     }
 
-    std::shared_ptr<Reshape> CreateReshapeNode(element::Type in_type,
-                                               shared_ptr<Node> input_node,
-                                               std::vector<size_t> target_shape_vect) {
+    std::shared_ptr<ov::op::v1::Reshape> CreateReshapeNode(element::Type in_type,
+                                                           shared_ptr<Node> input_node,
+                                                           std::vector<size_t> target_shape_vect) {
         //
-        const auto target_shape_const = Constant::create(in_type, Shape{target_shape_vect.size()}, target_shape_vect);
-        return std::make_shared<Reshape>(input_node, target_shape_const, false);
+        const auto target_shape_const =
+            ov::op::v0::Constant::create(in_type, Shape{target_shape_vect.size()}, target_shape_vect);
+        return std::make_shared<ov::op::v1::Reshape>(input_node, target_shape_const, false);
     }
 
-    bool IsDebugEnabled(map<string, string>& configuration) {
+    bool IsDebugEnabled(map<std::string, std::string>& configuration) {
         return configuration.find("LOG_LEVEL") != configuration.end() && configuration["LOG_LEVEL"] == "LOG_DEBUG";
     }
 
 public:
-    static string getTestCaseName(testing::TestParamInfo<DiagonalInsertionTestParams> obj) {
-        map<string, string> configuration;
+    static std::string getTestCaseName(testing::TestParamInfo<DiagonalInsertionTestParams> obj) {
+        map<std::string, std::string> configuration;
         vector<vector<float>> fq_min_max;
 
         tie(configuration, fq_min_max) = obj.param;
@@ -143,10 +143,10 @@ protected:
         auto add_const = makeConstant<float>(precision, {height}, {}, true);
         auto add_const_fq = CreateFQNode(precision, add_const, fq_min_max[3][0], fq_min_max[3][1], fq_levels);
 
-        auto add = make_shared<Add>(add_const_fq, add_mm_reshape);
+        auto add = make_shared<ov::op::v1::Add>(add_const_fq, add_mm_reshape);
         auto add_fq = CreateFQNode(precision, add, fq_min_max[4][0], fq_min_max[4][1], fq_levels);
 
-        auto relu = make_shared<Relu>(add_fq);
+        auto relu = make_shared<ov::op::v0::Relu>(add_fq);
 
         function = make_shared<ngraph::Function>(relu, input_vect, "DiagonalInsertion");
     }
@@ -156,7 +156,7 @@ TEST_P(DiagonalInsertionTest, CompareWithRefs) {
     Run();
 };
 
-const vector<map<string, string>> configs = {
+const vector<map<std::string, std::string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_PRECISION", "I16"},

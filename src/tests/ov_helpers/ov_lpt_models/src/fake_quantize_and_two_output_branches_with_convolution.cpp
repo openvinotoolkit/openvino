@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/fake_quantize_and_two_output_branches_with_convolution.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"

@@ -144,7 +144,7 @@ from openvino.runtime.opset1.ops import region_yolo
 from openvino.runtime.opset2.ops import reorg_yolo
 from openvino.runtime.opset1.ops import relu
 from openvino.runtime.opset1.ops import reshape
-from openvino.runtime.opset1.ops import result
+from openvino.runtime.opset13.ops import result
 from openvino.runtime.opset1.ops import reverse_sequence
 from openvino.runtime.opset3.ops import rnn_cell
 from openvino.runtime.opset5.ops import rnn_sequence
@@ -154,6 +154,7 @@ from openvino.runtime.opset7.ops import roll
 from openvino.runtime.opset5.ops import round
 from openvino.runtime.opset13.ops import scaled_dot_product_attention
 from openvino.runtime.opset12.ops import scatter_elements_update
+from openvino.runtime.opset4.ops import scatter_nd_update
 from openvino.runtime.opset3.ops import scatter_update
 from openvino.runtime.opset1.ops import select
 from openvino.runtime.opset1.ops import selu

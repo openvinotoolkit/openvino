@@ -47,7 +47,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                                                     ov::optimal_number_of_infer_requests,
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::intel_auto::schedule_policy};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -72,6 +73,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         return decltype(ov::supported_properties)::value_type(supported_properties);
     } else if (name == ov::hint::performance_mode) {
         return m_context->m_performance_hint;
+    } else if (name == ov::intel_auto::schedule_policy) {
+        return m_context->m_schedule_policy;
     } else if (name == ov::device::priorities) {
         // device priority does not support change on-the-fly
         return decltype(ov::device::priorities)::value_type(m_context->m_str_devices);
@@ -141,7 +144,14 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-                loaded_from_cache &= (m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name).as<bool>());
+                try {
+                    loaded_from_cache &=
+                        (m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name).as<bool>());
+                } catch (const ov::Exception&) {
+                    LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed",
+                                  m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
+                    return false;
+                }
             }
         }
         return loaded_from_cache;
