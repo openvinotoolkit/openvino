@@ -44,7 +44,8 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
 }
 
 void GroupConvolutionTransformation::SetUp() {
-    rel_threshold = 0.1f;
+    rel_threshold = 0.1;
+    abs_threshold = 0.1;
 
     ngraph::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;

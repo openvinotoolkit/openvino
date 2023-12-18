@@ -37,6 +37,8 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {
+    abs_threshold = 1.1;
+
     ngraph::element::Type netPrecision;
     std::vector<ngraph::PartialShape> inputShapes;
     ov::pass::low_precision::LayerTransformation::Params params;

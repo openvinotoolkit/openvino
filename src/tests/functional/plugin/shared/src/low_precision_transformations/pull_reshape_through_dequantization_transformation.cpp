@@ -42,7 +42,7 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
 }
 
 void PullReshapeThroughDequantizationTransformation::SetUp() {
-    // threshold = 0.1f;
+    abs_threshold = 1.0e-3;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;

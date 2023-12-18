@@ -29,6 +29,8 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
+    abs_threshold = 0.01;
+
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

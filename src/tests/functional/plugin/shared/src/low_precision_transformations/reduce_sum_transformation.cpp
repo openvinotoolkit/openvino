@@ -31,6 +31,8 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceSumTransformation::SetUp() {
+    abs_threshold = 1.0e-3;
+
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

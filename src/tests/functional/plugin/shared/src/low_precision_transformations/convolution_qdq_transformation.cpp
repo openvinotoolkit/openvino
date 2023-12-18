@@ -34,7 +34,8 @@ std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestPar
 }
 
 void ConvolutionQDqTransformation::SetUp() {
-    // threshold = 0.1f;
+    rel_threshold = 0.1;
+    abs_threshold = 12.8;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;

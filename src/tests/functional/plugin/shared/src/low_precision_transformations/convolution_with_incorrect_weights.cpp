@@ -37,7 +37,8 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const
 }
 
 void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
-    rel_threshold = 0.1f;
+    rel_threshold = 0.1;
+    abs_threshold = 1.0e-3;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;

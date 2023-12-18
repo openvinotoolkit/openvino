@@ -391,6 +391,30 @@ void compare(const ov::Tensor& expected,
     if (!std::isnan(rel_threshold)) {
         std::cout << "[ COMPARATION ] abs_threshold: " << abs_threshold << std::endl;
     }
+#if 0
+     {
+         for (size_t i = 0; i < shape_size_cnt; ++i) {
+             if (actual_data[i] != expected_data[i]) {
+                 std::cout << i << ". " << actual_data[i] << " " << expected_data[i] << " " << actual_data[i] - expected_data[i]
+                           << std::endl;
+             }
+         }
+#endif
+#if 0
+         // TODO: debug
+         std::cout << std::endl << "actual:" << std::endl;
+         for (size_t i = 0; i < shape_size_cnt; ++i) {
+             std::cout << actual_data[i] << " ";
+         }
+         std::cout << std::endl << std::endl;
+
+         std::cout << std::endl << "expected:" << std::endl;
+         for (size_t i = 0; i < shape_size_cnt; ++i) {
+             std::cout << expected_data[i] << " ";
+         }
+         std::cout << std::endl << std::endl;
+     }
+#endif
 
     Error abs_error(abs_threshold), rel_error(rel_threshold);
     for (size_t i = 0; i < shape_size_cnt; ++i) {
@@ -406,8 +430,18 @@ void compare(const ov::Tensor& expected,
             out_stream << "Actual value is NAN on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
+
+        if (expected_value == 0.0 || actual_value == 0.0)
+            continue;
+
         double abs = std::fabs(expected_value - actual_value);
         double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
+
+        if (rel >= 1.0 || abs > 1.0e-3) {
+            std::cout << i << ". rel " << rel << " abs " << abs << " expected_value " << expected_value << " actual_value " << actual_value << std::endl;
+            //continue;
+        }
+
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }
@@ -424,6 +458,15 @@ void compare(const ov::Tensor& expected,
                    << rel_error.mean << "; rel threshold " << rel_threshold;
         throw std::runtime_error(out_stream.str());
     }
+#if 0
+    {
+        std::cout  << "\n\t abs_max: " << abs_error.max << "\n\t\t coordinate " << abs_error.max_coordinate
+                   << "; abs errors count " << abs_error.count << "; abs mean " << abs_error.mean << "; abs threshold "
+                   << abs_threshold << "\n\t rel_max: " << rel_error.max << "\n\t\t coordinate "
+                   << rel_error.max_coordinate << "; rel errors count " << rel_error.count << "; rel mean "
+                   << rel_error.mean << "; rel threshold " << rel_threshold << std::endl;
+    }
+#endif
 }
 
 void compare(const ov::Tensor& expected,

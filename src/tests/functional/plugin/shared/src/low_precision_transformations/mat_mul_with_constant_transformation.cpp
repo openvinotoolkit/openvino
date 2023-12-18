@@ -60,6 +60,8 @@ InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const
 #endif
 
 void MatMulWithConstantTransformation::SetUp() {
+    abs_threshold = 1.0e-3;
+
     ngraph::element::Type precision;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();

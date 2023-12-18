@@ -33,6 +33,8 @@ std::string FuseDequantizeToFakeQuantizeTransformation::getTestCaseName(const te
 }
 
 void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
+    abs_threshold = 0.1;
+
     FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 

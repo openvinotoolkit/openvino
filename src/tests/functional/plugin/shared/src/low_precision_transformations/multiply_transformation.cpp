@@ -51,6 +51,8 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 }
 
 void MultiplyTransformation::SetUp() {
+    abs_threshold = 0.1;
+
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     MultiplyTestValues param;

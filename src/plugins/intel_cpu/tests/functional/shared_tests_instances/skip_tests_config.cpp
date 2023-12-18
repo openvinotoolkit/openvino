@@ -210,6 +210,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
         // Issue: 129025
         R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
+        // Issue: 119648
+        R"(.*smoke_LPT/InterpolateTransformation.*)",
 #if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"

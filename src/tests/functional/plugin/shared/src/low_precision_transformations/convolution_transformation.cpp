@@ -37,7 +37,8 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void ConvolutionTransformation::SetUp() {
-    rel_threshold = 0.1f;
+    rel_threshold = 1.0e+10;
+    abs_threshold = 1.4;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;

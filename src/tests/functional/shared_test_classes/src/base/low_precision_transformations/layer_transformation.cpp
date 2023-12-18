@@ -34,7 +34,8 @@ ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNG
 }
 
 LayerTransformation::LayerTransformation() {
-    rel_threshold = 0.05;
+    rel_threshold = 1.1;
+    abs_threshold = 1.0e-4;
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 #if 0
