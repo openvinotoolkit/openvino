@@ -77,12 +77,12 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         }
         return nativeArray;
 
-    } else {  //( elem.IsTypedArray()){
+    } else {
         Napi::TypedArray buf;
         napi_typedarray_type type = elem.As<Napi::TypedArray>().TypedArrayType();
         if ((type != napi_int32_array) && (type != napi_uint32_array)) {
             OPENVINO_THROW(std::string("Passed argument must be a Int32Array."));
-        } else if ((type == napi_uint32_array))
+        } else if (type == napi_uint32_array)
             buf = elem.As<Napi::Uint32Array>();
         else {
             buf = elem.As<Napi::Int32Array>();
