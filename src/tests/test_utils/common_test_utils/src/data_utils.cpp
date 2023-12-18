@@ -252,16 +252,22 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 static int randInt(int low, int high) {
-std::random_device rd;
-std::mt19937 gen(rd());
-std::uniform_int_distribution<int> dis(low, high);
-return dis(gen);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis(low, high);
+    return dis(gen);
 }
 }  // namespace
 
-void fill_psroi(ov::Tensor& tensor, int batchSize,
-                int height, int width, int groupSize,
-                float spatialScale, int spatialBinsX, int spatialBinsY, const std::string& mode) {
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode) {
     auto numROIs = tensor.get_size() / 5;
     int minRoiWidth = groupSize;
     int maxRoiWidth = width / groupSize * groupSize;

@@ -160,9 +160,15 @@ inline void fill_data_roi(InferenceEngine::Blob::Ptr& blob,
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-void fill_psroi(ov::Tensor& tensor, int batchSize,
-                int height, int width, int groupSize,
-                float spatialScale, int spatialBinsX, int spatialBinsY, const std::string& mode);
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode);
 
 void fill_data_roi(ov::runtime::Tensor& tensor,
                    const uint32_t range,
