@@ -434,7 +434,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                     concat_inst->allocation_done_by_other = true;
                 }
                 this->_outputs[0] = concat_inst->_outputs[0];
-                GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << id() << ": use concat memory " << this->_outputs[0] << std::endl;
                 return ev;
             }
         } else if (user_node->is_type<reshape>() && user_node->can_be_optimized()) {
@@ -461,8 +461,8 @@ event::ptr primitive_inst::realloc_if_needed() {
                     }
                     auto reshape_inst = _network.get_primitive(user_node->id());
                     _outputs[0] = reshape_inst->_outputs[0] = concat_inst->_outputs[0];
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
-                    GPU_DEBUG_TRACE_DETAIL << reshape_inst->id() << ": use concat user's memory " << reshape_inst->_outputs[0] << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << id() << " [input of opt reshape]: use concat memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << reshape_inst->id() << " [opt reshape]: use concat memory " << reshape_inst->_outputs[0] << std::endl;
                     return ev;
                 }
             }
@@ -877,16 +877,15 @@ void primitive_inst::do_runtime_in_place_concat() {
             if (dep.first->get_node().is_type<reshape>() && dep.first->get_node().can_be_optimized()) {
                 auto dep_of_reshape_inst = dep.first->_deps.front().first;
                 dep_of_reshape_inst->set_shape_change();
-                dep_of_reshape_inst->_impl_params->output_layouts[0] = preds_layouts[i];
+                dep_of_reshape_inst->_impl_params->output_layouts[0].data_padding
+                    = padding::max(dep_of_reshape_inst->_impl_params->output_layouts[0].data_padding, preds_layouts[i].data_padding);
                 GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << dep_of_reshape_inst->id() << " : "
                                     << dep_of_reshape_inst->_impl_params->output_layouts[0].to_string() << std::endl;
             }
             dep.first->set_shape_change();
             dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
-            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << dep.first->id() << " : "
-                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         }
-        GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
+        GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " [" << dep.first->id() << "] : "
                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         ++i;
     }
