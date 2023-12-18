@@ -2473,3 +2473,88 @@ TEST(select_gpu_i8, select_basic_1x1x2x2_cached) {
 TEST(select_gpu_u8, select_basic_1x1x2x2_cached) {
     test_u8_select_basic_1x1x2x2<unsigned char>(true);
 }
+
+TEST(select_cpu_impl_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ { 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+    auto input2 = engine.allocate_memory({ { 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+    auto mask = engine.allocate_memory({ { 2, 2, 2, 1 }, data_types::u8, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
+
+    set_values(input1, {
+        1.f,  0.f,
+        5.f,  1.5f,
+
+        2.f,  0.f,
+        6.f,  5.2f,
+
+        3.f,  0.5f,
+        7.f,  12.f,
+
+        4.f,  -0.5f,
+        8.f,  8.f
+    });
+
+    set_values(input2, {
+        0.5f,  2.5f,
+        1.5f,  3.f,
+
+        5.f,   7.f,
+        2.f,   4.f,
+
+        15.f,  17.f,
+        8.f,   10.f,
+
+        -2.f,  6.5f,
+        -0.5f, -2.5f
+    });
+
+    set_values<uint8_t>(mask, {
+        0, 0,
+
+        1, 1,
+
+        0, 1,
+
+        1, 0,
+    });
+
+    auto config = get_test_default_config(engine);
+    auto forcing_map = ov::intel_gpu::ImplForcingMap{{"select", {format::bfyx, "", impl_types::cpu}}};
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    float answers[16] = {
+        0.5f,  2.5f,
+        1.5f,  3.f,
+
+        2.f,   0.f,
+        6.f,   5.2f,
+
+        15.f,  17.f,
+        7.f,   12.f,
+
+        4.f,   -0.5f,
+        -0.5f, -2.5f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
