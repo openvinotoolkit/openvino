@@ -83,11 +83,12 @@ protected:
     using jit_emitter::emit_code;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
-    virtual void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const  = 0;
+    // Note: this method should be overriden in derived classes
+    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override {};
     static ov::snippets::VectorDims get_projected_subtensor(const snippets::lowered::PortDescriptorPtr& desc);
 
-    virtual uintptr_t get_execute_funcion_ptr() const = 0;
-    virtual uintptr_t get_compiled_kernel_ptr() const = 0;
+    virtual const uintptr_t get_execute_function_ptr() const = 0;
+    virtual const uintptr_t get_compiled_kernel_ptr() const = 0;
 
     std::vector<size_t> io_offsets{};
     std::vector<libxsmm_datatype> io_dtypes{};
@@ -107,8 +108,8 @@ public:
                             const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override { return 2; }
     static void execute_binary_eltw_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
-    uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_binary_eltw_kernel); }
-    uintptr_t get_compiled_kernel_ptr() const override;
+    const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_binary_eltw_kernel); }
+    const uintptr_t get_compiled_kernel_ptr() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
@@ -125,8 +126,8 @@ public:
                             const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override { return 1; }
     static void execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0);
-    uintptr_t get_execute_funcion_ptr() const override { return reinterpret_cast<uintptr_t>(execute_unary_eltw_kernel); }
-    uintptr_t get_compiled_kernel_ptr() const override;
+    const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
+    const uintptr_t get_compiled_kernel_ptr() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
@@ -141,5 +142,22 @@ public:
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr);
 };
+class ReferenceUnaryEltwiseTppEmitter : public UnaryEltwiseTppEmitter {
+public:
+    ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                    const ov::snippets::lowered::ExpressionPtr& expr);
+    typedef std::function<void(void*, void*)> ref_eltwise_function;
+    static void execute_unary_eltw_kernel(ref_eltwise_function eltwise_kernel, void *in0, void *out0);
+    const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
+    const uintptr_t get_compiled_kernel_ptr() const override;
+private:
+    size_t in0_type_size{0};
+    size_t out0_type_size{0};
+};
+
+
+
+
 }   // namespace intel_cpu
 }   // namespace ov

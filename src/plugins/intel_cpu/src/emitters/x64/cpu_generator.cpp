@@ -270,6 +270,6 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::BrgemmTppEmitter>(e) ||
-           std::dynamic_pointer_cast<intel_cpu::BinaryEltwiseTppEmitter>(e);
+           std::dynamic_pointer_cast<intel_cpu::ReferenceUnaryEltwiseTppEmitter>(e);
 }
 } // namespace ov

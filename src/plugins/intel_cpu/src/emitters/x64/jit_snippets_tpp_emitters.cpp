@@ -11,6 +11,8 @@
 #include "transformations/snippets/tpp/op/brgemm.hpp"
 #include "libxsmm.h"
 #include "transformations/snippets/tpp/op/eltwise.hpp"
+// Note: for reference implementations
+#include <cmath>
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -19,6 +21,25 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
+namespace {
+    // template<class Tin, class Tout, size_t N, size_t M, size_t LDI, size_t LDO, std::function<Tout(Tin)> executor>
+template<class Tin, class Tout, class executor,
+         size_t N, size_t M, size_t LDI, size_t LDO,
+         typename std::enable_if<std::is_convertible<executor, std::function<Tin(Tout)>>::value, bool>::type = true>
+void evaluate_reference(void * in0, void* out0) {
+  auto in_ptr = reinterpret_cast<Tin*>(in0);
+  auto out_ptr = reinterpret_cast<Tout*>(out0);
+  for (int n = 0; n < N; n++) {
+        auto in_row = in_ptr;
+        auto out_row = out_ptr;
+        for (int m = 0; m < M; m++) {
+            *out_row++ = executor(*in_row++);
+        }
+        in_ptr += LDI;
+        out_ptr += LDO;
+  }
+}
+} // namespace
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -342,7 +363,7 @@ void EltwiseTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vect
     std::array<Xbyak::Reg64, 4> abi_params{abi_param1, abi_param2, abi_param3, abi_param4};
 
     // save function address in gpr to pass in call instruction
-    h->mov(h->rbp, get_execute_funcion_ptr());
+    h->mov(h->rbp, get_execute_function_ptr());
     // todo: several of in/out ptr could be also abi_paramX, so one of them could be corrupted
     //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
     //  It's likely that a more efficient solution exists.
@@ -352,8 +373,8 @@ void EltwiseTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vect
     for (auto reg_idx : out)
         h->uni_vmovq(Xmm(aux_xmm_count++),  Reg64(static_cast<int>(reg_idx)));
 
-    OPENVINO_ASSERT(aux_xmm_count == io_offsets.size(), "EltwiseTPPEmitter: offsets for some inputs/outputs were not set");
-    OPENVINO_ASSERT(aux_xmm_count < abi_params.size(), "EltwiseTPPEmitter: too many input/output arguments. More abi params required");
+    OPENVINO_ASSERT(aux_xmm_count == static_cast<int>(io_offsets.size()), "EltwiseTPPEmitter: offsets for some inputs/outputs were not set");
+    OPENVINO_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()), "EltwiseTPPEmitter: too many input/output arguments. More abi params required");
 
     // todo: Windows ABI : requires different num of arguments passed in regs and on the stack. Need to align.
     const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
@@ -428,11 +449,10 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
                                                 dtype_comp);
 }
 
-uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
+const uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
     // Note: libxsmm hides memory management from the user, so we don't have to store pointer to compiled kernel to keep it alive.
     // libxsmm will keep the pointer alive until the end of program execution (it doesn't matter whether we save the pointer in the emitter or not)
-    const auto libxsmm_kernel = libxsmm_dispatch_meltw_binary_v2(m_op_type, m_shape, m_compile_flags);
-    return reinterpret_cast<uintptr_t>(libxsmm_kernel);
+    return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_binary_v2(m_op_type, m_shape, m_compile_flags));
 }
 
 std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
@@ -491,10 +511,8 @@ UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generat
     m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_NONE;
 }
 
-uintptr_t UnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
-    // Note: some operations (e.g. Relu) might require additional flags
-    const auto& libxsmm_kernel = libxsmm_dispatch_meltw_unary_v2(m_op_type, m_shape, m_compile_flags);
-    return reinterpret_cast<uintptr_t>(libxsmm_kernel);
+const uintptr_t UnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
+    return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_unary_v2(m_op_type, m_shape, m_compile_flags));
 }
 
 
@@ -522,6 +540,52 @@ ReduceTppEmitter::ReduceTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                    UnaryEltwiseTppEmitter(h, isa, expr) {
     m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_REDUCE_ROWS;
 }
+
+
+ReferenceUnaryEltwiseTppEmitter::ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                                                const ov::snippets::lowered::ExpressionPtr& expr) :
+                                                                UnaryEltwiseTppEmitter(h, isa, expr) {
+    auto get_dtype_byte_size = [](const libxsmm_datatype& dtype) -> size_t {
+        switch (dtype) {
+        case LIBXSMM_DATATYPE_F64:
+        case LIBXSMM_DATATYPE_I64:
+        case LIBXSMM_DATATYPE_U64:
+            return 8;
+        case LIBXSMM_DATATYPE_F32:
+        case LIBXSMM_DATATYPE_I32:
+        case LIBXSMM_DATATYPE_U32:
+            return 4;
+        case LIBXSMM_DATATYPE_F16:
+        case LIBXSMM_DATATYPE_I16:
+        case LIBXSMM_DATATYPE_U16:
+        case LIBXSMM_DATATYPE_BF16:
+            return 2;
+        case LIBXSMM_DATATYPE_BF8:
+        case LIBXSMM_DATATYPE_HF8:
+        case LIBXSMM_DATATYPE_I8:
+        case LIBXSMM_DATATYPE_U8:
+            return 1;
+        default:
+            OPENVINO_THROW("Unsupported data type in ReferenceUnaryEltwiseTppEmitter::get_dtype_byte_size");
+        }
+    };
+    in0_type_size = get_dtype_byte_size(m_shape.in0_type);
+    out0_type_size = get_dtype_byte_size(m_shape.out_type);
+}
+
+const uintptr_t ReferenceUnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
+    return reinterpret_cast<const uintptr_t>(evaluate_reference<float, float,
+                                                           static_cast<float(*)(float)>(&std::exp),
+                                                           m_shape.n, m_shape.m, m_shape.ldi, m_shape.ldo>);
+    // return static_cast<const uintptr_t>(evaluate_reference<float, float, std::expf, m_shape.n, m_shape.m, m_shape.ldi, m_shape.ldo>);
+}
+
+void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ref_eltwise_function eltwise_kernel, void *in0, void *out0) {
+    assert(eltwise_kernel);
+    eltwise_kernel(in0, out0);
+}
+
 
 
 }  // namespace intel_cpu
