@@ -12,6 +12,11 @@
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose_list.hpp"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 namespace node {

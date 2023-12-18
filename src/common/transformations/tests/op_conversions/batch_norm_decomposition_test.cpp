@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/batch_norm_decomposition.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -12,7 +14,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "transformations/init_node_info.hpp"
-#include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;
 using namespace testing;
