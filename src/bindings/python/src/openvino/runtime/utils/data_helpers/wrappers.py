@@ -26,6 +26,11 @@ class _InferRequestWrapper(InferRequestBase):
         self._inputs_data = None
         super().__init__(other)
 
+    def _is_single_input(self) -> bool:
+        if len(self.input_tensors) > 1:
+            return False
+        return True
+
 
 class OVDict(Mapping):
     """Custom OpenVINO dictionary with inference results.
