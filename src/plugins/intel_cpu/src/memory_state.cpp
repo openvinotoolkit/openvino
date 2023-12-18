@@ -38,8 +38,7 @@ const dnnl::engine& VariableStateBase::get_engine() {
 }
 
 void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
-    m_state = state; // simply to extend the lifetime
-    auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
+    auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(state);
 
     const auto& shape = state_desc->getShape();
 
@@ -48,7 +47,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         input_mem()->redefineDesc(new_desc);
     }
 
-    auto src = m_state->data();
+    auto src = state->data();
 
     Memory mem(get_engine(), state_desc, src);
     input_mem()->load(mem);
@@ -165,6 +164,8 @@ VariableStateKVcache::VariableStateKVcache(
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
+    OPENVINO_ASSERT(m_internal_mem && m_hidden_state, "KVState internal memory is not initialized");
+    OPENVINO_ASSERT(!is_reset_state(), "KVState is undefined after reset");
     auto actual_internal_desc = m_internal_mem->getDescWithType<BlockedMemoryDesc>();
     auto&& dims = actual_internal_desc->getShape().getStaticDims();
 
@@ -179,28 +180,27 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     //sanity check
     OPENVINO_ASSERT(actual_internal_order == m_dense_internal_desc->getOrder());
 
-    // Warning, this implementation is very KV cache specific it assumes that S is always a last dimension and it's not
+    PlainTensor output, pastkv, beam_table;
+    output.reset(external_mem);
+    beam_table.reset(m_hidden_state);
+    pastkv.reset(m_internal_mem);
+    output = output.permute(actual_internal_order);
+    pastkv = pastkv.permute(actual_internal_order);
+    // S should be always the last dimension
+    OPENVINO_ASSERT(pastkv.stride(3) == 1 && output.stride(3) == 1);
+    auto B = pastkv.size(0);
+    auto H = pastkv.size(1);
+    auto L0 = pastkv.size(2);
+    auto S = pastkv.size(3);
+    parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+        auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
+        cpu_convert(&pastkv.at<char>({b_kv, h, m}),
+                    &output.at<char>({b, h, m}),
+                    pastkv.m_dt,
+                    output.m_dt,
+                    S);
+    });
 
-    if (m_hidden_state) {
-        PlainTensor output, pastkv, beam_table;
-        output.reset(external_mem);
-        beam_table.reset(m_hidden_state);
-        pastkv.reset(m_internal_mem);
-        output = output.permute(actual_internal_order);
-        pastkv = pastkv.permute(actual_internal_order);
-        auto B = pastkv.size(0);
-        auto H = pastkv.size(1);
-        auto L0 = pastkv.size(2);
-        auto S = pastkv.size(3);
-        parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
-            auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
-            cpu_convert(&pastkv.at<char>({b_kv, h, m}),
-                        &output.at<char>({b, h, m}),
-                        pastkv.m_dt,
-                        output.m_dt,
-                        S);
-        });
-    }
     return std::make_shared<Tensor>(external_mem);
 }
 

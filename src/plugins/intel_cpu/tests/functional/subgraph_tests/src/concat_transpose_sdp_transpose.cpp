@@ -333,7 +333,7 @@ public:
             state.set_state(new_state);
         }
     }
-    void new_state() {
+    void new_state(ov::element::Type& type, const ov::Shape& pastKVInitShape) {
         auto fill = [] (ov::Tensor& t, float val) {
             auto shape = t.get_shape();
             if (t.get_element_type() == element::f32) {
@@ -348,10 +348,9 @@ public:
         float val = 0;
         auto states = inferRequest.query_state();
         for (auto&& state : states) {
-            auto state_tensor = state.get_state();
-            auto new_shape = state_tensor.get_shape();
+            auto new_shape = pastKVInitShape;
             new_shape[transposeOrder[2]] = 3;
-            ov::Tensor new_state{state_tensor.get_element_type(), new_shape};
+            ov::Tensor new_state{type, new_shape};
             fill(new_state, val);
             val += 0.13f;
 
@@ -380,8 +379,9 @@ public:
         }
 
         // case 2: after reset, set_state at once
+        auto pastKVType = inferRequest.query_state()[0].get_state().get_element_type();
         reset();
-        new_state();
+        new_state(pastKVType, targetStaticShapes[0][1]);
         idx = 0;
         for (auto&& shapes : targetStaticShapes) {
             generate(idx++, shapes);
