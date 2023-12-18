@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace ngraph {
 namespace builder {
