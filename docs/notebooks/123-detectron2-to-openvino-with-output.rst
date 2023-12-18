@@ -1,4 +1,5 @@
-# Convert Detectron2 Models to OpenVINO™
+Convert Detectron2 Models to OpenVINO™
+======================================
 
 `Detectron2 <https://github.com/facebookresearch/detectron2>`__ is
 Facebook AI Research’s library that provides state-of-the-art detection
