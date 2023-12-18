@@ -1,4 +1,3 @@
-#include <memory>
 #include <ngraph/function.hpp>
 #include <openvino/openvino.hpp>
 
@@ -9,7 +8,6 @@
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/reduce_logical_and.hpp" // Include for reduce to scalar
 #include "openvino/op/reduce_logical_or.hpp"
 #include "utils.hpp"
 
