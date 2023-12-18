@@ -57,14 +57,13 @@ private:
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
     ov::element::Type getRuntimePrecision() const override;
 
-    struct Executor {
-        virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const MemoryPtr output, const MemoryPtr presentk_input,
-                             const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;
-    };
-
     struct Config {
         ScaledDotProductAttentionWithKVCache::Config config;
-        std::vector<size_t> reverse_order;
+    };
+
+    struct Executor {
+        virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
+                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;
     };
 
     Config m_config;
