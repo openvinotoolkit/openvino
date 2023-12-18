@@ -16,6 +16,13 @@ struct gather_params : public base_params {
     GatherAxis axis;
     int64_t batch_dim;
     bool support_neg_ind;
+
+    bool compressed = false;
+    bool has_decompression_zp = false;
+    bool scalar_zp = false;
+    float zp_value = 0.0f;
+    DataTensor decompression_scale;
+    DataTensor decompression_zero_point;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
