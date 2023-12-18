@@ -613,6 +613,16 @@ void regclass_InferRequest(py::module m) {
         )");
 
     cls.def(
+        "reset_state",
+        [](InferRequestWrapper& self) {
+            return self.m_request.reset_state();
+        },
+        R"(
+            Resets all internal variable states for relevant infer request to
+            a value specified as default for the corresponding `ReadValue` node
+        )");
+
+    cls.def(
         "get_compiled_model",
         [](InferRequestWrapper& self) {
             return self.m_request.get_compiled_model();
