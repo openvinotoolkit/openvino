@@ -55,6 +55,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    ov_add_compiler_flags(-Wno-missing-declarations)
+endif()
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
     SUFFIX ".node"
