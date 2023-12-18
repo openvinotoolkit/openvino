@@ -20,6 +20,8 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <openvino/op/scaled_dot_product_attention.hpp>
 #include "common/arbitrary_order_desc_creator.h"
+#include <common/primitive_hashing_utils.hpp>
+#include "openvino/util/common_util.hpp"
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -32,11 +34,40 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
+using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+struct ScaledDotProductAttentionKey {
+    ScaledDotProductAttention::Config config;
+
+    size_t hash() const;
+    bool operator==(const ScaledDotProductAttentionKey& rhs) const;
+};
+
+size_t ScaledDotProductAttentionKey::hash() const {
+    auto seed = ov::util::hash_combine(config.config.permute_axes);
+    seed = hash_combine(seed, config.config.output_BLHxS);
+    seed = hash_combine(seed, config.config.fuse_causal_attn);
+    seed = hash_combine(seed, config.config.is_causal);
+    seed = hash_combine(seed, config.config.fuse_concat);
+
+    return seed;
+}
+
+bool ScaledDotProductAttentionKey::operator==(const ScaledDotProductAttentionKey& rhs) const {
+    bool retVal = true;
+    retVal = retVal &&
+             config.config.output_BLHxS == rhs.config.config.output_BLHxS &&
+             config.config.fuse_causal_attn == rhs.config.config.fuse_causal_attn &&
+             config.config.is_causal == rhs.config.config.is_causal &&
+             config.config.fuse_concat == rhs.config.config.fuse_concat &&
+             config.config.permute_axes == rhs.config.config.permute_axes;
+    return retVal;
+}
 
 // default implementation: reference
 template <ScaledDotProductAttention::KernelTypes KType, typename T>
@@ -711,15 +742,25 @@ void ScaledDotProductAttention::createPrimitive() {
     }
     auto rtPrecision = getRuntimePrecision();
 
-    if (rtPrecision == ov::element::bf16) {
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
-    } else {
-#ifdef OV_CPU_WITH_MLAS
-        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
-#else
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
-#endif
-    }
+    ScaledDotProductAttentionKey key = {m_config};
+
+    auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
+        std::shared_ptr<Executor> executor;
+        if (rtPrecision == ov::element::bf16) {
+            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
+        } else {
+    #ifdef OV_CPU_WITH_MLAS
+            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
+    #else
+            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
+    #endif
+        }
+        return executor;
+    };
+
+    auto cache = context->getParamsCache();
+    auto result = cache->getOrCreate(key, builder);
+    m_executor = result.first;
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
