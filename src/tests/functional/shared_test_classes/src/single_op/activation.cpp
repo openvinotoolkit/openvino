@@ -119,6 +119,50 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 
+void ActivationParamLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    ov::element::Type model_type;
+    std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
+    std::pair<ActivationTypes, std::vector<float>> activationDecl;
+    std::tie(activationDecl, model_type, input_shapes, targetDevice) = GetParam();
+
+    auto activationType = activationDecl.first;
+    auto constants_value = activationDecl.second;
+
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    for (size_t i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        runtime::Tensor data_tensor;
+        const std::string& name = funcInput.get_node()->get_friendly_name();
+        if (0 == name.compare("negativeSlope")) {
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -0.01;
+            in_data.range = 0;
+            data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(),
+                                            targetInputStaticShapes[i],
+                                            in_data.range,
+                                            in_data.start_from,
+                                            in_data.resolution, 1);
+        } else if (0 == name.compare("leakySlope")) {
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0.01;
+            in_data.range = 0;
+            data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(),
+                                            targetInputStaticShapes[i],
+                                            in_data.range,
+                                            in_data.start_from,
+                                            in_data.resolution, 1);
+        } else if (0 == name.compare("alpha")) {
+            data_tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &constants_value[0]);
+        } else if (0 == name.compare("beta") || 0 == name.compare("lambda")) {
+            data_tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &constants_value[1]);
+        } else {
+            data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(), targetInputStaticShapes[i], 20, -10, 1);
+        }
+        inputs.insert({funcInput.get_node_shared_ptr(), data_tensor});
+    }
+}
+
 std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<activationParams> &obj) {
     ov::element::Type model_type;
     std::pair<std::vector<InputShape>, ov::Shape> input_shapes;

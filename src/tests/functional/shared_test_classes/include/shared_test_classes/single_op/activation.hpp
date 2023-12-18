@@ -88,6 +88,7 @@ protected:
 
 class ActivationParamLayerTest : public ActivationLayerTest {
 protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 };
 }  // namespace test
