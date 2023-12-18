@@ -9,24 +9,24 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
-GatherCompressed::GatherCompressed(const ov::Output<Node>& A,
-                                   const ov::Output<Node>& B,
-                                   const ov::Output<Node>& C,
+GatherCompressed::GatherCompressed(const ov::Output<Node>& dict,
+                                   const ov::Output<Node>& idx,
+                                   const ov::Output<Node>& axis,
                                    const ov::Output<Node>& decompression_scale,
                                    const ov::Output<Node>& decompression_zero_point,
                                    const ov::element::Type output_type)
-    : ov::op::v8::Gather({A, B, C}), m_output_type(output_type) {
+    : ov::op::v8::Gather({dict, idx, axis}), m_output_type(output_type) {
     set_argument(3, decompression_scale);
     set_argument(4, decompression_zero_point);
     validate_and_infer_types();
 }
 
-GatherCompressed::GatherCompressed(const ov::Output<Node>& A,
-                                   const ov::Output<Node>& B,
-                                   const ov::Output<Node>& C,
+GatherCompressed::GatherCompressed(const ov::Output<Node>& dict,
+                                   const ov::Output<Node>& idx,
+                                   const ov::Output<Node>& axis,
                                    const ov::Output<Node>& decompression_scale,
                                    const ov::element::Type output_type)
-    : ov::op::v8::Gather({A, B, C}), m_output_type(output_type) {
+    : ov::op::v8::Gather({dict, idx, axis}), m_output_type(output_type) {
     set_argument(3, decompression_scale);
     validate_and_infer_types();
 }
@@ -59,9 +59,7 @@ void GatherCompressed::validate_and_infer_types() {
         input_size,
         ", expected at least 3.");
 
-    ov::op::v8::Gather op;
-
-    auto out_shapes = ov::op::shape_infer(&op, std::vector<ov::PartialShape>{get_input_partial_shape(0),
+    auto out_shapes = ov::op::shape_infer(this, std::vector<ov::PartialShape>{get_input_partial_shape(0),
                                                 get_input_partial_shape(1), get_input_partial_shape(2)});
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;

@@ -29,7 +29,9 @@ ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
                 output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 ||
                 output.get_element_type() == ov::element::i4) &&
-                output.get_target_inputs().size() == 1;
+                output.get_target_inputs().size() == 1 &&
+               (output.get_shape().size() == 2 ||
+                output.get_shape().size() == 3);
     };
 
     auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
@@ -65,9 +67,6 @@ ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         OPENVINO_ASSERT(pattern_map.count(dicts_m));
         OPENVINO_ASSERT(pattern_map.count(convert_m));
         ov::Shape dicts_shape = pattern_map.at(dicts_m).get_node_shared_ptr()->get_shape();
-        if (dicts_shape.size() != 2 && dicts_shape.size() != 3) {
-            return false;
-        }
         auto gather_node = std::dynamic_pointer_cast<opset10::Gather>(pattern_map.at(gather_m).get_node_shared_ptr());
         if (!gather_node || transformation_callback(gather_node)) {
             return false;

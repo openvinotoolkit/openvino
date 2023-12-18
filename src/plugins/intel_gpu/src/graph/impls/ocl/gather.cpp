@@ -81,10 +81,10 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance);
         const auto& desc = instance.get_typed_desc<gather>();
 
-        if (!desc->decompression_scale.empty())
+        if (desc->decompression_scale.is_valid())
             args.inputs.push_back(instance.dep_memory_ptr(2));
 
-        if (!desc->decompression_zero_point.empty())
+        if (desc->decompression_zero_point.is_valid())
             args.inputs.push_back(instance.dep_memory_ptr(3));
 
         return args;
@@ -120,8 +120,8 @@ public:
         params.outputs[0] = convert_data_tensor(output_layout);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
-        bool commpressed = !primitive->decompression_scale.empty();
-        bool with_zp = !primitive->decompression_zero_point.empty();
+        bool commpressed = primitive->decompression_scale.is_valid();
+        bool with_zp = primitive->decompression_zero_point.is_valid();
         if (commpressed) {
             params.compressed = true;
             params.decompression_scale = convert_data_tensor(impl_param.get_input_layout(2));

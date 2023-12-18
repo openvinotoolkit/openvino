@@ -46,8 +46,8 @@ struct gather : public primitive_base<gather> {
     /// @param dict Input dictionary primitive id.
     /// @param idx Input indexes primitive id.
     /// @param axis Gathering axis.
-    /// @param compression_scale Primitive id containing scale factors for weights decompression.
-    /// @param compression_zero_point Primitive id containing zero points for weights decompression.
+    /// @param decompression_scale Input decompression scale factors primitive id.
+    /// @param decompression_zero_point Input decompression zero point primitive id.
     /// @param input_rank Input rank.
     /// @param output_shape Output shape.
     /// @param batch_dim Batch_dim
@@ -56,8 +56,8 @@ struct gather : public primitive_base<gather> {
            const input_info& dict,
            const input_info& idx,
            const int64_t axis,
-           const primitive_id& decompression_scale,
-           const primitive_id& decompression_zero_point,
+           const input_info& decompression_scale,
+           const input_info& decompression_zero_point,
            const ov::element::Type decompressed_type,
            const int64_t input_rank,
            const ov::Shape& output_shape,
@@ -74,7 +74,7 @@ struct gather : public primitive_base<gather> {
         , decompressed_type(decompressed_type)
         , decompression_scale(decompression_scale)
         , decompression_zero_point(decompression_zero_point) {
-            OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed gather requires at least decompression scale input");
+            OPENVINO_ASSERT(decompression_scale.is_valid(), "[GPU] Compressed gather requires at least decompression scale input");
         }
 
     /// @brief Gathering axis
@@ -90,8 +90,8 @@ struct gather : public primitive_base<gather> {
 
     bool compressed_weights = false;
     ov::element::Type decompressed_type;
-    primitive_id decompression_scale = "";
-    primitive_id decompression_zero_point = "";
+    input_info decompression_scale;
+    input_info decompression_zero_point;
     optional_value<float> decompression_zero_point_scalar = optional_value<float>();
 
     size_t hash() const override {
@@ -101,8 +101,8 @@ struct gather : public primitive_base<gather> {
         seed = hash_combine(seed, support_neg_ind);
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, decompressed_type.get_type_name());
-        seed = hash_combine(seed, !decompression_scale.empty());
-        seed = hash_combine(seed, !decompression_zero_point.empty());
+        seed = hash_combine(seed, decompression_scale.is_valid());
+        seed = hash_combine(seed, decompression_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
         seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
         return seed;
@@ -118,8 +118,8 @@ struct gather : public primitive_base<gather> {
                batch_dim == rhs_casted.batch_dim &&
                support_neg_ind == rhs_casted.support_neg_ind &&
                compressed_weights == rhs_casted.compressed_weights &&
-               decompression_scale.empty() == rhs_casted.decompression_scale.empty() &&
-               decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
+               decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
+               decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
@@ -172,11 +172,11 @@ protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
 
-        if (!decompression_scale.empty())
-            ret.push_back(decompression_scale);
+        if (decompression_scale.is_valid())
+            ret.push_back(decompression_scale.pid);
 
-        if (!decompression_zero_point.empty())
-            ret.push_back(decompression_zero_point);
+        if (decompression_zero_point.is_valid())
+            ret.push_back(decompression_zero_point.pid);
 
         return ret;
     }

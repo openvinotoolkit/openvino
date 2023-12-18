@@ -17,7 +17,6 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-// # include "intel_gpu/op/gather_compressed.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
