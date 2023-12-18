@@ -76,7 +76,8 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SPEED)) {
         return false;
     }
 

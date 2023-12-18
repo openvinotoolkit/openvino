@@ -311,6 +311,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
+    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+        return nullptr;
+
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config);
 }
@@ -555,6 +558,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::cache_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
