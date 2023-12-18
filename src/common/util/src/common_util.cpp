@@ -5,6 +5,10 @@
 #include "openvino/util/common_util.hpp"
 
 #include <algorithm>
+#include <numeric>
+#include <sstream>
+#include <string>
+#include <vector>
 
 std::string ov::util::to_lower(const std::string& s) {
     std::string rc = s;
@@ -47,4 +51,17 @@ size_t ov::util::hash_combine(const std::vector<size_t>& list) {
         seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
     return seed;
+}
+
+std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {
+    auto lines = ov::util::split(str, '\n');
+    std::vector<std::string> res;
+    for (auto line : lines) {
+        const char* const prefix_c = prefix.c_str();
+        if (line.find(prefix_c) == 0) {
+            res.push_back(line + '\n');
+        }
+    }
+    return std::accumulate(res.begin(), res.end(), std::string(""));
+    ;
 }
