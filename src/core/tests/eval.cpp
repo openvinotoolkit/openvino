@@ -1803,6 +1803,39 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_max_exclusive) {
     ASSERT_EQ(cval, out);
 }
 
+TEST(eval, evaluate_static_scatter_elements_update_reduction_max_exclusive_float) {
+    using namespace ov::op;
+    const Shape data_shape{9};
+    const Shape indices_shape{9};
+    const auto arg1 = make_shared<v0::Parameter>(element::f32, data_shape);
+    const auto arg2 = make_shared<v0::Parameter>(element::i32, indices_shape);
+    const auto arg3 = make_shared<v0::Parameter>(element::f32, indices_shape);
+    const auto arg4 = make_shared<v0::Parameter>(element::i64, Shape{});
+    const auto scatter_elements_update =
+        make_shared<v12::ScatterElementsUpdate>(arg1,
+                                                arg2,
+                                                arg3,
+                                                arg4,
+                                                v12::ScatterElementsUpdate::Reduction::MAX,
+                                                false);
+    const auto model =
+        make_shared<Model>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = Tensor{};
+    auto out_vector = TensorVector{result_tensor};
+    auto in_vector =
+        TensorVector{make_tensor<element::Type_t::f32>(data_shape, {1000, 2, 3, 4, -5, 6, 7, -2, 8}),
+                     make_tensor<element::Type_t::i32>(indices_shape, {0, 2, 1, 3, 7, 4, 6, 7, 0}),
+                     make_tensor<element::Type_t::f32>(indices_shape, {999, 10, 20, 30, -40, -6, 8, -9, 555}),
+                     make_tensor<element::Type_t::i64>({}, {0})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
+    EXPECT_EQ(result_tensor.get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor.get_shape(), data_shape);
+    const auto cval = read_vector<float>(result_tensor);
+    const vector<float> out{999, 20, 10, 30, -6, 6, 8, -9, 8};
+    ASSERT_EQ(cval, out);
+}
+
 TEST(eval, evaluate_static_scatter_elements_update_boolean_sum) {
     const Shape data_shape{5};
     const Shape indices_shape{6};
