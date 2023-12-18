@@ -218,8 +218,7 @@ def main():
         start_infer_time = default_timer()
 
         # Reset states between utterance inferences to remove a memory impact
-        for state in infer_request.query_state():
-            state.reset()
+        infer_request.reset_state()
 
         results.append(do_inference(
             infer_data[i],
