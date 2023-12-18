@@ -39,7 +39,6 @@ struct kernel_impl_params {
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     bool _can_be_optimized = false;
-    bool _can_share_buffer = true;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -131,10 +130,6 @@ struct kernel_impl_params {
 
     bool can_be_optimized() const {
         return _can_be_optimized;
-    }
-
-    bool can_share_buffer() const {
-        return _can_share_buffer;
     }
 
     template <class PType>

@@ -491,19 +491,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    // If the node's output memory is used as next input memory for the same node,
-    // the buffer should be allocated newly every time to prevent data corruption
-    bool output_used_as_its_input_next_iter = false;
-    if (get_node().is_type<concatenation>()) {
-        if (!can_be_optimized() && !allocation_done_by_other && get_users().front()->is_type<assign>()) {
-            output_used_as_its_input_next_iter = true;
-            updated_params._can_share_buffer = false;
-        }
-    }
-
     bool can_reuse_buffer = _outputs[0]
                              && updated_layout.count() <= max_output_layout_size
-                             && !output_used_as_its_input_next_iter;
+                             && !need_reset_output_memory();
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -1491,9 +1481,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
-                                       ? (!reset && impl_params.can_share_buffer())
-                                       : !user_requesting_mem_reuse_false(_node);
+    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout()) ? !reset : !user_requesting_mem_reuse_false(_node);
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be executed in parallel with predecessors
     // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs
@@ -1506,7 +1494,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
                                               _node.get_preferred_impl_type() == impl_types::cpu;
     auto use_lockable_memory =
-        is_output_buffer || is_cpu ||
+        (is_output_buffer && !reset) || is_cpu ||
         has_any_cpu_user_not_shape_of_assign(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);

@@ -5,6 +5,7 @@
 #pragma once
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "primitive_inst.h"
+#include "assign_inst.h"
 
 #include <string>
 #include <memory>
@@ -38,6 +39,22 @@ public:
     static std::vector<layout> calc_output_layouts(const concatenation_node& /* node */, const kernel_impl_params& impl_param);
     static layout calc_output_layout(concatenation_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(concatenation_node const& node);
+
+    bool need_reset_output_memory() const override {
+        // TODO: It's also necessary to search for read_value with the same variable id in depedencies
+        for (const auto& user : _node->get_users()) {
+            if (user->is_type<assign>()) {
+                auto user_inst = _network.get_primitive(user->id());
+                auto user_prim = user->as<assign>().get_primitive();
+                if (!can_be_optimized() && !allocation_done_by_other
+                    && user_inst->can_be_optimized()
+                    && get_network().has_variable(user_prim->variable_id)) {
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
 
     typed_primitive_inst(network& network, concatenation_node const& node);
 };

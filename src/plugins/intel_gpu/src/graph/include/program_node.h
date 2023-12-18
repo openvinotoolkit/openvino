@@ -132,7 +132,6 @@ public:
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
-        params->_can_share_buffer = this->share_buffer;
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
             if (!deps[i].first->is_constant()) {
