@@ -149,7 +149,8 @@ public:
             ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
                          // (for large #streams)
         } _thread_preferred_core_type =
-            PreferredCoreType::ANY;     //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
+            PreferredCoreType::ANY;  //!< LITTLE and BIG are valid in hybrid core machine, ANY is valid in all machines.
+                                     //!< Core type priority: physical PCore, ECore, logical PCore
         bool _cpu_reservation = false;  //!< Reserve the CPU that cannot be used by other executors
         std::vector<std::vector<int>> _streams_info_table =
             {};  //!< streams information table {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM, STREAM_NUMA_NODE_ID,
