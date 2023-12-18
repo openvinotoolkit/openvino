@@ -7,7 +7,10 @@ Model Training
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :glob:
+   :reversed:
 
+   notebooks/3*
 
 Tutorials that include code to train neural networks.
 

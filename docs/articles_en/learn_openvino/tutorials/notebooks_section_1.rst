@@ -7,7 +7,10 @@ Convert & Optimize
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :glob:
+   :reversed:
 
+   notebooks/1*
 
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 

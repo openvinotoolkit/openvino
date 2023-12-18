@@ -7,7 +7,10 @@ Model Demos
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :glob:
+   :reversed:
 
+   notebooks/2*
 
 Demos that demonstrate inference on a particular model.
 

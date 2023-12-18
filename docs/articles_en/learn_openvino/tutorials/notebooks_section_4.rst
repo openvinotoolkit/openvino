@@ -7,7 +7,10 @@ Live Demos
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :glob:
+   :reversed:
 
+   notebooks/4*
 
 Live inference demos that run on a webcam or video files.
 

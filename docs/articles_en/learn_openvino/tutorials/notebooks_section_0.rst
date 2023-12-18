@@ -7,7 +7,10 @@ First steps with OpenVINO
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :glob:
+   :reversed:
 
+   notebooks/0*
 
 Brief tutorials that demonstrate how to use Python API for inference in OpenVINO.
 
