@@ -135,12 +135,12 @@ std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_idle_c
 
         const auto& executorConfig = it.first;
         if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
-            executorConfig._threadsPerStream == config._threadsPerStream &&
+            executorConfig._threads_per_stream == config._threads_per_stream &&
             executorConfig._threadBindingType == config._threadBindingType &&
             executorConfig._threadBindingStep == config._threadBindingStep &&
             executorConfig._threadBindingOffset == config._threadBindingOffset)
             if (executorConfig._threadBindingType != ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
-                executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
+                executorConfig._thread_preferred_core_type == config._thread_preferred_core_type)
                 return executor;
     }
     auto newExec = std::make_shared<ov::threading::CPUStreamsExecutor>(config);

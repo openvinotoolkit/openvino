@@ -85,7 +85,7 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else if (name == ov::inference_num_threads) {
         return {std::to_string(streams_executor_config._threads)};
     } else if (name == ov::internal::threads_per_stream) {
-        return {std::to_string(streams_executor_config._threadsPerStream)};
+        return {std::to_string(streams_executor_config._threads_per_stream)};
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
     } else if (name == ov::hint::inference_precision) {

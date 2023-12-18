@@ -114,11 +114,18 @@ public:
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int get_hybrid_num_streams(std::map<std::string, std::string>& config, const int stream_mode);
         static void update_hybrid_custom_threads(Config& config);
+
+        /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information
+         *        streams_info_table must be present in the configuration
+         * @param initial Inital configuration
+         * @return configured values
+         */
         static Config reserve_cpu_threads(const Config& initial);
 
-        std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 1;           //!< Number of streams.
-        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
+        std::string _name;            //!< Used by `ITT` to name executor threads
+        int _streams = 1;             //!< Number of streams.
+        int _threads_per_stream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
@@ -141,7 +148,7 @@ public:
             BIG,
             ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
                          // (for large #streams)
-        } _threadPreferredCoreType =
+        } _thread_preferred_core_type =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
         bool _cpu_reservation = false;
         std::vector<std::vector<int>> _streams_info_table = {};
@@ -153,10 +160,10 @@ public:
          *
          * @param[in]  name                         The executor name
          * @param[in]  streams                      @copybrief Config::_streams
-         * @param[in]  threads_per_stream           @copybrief Config::_threadsPerStream
-         * @param[in]  thread_preferred_core_type   @copybrief Config::_threadPreferBigCores
-         * @param[in]  cpu_reservation              @copybrief cpu reservation
-         * @param[in]  streams_info_table           @copybrief streams infomation table
+         * @param[in]  threads_per_stream           @copybrief Config::_threads_per_stream
+         * @param[in]  thread_preferred_core_type   @copybrief Config::_thread_preferred_core_type
+         * @param[in]  cpu_reservation              @copybrief Config::_cpu_reservation
+         * @param[in]  streams_info_table           @copybrief Config::_streams_info_table
          */
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
@@ -166,8 +173,8 @@ public:
                std::vector<std::vector<int>> streams_info_table = {})
             : _name{name},
               _streams{streams},
-              _threadsPerStream{threads_per_stream},
-              _threadPreferredCoreType(thread_preferred_core_type),
+              _threads_per_stream{threads_per_stream},
+              _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _streams_info_table{streams_info_table} {
             update_executor_config();

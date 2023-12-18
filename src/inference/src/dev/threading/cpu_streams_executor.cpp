@@ -85,14 +85,14 @@ struct CPUStreamsExecutor::Impl {
                 init_stream_legacy();
             }
 #elif OV_THREAD == OV_THREAD_OMP
-            omp_set_num_threads(_impl->_config._threadsPerStream);
+            omp_set_num_threads(_impl->_config._threads_per_stream);
             if (!check_open_mp_env_vars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
-                    parallel_nt(_impl->_config._threadsPerStream, [&](int threadIndex, int threadsPerStream) {
-                        int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex +
+                    parallel_nt(_impl->_config._threads_per_stream, [&](int threadIndex, int threadsPerStream) {
+                        int thrIdx = _streamId * _impl->_config._threads_per_stream + threadIndex +
                                      _impl->_config._threadBindingOffset;
                         pin_thread_to_vacant_core(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
                     });
@@ -212,15 +212,15 @@ struct CPUStreamsExecutor::Impl {
         }
 
         void init_stream_legacy() {
-            const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic
-                                                                             : _impl->_config._threadsPerStream;
+            const auto concurrency = (0 == _impl->_config._threads_per_stream) ? custom::task_arena::automatic
+                                                                             : _impl->_config._threads_per_stream;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
-                    if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
+                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._thread_preferred_core_type) {
+                    if (Config::PreferredCoreType::ANY == _impl->_config._thread_preferred_core_type) {
                         _taskArena.reset(new custom::task_arena{concurrency});
                     } else {
                         const auto selected_core_type =
-                            Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
+                            Config::PreferredCoreType::BIG == _impl->_config._thread_preferred_core_type
                                 ? custom::info::core_types().back()    // running on Big cores only
                                 : custom::info::core_types().front();  // running on Little cores only
                         _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
@@ -296,7 +296,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
-            } else if ((0 != _impl->_config._threadsPerStream) ||
+            } else if ((0 != _impl->_config._threads_per_stream) ||
                        (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
@@ -308,7 +308,7 @@ struct CPUStreamsExecutor::Impl {
                                                      std::move(processMask),
                                                      ncpus,
                                                      _streamId,
-                                                     _impl->_config._threadsPerStream,
+                                                     _impl->_config._threads_per_stream,
                                                      _impl->_config._threadBindingStep,
                                                      _impl->_config._threadBindingOffset});
                         _observer->observe(true);

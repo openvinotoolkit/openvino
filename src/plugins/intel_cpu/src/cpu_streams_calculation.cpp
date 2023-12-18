@@ -550,7 +550,7 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     generate_stream_info(streams, model, config, proc_type_table);
 
     executor_config = IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
-    executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
+    executor_config._threads_per_stream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
 }
 
 int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode) {
