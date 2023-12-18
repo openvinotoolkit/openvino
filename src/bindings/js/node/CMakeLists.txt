@@ -24,27 +24,27 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(node-addon-api)
 
 add_library(${PROJECT_NAME} SHARED
-    src/node_output.cpp
-    src/async_reader.cpp
-    src/preprocess/preprocess.cpp
-    src/preprocess/pre_post_process_wrap.cpp
-    src/preprocess/preprocess_steps.cpp
-    src/preprocess/input_info.cpp
-    src/preprocess/output_info.cpp
-    src/preprocess/input_tensor_info.cpp
-    src/preprocess/output_tensor_info.cpp
-    src/preprocess/input_model_info.cpp
-    src/preprocess/resize_algorithm.cpp
-    src/errors.cpp
-    src/helper.cpp
-    src/tensor.cpp
-    src/infer_request.cpp
-    src/compiled_model.cpp
-    src/core_wrap.cpp
-    src/model_wrap.cpp
-    src/addon.cpp
-    src/element_type.cpp
-    src/partial_shape_wrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/node_output.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/pre_post_process_wrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/input_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/output_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/input_tensor_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/output_tensor_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/input_model_info.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/resize_algorithm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/errors.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core_wrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/model_wrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/addon.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/element_type.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/partial_shape_wrap.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
