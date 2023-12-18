@@ -47,6 +47,60 @@ class TestEmptyNumeric(PytorchLayerTest):
     def test_empty(self, ie_device, precision, ir_version, dtype):
         self._test(*self.create_model(dtype), ie_device, precision, ir_version)
 
+
+class TestEmptyLike(PytorchLayerTest):
+
+    def _prepare_input(self, shape, dtype=np.float32, out=False):
+        if not out:
+            return (np.random.randn(*shape).astype(dtype if dtype is not None else np.float32),)
+        return (np.random.randn(*shape), np.ones(shape, dtype=(dtype if dtype is not None else np.float32)))
+
+    def create_model(self, dtype, out):
+
+        class aten_empty_like(torch.nn.Module):
+                
+            def __init__(self, dtype=None, out=False):
+                dtype_map = {
+                    "float32": torch.float32,
+                    "float64": torch.float64,
+                    "int64": torch.int64,
+                    "int32": torch.int32,
+                    "uint8": torch.uint8,
+                    "int8": torch.int8
+                }
+                super().__init__()
+                self.dtype = dtype_map.get(dtype, None)
+                if out:
+                    self.forward = self.forward_out
+
+            def forward(self, input_tensor):
+                empty = torch.empty_like(input_tensor, dtype=self.dtype)
+                # We don't want to compare values, just shape and type,
+                # so we call zeros_like on data. Multiplying by zero would
+                # produce sporadic errors if nan would be in empty.
+                return torch.zeros_like(empty)
+
+            def forward_out(self, input_tensor, out_tensor):
+                torch.empty_like(input_tensor, out=out_tensor)
+                # We don't want to compare values, just shape and type,
+                # so we call zeros_like on data. Multiplying by zero would
+                # produce sporadic errors if nan would be in empty.
+                return torch.zeros_like(out_tensor)
+
+        ref_net = None
+
+        return aten_empty_like(dtype, out), ref_net, "aten::empty_like"
+
+    @pytest.mark.parametrize('dtype', (None, "float32", "float64", "int64", "int32", "uint8", "int8"))
+    @pytest.mark.parametrize("input_shape", [[2,], [1, 10], [10, 5, 2]])
+    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_empty(self, ie_device, precision, ir_version, dtype, input_shape, out):
+        self._test(*self.create_model(dtype, out), ie_device, precision, ir_version, 
+                   kwargs_to_prepare_input={"shape": input_shape, "out": out, "dtype": dtype})
+
+
 class TestEmptyBoolean(PytorchLayerTest):
 
     def _prepare_input(self):

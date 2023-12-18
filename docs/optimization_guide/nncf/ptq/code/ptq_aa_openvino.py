@@ -18,8 +18,10 @@ validation_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [validation]
 import numpy as np
 import torch
-import openvino
 from sklearn.metrics import accuracy_score
+
+import openvino
+
 
 def validate(model: openvino.CompiledModel, 
              validation_loader: torch.utils.data.DataLoader) -> float:
@@ -34,19 +36,21 @@ def validate(model: openvino.CompiledModel,
         references.append(target)
 
     predictions = np.concatenate(predictions, axis=0)
-    references = np.concatenate(references, axis=0)  
+    references = np.concatenate(references, axis=0)
     return accuracy_score(predictions, references)
 #! [validation]
 
 #! [quantization]
 model = ... # openvino.Model object
 
-quantized_model = nncf.quantize_with_accuracy_control(model,
-                        calibration_dataset=calibration_dataset,
-                        validation_dataset=validation_dataset,
-                        validation_fn=validate,
-                        max_drop=0.01,
-                        drop_type=nncf.DropType.ABSOLUTE)
+quantized_model = nncf.quantize_with_accuracy_control(
+    model,
+    calibration_dataset=calibration_dataset,
+    validation_dataset=validation_dataset,
+    validation_fn=validate,
+    max_drop=0.01,
+    drop_type=nncf.DropType.ABSOLUTE,
+)
 #! [quantization]
 
 #! [inference]

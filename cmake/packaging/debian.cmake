@@ -57,9 +57,6 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "nvidia" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
-           # even for case of system TBB we have installation rules for wheels packages
-           # so, need to skip this explicitly
-           NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
@@ -317,7 +314,7 @@ macro(ov_cpack_settings)
         list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${installed_plugins})
         list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${frontends})
 
-        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino-${cpack_name_ver}")
         set(python_package "${CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
         set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
 
@@ -368,6 +365,7 @@ macro(ov_cpack_settings)
         set(python_samples_package "${CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME} (= ${cpack_full_ver})")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3, ${python_package}")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
+        ov_debian_generate_conflicts(${OV_CPACK_COMP_PYTHON_SAMPLES} ${conflicting_versions})
         set(python_samples_copyright "generic")
     endif()
 

@@ -97,10 +97,10 @@ private:
     std::shared_ptr<ov::Model> getMulFunction(const ngraph::Shape input_shape) {
         const ngraph::element::Type net_precision = ngraph::element::f32;
 
-        auto input = std::make_shared<ngraph::opset8::Parameter>(net_precision, input_shape);
-        auto multiplier = std::make_shared<ngraph::opset8::Constant>(net_precision, input_shape);
-        auto matmul = std::make_shared<ngraph::opset8::MatMul>(input, multiplier, false, true);
-        auto result = std::make_shared<ngraph::opset8::Result>(matmul);
+        auto input = std::make_shared<ov::op::v0::Parameter>(net_precision, input_shape);
+        auto multiplier = std::make_shared<ov::op::v0::Constant>(net_precision, input_shape);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, multiplier, false, true);
+        auto result = std::make_shared<ov::op::v0::Result>(matmul);
         auto function = std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "MatMul");
         return function;
     }
@@ -152,11 +152,13 @@ class MemoryAlignmentTest : public ::testing::Test {};
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_5) {
     Limitations::init(DeviceVersion::GNA3_5);
     EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 64);
+    Limitations::deinit();
 }
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect16ByteAlignmentWhenTargetIsGNA3_6) {
     Limitations::init(DeviceVersion::GNA3_6);
     EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 16);
+    Limitations::deinit();
 }
 
 }  // namespace testing

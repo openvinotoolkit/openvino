@@ -20,7 +20,16 @@ public:
     OPENVINO_RTTI("RoPEFusionGPTJ", "0");
     RoPEFusionGPTJ();
 };
-
+class RoPEFusionChatGLM : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RoPEFusionChatGLM", "0");
+    RoPEFusionChatGLM(int split_output_id);
+};
+class RoPEFusionQwen : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RoPEFusionQwen", "0");
+    RoPEFusionQwen(int split_output_id);
+};
 class RoPEFusionIOSlicing : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEFusionIOSlicing", "0");
@@ -56,6 +65,12 @@ public:
         add_matcher<RoPEFusionCosSinPreprocess>();
         add_matcher<RoPEFusionIOSlicing>();
         add_matcher<RoPEFusionPreprocess>();
+
+        add_matcher<RoPEFusionChatGLM>(0);
+        add_matcher<RoPEFusionChatGLM>(1);
+
+        add_matcher<RoPEFusionQwen>(0);
+        add_matcher<RoPEFusionQwen>(1);
     }
 };
 

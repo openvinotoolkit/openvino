@@ -16,7 +16,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
+#include "parallel_custom_arena.hpp"
 
 namespace ov {
 namespace threading {
@@ -563,6 +563,10 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
         return;
     }
 
+    if (proc_type_table.size() > 1) {
+        core_type = ov::threading::IStreamsExecutor::Config::ANY;
+    }
+
     // IStreamsExecutor::Config config = initial;
     const auto total_num_cores = proc_type_table[0][ALL_PROC];
     const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
@@ -657,6 +661,23 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
         _streams = new_config._streams;
         _threads = new_config._threads;
     }
+}
+
+void IStreamsExecutor::Config::set_config_zero_stream() {
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+    int core_type = MAIN_CORE_PROC;
+    int numa_id = 0;
+    int socket_id = 0;
+
+    if (proc_type_table.size() > 0) {
+        core_type = proc_type_table[0][MAIN_CORE_PROC] > 0
+                        ? MAIN_CORE_PROC
+                        : (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 ? EFFICIENT_CORE_PROC : HYPER_THREADING_PROC);
+        numa_id = std::max(0, proc_type_table[0][PROC_NUMA_NODE_ID]);
+        socket_id = std::max(0, proc_type_table[0][PROC_SOCKET_ID]);
+    }
+    _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
+    _cpu_reservation = false;
 }
 
 }  // namespace threading

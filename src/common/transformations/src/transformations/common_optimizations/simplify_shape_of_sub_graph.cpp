@@ -10,7 +10,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -24,6 +23,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -128,9 +128,7 @@ pass::GatherNopElimination::GatherNopElimination() {
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);
         std::iota(expected_vector.begin(), expected_vector.end(), 0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto& indices = get_constant_from_source(gather->input_value(1))) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const auto& indices = ov::util::get_constant_from_source(gather->input_value(1))) {
             const auto& indices_values = indices->cast_vector<int64_t>();
             if (indices_values != expected_vector)
                 return false;

@@ -496,7 +496,7 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     convert_impl<float, float16, true>(arg, out, count);
 #else
-    // FIXME: duplicate and stub for ARM, provide more optimized solution
+    // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
     for (size_t i = 0; i < count; ++i) {
         if (arg[i] > std::numeric_limits<ov::float16>::max()) {
             out[i] = std::numeric_limits<ov::float16>::max();

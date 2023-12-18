@@ -11,6 +11,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
@@ -35,6 +36,12 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             const precisions_map& precisions,
                             bool convert_input_precision);
 
+// this function inserts Convert operations to 'data' input and outputs of `node`
+// to execute 'node' with the original type.
+bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+
+bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable, const precisions_map& precisions);
+
 bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<ov::Input<ov::Node>>& consumers);
@@ -52,6 +59,7 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
 bool fuse_type_to_nms_rotated(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_multinomial_v13(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_generate_proposals(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_topk(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -207,6 +215,12 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
     }
 
+    if (convert_input_output_precision) {
+        for (const auto& variable : f->get_variables()) {
+            is_changed |= fuse_type_to_variable(variable, precisions);
+        }
+    }
+
     if (is_changed)
         ops = f->get_ordered_ops();
 
@@ -244,6 +258,14 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                                                          true,
                                                          true);
             }
+        }
+        // if convert_input_output_precision flag is set, we don't need to preserve the original precision
+        // for Assign/ReadValue ops, we have already changed the type in Variable.
+        // Otherwise, we have insert Convert ops to inputs/outputs of ReadValue/Assign
+        if ((as_type_ptr<op::util::AssignBase>(node) || as_type_ptr<op::util::ReadValueBase>(node)) &&
+            convert_input_output_precision) {
+            node->revalidate_and_infer_types();
+            continue;
         }
         is_output_precision_changed |= convert_node_output_precision(node,
                                                                      precisions,
@@ -380,6 +402,8 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     type_to_fuse_map type_to_fuse{
         {opset4::Convert::get_type_info_static(), fuse_type_to_convert},
         {opset4::ShapeOf::get_type_info_static(), fuse_type_to_shapeof},
+        {opset6::Assign::get_type_info_static(), wrap_into_original_type},
+        {opset6::ReadValue::get_type_info_static(), wrap_into_original_type},
         {opset3::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms3},
         {opset4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
         {opset5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
@@ -416,7 +440,9 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
         {opset9::Eye::get_type_info_static(), fuse_type_to_eye_v9},
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
-        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
+        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8},
+        {opset13::Multinomial::get_type_info_static(), fuse_type_to_multinomial_v13},
+    };
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
@@ -555,6 +581,38 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
         }
     }
     return changed;
+}
+
+bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it == precisions.end())
+        return false;
+
+    const auto& to = it->second;
+    const auto& from = it->first;
+
+    auto convert_before = std::make_shared<opset4::Convert>(node->input_value(0), from);
+    node->input(0).replace_source_output(convert_before);
+    auto consumers = node->output(0).get_target_inputs();
+    auto convert_after = std::make_shared<opset4::Convert>(node, to);
+    for (auto& input : consumers) {
+        const auto consumer = input.get_node();
+        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+            continue;
+        }
+        input.replace_source_output(convert_after);
+    }
+
+    return true;
+}
+
+bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable, const precisions_map& precisions) {
+    auto it = precisions.find(variable->get_info().data_type);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+    variable->update_data_type(to);
+    return true;
 }
 
 bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -787,6 +845,17 @@ bool fuse_type_to_multiclass_nms(const std::shared_ptr<ov::Node>& node, const pr
 
     return update_type(1, node, precisions, [&](const element::Type& to) {
         nms->set_output_type(to);
+    });
+}
+
+bool fuse_type_to_multinomial_v13(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto multinomial = ov::as_type_ptr<opset13::Multinomial>(node);
+    if (!multinomial) {
+        return false;
+    }
+
+    return update_type(0, node, precisions, [&](const element::Type& type) {
+        multinomial->set_convert_type(type);
     });
 }
 
@@ -1213,6 +1282,12 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
             new_const = change_constant_precision<ov::element::Type_t::boolean, ov::element::Type_t::u8>(constant);
         } else if (from == ov::element::boolean && to == ov::element::i32) {
             new_const = change_constant_precision<ov::element::Type_t::boolean, ov::element::Type_t::i32>(constant);
+        } else if (from == ov::element::i8 && to == ov::element::f32) {
+            new_const = change_constant_precision<ov::element::Type_t::i8, ov::element::Type_t::f32>(constant);
+        } else if (from == ov::element::u8 && to == ov::element::f32) {
+            new_const = change_constant_precision<ov::element::Type_t::u8, ov::element::Type_t::f32>(constant);
+        } else if (from == ov::element::i8 && to == ov::element::i64) {
+            new_const = change_constant_precision<ov::element::Type_t::i8, ov::element::Type_t::i64>(constant);
         } else if (from == ov::element::i4 || from == ov::element::u4 || from == ov::element::u1) {
             new_const = convert_low_precisions_int(constant, to);
         } else {

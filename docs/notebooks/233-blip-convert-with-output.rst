@@ -31,8 +31,7 @@ The tutorial consists of the following parts:
    -  `Visual Question Answering <#visual-question-answering>`__
 
 -  `Instantiate Model <#instantiate-model>`__
--  `Convert Models to OpenVINO
-   IR <#convert-models-to-openvino-ir>`__
+-  `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
 
    -  `Vision Model <#vision-model>`__
    -  `Text Encoder <#text-encoder>`__
@@ -40,8 +39,7 @@ The tutorial consists of the following parts:
 
 -  `Run OpenVINO Model <#run-openvino-model>`__
 
-   -  `Prepare Inference
-      Pipeline <#prepare-inference-pipeline>`__
+   -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
    -  `Select inference device <#select-inference-device>`__
    -  `Image Captioning <#image-captioning>`__
    -  `Question Answering <#question-answering>`__
@@ -49,8 +47,10 @@ The tutorial consists of the following parts:
 -  `Interactive demo <#interactive-demo>`__
 -  `Next steps <#next-steps>`__
 
-Background 
-----------------------------------------------------
+Background
+----------
+
+
 
 Visual language processing is a branch of artificial intelligence that
 focuses on creating algorithms designed to enable computers to more
@@ -79,8 +79,10 @@ context are variables requested by a user.
 This notebook does not focus on Text to Image retrieval. Instead, it
 considers Image Captioning and Visual Question Answering.
 
-Image Captioning 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image Captioning
+~~~~~~~~~~~~~~~~
+
+
 
 Image Captioning is the task of describing the content of an image in
 words. This task lies at the intersection of computer vision and natural
@@ -91,8 +93,10 @@ decoded into a descriptive text sequence.
 
 |image1|
 
-Visual Question Answering 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Visual Question Answering
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Visual Question Answering (VQA) is the task of answering text-based
 questions about image content.
@@ -189,8 +193,10 @@ There are a lot of applications for visual question answering:
 .. |image4| image:: https://user-images.githubusercontent.com/29454499/222094861-3cafdf9f-d700-4741-b6c5-fb09c1a4da9a.png
 .. |image5| image:: https://user-images.githubusercontent.com/29454499/222095118-3d5826e4-2662-4d1c-abf2-a515f23d6d6a.png
 
-Instantiate Model 
------------------------------------------------------------
+Instantiate Model
+-----------------
+
+
 
 The BLIP model was proposed in the `BLIP: Bootstrapping Language-Image
 Pre-training for Unified Vision-Language Understanding and
@@ -239,8 +245,7 @@ text and vision modalities and postprocessing of generation results.
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
-    %pip install -q "transformers >= 4.26.0" gradio "openvino>=2023.1.0" matplotlib
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "transformers>=4.26.0" gradio "openvino>=2023.1.0" matplotlib
 
 .. code:: ipython3
 
@@ -315,8 +320,10 @@ text and vision modalities and postprocessing of generation results.
 .. image:: 233-blip-convert-with-output_files/233-blip-convert-with-output_7_0.png
 
 
-Convert Models to OpenVINO IR 
------------------------------------------------------------------------
+Convert Models to OpenVINO IR
+-----------------------------
+
+
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to OpenVINO Intermediate Representation (IR) format to
@@ -337,8 +344,10 @@ The model consists of three parts:
 To be able to perform multiple tasks, using the same model components,
 you should convert each part independently.
 
-Vision Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Vision Model
+~~~~~~~~~~~~
+
+
 
 The vision model accepts float input tensors with the [1,3,384,384]
 shape, containing RGB image pixel values normalized in the [0,1] range.
@@ -375,8 +384,10 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
     Vision model will be loaded from blip_vision_model.xml
 
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 The text encoder is used by visual question answering tasks to build a
 question embedding representation. It takes ``input_ids`` with a
@@ -412,8 +423,10 @@ model and attention masks for them.
     Text encoder will be loaded from blip_text_encoder.xml
 
 
-Text Decoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Decoder
+~~~~~~~~~~~~
+
+
 
 The text decoder is responsible for generating the sequence of tokens to
 represent model output (answer to question or caption), using an image
@@ -493,17 +506,21 @@ shapes.
     Text decoder will be loaded from blip_text_decoder_with_past.xml
 
 
-Run OpenVINO Model 
-------------------------------------------------------------
+Run OpenVINO Model
+------------------
 
-Prepare Inference Pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Prepare Inference Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
 you can see how image captioning works:
 
-|image21|
+|image01|
 
 The visual model accepts the image preprocessed by ``BlipProcessor`` as
 input and produces image embeddings, which are directly passed to the
@@ -517,20 +534,22 @@ tokenized by ``BlipProcessor`` are provided to the text encoder and then
 multimodal question embedding is passed to the text decoder for
 performing generation of answers.
 
-|image31|
+|image11|
 
 The next step is implementing both pipelines using OpenVINO models.
 
-.. |image21| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
-.. |image31| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
+.. |image01| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
+.. |image11| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
 
 .. code:: ipython3
 
     # create OpenVINO Core object instance
     core = ov.Core()
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -586,8 +605,10 @@ initial token for decoder work.
 
 Now, the model is ready for generation.
 
-Image Captioning 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image Captioning
+~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -600,8 +621,10 @@ Image Captioning
 .. image:: 233-blip-convert-with-output_files/233-blip-convert-with-output_25_0.png
 
 
-Question Answering 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Question Answering
+~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -626,8 +649,10 @@ Question Answering
     Processing time: 0.1617
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
@@ -671,10 +696,12 @@ Interactive demo
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
 
-Next steps 
-----------------------------------------------------
+Next steps
+----------
 
-Open the `233-blip-optimize <233-blip-optimize-with-output.html>`__ notebook to
+
+
+Open the `233-blip-optimize <233-blip-optimize.ipynb>`__ notebook to
 quantize vision and text encoder models with the Post-training
 Quantization API of NNCF and compress weights of the text decoder. Then
 compare the converted and optimized OpenVINO models.
