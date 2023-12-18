@@ -6,6 +6,7 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace ov {
 namespace test {
@@ -76,7 +77,7 @@ void OutputBeforeActivation::SetUp() {
         GTEST_FAIL() << "Unknown midOutputType";
     }
 
-    auto act = ngraph::builder::makeActivation(midLayer, element_type, ngraph::helpers::ActivationTypes::Tanh);
+    auto act = ov::test::utils::make_activation(midLayer, element_type, ngraph::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
     function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
 }

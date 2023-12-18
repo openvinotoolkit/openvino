@@ -4,6 +4,7 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -40,7 +41,7 @@ void ActivationConcatsEltwise::SetUp() {
 
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
 
-    auto relu = ngraph::builder::makeActivation(input[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto relu = ov::test::utils::make_activation(input[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
     auto concat_vals_1 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
     auto concat_vals_2 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);

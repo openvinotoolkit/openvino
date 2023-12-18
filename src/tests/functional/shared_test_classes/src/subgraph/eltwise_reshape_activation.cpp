@@ -3,6 +3,7 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/eltwise_reshape_activation.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -42,7 +43,7 @@ void EltwiseReshapeActivation::SetUp() {
     auto reshape_pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{shapes[1].size()}, shapes[1]);
     auto reshape1 = std::make_shared<ov::op::v1::Reshape>(eltw, reshape_pattern1, false);
 
-    auto relu = ngraph::builder::makeActivation(reshape1, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto relu = ov::test::utils::make_activation(reshape1, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
     auto reshape_pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{shapes[0].size()}, shapes[0]);
     auto reshape2 = std::make_shared<ov::op::v1::Reshape>(relu, reshape_pattern2, false);
