@@ -32,7 +32,7 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
         inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(zero, query)));
     }
     if (!context.input_is_none(6))
-        inputs.push_back(context.get_input(6));
+        inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(6), query)));
 
     return context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
 }
