@@ -415,17 +415,22 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 core_1 = std::stoi(sub_str);
                 sub_str = system_info_table[nproc][1].substr(endpos + 1);
                 core_2 = std::stoi(sub_str);
+                if ((core_2 - core_1 == 1) && (_proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
+                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                } else {
+                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                }
 
                 for (int m = core_1; m <= core_2; m++) {
                     _cpu_mapping_table[m][CPU_MAP_PROCESSOR_ID] = m;
                     _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _cores;
-                    _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                    _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE];
                     _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = n_group;
 
                     _cores++;
 
                     _proc_type_table[0][ALL_PROC]++;
-                    _proc_type_table[0][EFFICIENT_CORE_PROC]++;
+                    _proc_type_table[0][_cpu_mapping_table[m][CPU_MAP_CORE_TYPE]]++;
                 }
             } else {
                 core_1 = std::stoi(system_info_table[nproc][0]);
