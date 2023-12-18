@@ -18,6 +18,7 @@
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -84,7 +85,7 @@ protected:
         auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weightsNode, false, true);
 
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, batch, 1}, std::vector<float>{1.0f});
-        auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
+        auto add = ov::test::utils::make_eltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
 
         auto pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
                                                               ngraph::Shape{inputShape.size()},
@@ -172,7 +173,7 @@ protected:
         auto matmul = std::make_shared<ov::op::v0::MatMul>(inputFQ, weightsFQNode, false, true);
 
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 1, 1}, std::vector<float>{1.0f});
-        auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
+        auto add = ov::test::utils::make_eltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
 
         auto outputLowNode = ngraph::builder::makeConstant(ngPrc,
                                                            std::vector<size_t>{1},

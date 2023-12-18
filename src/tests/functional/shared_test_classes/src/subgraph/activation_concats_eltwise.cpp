@@ -5,6 +5,7 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -51,7 +52,7 @@ void ActivationConcatsEltwise::SetUp() {
     auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_const_1, relu}, 1);
     auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_const_2, relu}, 1);
 
-    auto eltw = ngraph::builder::makeEltwise(concat_1, concat_2, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltw = ov::test::utils::make_eltwise(concat_1, concat_2, ngraph::helpers::EltwiseTypes::ADD);
 
     auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({1, inputSize + concatSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(eltw, reshape_pattern, false);

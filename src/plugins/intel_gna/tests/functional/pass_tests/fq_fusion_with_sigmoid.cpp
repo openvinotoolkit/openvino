@@ -7,6 +7,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -34,9 +35,9 @@ protected:
 
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
         auto constant = ngraph::builder::makeConstant(ngPrc, {1, inputSize}, std::vector<size_t>{1});
-        auto mul1 = ngraph::builder::makeEltwise(input[0], constant, ngraph::helpers::EltwiseTypes::ADD);
+        auto mul1 = ov::test::utils::make_eltwise(input[0], constant, ngraph::helpers::EltwiseTypes::ADD);
         auto sigmoid1 = std::make_shared<ov::opset1::Sigmoid>(mul1);
-        auto mul2 = ngraph::builder::makeEltwise(input[0], sigmoid1, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto mul2 = ov::test::utils::make_eltwise(input[0], sigmoid1, ngraph::helpers::EltwiseTypes::MULTIPLY);
         auto fake3 = ngraph::builder::makeFakeQuantize(sigmoid1,
                                                        ngPrc,
                                                        levelFq,
@@ -45,7 +46,7 @@ protected:
                                                        {minMaxFq.second},
                                                        {minMaxFq.first},
                                                        {minMaxFq.second});
-        auto mul3 = ngraph::builder::makeEltwise(mul2, fake3, ngraph::helpers::EltwiseTypes::ADD);
+        auto mul3 = ov::test::utils::make_eltwise(mul2, fake3, ngraph::helpers::EltwiseTypes::ADD);
         auto result = std::make_shared<ov::op::v0::Result>(mul3);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "fq_fusion_with_sigmoid");
     }

@@ -60,7 +60,7 @@ protected:
         inputs[port] = constNode;
         inputs[1 - port] = param;
 
-        auto powerStatic = ov::test::utils::makeEltwise(inputs[0], inputs[1], nodeType);
+        auto powerStatic = ov::test::utils::make_eltwise(inputs[0], inputs[1], nodeType);
 
         function = std::make_shared<ov::Model>(powerStatic, ParameterVector{param}, "ConvertToPluginSpecificNode");
     }

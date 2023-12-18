@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/concat_quantization_during_memory_requantization.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string ConcatQuantDuringMemoryRequantTest::getTestCaseName(const testing::TestParamInfo<ConcatQuantDuringMemoryRequantTuple>& obj) {
@@ -50,7 +51,7 @@ namespace SubgraphTestsDefinitions {
 
         auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
                                                                 ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
-        auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto mul = ov::test::utils::make_eltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
         auto mem_1_write = std::make_shared<ov::op::v3::Assign>(mul, "memory_1");
 
         auto mem_2_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
@@ -96,7 +97,7 @@ namespace SubgraphTestsDefinitions {
 
         auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
                                                                 ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
-        auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto mul = ov::test::utils::make_eltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
         auto mem_2_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
         auto concat_2 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ mem_2_const, mul }, 1);

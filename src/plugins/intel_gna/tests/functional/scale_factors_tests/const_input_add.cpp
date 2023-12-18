@@ -15,6 +15,7 @@
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -69,7 +70,7 @@ protected:
 
         auto constant =
             ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
-        auto eltwise = ngraph::builder::makeEltwise(constant, params[0], ngraph::helpers::EltwiseTypes::ADD);
+        auto eltwise = ov::test::utils::make_eltwise(constant, params[0], ngraph::helpers::EltwiseTypes::ADD);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
         function = std::make_shared<ngraph::Function>(results, params, "InputConstAdd");
