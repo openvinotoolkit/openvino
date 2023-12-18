@@ -12,14 +12,10 @@ macro(ov_cpack_settings)
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
         string(TOUPPER ${item} UPPER_COMP)
-
         # filter out some components, which are not needed to be wrapped to npm package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # python is not required for NPM package
-           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # skip all extra components, left only requirement libs, like tbb
-           NOT item STREQUAL "tbb_dev"
-        )
+        # python is not required for NPM package
+        NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
