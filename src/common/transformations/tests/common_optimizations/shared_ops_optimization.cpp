@@ -7,13 +7,24 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/parameter.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -546,4 +557,162 @@ TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
 
     FunctionsComparator comparator = FunctionsComparator::with_default();
     comparator.compare(models[0], models[1]);
+}
+
+TEST_F(SharedTransformationTestsF, SharedCeiling) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto ceiling_1 = std::make_shared<v0::Ceiling>(data);
+        auto ceiling_2 = std::make_shared<v0::Ceiling>(data);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{ceiling_1, ceiling_2}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto ceiling_1 = std::make_shared<v0::Ceiling>(data);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{ceiling_1, ceiling_1}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedFloor) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_1 = std::make_shared<v0::Floor>(data);
+        auto op_2 = std::make_shared<v0::Floor>(data);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_2}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_1 = std::make_shared<v0::Floor>(data);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedRelu) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_1 = std::make_shared<v0::Relu>(data);
+        auto op_2 = std::make_shared<v0::Relu>(data);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_2}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_1 = std::make_shared<v0::Relu>(data);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedMultiply) {
+    {
+        auto data_0 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_0 = std::make_shared<v1::Multiply>(data_0, data_1);
+        auto op_1 = std::make_shared<v1::Multiply>(data_0, data_1);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_1}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data_0 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_0 = std::make_shared<v1::Multiply>(data_0, data_1);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_0}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedDivide) {
+    {
+        auto data_0 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_0 = std::make_shared<v1::Divide>(data_0, data_1);
+        auto op_1 = std::make_shared<v1::Divide>(data_0, data_1);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_1}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data_0 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_0 = std::make_shared<v1::Divide>(data_0, data_1);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_0}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedPad) {
+    {
+        auto data_0 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto data_1 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
+        auto data_2 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
+
+        auto op_1 = std::make_shared<v12::Pad>(data_0, data_1, data_2, PadMode::REFLECT);
+        auto op_2 = std::make_shared<v12::Pad>(data_0, data_1, data_2, PadMode::REFLECT);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_2}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1, data_2});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data_0 = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto data_1 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
+        auto data_2 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
+
+        auto op_1 = std::make_shared<v12::Pad>(data_0, data_1, data_2, PadMode::REFLECT);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1, data_2});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedMaxPool) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_1 =
+            std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+        auto op_2 =
+            std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_2}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto op_1 =
+            std::make_shared<v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
 }
