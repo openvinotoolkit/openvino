@@ -39,6 +39,7 @@
 #include "nodes/memory.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/op/ops.hpp"
 #include "precision_utils.h"
 #include "transformations/utils/utils.hpp"
@@ -1706,8 +1707,10 @@ void Graph::EnforceInferencePrecision() {
         if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
 
-        if (node->enforceFP32)
+        if (node->enforceFP32) {
+            printf("[Info] [Gragh] %s is enforced to use FP32\n", node->getName().c_str());
             continue;
+        }
 #ifdef CPU_DEBUG_CAPS
         if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
             continue;
