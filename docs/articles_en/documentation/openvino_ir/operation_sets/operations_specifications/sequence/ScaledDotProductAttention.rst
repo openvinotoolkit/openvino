@@ -20,23 +20,24 @@ omitting training-related parameter.
 *ScaledDotProductAttention* provides functionality according to the following pseudo-code using other operations from OpenVINO opset and ``numpy``:
 
 .. code-block:: py
+	:force:
 
-def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, causal):
-    L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
-    if scale is None:
-        scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
-    attn_bias = Broadcast(ConvertLike(0, query), [L, S])
-    if causal:
-        attn_bias = numpy.triu(Broadcast(ConvertLike(-inf, query), [L, S]), k=1)
-    elif attn_mask is not None:
-        if attn_mask.element_type == boolean:
-            attn_bias = Select(LogicalNot(attn_mask), ConvertLike(-inf, query), ConvertLike(0, query))
-        else:
-            attn_bias += attn_mask
-    attn_weight = MatMul(query, Transpose(key, [-2, -1])) * scale
-    attn_weight += attn_bias
-    attn_weight = Softmax(attn_weight, axis=-1)
-    return MatMul(attn_weight, value)
+	def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, causal):
+	    L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
+	    if scale is None:
+	        scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
+	    attn_bias = Broadcast(ConvertLike(0, query), [L, S])
+	    if causal:
+	        attn_bias = numpy.triu(Broadcast(ConvertLike(-inf, query), [L, S]), k=1)
+	    elif attn_mask is not None:
+	        if attn_mask.element_type == boolean:
+	            attn_bias = Select(LogicalNot(attn_mask), ConvertLike(-inf, query), ConvertLike(0, query))
+	        else:
+	            attn_bias += attn_mask
+	    attn_weight = MatMul(query, Transpose(key, [-2, -1])) * scale
+	    attn_weight += attn_bias
+	    attn_weight = Softmax(attn_weight, axis=-1)
+	    return MatMul(attn_weight, value)
 
 
 **Attributes**
@@ -57,11 +58,11 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
 
 * **3**: ``value`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, Ev]``. **Required.**
 
-* **4**: ``attention_mask`` - two options:
-	** at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[M, ..., L, S]``, or
-	** a scalar of type *T* with value ``0``. Scalar zero value is used to indicate that `attention_mask` is really not required to be applied (``attention_mask=None`` in the pseudo-code above) but ``scale`` is required to be set.
+* **4**: ``attention_mask`` - two options available. ``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
 
-	``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
+	** at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[N, ..., L, S]``.
+
+	** a scalar of type *T* with value ``0``. Scalar zero value signals that applying an attention mask is not necessary (similar to specifying attention_mask=None in the provided pseudo-code).
 
 * **5**: ``scale`` a scalar tensor of type *T*, an alternative scale factor instead of 1/sqrt(query.shape[-1]) used by default in the pseudo-code above. **Optional.**
 
@@ -77,7 +78,7 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
 
 **Dimensions**
 
-* ``N, ...`` - one or more batch dimensions
+* ``N, ...`` - one or more batch dimensions. Each batch dimension should be either constant across the input tensors (query, key, and value), indicating that they have the same batch size, or they should be broadcastable to the same value.
 
 * ``S`` - source sequence length
 
@@ -87,13 +88,13 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
 
 * ``Ev`` - embedding dimension of the value
 
-* ``M, ...`` - one of more batch dimensions of the mask, should be broadcastable to ``N, ...``
-
-At least one batch dimension ``N`` is required and should match among ``query``, ``key`` and ``value`` inputs.
-Other batch dimensions ``...`` are optional, if present should match among ``query``, ``key`` and ``value`` inputs as well.
+At least one batch dimension ``N`` is required in ``query``, ``key`` and ``value`` inputs.
+Other batch dimensions ``...`` are optional.
 
 
-**Example**
+**Examples**
+
+*Example 1: One batch dimension, dynamic dimensions support*
 
 .. code-block:: xml
    :force:
@@ -101,38 +102,132 @@ Other batch dimensions ``...`` are optional, if present should match among ``que
     <layer id="285" name="aten::scaled_dot_product_attention_0" type="ScaledDotProductAttention" version="opset13">
 			<data causal="false" />
 			<input>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>32</dim>
-					<dim>-1</dim>
-					<dim>80</dim>
+				<!-- Example with simple dimensions, with N = 1, L = -1, S = -1, E = 80, Ev = 80-->
+				<port id="0" precision="FP32"> <!-- query -->
+					<dim>1</dim> <!-- N -->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- E -->
 				</port>
-				<port id="1" precision="FP32">
-					<dim>1</dim>
-					<dim>32</dim>
-					<dim>-1</dim>
-					<dim>80</dim>
+				<port id="1" precision="FP32"> <!-- key -->
+					<dim>1</dim> <!-- N -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- E -->
 				</port>
-				<port id="2" precision="FP32">
-					<dim>1</dim>
-					<dim>32</dim>
-					<dim>-1</dim>
-					<dim>80</dim>
+				<port id="2" precision="FP32"> <!-- value -->
+					<dim>1</dim> <!-- N -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- Ev -->
 				</port>
-				<port id="3" precision="FP32">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>-1</dim>
-					<dim>-1</dim>
+				<port id="3" precision="FP32"> <!-- attention_mask -->
+					<dim>1</dim> <!-- N -->
+					<dim>-1</dim> <!-- L -->
+					<dim>-1</dim> <!-- S -->
 				</port>
 			</input>
 			<output>
 				<port id="4" precision="FP32">
-					<dim>1</dim>
-					<dim>32</dim>
-					<dim>-1</dim>
-					<dim>80</dim>
+					<dim>1</dim> <!-- N -->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- Ev -->
 				</port>
 			</output>
 		</layer>
 
+*Example 2: Matching multiple batch dimensions*
+
+.. code-block:: xml
+   :force:
+
+    <layer id="286" name="aten::scaled_dot_product_attention_0" type="ScaledDotProductAttention" version="opset13">
+			<data causal="false" />
+			<input>
+				<!-- Multiple batch dimensions: N1 = 1, N2 = 2, N3 = 3-->
+				<port id="0" precision="FP32"> <!-- query -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="1" precision="FP32"> <!-- key -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="2" precision="FP32"> <!-- value -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+				<port id="3" precision="FP32"> <!-- attention_mask -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
+					<dim>-1</dim> <!-- S -->
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+			</output>
+		</layer>
+
+*Example 3: With batch dimensions broadcasting*
+
+.. code-block:: xml
+   :force:
+
+    <layer id="287" name="aten::scaled_dot_product_attention_0" type="ScaledDotProductAttention" version="opset13">
+			<data causal="false" />
+			<input>
+				<!-- Multiple batch dimensions, broadcastable to the following values: N1 = 4, N2 = 6, N3 = 10-->
+				<port id="0" precision="FP32"> <!-- query -->
+					<dim>1</dim> <!-- N1 (repeat 4 times) -->
+					<dim>6</dim> <!-- N2 (repeat 1 time)-->
+					<dim>5</dim> <!-- N3 (repeat 2 times)-->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="1" precision="FP32"> <!-- key -->
+					<dim>2</dim> (repeat 2 times)<!-- N1 -->
+					<dim>2</dim> (repeat 3 times)<!-- N2 -->
+					<dim>2</dim> (repeat 5 times)<!-- N3 -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="2" precision="FP32"> <!-- value -->
+					<dim>4</dim> <!-- N1 (repeat 1 time)-->
+					<dim>3</dim> <!-- N2 (repeat 2 times)-->
+					<dim>10</dim> <!-- N3 (repeat 1 time)-->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+				<port id="3" precision="FP32"> <!-- attention_mask -->
+					<dim>1</dim> <!-- N1 (repeat 4 times)-->
+					<dim>2</dim> <!-- N2 (repeat 3 times)-->
+					<dim>1</dim> <!-- N3 (repeat 10 times)-->
+					<dim>-1</dim> <!-- L -->
+					<dim>-1</dim> <!-- S -->
+				</port>
+			</input>
+			<output>
+				<!-- Output contains broadcasted dimensions N1 = 4, N2 = 6, N3 = 10-->
+				<port id="4" precision="FP32">
+					<dim>4</dim> <!-- N1 -->
+					<dim>6</dim> <!-- N2 -->
+					<dim>10</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+			</output>
+		</layer>
