@@ -13,6 +13,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/binary_convolution.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
@@ -34,7 +35,7 @@ void ExecGraphInputsFusingBinConv::SetUp() {
     targetDevice = this->GetParam();
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
-    auto binConv = ngraph::builder::makeBinaryConvolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
+    auto binConv = ov::test::utils::make_binary_convolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
                                                           padValue);
     auto conv = ov::test::utils::make_group_convolution(binConv, ngraph::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,
                                                        numOutChannels, numGroups);
