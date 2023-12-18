@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadca
     const PartialShape query_shape{2, 1, 3, 1};
     const PartialShape key_shape{1, 7, 4, 1};
     const PartialShape value_shape{2, 7, 4, 1};
-    const PartialShape attention_mask_shape{1, 1, 1, 4};
+    const PartialShape attention_mask_shape{1, 1, 3, 4};
     const PartialShape scale_shape{1};
 
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, query_shape);
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadca
 }
 
 TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadcastQuery) {
-    const PartialShape query_shape{1, 7, 1, 4};
+    const PartialShape query_shape{1, 7, 3, 4};
     const PartialShape key_shape{2, 1, 1, 4};
     const PartialShape value_shape{1, 1, 1, 6};
     const PartialShape attention_mask_shape{1, 1, 3, 1};
