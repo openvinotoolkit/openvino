@@ -389,6 +389,6 @@ Additional Resources
 ####################
 
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Model Downloader <omz_tools_downloader>`
 - :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`

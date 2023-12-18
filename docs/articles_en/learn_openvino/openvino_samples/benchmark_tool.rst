@@ -926,5 +926,6 @@ using ``benchmark_app`` with dynamic networks and a portion of the resulting out
 Additional Resources
 ####################
 
-* :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
+- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`

@@ -1,7 +1,7 @@
 .. {#openvino_docs_get_started_get_started_demos}
 
-Get Started with C++ Samples
-============================
+Get Started with Samples
+========================
 
 
 .. meta::

@@ -85,6 +85,7 @@ The sample outputs how long it takes to process a dataset.
 Additional Resources
 ####################
 
-* :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-* :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
+- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
