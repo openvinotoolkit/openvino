@@ -9,6 +9,9 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/kv_cache.hpp>
+#include <intel_gpu/primitives/read_value.hpp>
+#include <intel_gpu/runtime/internal_properties.hpp>
 
 #include "program_wrapper.h"
 
@@ -126,4 +129,47 @@ TEST(stateful_model, not_skip_gather_at_runtime) {
     network.execute();
     ASSERT_EQ(gather_inst->can_be_optimized(), false);
 }
+
+TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
+    auto& engine = get_test_engine();
+
+    auto input_beam_idx_lay = layout{ov::PartialShape{-1}, data_types::i32, format::bfyx};
+    auto input_present_lay = layout{ov::PartialShape{-1, 32, -1, 128}, data_types::f32, format::bfyx};
+
+    ov::op::util::VariableInfo info{ov::PartialShape{-1, 32, -1, 128}, data_types::f32, "v0"};
+    auto input_kv_lay = layout{info.data_shape, info.data_type, format::bfyx};
+    topology topology(input_layout("beam_idx", input_beam_idx_lay),
+                      input_layout("present", input_present_lay),
+                      read_value("kv_cache", std::vector<input_info>{}, info.variable_id, input_kv_lay),
+                      gather("gather",
+                             input_info("kv_cache"),
+                             input_info("beam_idx"),
+                             0,                                       // axis
+                             input_kv_lay.get_partial_shape().size(), // input rank
+                             ov::Shape{},                             // output shape
+                             0,                                       // batch_dim
+                             true),                                   // support_neg_ind
+                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0),
+                      reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    auto gather_inst = network.get_primitive("gather");
+    auto read_value_inst = network.get_primitive("kv_cache");
+    auto kv_cache_inst = network.get_primitive("concat");
+
+    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), true);
+    ASSERT_EQ(gather_inst->can_be_optimized(), true);
+
+    auto pad = tensor(0);
+    pad.batch[0] = 1;
+
+    ASSERT_EQ(read_value_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
+    ASSERT_EQ(gather_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
+    ASSERT_EQ(kv_cache_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
+}
+
 }  // stateful_model_tests
