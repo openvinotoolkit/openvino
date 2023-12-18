@@ -5,7 +5,7 @@
 import numpy as np
 
 import openvino.runtime.opset13 as ops
-from openvino import Type
+from openvino import Type, PartialShape, Model, compile_model
 from openvino.runtime.op import Constant
 from openvino.helpers import pack_data, unpack_data
 
@@ -225,12 +225,13 @@ def test_init_with_scalar(init_value, src_dtype, dst_dtype, shared_flag, data_ge
         (DataGetter.VIEW),
     ],
 )
-def test_init_bf16(src_dtype, shared_flag, data_getter):
+def test_init_bf16_populate(src_dtype, shared_flag, data_getter):
     data = np.random.rand(1, 2, 16, 8) + 0.5
     data = data.astype(src_dtype)
 
     # To create bf16 constant, allocate memory and populate it:
-    ov_const = ops.constant(np.zeros(shape=data.shape, dtype=src_dtype), dtype=Type.bf16, shared_memory=shared_flag)
+    init_data = np.zeros(shape=data.shape, dtype=src_dtype)
+    ov_const = ops.constant(init_data, dtype=Type.bf16, shared_memory=shared_flag)
     ov_const.data[:] = data
 
     # Check shape and element type of Constant class
@@ -250,6 +251,38 @@ def test_init_bf16(src_dtype, shared_flag, data_getter):
         raise AttributeError("Unknown DataGetter passed!")
     assert const_data.dtype == _dst_dtype
     assert np.allclose(const_data, data)
+
+
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.i32, np.int32),
+        (Type.i16, np.int16),
+    ],
+)
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
+    data = np.random.rand(4) + 1.5
+    data = data.astype(numpy_dtype)
+
+    bf16_const = ops.constant(data, dtype=Type.bf16, shared_memory=shared_flag, name="bf16_constant")
+    convert = ops.convert(bf16_const, data.dtype)
+    parameter = ops.parameter(PartialShape([-1]), ov_type)
+    add_op = ops.add(parameter, convert)
+    model = Model([add_op], [parameter])
+
+    compiled = compile_model(model)
+    tensor = np.zeros(data.shape, dtype=numpy_dtype)
+    result = compiled(tensor)[0]
+
+    assert np.allclose(data, result, rtol=0.01)
 
 
 @pytest.mark.parametrize(
@@ -282,7 +315,7 @@ def test_init_bf16(src_dtype, shared_flag, data_getter):
         (DataGetter.VIEW),
     ],
 )
-def test_constant_packing(shape, low, high, ov_type, src_dtype, shared_flag, data_getter):
+def test_constant_helper_packing(shape, low, high, ov_type, src_dtype, shared_flag, data_getter):
     data = np.random.uniform(low, high, shape).astype(src_dtype)
 
     # Allocate memory first:
@@ -302,6 +335,48 @@ def test_constant_packing(shape, low, high, ov_type, src_dtype, shared_flag, dat
         raise AttributeError("Unknown DataGetter passed!")
 
     assert np.array_equal(unpacked, data)
+
+
+@pytest.mark.parametrize(
+    ("ov_type", "src_dtype"),
+    [
+        (Type.u1, np.uint8),
+        (Type.u4, np.uint8),
+        (Type.i4, np.int8),
+        (Type.nf4, np.uint8),
+    ],
+)
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("data_getter"),
+    [
+        (DataGetter.COPY),
+        (DataGetter.VIEW),
+    ],
+)
+def test_constant_direct_packing(ov_type, src_dtype, shared_flag, data_getter):
+    data = np.ones((2, 4, 16)).astype(src_dtype)
+
+    ov_const = ops.constant(data, dtype=ov_type, shared_memory=shared_flag)
+
+    # Always unpack the data!
+    if data_getter == DataGetter.COPY:
+        unpacked = unpack_data(ov_const.get_data(), ov_const.get_element_type(), ov_const.shape)
+        assert np.array_equal(unpacked, data)
+    elif data_getter == DataGetter.VIEW:
+        unpacked = unpack_data(ov_const.data, ov_const.get_element_type(), ov_const.shape)
+        assert np.array_equal(unpacked, data)
+    else:
+        raise AttributeError("Unknown DataGetter passed!")
+
+    assert np.array_equal(unpacked, data)
+    assert not np.shares_memory(unpacked, data)
 
 
 @pytest.mark.parametrize(
@@ -336,22 +411,3 @@ def test_memory_sharing(shared_flag):
     else:
         assert not np.array_equal(ov_const.data, arr)
         assert not np.shares_memory(arr, ov_const.data)
-
-
-@pytest.mark.parametrize(
-    ("ov_type", "src_dtype"),
-    [
-        (Type.u1, np.uint8),
-        (Type.u4, np.uint8),
-        (Type.i4, np.int8),
-        (Type.nf4, np.uint8),
-        (Type.bf16, np.float16),
-    ],
-)
-def test_raise_for_packed_types(ov_type, src_dtype):
-    data = np.ones((2, 4, 16)).astype(src_dtype)
-
-    with pytest.raises(RuntimeError) as err:
-        _ = ops.constant(data, dtype=ov_type)
-
-    assert "All values must be equal to 0 to initialize Constant with type of" in str(err.value)
