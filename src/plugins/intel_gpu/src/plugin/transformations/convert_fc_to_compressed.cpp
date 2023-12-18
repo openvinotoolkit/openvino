@@ -91,7 +91,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
         };
 
-        const auto& fc_input_a = fc->get_input_node_shared_ptr(0);
+        const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
         const auto& scale = reshape_const_to_2d(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
