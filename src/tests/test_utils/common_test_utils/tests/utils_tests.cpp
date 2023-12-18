@@ -20,6 +20,10 @@ TEST(UtilsTests, filter_lines_by_prefix) {
     auto res = filter_lines_by_prefix(lines, "ab");
     ASSERT_EQ(res, "abc\nabpp\n");
 
+    lines = "abc\nkkb\nkkabpp\n";
+    res = filter_lines_by_prefix(lines, "ab");
+    ASSERT_EQ(res, "abc\n");
+
     lines = "abc\nkkb\nabpp\n";
     res = filter_lines_by_prefix(lines, "k");
     ASSERT_EQ(res, "kkb\n");
