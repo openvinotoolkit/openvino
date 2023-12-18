@@ -2469,11 +2469,9 @@ private:
     std::shared_ptr<ov::Model>& body_ptr() {
         return m_bodies[0];
     }
-
 };
 
-TestSubgraph::TestSubgraph(const ov::OutputVector& args, const std::shared_ptr<ov::Model>& body)
-    : SubGraphOp(args) {
+TestSubgraph::TestSubgraph(const ov::OutputVector& args, const std::shared_ptr<ov::Model>& body) : SubGraphOp(args) {
     SubGraphOp::set_function(body);
     constructor_validate_and_infer_types();
     for (size_t i = 0; i < body->get_parameters().size(); ++i)
