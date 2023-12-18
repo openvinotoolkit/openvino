@@ -38,7 +38,7 @@ The examples below show how TensorFlow and PyTorch models. The models are loaded
 While the above examples provide a simple and straightforward option to import models into OpenVINO, there are other options to provide more customization and flexibility. 
 
 
-TensorFLow Import Options
+TensorFlow Import Options
 ##############################################
 
 OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. 

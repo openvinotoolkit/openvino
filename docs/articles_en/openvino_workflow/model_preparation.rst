@@ -254,8 +254,7 @@ Convert a Model in CLI: ``ovc``
 
 ``ovc`` is a command-line model converter, combining the ``openvino.convert_model``
 and ``openvino.save_model`` functionalities, providing the exact same results, if the same set of 
-parameters is used for saving into OpenVINO IR. It converts files from one of the 
-:doc:`supported model formats <Supported_Model_Formats>` to :doc:`OpenVINO IR <openvino_ir>`, which can then be read, compiled,
+parameters is used for saving into OpenVINO IR. It converts files from one of the to :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`, which can then be read, compiled,
 and run by the final inference application.
 
 .. note::
