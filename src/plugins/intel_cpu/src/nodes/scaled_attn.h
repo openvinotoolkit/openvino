@@ -54,6 +54,7 @@ private:
     Config m_config;
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
+    ov::element::Type rtPrecision;
 };
 
 }  // namespace node
