@@ -342,9 +342,6 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
     if (ov::is_type<op::FullyConnectedCompressed>(op))
         return true;
 
-    // if (ov::is_type<op::GatherCompressed>(op))
-    //     return true;
-
     for (size_t i = 0; i < op->get_output_size(); i++) {
         if (op->get_output_partial_shape(i).size() > 6)
             return true;

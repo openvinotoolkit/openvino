@@ -5,7 +5,6 @@
 #include "convert_gather_to_compressed.hpp"
 #include <memory>
 
-// #include "intel_gpu/op/gather.hpp"
 #include "intel_gpu/op/gather_compressed.hpp"
 
 #include "openvino/opsets/opset10.hpp"
