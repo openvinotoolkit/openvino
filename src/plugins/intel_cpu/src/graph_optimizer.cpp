@@ -23,6 +23,7 @@
 #include "nodes/input.h"
 #include "nodes/rnn.h"
 #include "nodes/memory.hpp"
+#include "nodes/scaled_attn.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "onednn/dnnl.h"
@@ -2837,6 +2838,20 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             input_prc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
         }
 
+        //search for SDPA
+        std::shared_ptr<ScaledDotProductAttention> sdpa;
+        for (auto&& edge : node->getChildEdgesAtPort(0)) {
+            auto child = edge->getChild();
+            if (Type::ScaledDotProductAttention == child->getType()) {
+                sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child);
+                if (sdpa) {
+                    break;
+                } else {
+                    OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
+                }
+            }
+        }
+
         auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
             memInputNode->getId(),
             memInputNode->getName(),
@@ -2845,7 +2860,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             memInputNode->getOriginalOutputPrecisionAtPort(0),
             graph.getGraphContext(),
             input_shape,
-            input_prc);
+            input_prc,
+            sdpa);
 
         if (!memInputNode->getParentEdges().empty()) {
             auto parentEdge = memInputNode->getParentEdgeAt(0);
@@ -2862,12 +2878,28 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             graph.RemoveEdge(edge);
         }
 
-        //link with memory output
+        //create a stub memory output
         auto& memOutput = memInputNode->getOutputNode();
-        memInputSdpa->registerOutputNode(&memOutput);
+
+        auto memOutputStub = std::make_shared<MemoryOutputStub>(
+            memOutput.getId(),
+            memOutput.getName(),
+            memOutput.getTypeStr(),
+            memOutput.getInputShapeAtPort(0),
+            memOutput.getOriginalInputPrecisionAtPort(0),
+            graph.getGraphContext());
+
+        auto memOutputEdge = memOutput.getParentEdgeAt(0);
+        auto newEdge =
+            std::make_shared<Edge>(sdpa, memOutputStub, memOutputEdge->getInputNum(), 0);
+        memOutputStub->addEdge(newEdge);
+        graph.GetEdges().push_back(newEdge);
+        graph.RemoveEdge(memOutputEdge);
+
+        memInputSdpa->registerOutputNode(memOutputStub.get());
 
         graph.GetNodes().push_back(memInputSdpa);
-        graph.DropNode(memInputNode);
+        graph.GetNodes().push_back(memOutputStub);
     }
 }
 

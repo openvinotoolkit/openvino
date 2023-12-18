@@ -29,7 +29,8 @@ using ConcatSDPTransposeTestParams = std::tuple<ElementType,
  *                                  |
  *       Parameter    ReadValue     |           ReadValue  Parameter
  *           \           /          |               \          /
- *            \         /           |                \        /
+ *         Gather       /           |             Gather      /
+ *             \       /            |                 \      /
  *               Concat         Transpose              Concat
  *                / \               |                 /     \
  *               /   \              |                /       \
@@ -46,9 +47,9 @@ using ConcatSDPTransposeTestParams = std::tuple<ElementType,
  *                                Result
  */
 
-class ConcatSDPTransposeTest : public testing::WithParamInterface<ConcatSDPTransposeTestParams>,
-                               virtual public ov::test::SubgraphBaseTest,
-                               public CPUTestsBase {
+class ConcatSDPTransposeTestBase : public testing::WithParamInterface<ConcatSDPTransposeTestParams>,
+                                   virtual public ov::test::SubgraphBaseTest,
+                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTransposeTestParams>& obj) {
         ElementType inType;
@@ -90,7 +91,7 @@ public:
         bool hasShapeOf;
         std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
+        transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -128,8 +129,13 @@ public:
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
-        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, inputParams[1]}, concat_axis);
-        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, concat_axis);
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
+        beam_idx->set_friendly_name("beam_idx");
+        inputParams.push_back(beam_idx);
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
         auto transposeV = std::make_shared<ov::op::v1::Transpose>(concatV, preOrder);
 
@@ -183,7 +189,7 @@ public:
         SubgraphBaseTest::generate_inputs(shapes);
     }
     template <typename IT, typename T>
-    void strided_iota(IT first, size_t n, T value, T stride) {
+    static void strided_iota(IT first, size_t n, T value, T stride) {
         for (size_t i = 0; i < n; i++) {
             *first++ = value;
             value += stride;
@@ -191,22 +197,33 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
-        auto create_input = [this](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
-            if (param->get_element_type() == element::f32) {
+        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
+            if (param->get_element_type() == element::i32) {
+                ov::Tensor t{ov::element::i32, shape};
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size;
+                }
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
             } else {
+                ASSERT_TRUE(param->get_element_type() == element::bf16);
                 ov::Tensor t{ov::element::bf16, shape};
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
             }
         };
-        // q, k, v
+        // q, k, v, pastkv
         create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
         create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
         create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
         create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
     }
     void prepare() {
         compile_model();
@@ -218,6 +235,11 @@ public:
             state.reset();
         }
     }
+    std::vector<size_t> transposeOrder;
+};
+
+class ConcatSDPTransposeTest : public ConcatSDPTransposeTestBase {
+public:
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
         prepare();
@@ -234,6 +256,14 @@ public:
             outputTensor.copy_to(copy);
             outputs.push_back(copy);
         }
+        auto states = inferRequest.query_state();
+        for (auto&& state : states) {
+            auto state_tensor = state.get_state();
+            ov::Tensor copy{state_tensor.get_element_type(), state_tensor.get_shape()};
+            state_tensor.copy_to(copy);
+            outputs.push_back(copy);
+        }
+
         reset();
 
         return outputs;
@@ -246,6 +276,7 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -256,33 +287,27 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {
     {
-     // inputShapes LLama
-     {
-         // B, H, L1, S
-         {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
-         // B, H, L0, S
-         {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
-     },
-     // transposeOrder
-     {0, 1, 2, 3}},
-    {// inputShapes QWen
-     {
-         // B, L1, H, S
-         {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
-         // B, L0, H, S
-         {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
-     },
-     // transposeOrder
-     {0, 2, 1, 3}},
-    {// inputShapes ChatGLM
-     {
-         // L1, B, H, S
-         {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
-         // L0, B, H, S
-         {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}, {11, 1, 8, 64}, {12, 1, 8, 64}, {32, 1, 8, 64}}},
-     },
-     // transposeOrder
-     {1, 2, 0, 3}},
+        // greedy search
+        {{
+            // B, L1, H, S
+            {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
+            // B, L0, H, S
+            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
+         },
+         // transposeOrder
+         {0, 2, 1, 3}
+        },
+        // beam search
+        {{
+            // B, L1, H, S
+            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+            // B, L0, H, S
+            {{-1, -1, 8, 64}, {{4, 0, 8, 64}, {4, 10, 8, 64}, {4, 11, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}}},
+         },
+         // transposeOrder
+         {0, 2, 1, 3}
+        }
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
@@ -290,6 +315,125 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
+                         ConcatSDPTransposeTest::getTestCaseName);
+} //  namespace
+
+class ConcatSDPTransposeTestSetState : public ConcatSDPTransposeTestBase {
+public:
+    void reduce_state() {
+        auto states = inferRequest.query_state();
+        for (auto&& state : states) {
+            auto state_tensor = state.get_state();
+            ov::Tensor copy{state_tensor.get_element_type(), state_tensor.get_shape()};
+            state_tensor.copy_to(copy);
+            auto new_shape = state_tensor.get_shape();
+            ASSERT_GE(new_shape[transposeOrder[2]], 1);
+            new_shape[transposeOrder[2]] -= 1;
+            ov::Tensor new_state{state_tensor.get_element_type(), new_shape, copy.data()};
+            state.set_state(new_state);
+        }
+    }
+    void new_state(ov::element::Type& type, const ov::Shape& pastKVInitShape) {
+        auto fill = [] (ov::Tensor& t, float val) {
+            auto shape = t.get_shape();
+            if (t.get_element_type() == element::f32) {
+                strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
+            } else if (t.get_element_type() == element::f16) {
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+            } else {
+                ASSERT_TRUE(t.get_element_type() == element::bf16);
+                strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
+            }
+        };
+        float val = 0;
+        auto states = inferRequest.query_state();
+        for (auto&& state : states) {
+            auto new_shape = pastKVInitShape;
+            new_shape[transposeOrder[2]] = 3;
+            ov::Tensor new_state{type, new_shape};
+            fill(new_state, val);
+            val += 0.13f;
+
+            state.set_state(new_state);
+        }
+    }
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
+        function = model;
+        prepare();
+        std::vector<ov::Tensor> outputs;
+        // case 1: initialization + pastkv reaches limitation, remove some state
+        int idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, shapes);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            auto outputTensor = inferRequest.get_output_tensor(0);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
+            if (idx > 1) {
+                reduce_state();
+            }
+        }
+
+        // case 2: after reset, set_state at once
+        auto pastKVType = inferRequest.query_state()[0].get_state().get_element_type();
+        reset();
+        new_state(pastKVType, targetStaticShapes[0][1]);
+        idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, shapes);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            auto outputTensor = inferRequest.get_output_tensor(0);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
+        }
+
+        return outputs;
+    }
+};
+
+TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
+    auto actualOutputs = run_test(function);
+    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    auto expectedOutputs = run_test(functionRefs);
+    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
+
+namespace {
+const std::vector<InputShapeAndTransposeOrder> inputShapeAndReordersSetState = {
+    {
+        // beam search
+        {{
+            // B, L1, H, S
+            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+            // B, L0, H, S and init tensor
+            {{-1, -1, 8, 64}, {{4, 2, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}, {4, 14, 8, 64}}},
+         },
+         // transposeOrder
+         {0, 2, 1, 3}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
+                         ConcatSDPTransposeTestSetState,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(inputShapeAndReordersSetState),
+                                            ::testing::Values(false)),
                          ConcatSDPTransposeTest::getTestCaseName);
 
 }  // namespace

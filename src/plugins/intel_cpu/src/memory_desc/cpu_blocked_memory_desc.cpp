@@ -60,9 +60,6 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& s
             }
         }
     } else {
-        if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0; } )) {
-            OPENVINO_THROW("Can't create CpuBlockedMemoryDesc with zero dim, but with non zero strides");
-        }
         this->strides = strides;
     }
 

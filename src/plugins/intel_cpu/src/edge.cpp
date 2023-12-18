@@ -458,6 +458,7 @@ void Edge::init() {
         changeStatus(Status::NeedAllocation);
     } else {
         if (Type::Input == edgePtr->getParent()->getType() &&
+            Type::MemoryInput != getParent()->getType() &&
             edgePtr->getParent()->isConstant() &&
             !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
