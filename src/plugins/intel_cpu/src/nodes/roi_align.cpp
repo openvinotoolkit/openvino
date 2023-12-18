@@ -7,14 +7,14 @@
 #include <vector>
 #include <math.h>
 #include "onednn/dnnl.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include <utils/bfloat16.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
-#include <selective_build.h>
+#include "selective_build.h"
 #include <openvino/opsets/opset9.hpp>
 
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace dnnl;

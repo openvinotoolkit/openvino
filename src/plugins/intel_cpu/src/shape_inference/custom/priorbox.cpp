@@ -4,8 +4,7 @@
 
 #include "priorbox.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {

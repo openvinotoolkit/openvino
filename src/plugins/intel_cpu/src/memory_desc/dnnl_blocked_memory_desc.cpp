@@ -6,7 +6,7 @@
 
 #include <common/memory_desc_wrapper.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"

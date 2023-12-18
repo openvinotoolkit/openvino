@@ -5,34 +5,30 @@
 #include "graph_optimizer.h"
 
 #include "dnnl_extension_utils.h"
-#include "nodes/reshape.h"
-#include "nodes/pooling.h"
-#include "nodes/eltwise.h"
-#include "nodes/concat.h"
-#include "nodes/convert.h"
-#include "nodes/reorder.h"
-#include "nodes/conv.h"
-#include "nodes/deconv.h"
-#include "nodes/fullyconnected.h"
 #include "nodes/bin_conv.h"
-#include "nodes/fake_quantize.h"
-#include "nodes/mvn.h"
-#include "nodes/transpose.h"
-#include "nodes/interpolate.h"
-#include "nodes/reduce.h"
-#include "nodes/input.h"
-#include "nodes/rnn.h"
-#include "nodes/memory.hpp"
 #include "nodes/common/cpu_convert.h"
-
+#include "nodes/concat.h"
+#include "nodes/conv.h"
+#include "nodes/convert.h"
+#include "nodes/deconv.h"
+#include "nodes/eltwise.h"
+#include "nodes/fake_quantize.h"
+#include "nodes/fullyconnected.h"
+#include "nodes/input.h"
+#include "nodes/interpolate.h"
+#include "nodes/memory.hpp"
+#include "nodes/mvn.h"
+#include "nodes/pooling.h"
+#include "nodes/reduce.h"
+#include "nodes/reorder.h"
+#include "nodes/reshape.h"
+#include "nodes/rnn.h"
+#include "nodes/transpose.h"
 #include "onednn/dnnl.h"
-
-#include "utils/general_utils.h"
+#include "openvino/opsets/opset1.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
-
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
+#include "utils/general_utils.h"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -43,7 +39,7 @@
 #  define _WINSOCK2API_
 #endif
 #endif
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #include <string>
 #include <list>

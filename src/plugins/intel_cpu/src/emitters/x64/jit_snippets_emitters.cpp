@@ -4,7 +4,7 @@
 
 #include "jit_snippets_emitters.hpp"
 
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"

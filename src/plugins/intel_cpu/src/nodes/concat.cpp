@@ -7,7 +7,7 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 #include "onednn/dnnl.h"
 #include <onednn/iml_type_mapper.h>

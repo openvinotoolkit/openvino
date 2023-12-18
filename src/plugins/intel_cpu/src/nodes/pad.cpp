@@ -7,7 +7,7 @@
 #include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
-#include <selective_build.h>
+#include "selective_build.h"
 #include <openvino/op/constant.hpp>
 #include <openvino/op/pad.hpp>
 #include <openvino/core/type/float16.hpp>

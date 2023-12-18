@@ -10,20 +10,20 @@
 #include <vector>
 #include <set>
 #include "onednn/dnnl.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 #include "emitters/x64/jit_bf16_emitters.hpp"
 #include "openvino/core/parallel.hpp"
 #include <algorithm>
 
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 using namespace dnnl;
 

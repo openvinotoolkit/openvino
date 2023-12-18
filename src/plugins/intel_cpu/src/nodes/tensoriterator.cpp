@@ -3,18 +3,16 @@
 //
 
 #include "tensoriterator.h"
+#include "common/blocked_desc_creator.h"
+#include "common/cpu_memcpy.h"
+#include "common/reorder_prim.h"
+#include "dnnl_extension_utils.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 #include <string>
 #include <vector>
-#include <dnnl_extension_utils.h>
-#include <ie_ngraph_utils.hpp>
-#include <utils/general_utils.h>
-#include "common/blocked_desc_creator.h"
-#include "utils/ngraph_utils.hpp"
-#include "transformations/utils/utils.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/reorder_prim.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
 

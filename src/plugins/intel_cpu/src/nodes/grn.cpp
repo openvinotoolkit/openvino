@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/parallel.hpp"
 #include "grn.h"
 

@@ -3,7 +3,7 @@
 //
 
 #include "shapeof.h"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 
 namespace ov {

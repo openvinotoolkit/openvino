@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 #include "roll.h"
 #include "openvino/core/parallel.hpp"

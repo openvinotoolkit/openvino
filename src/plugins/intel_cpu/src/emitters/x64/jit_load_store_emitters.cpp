@@ -4,7 +4,7 @@
 
 #include "jit_emitter.hpp"
 #include "jit_load_store_emitters.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl::impl;

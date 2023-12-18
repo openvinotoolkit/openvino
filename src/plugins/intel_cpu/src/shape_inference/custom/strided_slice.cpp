@@ -4,9 +4,8 @@
 
 #include "strided_slice.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "slice_shape_inference.hpp"
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "shape_inference/shape_inference_ngraph.hpp"
 
 namespace ov {
 namespace intel_cpu {

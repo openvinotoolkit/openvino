@@ -4,7 +4,6 @@
 
 #include "multinomial.hpp"
 
-#include "ie_ngraph_utils.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "utils/bfloat16.hpp"
 

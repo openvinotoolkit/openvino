@@ -5,12 +5,12 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
 #include "gather_nd.h"
 #include <openvino/opsets/opset8.hpp>
 #include <precision_utils.h>
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("GatherND layer with name '", getName(), "' ", __VA_ARGS__)

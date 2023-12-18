@@ -5,14 +5,14 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include <selective_build.h>
-#include <openvino/opsets/opset1.hpp>
+#include "selective_build.h"
+#include "openvino/opsets/opset1.hpp"
 #include "psroi_pooling.h"
-#include <cpu/x64/jit_generator.hpp>
-#include <nodes/common/blocked_desc_creator.h>
+#include "cpu/x64/jit_generator.hpp"
+#include "nodes/common/blocked_desc_creator.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;

@@ -4,11 +4,11 @@
 
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include <selective_build.h>
+#include "selective_build.h"
 #include "batch_to_space.h"
-#include <nodes/common/blocked_desc_creator.h>
+#include "nodes/common/blocked_desc_creator.h"
 #include <openvino/opsets/opset2.hpp>
 
 namespace ov {

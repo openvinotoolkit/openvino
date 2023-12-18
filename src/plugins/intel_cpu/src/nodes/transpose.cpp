@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <string>
-#include <dnnl_extension_utils.h>
-#include <common/primitive_hashing_utils.hpp>
+#include "dnnl_extension_utils.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
 

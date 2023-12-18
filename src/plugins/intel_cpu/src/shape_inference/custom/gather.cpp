@@ -4,7 +4,6 @@
 
 #include "gather.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

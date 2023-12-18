@@ -10,11 +10,11 @@
 
 #include "openvino/core/parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <cpu/x64/jit_generator.hpp>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
+#include "cpu/x64/jit_generator.hpp"
 #include <common/dnnl_thread.hpp>
 
 using namespace dnnl;

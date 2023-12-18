@@ -132,7 +132,7 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -5,7 +5,6 @@
 #include "nodes/color_convert.h"
 #include "color_convert.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

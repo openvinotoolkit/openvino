@@ -8,7 +8,7 @@
 #include <thread>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 #include "openvino/core/parallel.hpp"
 #include "onednn/dnnl.h"

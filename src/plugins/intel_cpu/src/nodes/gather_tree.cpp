@@ -9,7 +9,7 @@
 #include "openvino/op/gather_tree.hpp"
 #include "openvino/core/parallel.hpp"
 #include "gather_tree.h"
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {

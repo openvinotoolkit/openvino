@@ -3,8 +3,8 @@
 //
 
 #include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "memory.hpp"
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"

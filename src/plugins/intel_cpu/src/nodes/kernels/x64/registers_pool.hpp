@@ -6,7 +6,7 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include "utils/cpu_utils.hpp"
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include <utility>
 
 namespace ov {

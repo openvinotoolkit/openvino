@@ -6,13 +6,13 @@
 
 #include <vector>
 
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 
 #include "cpu/x64/jit_generator.hpp"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "nodes/executors/common/ref_transpose.hpp"
 

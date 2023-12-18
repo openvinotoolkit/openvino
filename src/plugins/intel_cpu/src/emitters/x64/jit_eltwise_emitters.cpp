@@ -3,7 +3,6 @@
 //
 
 #include "jit_eltwise_emitters.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;

@@ -6,8 +6,8 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <vector>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>

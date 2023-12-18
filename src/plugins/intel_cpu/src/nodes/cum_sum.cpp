@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cum_sum.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "utils/bfloat16.hpp"
+
 #include <string>
 #include <vector>
-
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include "openvino/core/parallel.hpp"
-#include <ie_ngraph_utils.hpp>
-#include "cum_sum.h"
-#include "utils/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
 
 namespace ov {
 namespace intel_cpu {

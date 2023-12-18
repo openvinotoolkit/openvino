@@ -3,12 +3,11 @@
 //
 
 #include "if.h"
-
-#include <dnnl_extension_utils.h>
-#include "ie_ngraph_utils.hpp"
-#include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "dnnl_extension_utils.h"
+#include "shape_inference/shape_inference_ngraph.hpp"
+#include "transformations/utils/utils.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 #include <string>
 #include <vector>

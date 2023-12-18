@@ -3,16 +3,17 @@
 //
 
 #include "eye.h"
-#include <ie_ngraph_utils.hpp>
-#include <utils/bfloat16.hpp>
+
 #include "openvino/core/parallel.hpp"
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "shape_inference/shape_inference_ngraph.hpp"
+#include "utils/bfloat16.hpp"
 
 #define THROW_ERROR(...) OPENVINO_THROW(NameFromType(getType()), " node with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+using namespace ov::intel_cpu;
 
 bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {

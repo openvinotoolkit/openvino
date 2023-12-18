@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "embedding_bag_offset_sum.h"
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 
 
 

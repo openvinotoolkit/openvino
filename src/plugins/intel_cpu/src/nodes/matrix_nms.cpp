@@ -14,7 +14,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils/general_utils.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "embedding_segments_sum.h"
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 
 namespace ov {
 namespace intel_cpu {

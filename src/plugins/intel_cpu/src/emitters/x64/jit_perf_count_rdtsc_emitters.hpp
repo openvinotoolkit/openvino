@@ -5,7 +5,7 @@
 #pragma once
 
 #include "jit_emitter.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 
 namespace ov {

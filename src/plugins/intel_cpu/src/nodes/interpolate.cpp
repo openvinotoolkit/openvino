@@ -3,34 +3,31 @@
 //
 
 #include "interpolate.h"
-
-#include "fake_quantize.h"
-#include "eltwise.h"
-#include <string>
-#include <vector>
-#include "onednn/dnnl.h"
-#include <dnnl_extension_utils.h>
-#include "openvino/core/parallel.hpp"
-#include <algorithm>
-
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "common/cpu_memcpy.h"
-#include "utils/bfloat16.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "dnnl_extension_utils.h"
+#include "eltwise.h"
 #include "emitters/x64/jit_bf16_emitters.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
-
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset11.hpp>
-#include <shape_inference/static_shape.hpp>
-#include <shape_inference/shape_inference.hpp>
-#include <ie_ngraph_utils.hpp>
+#include "fake_quantize.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/static_shape.hpp"
+#include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
-#include <shape_inference/shape_inference_ngraph.hpp>
+
+#include <algorithm>
+#include <string>
+#include <vector>
 
 using namespace dnnl;
 

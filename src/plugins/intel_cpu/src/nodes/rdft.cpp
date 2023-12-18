@@ -5,11 +5,11 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 #include "rdft.h"
 #include "openvino/core/parallel.hpp"
