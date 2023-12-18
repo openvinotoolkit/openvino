@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (WIN32)
+if (WIN32 OR AARCH64)
     return()
 endif()
 
@@ -61,6 +61,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
