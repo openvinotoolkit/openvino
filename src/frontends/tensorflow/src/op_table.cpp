@@ -168,6 +168,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CTCGreedyDecoder", CreatorFunction(translate_ctc_greedy_decoder_op)},
         {"CTCLoss", CreatorFunction(translate_ctc_loss_op)},
         {"Cumsum", CreatorFunction(translate_cumsum_op)},
+        {"Div", CreatorFunction(translate_div_op)},
         {"DivNoNan", CreatorFunction(translate_div_no_nan_op)},
         {"DepthToSpace", CreatorFunction(translate_depth_to_space_op)},
         {"DepthwiseConv2dNative", CreatorFunction(translate_depthwise_conv_2d_native_op)},
