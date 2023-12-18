@@ -4,6 +4,7 @@
 #pragma once
 
 #include <napi.h>
+#include <thread>
 
 #include "async_reader.hpp"
 #include "errors.hpp"
@@ -91,3 +92,34 @@ protected:
 private:
     ov::Core _core;
 };
+
+struct TsfnContextModel {
+    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    std::thread nativeThread;
+
+    Napi::Promise::Deferred deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    std::shared_ptr<ov::Model> _model;
+    std::string _device;
+    ov::CompiledModel _compiled_model;
+    std::map<std::string, ov::Any> _config = {};
+};
+
+struct TsfnContextPath {
+    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    std::thread nativeThread;
+
+    Napi::Promise::Deferred deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    std::string _model;
+    std::string _device;
+    ov::CompiledModel _compiled_model;
+    std::map<std::string, ov::Any> _config = {};
+};
+
+void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context);
+void FinalizerCallbackPath(Napi::Env env, void* finalizeData, TsfnContextPath* context);
+void compileModelThreadModel(TsfnContextModel* context);
+void compileModelThreadPath(TsfnContextPath* context);

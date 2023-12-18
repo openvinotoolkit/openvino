@@ -3,8 +3,6 @@
 
 #include "core_wrap.hpp"
 
-#include <thread>
-
 #include "addon.hpp"
 #include "compiled_model.hpp"
 #include "model_wrap.hpp"
@@ -127,32 +125,6 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
         return info.Env().Undefined();
     }
 }
-
-struct TsfnContextModel {
-    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
-    std::thread nativeThread;
-
-    Napi::Promise::Deferred deferred;
-    Napi::ThreadSafeFunction tsfn;
-
-    std::shared_ptr<ov::Model> _model;
-    std::string _device;
-    ov::CompiledModel _compiled_model;
-    std::map<std::string, ov::Any> _config = {};
-};
-
-struct TsfnContextPath {
-    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
-    std::thread nativeThread;
-
-    Napi::Promise::Deferred deferred;
-    Napi::ThreadSafeFunction tsfn;
-
-    std::string _model;
-    std::string _device;
-    ov::CompiledModel _compiled_model;
-    std::map<std::string, ov::Any> _config = {};
-};
 
 void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context) {
     context->nativeThread.join();

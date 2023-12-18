@@ -163,3 +163,7 @@ ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_req
         return cast_to_tensor(value.As<Napi::Value>());
     }
 }
+
+napi_types napiType(const Napi::Value& val);
+
+bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);

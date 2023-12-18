@@ -17,3 +17,5 @@ struct AddonData {
     Napi::FunctionReference* ppp_prototype;
     Napi::FunctionReference* tensor_prototype;
 };
+
+Napi::Object init_all(Napi::Env env, Napi::Object exports);
