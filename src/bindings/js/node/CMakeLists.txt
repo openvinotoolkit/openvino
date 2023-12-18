@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (WIN32)
+    return()
+endif()
+
 project(ov_node_addon)
 
 set(CMAKE_CXX_STANDARD 17)
