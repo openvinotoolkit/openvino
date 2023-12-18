@@ -9,7 +9,7 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 
 namespace ov {
 namespace intel_cpu {

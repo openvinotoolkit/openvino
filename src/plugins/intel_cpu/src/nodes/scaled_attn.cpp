@@ -5,7 +5,7 @@
 #include "scaled_attn.h"
 
 #include <dnnl_extension_utils.h>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 
 #include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -31,7 +31,7 @@
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 
-using namespace InferenceEngine::Extensions::Cpu::XARCH;
+using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov {

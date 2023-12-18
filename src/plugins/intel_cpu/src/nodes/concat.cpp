@@ -9,7 +9,7 @@
 #include <vector>
 #include <dnnl_extension_utils.h>
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <onednn/iml_type_mapper.h>
 #include <edge.h>
 #include <cpu_memory.h>

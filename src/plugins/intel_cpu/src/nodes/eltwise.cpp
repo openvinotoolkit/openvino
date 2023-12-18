@@ -18,7 +18,7 @@
 #include <cpu/ref_eltwise.hpp>
 #include <openvino/core/except.hpp>
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include "fake_quantize.h"
 #include "pooling.h"

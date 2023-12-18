@@ -3,16 +3,17 @@
 //
 
 #include "scatter_update.h"
+
+#include "common/cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "openvino/core/parallel.hpp"
-#include <algorithm>
-#include "common/cpu_memcpy.h"
-
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
 
 using namespace dnnl;
 

@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-#include <mutex>
-
-#include <onednn/dnnl.h>
 #include "openvino/op/detection_output.hpp"
-#include "openvino/core/parallel.hpp"
+
 #include "detection_output.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;

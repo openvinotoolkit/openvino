@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <array>
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 
 #include "openvino/pass/visualize_tree.hpp"

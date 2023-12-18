@@ -8,7 +8,7 @@
 
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "interaction.h"
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"

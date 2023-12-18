@@ -4,7 +4,7 @@
 
 #include "roi_pooling.h"
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
 

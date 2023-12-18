@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include "emitters/x64/jit_load_store_emitters.hpp"
 #include "openvino/core/parallel.hpp"

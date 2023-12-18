@@ -6,7 +6,7 @@
 #include "openvino/core/parallel.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <math.h>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
 #include <openvino/opsets/opset8.hpp>

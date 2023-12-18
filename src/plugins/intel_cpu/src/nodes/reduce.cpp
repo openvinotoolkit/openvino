@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/x64/jit_bf16_emitters.hpp"

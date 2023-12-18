@@ -9,7 +9,6 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
-#include <ie_ngraph_utils.hpp>
 #include <queue>
 #include <string>
 #include <utility>
@@ -17,9 +16,9 @@
 
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace ov {
 namespace intel_cpu {

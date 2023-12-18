@@ -8,7 +8,7 @@
 #include "eltwise.h"
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include "openvino/core/parallel.hpp"
 #include <algorithm>

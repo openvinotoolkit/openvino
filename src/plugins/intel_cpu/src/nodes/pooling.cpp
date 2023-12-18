@@ -11,7 +11,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_extension_utils.h>
 #include <utils/general_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>

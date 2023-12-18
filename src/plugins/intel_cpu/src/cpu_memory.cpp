@@ -4,7 +4,6 @@
 
 #include "cpu_memory.h"
 #include "nodes/reorder.h"
-#include "memory_desc/cpu_memory_desc.h"
 
 namespace ov {
 namespace intel_cpu {

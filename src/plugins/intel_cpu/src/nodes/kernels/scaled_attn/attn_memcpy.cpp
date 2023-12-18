@@ -18,7 +18,7 @@
 #include "common.hpp"
 #include "attn_memcpy.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -97,4 +97,4 @@ void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov
