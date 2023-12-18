@@ -447,14 +447,6 @@ std::shared_ptr<ov::Node> makeGRU(
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
 
-std::shared_ptr<ov::Node> makeAUGRU(
-    const OutputVector& in,
-    const std::vector<ov::Shape>& constants,
-    std::size_t hidden_size,
-    bool make_sequence = false,
-    ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
-    ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
-
 std::shared_ptr<ov::Node> makeRNN(
     const OutputVector& in,
     const std::vector<ov::Shape>& constants,
