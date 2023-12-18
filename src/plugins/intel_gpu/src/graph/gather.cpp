@@ -56,11 +56,11 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         }
     }
     auto output_type = input_layout.data_type;
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
-    }
     if (impl_param.typed_desc<gather>()->compressed_weights) {
         output_type = impl_param.typed_desc<gather>()->decompressed_type;
+    }
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
     return layout{output_type,

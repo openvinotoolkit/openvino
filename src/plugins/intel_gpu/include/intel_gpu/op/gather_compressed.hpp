@@ -17,15 +17,15 @@ public:
 
     GatherCompressed() = default;
 
-    GatherCompressed(const ov::Output<Node> &dict,
-                     const ov::Output<Node> &idx,
+    GatherCompressed(const ov::Output<Node> &data,
+                     const ov::Output<Node> &indices,
                      const ov::Output<Node> &axis,
                      const ov::Output<Node> &decompression_scale,
                      const ov::Output<Node> &decompression_zero_point,
                      const ov::element::Type output_type = ov::element::undefined);
 
-    GatherCompressed(const ov::Output<Node> &dict,
-                     const ov::Output<Node> &idx,
+    GatherCompressed(const ov::Output<Node> &data,
+                     const ov::Output<Node> &indices,
                      const ov::Output<Node> &axis,
                      const ov::Output<Node> &decompression_scale,
                      const ov::element::Type output_type = ov::element::undefined);
