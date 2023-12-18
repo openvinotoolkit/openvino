@@ -213,7 +213,7 @@ struct CPUStreamsExecutor::Impl {
 
         void init_stream_legacy() {
             const auto concurrency = (0 == _impl->_config._threads_per_stream) ? custom::task_arena::automatic
-                                                                             : _impl->_config._threads_per_stream;
+                                                                               : _impl->_config._threads_per_stream;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._thread_preferred_core_type) {
                     if (Config::PreferredCoreType::ANY == _impl->_config._thread_preferred_core_type) {
