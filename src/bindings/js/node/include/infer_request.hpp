@@ -3,8 +3,22 @@
 
 #pragma once
 #include <napi.h>
+#include <thread>
 
 #include "openvino/runtime/infer_request.hpp"
+
+struct TsfnContext {
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+
+    std::thread native_thread;
+
+    Napi::Promise::Deferred deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    ov::InferRequest* _ir;
+    std::vector<ov::Tensor> _inputs;
+    std::map<std::string, ov::Tensor> result;
+};
 
 class InferRequestWrap : public Napi::ObjectWrap<InferRequestWrap> {
 public:

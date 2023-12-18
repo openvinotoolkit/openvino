@@ -5,7 +5,6 @@
 
 #include <mutex>
 #include <random>
-#include <thread>
 
 #include "addon.hpp"
 #include "compiled_model.hpp"
@@ -207,19 +206,6 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-
-struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
-
-    std::thread native_thread;
-
-    Napi::Promise::Deferred deferred;
-    Napi::ThreadSafeFunction tsfn;
-
-    ov::InferRequest* _ir;
-    std::vector<ov::Tensor> _inputs;
-    std::map<std::string, ov::Tensor> result;
-};
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();
