@@ -2184,7 +2184,8 @@ public:
             data("weights", weights_mem),
             data("scale", scale_mem),
             data("zp", zp_mem),
-            gather("gather_prim", input_info("weights"), input_info("input"), 1, "scale", "zp", data_types::f32, 2, ov::Shape{2, 3}, 1)
+            gather("gather_prim", input_info("weights"), input_info("input"), 1,
+                   input_info("scale"), input_info("zp"), data_types::f32, 2, ov::Shape{2, 3}, 1)
         );
 
         auto config = get_test_default_config(engine);
@@ -2228,7 +2229,8 @@ public:
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
-            gather("gather_prim", input_info("weights"), input_info("input"), 1, "scale", "", data_types::f32, 2, ov::Shape{2, 3}, 1)
+            gather("gather_prim", input_info("weights"), input_info("input"), 1,
+                   input_info("scale"), input_info(""), data_types::f32, 2, ov::Shape{2, 3}, 1)
         );
 
         auto config = get_test_default_config(engine);
@@ -2272,7 +2274,8 @@ public:
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
-            gather("gather_prim", input_info("weights"), input_info("input"), 1, "scale", "", data_types::f16, 2, ov::Shape{2, 3}, 1)
+            gather("gather_prim", input_info("weights"), input_info("input"), 1,
+                   input_info("scale"), input_info(""), data_types::f16, 2, ov::Shape{2, 3}, 1)
         );
 
         auto config = get_test_default_config(engine);
