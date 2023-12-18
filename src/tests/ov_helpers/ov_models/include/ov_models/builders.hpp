@@ -253,10 +253,6 @@ std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
                                     size_t numSplits,
                                     int64_t axis);
 
-std::shared_ptr<ov::Node> makeVariadicSplit(const ov::Output<Node>& in,
-                                            const std::vector<size_t> numSplits,
-                                            int64_t axis);
-
 std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
                                          const element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
