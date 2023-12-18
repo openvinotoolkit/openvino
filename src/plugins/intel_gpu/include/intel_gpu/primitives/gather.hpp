@@ -100,6 +100,7 @@ struct gather : public primitive_base<gather> {
         seed = hash_combine(seed, batch_dim);
         seed = hash_combine(seed, support_neg_ind);
         seed = hash_combine(seed, compressed_weights);
+        seed = hash_combine(seed, decompressed_type.get_type_name());
         seed = hash_combine(seed, !decompression_scale.empty());
         seed = hash_combine(seed, !decompression_zero_point.empty());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
