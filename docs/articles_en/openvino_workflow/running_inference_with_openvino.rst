@@ -22,7 +22,7 @@ Running Inference with OpenVINO™
 
 OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API
 to deploy inference on the platform of your choice. You can run any of the 
-:doc:`supported model formats <openvino_docs_model_processing_introductions>` directly or convert the model
+:doc:`supported model formats <openvino_docs_model_processing_introduction>` directly or convert the model
 and save it to the :doc:`OpenVINO IR <openvino_ir>` format, for maximum performance.
 
 Why is OpenVINO IR inference faster? Even if you run a supported model directly, it is
