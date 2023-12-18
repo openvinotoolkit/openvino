@@ -3,7 +3,7 @@
 #
 
 #
-# OpenVINO NPM binaries, includes openvino:runtime, frontends, plugins, tbb
+# OpenVINO npm binaries, includes openvino:runtime, frontends, plugins, tbb
 #
 macro(ov_cpack_settings)
     # fill a list of components which are part of conda
@@ -14,9 +14,9 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to npm package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-        # python is not required for NPM package
-        NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*")
-            list(APPEND CPACK_COMPONENTS_ALL ${item})
+            # python is not required for npm package
+            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*")
+             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
     unset(cpack_components_all)
