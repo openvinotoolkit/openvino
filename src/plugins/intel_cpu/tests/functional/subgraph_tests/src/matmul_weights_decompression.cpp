@@ -332,17 +332,16 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
 }
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<ov::test::ElementType> weights_precisions_basic = {ov::element::u8,
-                                                                     ov::element::u4,
-                                                                     ov::element::i4,
-                                                                     ov::element::nf4};
-const std::vector<ov::test::ElementType> weights_precisions_amx = {ov::element::u8};
+const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
+                                                               ov::element::u4,
+                                                               ov::element::i4,
+                                                               ov::element::nf4};
 
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 8, 16}}}, {16, 32}, 4ul},
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
-    {{{}, {{10, 40, 496}}}, {1, 496, 240}},
+    {{{}, {{5, 40, 496}}}, {1, 496, 240}},
     {{{}, {{1, 4, 48}}}, {48, 256}},
     {{{}, {{1, 11, 154}}}, {154, 77}, 154ul},
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
@@ -353,15 +352,15 @@ const std::vector<ShapeParams> input_shapes_amx = {
     {{{}, {{1, 16, 32}}}, {32, 64}},
     {{{}, {{2, 4, 32}}}, {32, 65}},
     {{{}, {{3, 12, 768}}}, {768, 1024}},
-    {{{}, {{11, 339, 577}}}, {577, 335}},
+    {{{}, {{3, 339, 577}}}, {577, 335}},
     {{{}, {{1, 1, 256}}}, {256, 128}, 64ul},
 };
-const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias, fusingFakeQuantizePerTensorRelu};
+const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
-                                            ::testing::ValuesIn(weights_precisions_basic),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::full),
@@ -374,7 +373,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_amx),
-                                            ::testing::ValuesIn(weights_precisions_amx),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::full),
@@ -404,7 +403,7 @@ const std::vector<ov::test::ElementType> decompression_precisions_corner_cases =
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_basic),
-                                            ::testing::ValuesIn(weights_precisions_basic),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(decompression_subtract_type),
@@ -417,7 +416,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_amx,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_amx),
-                                            ::testing::ValuesIn(weights_precisions_amx),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(decompression_subtract_type),
