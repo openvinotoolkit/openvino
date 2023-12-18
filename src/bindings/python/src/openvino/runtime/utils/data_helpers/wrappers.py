@@ -27,9 +27,7 @@ class _InferRequestWrapper(InferRequestBase):
         super().__init__(other)
 
     def _is_single_input(self) -> bool:
-        if len(self.input_tensors) > 1:
-            return False
-        return True
+        return len(self.input_tensors) == 1
 
 
 class OVDict(Mapping):
