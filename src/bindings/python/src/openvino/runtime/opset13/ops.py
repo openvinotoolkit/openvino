@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 
 from openvino.runtime import Node, Shape, Type, Output
 from openvino.runtime.op import Constant, Result
+from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
@@ -20,6 +21,7 @@ from openvino.runtime.utils.types import (
     NodeInput,
     NumericType,
     as_nodes,
+    as_node,
 )
 
 _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
@@ -255,8 +257,13 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
-        query, key, value, scale)
+    inputs = as_nodes(query, key, value)
+    if attention_mask is not None:
+        inputs.append(as_node(attention_mask))
+    elif scale is not None:
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0])))
+    if scale is not None:
+        inputs.append(as_node(scale))
 
     attributes = {
         "causal": causal,
