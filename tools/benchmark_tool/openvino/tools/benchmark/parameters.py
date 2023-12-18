@@ -62,13 +62,11 @@ def parse_args():
                            'Default value is CPU. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
                            'Use \'-d MULTI:<comma separated devices list>\' format to specify MULTI plugin. '
                            'The application looks for a suitable plugin for the specified device.')
-    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=('throughput', 'tput', 'cumulative_throughput', 'ctput', 'latency', 'none'),
-                      help='Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the right model-specific settings.\n'
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=('throughput', 'tput', 'cumulative_throughput', 'ctput', 'latency'),
+                      help='Optional. Performance hint (latency or throughput or cumulative_throughput). Performance hint allows the OpenVINO device to select the right model-specific settings.\n'
                             '\'throughput\': device performance mode will be set to THROUGHPUT. \n'
                             '\'cumulative_throughput\': device performance mode will be set to CUMULATIVE_THROUGHPUT. \n'
-                            '\'latency\': device performance mode will be set to LATENCY. \n'
-                            '\'none\': no device performance mode will be set. \n'
-                            'Using explicit \'nstreams\' or other device-specific options, please set hint to \'none\'')
+                            '\'latency\': device performance mode will be set to LATENCY.')
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')

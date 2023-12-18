@@ -33,6 +33,7 @@ def parse_and_check_command_line():
         parser.print_help()
         raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
 
+    # ??
     if not args.perf_hint == "none" and (arg_not_empty(args.number_streams, "") or arg_not_empty(args.number_threads, 0) or arg_not_empty(args.infer_threads_pinning, "")):
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
@@ -106,7 +107,7 @@ def main():
         next_step()
 
         def set_performance_hint(device):
-            perf_hint = properties.hint.PerformanceMode.UNDEFINED
+            perf_hint = properties.hint.PerformanceMode.LATENCY
             supported_properties = benchmark.core.get_property(device, properties.supported_properties())
             if properties.hint.performance_mode() in supported_properties:
                 if is_flag_set_in_command_line('hint'):
@@ -116,17 +117,14 @@ def main():
                         perf_hint = properties.hint.PerformanceMode.LATENCY
                     elif args.perf_hint == "cumulative_throughput" or args.perf_hint == "ctput":
                         perf_hint = properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT
-                    elif args.perf_hint=='none':
-                        perf_hint = properties.hint.PerformanceMode.UNDEFINED
                     else:
                         raise RuntimeError("Incorrect performance hint. Please set -hint option to"
-                            "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
+                            "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value.")
                 else:
                     perf_hint = properties.hint.PerformanceMode.THROUGHPUT if benchmark.api_type == "async" else properties.hint.PerformanceMode.LATENCY
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
-                if perf_hint != properties.hint.PerformanceMode.UNDEFINED:
-                    config[device][properties.hint.performance_mode()] = perf_hint
+                config[device][properties.hint.performance_mode()] = perf_hint
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
