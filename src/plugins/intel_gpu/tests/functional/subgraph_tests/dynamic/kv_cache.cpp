@@ -251,7 +251,10 @@ class KVCacheTests: public ::testing::Test {
         }
     }
 
-    void test_smoke_multipleIterations_stateful(bool is_caching_test, bool fuse_cache_reorder, bool build_state_initializer) {
+    void test_smoke_multipleIterations_stateful(bool is_caching_test,
+                                                bool fuse_cache_reorder,
+                                                bool build_state_initializer,
+                                                ov::element::Type model_element_type = ov::element::f16) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
@@ -279,7 +282,7 @@ class KVCacheTests: public ::testing::Test {
         const size_t n_features = 10;
         const size_t context_size = 20;
 
-        ov::element::Type element_type = ov::element::f32;
+        ov::element::Type element_type = model_element_type;
 
         const bool stateful = true;
 
@@ -456,4 +459,9 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer) 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_cached) {
     this->test_smoke_multipleIterations_stateful(true, true, true);
 }
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_f32) {
+    this->test_smoke_multipleIterations_stateful(false, true, true, ov::element::f32);
+}
+
 } // namespace

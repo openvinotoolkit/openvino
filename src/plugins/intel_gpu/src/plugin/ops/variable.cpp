@@ -26,7 +26,6 @@ void CreateVariableAccessPrimitive(ProgramBuilder &p, const std::shared_ptr<ov::
     const auto variable_layout = cldnn::layout{ output_pshape, output_dtype, output_format };
 
     auto inputs = p.GetInputInfo(op);
-    // Fixme: Extract type from op RTInfo map
     auto user_specified_type = get_original_precision(op);
     const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
                                   inputs,
