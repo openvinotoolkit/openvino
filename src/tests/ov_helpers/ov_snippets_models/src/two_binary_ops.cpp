@@ -3,7 +3,7 @@
 //
 
 #include "two_binary_ops.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/op/convert_saturation.hpp"
 
 namespace ov {

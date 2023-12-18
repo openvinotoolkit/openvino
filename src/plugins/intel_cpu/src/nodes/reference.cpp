@@ -3,10 +3,7 @@
 //
 
 #include "reference.h"
-
 #include "common/cpu_memcpy.h"
-#include <ie_ngraph_utils.hpp>
-#include "openvino/core/shape_util.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -91,7 +88,13 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             if (memory->getSize() != tensor.get_byte_size()) {
                 THROW_CPU_NODE_ERR("output tensor data size mismatch occurred during the inference on output port number ", i);
             }
-            cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());
+            if (tensor.get_element_type() == element::string) {
+                auto srcPtr = tensor.data<StringMemory::OvString>();
+                auto dstPtr = reinterpret_cast<StringMemory::OvString *>(memory->getData());
+                std::copy(srcPtr, srcPtr + tensor.get_size(), dstPtr);
+            } else {
+                cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());
+            }
         }
     }
 }

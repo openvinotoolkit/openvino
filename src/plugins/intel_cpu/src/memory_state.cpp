@@ -47,6 +47,7 @@ void VariableStateBase::set_state(const ov::SoPtr<ov::ITensor>& state) {
 
     Memory mem(get_engine(), state_desc, src);
     input_mem()->load(mem);
+    reset_state_flag = false;
 }
 
 ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
@@ -78,11 +79,24 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
     return std::make_shared<Tensor>(mem);
 }
 
+void VariableStateBase::reset() {
+    reset_impl();
+    reset_state_flag = true;
+}
+
+bool VariableStateBase::is_reset_state() const {
+    return reset_state_flag;
+}
+
+void VariableStateBase::commit() {
+    commit_impl();
+    reset_state_flag = false;
+}
+
 VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
                                                      const MemoryPtr& first_buffer,
                                                      const MemoryPtr& second_buffer,
-                                                     const MemoryDescPtr& external_desc,
-                                                     const MemoryCPtr& init_val) :
+                                                     const MemoryDescPtr& external_desc) :
     VariableStateBase(name, external_desc) {
     OPENVINO_ASSERT(first_buffer && second_buffer);
     reset_prime_mem(first_buffer);
@@ -92,11 +106,7 @@ VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
-        if (init_val) {
-            prime_mem()->load(*init_val);
-        } else {
-            prime_mem()->nullify();
-        }
+        prime_mem()->nullify();
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
         auto new_desc = to_static(m_internal_desc);
@@ -104,7 +114,7 @@ VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
     }
 }
 
-void VariableStateDoubleBuffer::reset() {
+void VariableStateDoubleBuffer::reset_impl() {
     auto new_desc = to_static(m_internal_desc);
     for (auto&& mem : m_internal_mem) {
         if (mem) {
@@ -114,7 +124,7 @@ void VariableStateDoubleBuffer::reset() {
     }
 }
 
-void VariableStateDoubleBuffer::commit() {
+void VariableStateDoubleBuffer::commit_impl() {
     buffer_num ^= 0x01;
 }
 
@@ -136,8 +146,7 @@ MemoryPtr VariableStateDoubleBuffer::internal_state_mem() const {
 
 VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
                                                      const MemoryPtr& buffer,
-                                                     const MemoryDescPtr& external_desc,
-                                                     const MemoryCPtr& init_val) :
+                                                     const MemoryDescPtr& external_desc) :
     VariableStateBase(name, external_desc) {
     OPENVINO_ASSERT(buffer);
     m_internal_mem = buffer;
@@ -146,11 +155,7 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
-        if (init_val) {
-            m_internal_mem->load(*init_val);
-        } else {
-            m_internal_mem->nullify();
-        }
+        m_internal_mem->nullify();
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
         auto new_desc = to_static(m_internal_desc);
@@ -158,7 +163,7 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
     }
 }
 
-void VariableStateSingleBuffer::reset() {
+void VariableStateSingleBuffer::reset_impl() {
     auto new_desc = to_static(m_internal_desc);
     m_internal_mem->redefineDesc(new_desc);
     m_internal_mem->nullify();
@@ -180,7 +185,7 @@ MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
     return m_internal_mem;
 }
 
-void VariableStateSingleBuffer::commit() {
+void VariableStateSingleBuffer::commit_impl() {
     //nothing to do
 }
 

@@ -2,23 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
-#include <numeric>
-#include <unordered_set>
-
-#include <dnnl_types.h>
-#include <common/memory_desc_wrapper.hpp>
 #include "cpu_memory.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/cpu_convert.h"
-#include "onednn/dnnl.h"
-#include "cpu_shape.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/reorder.h"
 #include "memory_desc/cpu_memory_desc.h"
-
-using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
@@ -168,7 +154,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
         auto desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_memObjPtr->getDescPtr());
-        m_prim = memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
+        m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
         auto data = m_memObjPtr->getDataNoThrow();
@@ -287,6 +273,129 @@ void MemoryMngrRealloc::destroy(void *ptr) {
     dnnl::impl::free(ptr);
 }
 
+/////////////// StringMemory ///////////////
+
+StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data) : m_engine(engine), m_mem_desc(desc) {
+    if (m_mem_desc->getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
+    }
+
+    m_manager = std::make_shared<StringMemoryMngr>();
+
+    if (!m_mem_desc->isDefined()) {
+        return;
+    }
+
+    m_size = m_mem_desc->getCurrentMemSize();
+    const auto string_size = m_mem_desc->getShape().getElementsCount();
+
+    if (data != nullptr) {
+        auto not_const_data = const_cast<void *>(data);
+        m_manager->setExtBuff(reinterpret_cast<OvString *>(not_const_data), string_size);
+    } else {
+        m_manager->resize(string_size);
+    }
+}
+
+void StringMemory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
+    }
+
+    transferData(src, *this, false);
+}
+
+void* StringMemory::getData() const  {
+    return m_manager->getRawPtr();
+}
+
+void StringMemory::redefineDesc(MemoryDescPtr desc) {
+    if (desc->getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
+    }
+    if (!desc->hasDefinedMaxSize()) {
+        OPENVINO_THROW("[CPU] StringMemory cannot reset descriptor. Memory upper bound is unknown.");
+    }
+
+    m_mem_desc = desc;
+    const auto string_size = m_mem_desc->getShape().getElementsCount();
+    m_manager->resize(string_size);
+}
+
+void StringMemory::nullify() {
+    auto data_ptr = m_manager->getStringPtr();
+    if (data_ptr != nullptr) {
+        std::fill(data_ptr, data_ptr + m_manager->getStrLen(), OvString());
+    }
+}
+
+bool StringMemory::isAllocated() const noexcept {
+    if (getData()) {
+        return true;
+    }
+    if (!m_mem_desc) {
+        return false;
+    }
+    if (!(m_mem_desc->isDefined())) {
+        return true;
+    }
+    if (m_mem_desc->getCurrentMemSize() == 0) {
+        return true;
+    }
+    return false;
+}
+
+MemoryMngrPtr StringMemory::getMemoryMngr() const {
+    OPENVINO_THROW("Unexpected call of StringMemory::getMemoryMngr()");
+}
+
+dnnl::memory StringMemory::getPrimitive() const {
+    OPENVINO_THROW("Unexpected call of StringMemory::getPrimitive()");
+}
+
+void StringMemory::StringMemoryMngr::setExtBuff(OvString* ptr, size_t size) {
+    m_use_external_storage = true;
+    m_str_upper_bound = size;
+    m_data = decltype(m_data)(ptr, release);
+}
+
+StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noexcept {
+    return m_data.get();
+}
+
+bool StringMemory::StringMemoryMngr::resize(size_t size) {
+    bool sizeChanged = false;
+    if (size > m_str_upper_bound) {
+        auto ptr = new OvString[size];
+        if (!ptr) {
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
+        }
+        m_str_upper_bound = size;
+        m_use_external_storage = false;
+        m_data = decltype(m_data)(ptr, destroy);
+        sizeChanged = true;
+    }
+    return sizeChanged;
+}
+
+bool StringMemory::StringMemoryMngr::hasExtBuffer() const noexcept {
+    return m_use_external_storage;
+}
+
+size_t StringMemory::StringMemoryMngr::getStrLen() const noexcept {
+    return m_str_upper_bound;
+}
+
+void StringMemory::StringMemoryMngr::destroy(OvString* ptr) {
+    delete[] ptr;
+}
+
+void* StringMemory::StringMemoryMngr::getRawPtr() const noexcept {
+    return reinterpret_cast<void *>(m_data.get());
+}
+
+/////////////// DnnlMemoryMngr ///////////////
+
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
     return m_pMemMngr->getRawPtr();
 }
@@ -347,7 +456,7 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
         // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
-        m_prim = memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
+        m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
         //
         // ========================
         if (pads_zeroing)

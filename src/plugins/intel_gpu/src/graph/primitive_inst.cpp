@@ -946,8 +946,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (out_of_order_queue || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
-                if (input->is_input() && !out_of_order_queue)
-                    continue;
                 auto id = input->id();
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
@@ -1404,7 +1402,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
+    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
+                                              _node.get_preferred_impl_type() == impl_types::cpu;
     auto use_lockable_memory =
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||

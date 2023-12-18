@@ -6,12 +6,10 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
-#include <ngraph/file_util.hpp>
 
 #include "onnx_utils.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 using ONNXLoadTest = FrontEndLoadFromTest;
@@ -26,11 +24,8 @@ static LoadFromFEParam getTestData() {
 }
 
 TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    const auto path = file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                           TEST_ONNX_MODELS_DIRNAME,
-                                           "external_data/external_data.onnx");
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    const auto path = ov::util::path_join(
+        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx"});
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::istream* is = &ifs;
