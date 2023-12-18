@@ -169,7 +169,7 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
     const auto there_is_before_loop = last_execution_loop != loop_descs.end();
     const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
     const auto target_work_amount = is_wa_dynamic ? loop_info->get_work_amount() : loop_info->get_work_amount() % loop_info->get_increment();
-    const auto skip_evaluation = !is_wa_dynamic && tail_loop_desc.work_amount == 0;
+    const auto skip_evaluation = !is_wa_dynamic && target_work_amount == 0;
 
     tail_loop_desc.work_amount = target_work_amount;
     tail_loop_desc.increment = loop_info->is_dynamic() ? 1 : tail_loop_desc.work_amount;
