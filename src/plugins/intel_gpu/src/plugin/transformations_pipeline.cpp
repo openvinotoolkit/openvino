@@ -268,7 +268,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        initial_transformations_manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+        initial_transformations_manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8,
+                                                                                                                    ov::element::u4,
+                                                                                                                    ov::element::i4}, true);
+
         // Ignore nodes that are not related to FullyConnected and allow ConstantFolding to be applied to them
         initial_transformations_manager.get_pass_config()->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_decompression_multiply);
         initial_transformations_manager.run_passes(func);
