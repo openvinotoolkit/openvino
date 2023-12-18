@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { cv } = require('opencv-wasm');
 const { createWriteStream } = require('node:fs');
+const { mkdir, stat } = require('node:fs/promises');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const {
@@ -114,9 +115,12 @@ function transform(arr, { width, height }, order) {
   return [].concat(...val);
 }
 
-function downloadFile(url, filename, destination) {
+async function downloadFile(url, filename, destination) {
   const { env } = process;
   const timeout = 5000;
+
+  await applyFolderPath(destination);
+
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
   const protocolString = new URL(url).protocol === 'https:' ? 'https' : 'http';
@@ -313,4 +317,16 @@ function tril(matrix, k = 0) {
   }
 
   return result;
+}
+
+async function applyFolderPath(dirPath) {
+  try {
+    await stat(dirPath);
+
+    return;
+  } catch(err) {
+    if (err.code !== 'ENOENT') throw err;
+
+    await mkdir(dirPath, { recursive: true });
+  }
 }
