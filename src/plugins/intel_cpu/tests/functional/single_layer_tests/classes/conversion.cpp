@@ -98,7 +98,11 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 
     auto shape = targetInputStaticShapes.front();
     size_t size = shape_size(shape);
-    ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape, 2 * size);
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 2 * size;
+    ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape, in_data);
 
     if (inPrc == ov::element::f32) {
         auto* rawBlobDataPtr = static_cast<float*>(tensor.data());

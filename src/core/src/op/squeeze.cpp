@@ -8,9 +8,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "squeeze_shape_inference.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -101,9 +101,7 @@ bool Squeeze::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return validate::axes_has_and_set_bound(*this) && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return validate::axes_has_and_set_bound(*this) && ov::util::default_label_evaluator(this, output_labels);
 }
 
 bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

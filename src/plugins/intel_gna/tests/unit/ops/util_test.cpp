@@ -80,9 +80,9 @@ TEST_P(GnaOpsUtilIsEltwiseAddTest, isEltwiseAddTest) {
 ov::NodeVector pooling_nodes_false = {std::make_shared<VariadicSplit>(),
                                       std::make_shared<Concat>(),
                                       std::make_shared<MatMul>(),
-                                      std::make_shared<ngraph::opset9::MaxPool>()};
+                                      std::make_shared<ov::opset9::MaxPool>()};
 
-ov::NodeVector pooling_nodes_true = {std::make_shared<ngraph::opset7::MaxPool>()};
+ov::NodeVector pooling_nodes_true = {std::make_shared<ov::op::v1::MaxPool>()};
 
 ov::NodeVector eltwise_mul_nodes_false = {
     std::make_shared<VariadicSplit>(),

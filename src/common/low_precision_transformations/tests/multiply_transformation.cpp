@@ -28,7 +28,7 @@ using namespace ngraph::builder::subgraph;
 class MultiplyBranch {
 public:
     ngraph::builder::subgraph::Constant constant;
-    ngraph::element::Type input_precision;
+    ov::element::Type input_precision;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
     ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
 };
