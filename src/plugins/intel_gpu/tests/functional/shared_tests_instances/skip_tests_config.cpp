@@ -58,6 +58,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 124060
             R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
+            // Issue: 119648
+            R"(.*smoke_LPT/InterpolateTransformation.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif

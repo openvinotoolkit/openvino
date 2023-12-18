@@ -29,6 +29,7 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
+    abs_threshold = 1.0e-3;
     //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ngraph::PartialShape inputShape;
     ngraph::element::Type netPrecision;

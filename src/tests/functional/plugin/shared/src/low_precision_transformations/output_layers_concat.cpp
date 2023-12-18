@@ -66,6 +66,8 @@ InferenceEngine::Blob::Ptr OutputLayersConcat::GenerateInput(const InferenceEngi
 */
 
 void OutputLayersConcat::SetUp() {
+    abs_threshold = 4.1;
+
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;

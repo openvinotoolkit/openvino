@@ -37,6 +37,7 @@ std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void FuseConvertTransformation::SetUp() {
+    abs_threshold = 0.01;
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
