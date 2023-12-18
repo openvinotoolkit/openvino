@@ -59,6 +59,8 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 else:
                     test_name = test_name.replace(string, "_")
 
+            test_name = test_name.lower()
+
             test_case = ExtOnnxTestCase(
                 name=test_name,
                 url=None,
