@@ -369,12 +369,6 @@ std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataTy
                                                      bool with_weights,
                                                      bool with_default_index);
 
-std::shared_ptr<ov::Node> makeEmbeddingBagPackedSum(const element::Type& dataType,
-                                                    const element::Type& indicesType,
-                                                    const ov::Output<Node>& emb_table_node,
-                                                    const std::vector<std::vector<size_t>>& indices,
-                                                    bool with_weights);
-
 std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
                                                    const element::Type& indicesType,
                                                    const ov::Output<Node>& emb_table_node,
