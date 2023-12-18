@@ -114,7 +114,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
             return false;
         }
-        if ((one_of(inRank, 2u, 3u) && weightRank != 2) || (inRank == 4 && (!one_of(weightRank, 2u, 4u)))) {
+        if (one_of(inRank, 2u, 3u, 4u) && weightRank != 2) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank) +
                            " and 'weight' input with rank: " + std::to_string(weightRank);
             return false;
@@ -405,24 +405,22 @@ static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::en
     // fallback to normal inner product primitive
     auto inDesc = key.inp0->getDnnlDesc();
     const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
-
-    auto outDesc = key.out->getDnnlDesc();
-    const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
-
-    auto weiDesc = key.inp1->getDnnlDesc();
-    const auto& weiDims = weiDesc.get_dims();
-
-    if (inDims.size() > 2 && weiDims.size() == 2) {
+    if (inDims.size() > 2) {
         dnnl::memory::dims normalizedInDims = normalizeDims(inDims);
         inDesc = inDesc.reshape(normalizedInDims);
     }
 
-    if (outDims.size() > 2 && weiDims.size() == 2) {
+    auto outDesc = key.out->getDnnlDesc();
+    const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
+    if (outDims.size() > 2) {
         dnnl::memory::dims normalizedOutDims = normalizeDims(outDims);
         outDesc = outDesc.reshape(normalizedOutDims);
     }
 
-    if (!key.useSparseWeights) {
+    dnnl::memory::desc weiDesc;
+    if (key.useSparseWeights) {
+        weiDesc = key.inp1->getDnnlDesc();
+    } else {
         weiDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
                                              key.inp1->getDataType(), memory::format_tag::any);
     }
@@ -674,14 +672,10 @@ void FullyConnected::execute(dnnl::stream strm) {
     auto updateMemoryPtr = [this](int argType) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
-            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() == 3 ||
-             (getInputShapeAtPort(DATA_ID).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2) ||
-              useConv1x1)) {
+            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() > 2 || useConv1x1)) {
                 primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
-            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() == 3 ||
-             (getOutputShapeAtPort(0).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2) ||
-              useConv1x1)) {
+            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() > 2 || useConv1x1)) {
                 primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
         }
@@ -797,6 +791,9 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
 void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDesc,
                                               const dnnl::memory::desc &outputDesc) {
     auto create2Dcandidate = [](const dnnl::memory::desc &desc) {
+        if (desc.get_dims().size() == 2) // already 2D
+            return desc;
+
         auto inDims = desc.get_dims();
         dnnl::memory::dims normalizedInDims = normalizeDims(inDims);
 
@@ -804,10 +801,8 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
                                   DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
     };
 
-    // 3D or 4D need to be normalized to 2D
-    const auto needNormalize = outputDesc.get_dims().size() > 2;
-    const auto in_candidate  = (needNormalize && inputDesc.get_dims().size() > 2) ? create2Dcandidate(inputDesc) : inputDesc;
-    const auto out_candidate = needNormalize ? create2Dcandidate(outputDesc) : outputDesc;
+    const auto in_candidate  = create2Dcandidate(inputDesc);
+    const auto out_candidate = create2Dcandidate(outputDesc);
 
     const dnnl::memory::data_type indt = inputDesc.get_data_type();
     const dnnl::memory::data_type outdt = outputDesc.get_data_type();
@@ -961,7 +956,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : prim_desc.src_desc(idx);
 
-    if (getInputShapeAtPort(idx).getRank() == 3 || (getInputShapeAtPort(idx).getRank() == 4 && getInputShapeAtPort(WEIGHTS_ID).getRank() == 2)
+    if (getInputShapeAtPort(idx).getRank() != 2
         // report original plain layout for weight since it needs to be reordered dynamically at runtime
         || (idx == 1 && !useSparseWeights)) {
         return std::make_shared<CpuBlockedMemoryDesc>(
