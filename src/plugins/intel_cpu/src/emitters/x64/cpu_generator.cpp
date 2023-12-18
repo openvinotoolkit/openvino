@@ -14,8 +14,6 @@
 #include "jit_dnnl_emitters.hpp"
 #include "jit_dnnl_ext_emitters.hpp"
 #include "jit_conversion_emitters.hpp"
-#include "jit_perf_count_chrono_emitters.hpp"
-#include "jit_perf_count_rdtsc_emitters.hpp"
 
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
@@ -27,6 +25,12 @@
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #include <openvino/opsets/opset5.hpp>
+
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "jit_perf_count_chrono_emitters.hpp"
+#include "jit_perf_count_rdtsc_emitters.hpp"
+#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#endif
 
 namespace ov {
 
@@ -162,10 +166,12 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmEmitter);
     jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmCopyBEmitter);
 
+#ifdef SNIPPETS_DEBUG_CAPS
     jitters[snippets::op::PerfCountBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_start_emitter);
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_end_emitter);
+#endif
 }
 
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -232,11 +238,15 @@ snippets::Generator::opRegType intel_cpu::CPUGenerator::get_specific_op_reg_type
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
-    return std::dynamic_pointer_cast<intel_cpu::BrgemmEmitter>(e) ||
-           std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e) ||
+    bool need = std::dynamic_pointer_cast<intel_cpu::BrgemmEmitter>(e) ||
+                std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e);
+#ifdef SNIPPETS_DEBUG_CAPS
+    need = need ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_end_emitter>(e);
+#endif
+    return need;
 }
 } // namespace ov

@@ -37,6 +37,8 @@
 #include <common/primitive_hashing_utils.hpp>
 #include "snippets/pass/hash.hpp"
 
+#include "snippets/lowered/linear_ir.hpp"
+
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -395,12 +397,26 @@ void Snippet::prepareParams() {
         return executor;
     };
 
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-    execPtr = result.first;
-    if (!execPtr) {
-        OPENVINO_THROW("Executor is not created for node ", getName(), ".");
+    auto getOrCreateExecutor = [this, &key, &builder]() {
+        auto cache = context->getParamsCache();
+        auto result = cache->getOrCreate(key, builder);
+        execPtr = result.first;
+        if (!execPtr) {
+            OPENVINO_THROW("Executor is not created for node ", getName(), ".");
+        }
+    };
+
+#ifndef SNIPPETS_DEBUG_CAPS
+    getOrCreateExecutor();
+#else
+    snippets::lowered::Config config;
+    if (config.perf_count_mode == snippets::lowered::PerfCountMode::Disabled) {
+        getOrCreateExecutor();
+    } else {
+        // in case perf count is enabled, disable executor cache by default to not mix up perf counters for different subgraphs.
+        execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
     }
+#endif
 }
 
 bool Snippet::needPrepareParams() const {

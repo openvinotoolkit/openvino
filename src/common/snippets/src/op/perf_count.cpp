@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #include "snippets/op/perf_count.hpp"
 
@@ -113,3 +114,4 @@ void PerfCountEnd::output_perf_count() {
 } // namespace op
 } // namespace snippets
 } // namespace ov
+#endif  // SNIPPETS_DEBUG_CAPS
