@@ -149,10 +149,16 @@ public:
             ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
                          // (for large #streams)
         } _thread_preferred_core_type =
-            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
-        bool _cpu_reservation = false;
-        std::vector<std::vector<int>> _streams_info_table = {};
-        std::vector<std::vector<int>> _stream_processor_ids;
+            PreferredCoreType::ANY;     //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
+        bool _cpu_reservation = false;  //!< Reserve the CPU that cannot be used by other executors
+        std::vector<std::vector<int>> _streams_info_table =
+            {};  //!< streams information table {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM, STREAM_NUMA_NODE_ID,
+                 //!< STREAM_SOCKET_ID}, for example:
+                 //!< NUMBER_OF_STREAMS | PROC_TYPE | THREADS_PER_STREAM | STREAM_NUMA_NODE_ID | STREAM_SOCKET_ID
+                 //!<        2               1                4                    0                    0
+                 //!<        4               2                4                    0                    0
+                 //!<        2               3                4                    0                    0
+        std::vector<std::vector<int>> _stream_processor_ids;  //!< stream processor ids
         bool _streams_changed = false;
 
         /**
