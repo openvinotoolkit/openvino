@@ -206,7 +206,17 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
 
-    void prepare_prim(dnnl::stream strm, size_t B, size_t H, size_t Hk, size_t q_len, size_t kv_len, size_t S, bool has_out_transpose) {
+    void prepare_prim(dnnl::stream strm,
+                      PlainTensor& query,
+                      PlainTensor& present_key,
+                      PlainTensor& present_value,
+                      size_t B,
+                      size_t H,
+                      size_t Hk,
+                      size_t q_len,
+                      size_t kv_len,
+                      size_t S,
+                      bool has_out_transpose) {
         auto make_dnnl_dims = [](const std::vector<size_t>& dims) {
             dnnl::memory::dims dnnl_dims(dims.size());
             for (size_t i = 0; i < dims.size(); i++)
@@ -214,8 +224,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             return dnnl_dims;
         };
         auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
-        dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, tag::abcd);
-        dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, tag::abcd);
+        dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, query.get_strides<dnnl::memory::dim>());
+        dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_key.get_strides<dnnl::memory::dim>());
         if (cur_q_md == q_md && cur_k_md == k_md)
             return;
 
@@ -227,7 +237,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         qk_prim = dnnl::matmul(qk_pd);
 
         weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
-        v_md = dnnl::memory::desc(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, tag::abcd);
+        v_md = dnnl::memory::desc(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_value.get_strides<dnnl::memory::dim>());
         out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, S}), qkv_dt, tag::abcd);
         if (has_out_transpose)
             out_md = out_md.permute_axes({0, 2, 1, 3});
@@ -288,7 +298,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
-        prepare_prim(strm, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
+        prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
         exec_qk(strm, query, present_key);
 
         PlainTensor score;
