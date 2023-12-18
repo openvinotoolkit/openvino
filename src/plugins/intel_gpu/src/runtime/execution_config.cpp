@@ -56,7 +56,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
         std::make_tuple(ov::intel_gpu::disable_winograd_convolution, false),
         std::make_tuple(ov::internal::exclusive_async_requests, false),
-        std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SIZE),
+        std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
