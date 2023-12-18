@@ -32,7 +32,7 @@ Requirements
 How It Works
 ####################
 
-At startup, the sample application reads command-line parameters, `builds a model <openvino_docs_OV_UG_Model_Representation>` 
+At startup, the sample application reads command-line parameters, :doc:`builds a model <openvino_docs_OV_UG_Model_Representation>` 
 and passes the weights file. Then, it loads the model and input data to the OpenVINO™ 
 Runtime plugin. Finally, it performs synchronous inference and processes output 
 data, logging each step in a standard output stream.
