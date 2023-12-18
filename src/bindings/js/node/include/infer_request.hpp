@@ -111,3 +111,7 @@ public:
 private:
     ov::InferRequest _infer_request;
 };
+
+void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context);
+
+void performInferenceThread(TsfnContext* context);
