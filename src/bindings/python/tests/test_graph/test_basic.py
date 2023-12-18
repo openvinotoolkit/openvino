@@ -564,8 +564,8 @@ def test_sink_model_ctor():
     sinks = model.get_sinks()
     assert ["Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 6
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()

@@ -78,7 +78,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mn
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
-    if (size  == MemoryDesc::UNDEFINED_SIZE) {
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
         OPENVINO_THROW("Can't get memory size for undefined shape");
     }
     return size;
@@ -285,7 +285,6 @@ StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc
         return;
     }
 
-    m_size = m_mem_desc->getCurrentMemSize();
     const auto string_size = m_mem_desc->getShape().getElementsCount();
 
     if (data != nullptr) {
@@ -342,6 +341,14 @@ bool StringMemory::isAllocated() const noexcept {
         return true;
     }
     return false;
+}
+
+size_t StringMemory::getSize() const { // In bytes
+    auto size = getDesc().getCurrentMemSize();
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
+        OPENVINO_THROW("Can't get memory size for undefined shape.");
+    }
+    return size;
 }
 
 MemoryMngrPtr StringMemory::getMemoryMngr() const {
