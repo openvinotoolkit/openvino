@@ -195,7 +195,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHA
                                  ::testing::Values(true),
                                  ::testing::Values(true),
                                  ::testing::Values(90112),
-                                 ::testing::Values(5)),
+                                 ::testing::Values(3)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
