@@ -35,7 +35,7 @@ void assign_inst::on_execute() {
 }
 
 void assign_inst::update_output_memory() {
-    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+    if (!get_network().has_variable(variable_id()))
         return;
 
     _outputs[0] = input_memory_ptr(0);

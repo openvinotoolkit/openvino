@@ -273,9 +273,11 @@ void primitive_inst::update_shape() {
         // Initial variable shape is taken from variable itself
         auto new_layout = variable.get_layout();
 
+        bool need_allocate = false;
         // If variable is not set and we have an initializer - use it's shape as shape of variable
         if (!variable.is_set() && _impl_params->input_layouts.size() == 1) {
             new_layout = _impl_params->get_input_layout(0);
+            need_allocate = true;
         }
 
         // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace dynamic dims with 0
@@ -289,7 +291,7 @@ void primitive_inst::update_shape() {
             new_layout.set_partial_shape(pshape);
         }
 
-        variable.set_layout(new_layout, false);
+        variable.set_layout(new_layout, need_allocate);
 
         if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
             _impl_params->state_layout = new_layout;

@@ -46,8 +46,10 @@ struct assign_impl : public typed_primitive_impl<assign> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, assign_inst& instance) override {
-        for (auto e : events) {
-            e->wait();
+        if (!instance.can_be_optimized()) {
+            for (auto e : events) {
+                e->wait();
+            }
         }
 
         auto& variable = instance.get_network().get_variable(variable_id);
@@ -57,13 +59,16 @@ struct assign_impl : public typed_primitive_impl<assign> {
                         "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
                         " assign output layout: ", instance.get_output_layout().to_short_string());
 
-        variable.set();
         if (!instance.can_be_optimized()) {
-            return variable.get_memory()->copy_from(stream, instance.input_memory(), false);
+            const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory());
+            variable.set();
+            return ev_set_memory;
         }
         variable.set_memory(instance.input_memory_ptr());
+        variable.set();
 
-        return instance.get_network().get_stream().create_user_event(true);
+        return events.empty() ? instance.get_network().get_stream().create_user_event(true)
+                              : events[0];
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
