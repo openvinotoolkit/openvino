@@ -288,11 +288,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
         },
-        [](std::shared_ptr<ov::Node> node) {
-            return (ov::is_type<ov::op::v0::MatMul>(node) ||
-                    ov::is_type<ov::op::util::ConvolutionFwdPropBase>(node) ||
-                    ov::is_type<ov::op::util::ConvolutionBackPropBase>(node));
-        },
         memory_size_in_bytes);
 
     for (auto&& op_name : supported) {

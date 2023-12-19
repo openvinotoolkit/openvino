@@ -262,7 +262,6 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
     std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported,
-    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_under_memory_control = nullptr,
     uint64_t memory_size_in_bytes = 0);
 
 /**
