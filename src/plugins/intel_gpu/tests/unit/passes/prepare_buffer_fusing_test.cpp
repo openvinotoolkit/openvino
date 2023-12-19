@@ -948,10 +948,11 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
-#endif  // ENABLE_ONEDNN_FOR_GPU
+
+#else  // ENABLE_ONEDNN_FOR_GPU
 
 TEST(prepare_buffer_fusing, in_place_concat_dynamic__dyn_dims__reshape_input_01) {
-    // concat buffer fusing for un-optimzied reshape + concat
+    // This test is the test concat buffer fusing for un-optimzied reshape ( + fused relu) + concat on iGPU
     auto& engine = get_test_engine();
     auto input1_mem = engine.allocate_memory(layout{ov::PartialShape{2, 3, 2, 1}, data_types::f32, format::bfyx});
     auto input2_mem = engine.allocate_memory(layout{ov::PartialShape{4, 3}, data_types::f32, format::bfyx});
@@ -968,7 +969,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic__dyn_dims__reshape_input_01)
     topology.add(input_layout("input4", layout{ov::PartialShape{-1, 3}, data_types::f32, format::bfyx}));
     topology.add(data("const", const_shape));
     topology.add(reshape("reshape", input_info("input1"), input_info("const"), false, ov::PartialShape::dynamic(2))); // {4,3}
-    topology.add(activation("relu", input_info("reshape"), activation_func::relu));
+    topology.add(activation("relu", input_info("reshape"), activation_func::relu)); // Add relu to diable reshape optimization.
     topology.add(eltwise("sum", { input_info("input2"), input_info("input3") }, eltwise_mode::sum));
     topology.add(concatenation("concat", { input_info("relu"), input_info("sum") }, 0));
     topology.add(eltwise("output", { input_info("concat"), input_info("input4") }, eltwise_mode::sum));
@@ -1036,6 +1037,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic__dyn_dims__reshape_input_01)
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
+#endif
 
 TEST(prepare_buffer_fusing, in_place_concat_dynamic__dyn_dims__reshape_input_02) {
     // Not allowed concat buffer fusing when optimized reshape has input_layout as its dependency
