@@ -7,8 +7,8 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/select.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -23,7 +23,6 @@ OutputVector translate_gcd(const NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
 
-    // Change the shape of the zero constant to []
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
 
     auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1000);
@@ -39,14 +38,12 @@ OutputVector translate_gcd(const NodeContext& context) {
     auto new_x = std::make_shared<v1::Select>(condition, y_input, x_input);
     auto new_y = std::make_shared<v1::Select>(condition, mod, zero);
 
-    // Reduce condition to boolean scalar
     auto reduced_condition = std::make_shared<v1::ReduceLogicalOr>(condition, zero);
 
-    // Adding condition output to the function body
-    auto body = std::make_shared<ngraph::Function>(OutputVector{new_x, new_y, reduced_condition}, ParameterVector{x_input, y_input});
+    auto body = std::make_shared<ngraph::Function>(OutputVector{new_x, new_y, reduced_condition},
+                                                   ParameterVector{x_input, y_input});
     loop->set_function(body);
 
-    // Adjust the special body ports to include condition as the second output
     loop->set_special_body_ports({-1, 2});
 
     loop->set_merged_input(x_input, x, new_x);
