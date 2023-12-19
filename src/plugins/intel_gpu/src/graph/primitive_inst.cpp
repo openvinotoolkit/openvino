@@ -1,4 +1,5 @@
 // Copyright (C) 2018-2023 Intel Corporation
+
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "program_helpers.h"
@@ -25,6 +26,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "condition_inst.h"
+#include "gather_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -787,6 +789,63 @@ void primitive_inst::do_runtime_skip_reorder() {
     }
 }
 
+void primitive_inst::do_runtime_skip_gather() {
+    // Check pattern
+    if (!get_node().is_type<gather>()
+        || _impl_params->has_fused_primitives()
+        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
+        || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
+        return;
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
+    auto input_shape = _impl_params->get_input_layout(0).get_shape();
+    auto axis = _impl_params->typed_desc<gather>()->axis;
+    auto idx_id = get_node().get_dependency(1).id();
+    auto idx_shape = _impl_params->get_input_layout(1).get_shape();
+    auto idx_rank = idx_shape.size();
+
+    if (idx_rank > 1) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_shape.size() << std::endl;
+        return;
+    }
+
+    // Check runtime shape (need to reset can_be_optimized)
+    if (idx_shape[0] != input_shape[axis]) {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input shape[0] " << idx_shape[0] << " != input_shape[axis]" << input_shape[axis] << std::endl;
+        return;
+    }
+
+    // If the overhead for checking the index is bigger than doing gather itself, it does not make sense for skipping
+    const int MAX_INDICES_SIZE = 10*1024;
+    if (input_shape[axis] > MAX_INDICES_SIZE) {
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase data length along with the axis is too big" << input_shape[axis] << std::endl;
+        set_can_be_optimized(false);
+        return;
+    }
+    if (input_shape[axis] != 1) {
+        auto queue_type = get_network().get_stream().get_queue_type();
+        if (queue_type == QueueTypes::out_of_order)
+            get_network().get_stream().wait_for_events({_network.get_primitive_event(idx_id)});
+        else
+            _network.get_stream().finish();
+        mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), _network.get_stream());
+        for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
+            if (idx_data[i] != i) {
+                GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
+                set_can_be_optimized(false);
+                return;
+            }
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Gather axis : " << axis << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -871,6 +930,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
+        do_runtime_skip_gather();
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);

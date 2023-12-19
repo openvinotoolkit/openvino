@@ -414,4 +414,12 @@ private:
     void run(program& p) override;
 };
 
+class dynamic_shape_gather_opts : public base_pass {
+public:
+    dynamic_shape_gather_opts() : base_pass("dynamic_shape_gather_opts") {}
+
+private:
+    void run(program& p) override;
+};
+
 }  // namespace cldnn
