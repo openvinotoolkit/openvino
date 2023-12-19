@@ -22,31 +22,6 @@ namespace ov {
 namespace threading {
 
 /**
- * @brief Number of streams in Performance-core(big core)
- */
-static constexpr Property<size_t, PropertyMutability::RW> big_core_streams{"BIG_CORE_STREAMS"};
-
-/**
- * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
- */
-static constexpr Property<size_t, PropertyMutability::RW> small_core_streams{"SMALL_CORE_STREAMS"};
-
-/**
- * @brief Number of threads per stream in big cores
- */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_big{"THREADS_PER_STREAM_BIG"};
-
-/**
- * @brief Number of threads per stream in small cores on hybrid cores machine
- */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_small{"THREADS_PER_STREAM_SMALL"};
-
-/**
- * @brief Small core start offset when binding cpu cores
- */
-static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMALL_CORE_OFFSET"};
-
-/**
  * @interface IStreamsExecutor
  * @ingroup ov_dev_api_threading
  * @brief Interface for Streams Task Executor. This executor groups worker threads into so-called `streams`.
@@ -125,11 +100,11 @@ public:
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
                                                                          //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;       //!< In case of @ref CORES binding offset type thread binded to cores
-                                            //!< starting from offset
-        int _threads = 0;                   //!< Number of threads distributed between streams.
-                                            //!< Reserved. Should not be used.
-        bool _enable_hyper_thread = true;   //!< enable hyper thread
+        int _threadBindingOffset = 0;      //!< In case of @ref CORES binding offset type thread binded to cores
+                                           //!< starting from offset
+        int _threads = 0;                  //!< Number of threads distributed between streams.
+                                           //!< Reserved. Should not be used.
+        bool _enable_hyper_thread = true;  //!< enable hyper thread
         enum PreferredCoreType {
             ANY,
             LITTLE,
