@@ -118,5 +118,8 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
         return x == v;
     });
 }
+
+std::string filter_lines_by_prefix(const std::string& str, const std::string& prefix);
+
 }  // namespace util
 }  // namespace ov

@@ -394,11 +394,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     std::stringstream exception_message;
     for (const auto& failure : failures) {
+        auto exception_str = "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
+                             " operation with a message:\n" + failure.second + "\n";
+        exception_message << exception_str;
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            m_telemetry->send_event("error_info",
+                                    ov::util::filter_lines_by_prefix(exception_str, "[TensorFlow Frontend] "));
         }
-        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
-                                 " operation with a message:\n" + failure.second + "\n";
     }
 
     if (m_telemetry) {
@@ -451,9 +453,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
@@ -474,9 +479,12 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
