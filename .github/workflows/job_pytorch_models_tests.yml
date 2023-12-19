@@ -39,13 +39,13 @@ jobs:
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -123,7 +123,7 @@ jobs:
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models
