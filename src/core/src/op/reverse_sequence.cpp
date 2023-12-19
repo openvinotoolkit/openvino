@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "reverse_sequence_shape_inference.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 op::v0::ReverseSequence::ReverseSequence(const Output<Node>& arg,
@@ -41,9 +41,7 @@ void op::v0::ReverseSequence::validate_and_infer_types() {
     const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
     set_output_type(0, get_input_element_type(0), output_shape);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_normalized_seq_axis = ov::util::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
 }
 
 std::shared_ptr<Node> op::v0::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -58,15 +56,11 @@ void op::v0::ReverseSequence::set_batch_axis(int64_t batch_axis) {
 
 size_t op::v0::ReverseSequence::get_batch_axis() const {
     const auto& data_rank = get_input_partial_shape(0).rank();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return static_cast<size_t>(ov::normalize_axis(this, m_batch_axis, data_rank));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return static_cast<size_t>(ov::util::normalize_axis(this, m_batch_axis, data_rank));
 }
 
 void op::v0::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
     m_seq_axis = sequence_axis;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_normalized_seq_axis = ov::util::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
 }
 }  // namespace ov

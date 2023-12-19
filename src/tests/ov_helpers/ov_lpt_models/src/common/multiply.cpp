@@ -3,7 +3,7 @@
 //
 
 #include "ov_lpt_models/common/multiply.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ngraph {
 namespace builder {

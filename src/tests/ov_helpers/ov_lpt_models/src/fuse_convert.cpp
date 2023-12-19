@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/fuse_convert.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 

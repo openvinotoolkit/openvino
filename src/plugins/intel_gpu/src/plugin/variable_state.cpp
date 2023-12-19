@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -9,6 +10,7 @@
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <memory>
 
@@ -18,14 +20,16 @@ namespace intel_gpu {
 VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
     : ov::IVariableState {info.m_id}
     , m_layout(info.m_layout)
+    , m_user_specified_type(info.m_user_specified_type)
     , m_context(context)
-    , m_shape_predictor(shape_predictor) {
-    m_state = m_context->create_host_tensor(m_layout.data_type, get_tensor_shape(m_layout.get_partial_shape()));
+    , m_shape_predictor(shape_predictor)
+    , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
 
 void VariableState::reset() {
     m_is_set = false;
+    set_layout(m_initial_layout);
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
@@ -45,6 +49,7 @@ void VariableState::set() {
 
 void VariableState::set_layout(const cldnn::layout& new_layout) {
     m_layout = new_layout;
+    GPU_DEBUG_TRACE_DETAIL << "Update state layout to " << new_layout.to_short_string() << std::endl;
     update_device_buffer();
 }
 
@@ -78,12 +83,16 @@ void VariableState::update_device_buffer() {
     m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 
-ov::SoPtr<ov::ITensor> VariableState::get_state() const {
-    const bool blocking = true;
-    m_state->set_shape(m_memory->get_layout().get_shape());
-    m_memory->copy_to(m_context->get_engine().get_service_stream(), m_state->data(), blocking);
+ov::element::Type VariableState::get_user_specified_type() const {
+    return m_user_specified_type != ov::element::undefined ? m_user_specified_type : ov::element::Type(m_layout.data_type);
+}
 
-    return m_state;
+ov::SoPtr<ov::ITensor> VariableState::get_state() const {
+    auto tensor = m_context->create_host_tensor(get_user_specified_type(), m_memory->get_layout().get_shape());
+
+    convert_and_copy(m_memory, tensor._ptr.get(), m_context->get_engine().get_service_stream());
+
+    return tensor;
 }
 
 }  // namespace intel_gpu

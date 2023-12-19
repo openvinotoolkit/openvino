@@ -22,7 +22,7 @@ The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
 aligned sentences. Here is the pipeline diagram:
 
-|image1|
+|image0|
 
 Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
@@ -37,10 +37,9 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
+**Table of contents:**
 
-**Table of contents**:
-
-- `Get Books <#get-books>`__
+-  `Get Books <#get-books>`__
 -  `Clean Text <#clean-text>`__
 -  `Split Text <#split-text>`__
 -  `Get Sentence Embeddings <#get-sentence-embeddings>`__
@@ -48,23 +47,22 @@ Prerequisites
    -  `Optimize the Model with
       OpenVINO <#optimize-the-model-with-openvino>`__
 
--  `Calculate Sentence
-   Alignment <#calculate-sentence-alignment>`__
--  `Postprocess Sentence
-   Alignment <#postprocess-sentence-alignment>`__
--  `Visualize Sentence
-   Alignment <#visualize-sentence-alignment>`__
+-  `Calculate Sentence Alignment <#calculate-sentence-alignment>`__
+-  `Postprocess Sentence Alignment <#postprocess-sentence-alignment>`__
+-  `Visualize Sentence Alignment <#visualize-sentence-alignment>`__
 -  `Speed up Embeddings
    Computation <#speed-up-embeddings-computation>`__
 
-.. |image1| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
+.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
 .. code:: ipython3
 
-    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" seaborn ipywidgets
+    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
 
 Get Books
----------------------------------------------------
+---------
+
+
 
 The first step is to get the books that we will be working with. For
 this notebook, we will use English and German versions of Anna Karenina
@@ -92,7 +90,9 @@ To get the texts, we will pass the IDs to the
         request.raise_for_status()
     
         book_metadata = request.json()
-        book_url = book_metadata["formats"]["text/plain"]
+        text_format_key = "text/plain"
+        text_plain = [k for k in book_metadata["formats"] if k.startswith(text_format_key)]
+        book_url = book_metadata["formats"][text_plain[0]]
         return requests.get(book_url).text
     
     
@@ -135,7 +135,7 @@ Let’s check that we got the right books by showing a part of the texts:
     
     
     
-    \*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*
+    *** START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA ***
     [Illustration]
     
     
@@ -189,7 +189,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
+    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n\*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
 
 
 
@@ -202,12 +202,14 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    '\ufeffThe Project Gutenberg eBook of Anna Karenina, 1. Band\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\n\r\nCreator: graf Leo Tolstoy\r\n\r\nRelease date: February 18, 2014 [eBook #44956]\r\n\r\nLanguage: German\r\n\r\n\r\n\r\n\*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   \*       \*       \*       \*       \*\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die'
+    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n\*\*\* START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\*\*\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   \*       \*       \*       \*       \*\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
 
 
 
 Clean Text
-----------------------------------------------------
+----------
+
+
 
 The downloaded books may contain service information before and after
 the main text. The text might have different formatting styles and
@@ -222,11 +224,11 @@ underscores for potential emphasis or italicization:
 The next stages of the pipeline will be difficult to complete without
 cleaning and normalizing the text. Since formatting may differ, manual
 work is required at this stage. For example, the main content in the
-German version is enclosed in ``* * * * *``, so
+German version is enclosed in ``*       *       *       *       *``, so
 it is safe to remove everything before the first occurrence and after
 the last occurrence of these asterisks.
 
-   Hint: There are text-cleaning libraries that clean up common
+   **Hint**: There are text-cleaning libraries that clean up common
    flaws. If the source of the text is known, you can look for a library
    designed for that source, for example
    `gutenberg_cleaner <https://github.com/kiasar/gutenberg_cleaner>`__.
@@ -243,7 +245,7 @@ the last occurrence of these asterisks.
     start_pattern_en = r"\nPART ONE"
     anna_karenina_en = re.split(start_pattern_en, anna_karenina_en)[1].strip()
     
-    end_pattern_en = "* END OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA *"
+    end_pattern_en = "*** END OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA ***"
     anna_karenina_en = anna_karenina_en.split(end_pattern_en)[0].strip()
 
 .. code:: ipython3
@@ -333,7 +335,9 @@ needed.
 
 
 Split Text
-----------------------------------------------------
+----------
+
+
 
 Dividing text into sentences is a challenging task in text processing.
 The problem is called `sentence boundary
@@ -345,7 +349,7 @@ code <https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>`__, as the
 rules for splitting text into sentences may vary for different
 languages.
 
-   Hint: The ``book_metadata`` obtained from the Gutendex contains
+   **Hint**: The ``book_metadata`` obtained from the Gutendex contains
    the language code as well, enabling automation of this part of the
    pipeline.
 
@@ -373,7 +377,9 @@ languages.
 
 
 Get Sentence Embeddings
------------------------------------------------------------------
+-----------------------
+
+
 
 The next step is to transform sentences into vector representations.
 Transformer encoder models, like BERT, provide high-quality embeddings
@@ -393,12 +399,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image0|
+|image01|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png%22
+.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
 
 .. code:: ipython3
 
@@ -413,15 +419,6 @@ different language pairs still producing good results.
     model_id = "rasa/LaBSE"
     pt_model = AutoModel.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-
-
-.. parsed-literal::
-
-    2023-09-15 18:53:46.819925: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-15 18:53:46.859715: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-15 18:53:47.576875: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 The model has two outputs: ``last_hidden_state`` and ``pooler_output``.
 For generating embeddings, you can use either the first vector from the
@@ -447,7 +444,7 @@ best fit.
             return np.vstack(embeddings)
         else:
             embeddings = [
-                embedding_model(tokenizer(sent, return_tensors="pt"))[
+                embedding_model(**tokenizer(sent, return_tensors="pt"))[
                     "last_hidden_state"
                 ][0][0]
                 for sent in tqdm(sentences, disable=disable_tqdm)
@@ -472,7 +469,9 @@ best fit.
 
 
 Optimize the Model with OpenVINO
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model conversion Python
@@ -498,40 +497,6 @@ The converted model must be compiled for the target device using the
     
     embeddings_en = get_embeddings(sentences_en, compiled_model)
     embeddings_de = get_embeddings(sentences_de, compiled_model)
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    WARNING:nncf:NNCF provides best results with torch==2.0.1, while current torch version is 1.13.1+cu117. If you encounter issues, consider switching to torch==2.0.1
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
-      warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
 
@@ -566,7 +531,9 @@ model predictions remain within an acceptable tolerance:
 
 
 Calculate Sentence Alignment
-----------------------------------------------------------------------
+----------------------------
+
+
 
 With the embedding matrices from the previous step, we can calculate the
 alignment: 1. Calculate sentence similarity between each pair of
@@ -691,7 +658,9 @@ will be lists of German sentence numbers.
 
 
 Postprocess Sentence Alignment
-------------------------------------------------------------------------
+------------------------------
+
+
 
 There are several gaps in the resulting alignment, such as English
 sentence #14 not mapping to any German sentence. Here are some possible
@@ -716,7 +685,9 @@ Most likely, English sentence 14 is part of either German sentence 17 or
 suitable alignment.
 
 Visualize Sentence Alignment
-----------------------------------------------------------------------
+----------------------------
+
+
 
 To evaluate the final alignment and choose the best way to improve the
 results of the pipeline, we will create an interactive table with HTML
@@ -875,7 +846,9 @@ To read the model from disk, use the ``read_model`` method of the
     ov_model = core.read_model(ov_model_path)
 
 Speed up Embeddings Computation
--------------------------------------------------------------------------
+-------------------------------
+
+
 
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using
@@ -960,7 +933,7 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   Note: To get a more accurate benchmark, use the `Benchmark Python
+   **Note**: To get a more accurate benchmark, use the `Benchmark Python
    Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 
 .. code:: ipython3
@@ -1054,12 +1027,6 @@ Let’s compare the models and plot the results.
         ylabel="Sentences Per Second", title=f"Sentence Embeddings Benchmark\n{cpu_name}"
     )
     perf_ratio = benchmark_dataframe.mean() / benchmark_dataframe.mean()[0]
-    plot.bar_label(
-        plot.containers[0],
-        labels=[f"×{ratio:.2f}" for ratio in perf_ratio],
-        color="white",
-        label_type="center",
-    )
     plot.spines["right"].set_visible(False)
     plot.spines["top"].set_visible(False)
     plot.spines["left"].set_visible(False)

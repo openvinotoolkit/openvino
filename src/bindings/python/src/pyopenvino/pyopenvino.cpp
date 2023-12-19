@@ -165,6 +165,9 @@ PYBIND11_MODULE(_pyopenvino, m) {
         [](std::shared_ptr<ov::Model>& model,
            const py::object& xml_path,
            bool compress_to_fp16) {
+           if (model == nullptr) {
+               throw py::attribute_error("'model' argument is required and cannot be None.");
+           }
             ov::save_model(model,
                           Common::utils::convert_path_to_string(xml_path),
                           compress_to_fp16);

@@ -78,7 +78,7 @@ TEST_P(KVCacheTest, Inference_cached) {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
         ov::test::utils::removeDir(cacheDirName);
-        core->set_property(ov::cache_dir(cacheDirName));
+        configuration.insert(ov::cache_dir(cacheDirName));
         compile_model();
     }
     {
@@ -112,7 +112,9 @@ class KVCacheTests: public ::testing::Test {
         GTEST_SKIP();
     #endif
         auto core = ov::test::utils::PluginCache::get().core();
-
+        ov::AnyMap properties = {
+            ov::hint::inference_precision(ov::element::f16)
+        };
         std::string cacheDirName;
         if (is_caching_test) {
             std::stringstream ss;
@@ -123,7 +125,7 @@ class KVCacheTests: public ::testing::Test {
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
             ov::test::utils::removeDir(cacheDirName);
-            core->set_property(ov::cache_dir(cacheDirName));
+            properties.insert(ov::cache_dir(cacheDirName));
         }
 
         const size_t batch = 1;
@@ -136,9 +138,9 @@ class KVCacheTests: public ::testing::Test {
 
         auto model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type);
         if (is_caching_test) {
-            core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+            core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
         }
-        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
 
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
@@ -249,11 +251,18 @@ class KVCacheTests: public ::testing::Test {
         }
     }
 
-    void test_smoke_multipleIterations_stateful(bool is_caching_test) {
+    void test_smoke_multipleIterations_stateful(bool is_caching_test,
+                                                bool fuse_cache_reorder,
+                                                bool build_state_initializer,
+                                                ov::element::Type model_element_type = ov::element::f16) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
         auto core = ov::test::utils::PluginCache::get().core();
+
+        ov::AnyMap properties = {
+            ov::hint::inference_precision(ov::element::f16)
+        };
 
         std::string cacheDirName;
         if (is_caching_test) {
@@ -265,45 +274,68 @@ class KVCacheTests: public ::testing::Test {
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
             ov::test::utils::removeDir(cacheDirName);
-            core->set_property(ov::cache_dir(cacheDirName));
+            properties.insert(ov::cache_dir(cacheDirName));
         }
 
         const size_t batch = 1;
         const size_t n_heads = 32;
-        const size_t n_features = 80;
+        const size_t n_features = 10;
         const size_t context_size = 20;
-        size_t cache_size = 0;
 
-        ov::element::Type element_type = ov::element::f16;
+        ov::element::Type element_type = model_element_type;
 
-        auto model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type, true);
-        auto ref_model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type, false);
+        const bool stateful = true;
+
+        auto model = tests::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
+                                                      n_heads,
+                                                      n_features,
+                                                      element_type,
+                                                      stateful,
+                                                      fuse_cache_reorder,
+                                                      build_state_initializer && stateful);
+        auto ref_model = tests::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
+                                                          n_heads,
+                                                          n_features,
+                                                          element_type,
+                                                          !stateful,
+                                                          fuse_cache_reorder,
+                                                          build_state_initializer && !stateful);
         if (is_caching_test) {
-            core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+            core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
         }
-        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
 
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
+        auto input2 = fuse_cache_reorder ? model->get_parameters().at(2) : nullptr;
         auto output0 = model->get_results().at(0);
 
-        auto get_ref_results = [&](const ov::Tensor& kv_cache, const ov::Tensor& new_token_data, const ov::Tensor& matmul_data) {
+        auto beam_idx_shape = ov::Shape{batch};
+        auto beam_idx_data = ov::Tensor(ov::element::i32, beam_idx_shape);
+        for (size_t i = 0; i < batch; i++) {
+            beam_idx_data.data<int32_t>()[i] = i;
+        }
+
+        auto get_ref_results = [&ref_model, fuse_cache_reorder, &beam_idx_shape, &beam_idx_data](const ov::Tensor& kv_cache,
+                                                                                                 const ov::Tensor& new_token_data,
+                                                                                                 const ov::Tensor& matmul_data) {
             auto input0 = ref_model->get_parameters().at(0);
             auto input1 = ref_model->get_parameters().at(1);
             auto input2 = ref_model->get_parameters().at(2);
-            ngraph::helpers::resize_function(ref_model, {kv_cache.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
-
-            auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
-            auto inf_req_ref = compiled_model_ref.create_infer_request();
-            inf_req_ref.set_tensor(input0, kv_cache);
-            inf_req_ref.set_tensor(input1, new_token_data);
-            inf_req_ref.set_tensor(input2, matmul_data);
-            inf_req_ref.infer();
-            std::vector<ov::Tensor> results_ref;
-            for (auto&& output : ref_model->get_results()) {
-                results_ref.push_back(inf_req_ref.get_tensor(output));
+            auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3)  : nullptr;
+            std::vector<ov::Shape> input_shapes = {kv_cache.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()};
+            std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs = {
+                {input0, kv_cache},
+                {input1, new_token_data},
+                {input2, matmul_data}
+            };
+            if (fuse_cache_reorder) {
+                input_shapes.push_back(beam_idx_shape);
+                inputs.emplace(input3, beam_idx_data);
             }
-            return results_ref;
+
+            ngraph::helpers::resize_function(ref_model, input_shapes);
+            return ngraph::helpers::interpretFunction(ref_model, inputs);
         };
 
         auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
@@ -335,54 +367,65 @@ class KVCacheTests: public ::testing::Test {
 
         infer_request.set_tensor(input0, new_token_input);
         infer_request.set_tensor(input1, matmul_input);
-
-        ov::Tensor ref_kv_cache;
-
-        {
-            const ov::Shape new_token_size_initial = {batch, context_size, n_heads, n_features};
-            const ov::Shape kv_cache_size_initial = {batch, n_heads, cache_size, n_features};
-            const ov::Shape matmul_in_size_initial = {batch, n_heads, context_size, context_size};
-
-            auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size_initial);
-            auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_initial);
-
-            new_token_input.set_shape(new_token_data.get_shape());
-            matmul_input.set_shape(matmul_data.get_shape());
-
-            new_token_data.copy_to(new_token_input);
-            matmul_data.copy_to(matmul_input);
-
-            ref_kv_cache = ov::Tensor(element_type, kv_cache_size_initial);
-
-            auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data);
-            ref_kv_cache = ref_results[0];
-
-            infer_request.infer();
-
-            compare_tensors({ ref_results[1] }, {matmul_out});
-
-            cache_size += context_size;
+        if (fuse_cache_reorder) {
+            infer_request.set_tensor(input2, beam_idx_data);
         }
 
-        const size_t input_tokens = 1;
-        const size_t niters = 10;
-        const ov::Shape new_token_size = {batch, input_tokens, n_heads, n_features};
-        size_t context_length = cache_size + input_tokens;
-        for (size_t i = 0; i < niters; i++, context_length += input_tokens) {
-            ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
-            auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
-            auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
-            auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data);
-            ref_kv_cache = ref_results[0];
+        for (size_t num_repeats = 0; num_repeats < 2; num_repeats++) {
+            ov::Tensor ref_kv_cache;
+            size_t cache_size = 0;
+            {
+                const ov::Shape new_token_size_initial = {batch, context_size, n_heads, n_features};
+                const ov::Shape kv_cache_size_initial = {batch, n_heads, cache_size, n_features};
+                const ov::Shape matmul_in_size_initial = {batch, n_heads, context_size, context_size};
 
-            new_token_input.set_shape(new_token_data.get_shape());
-            matmul_input.set_shape(matmul_data.get_shape());
-            new_token_data.copy_to(new_token_input);
-            matmul_data.copy_to(matmul_input);
+                auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size_initial);
+                auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_initial);
 
-            infer_request.infer();
+                new_token_input.set_shape(new_token_data.get_shape());
+                matmul_input.set_shape(matmul_data.get_shape());
 
-            compare_tensors({ ref_results[1] }, {matmul_out});
+                new_token_data.copy_to(new_token_input);
+                matmul_data.copy_to(matmul_input);
+
+                ref_kv_cache = ov::Tensor(element_type, kv_cache_size_initial);
+
+                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data);
+                ref_kv_cache = ref_results[0];
+
+                infer_request.infer();
+
+                compare_tensors({ ref_results[1] }, {matmul_out});
+
+                cache_size += context_size;
+            }
+
+            const size_t input_tokens = 1;
+            const size_t niters = 10;
+            const ov::Shape new_token_size = {batch, input_tokens, n_heads, n_features};
+            size_t context_length = cache_size + input_tokens;
+            for (size_t i = 0; i < niters; i++, context_length += input_tokens) {
+                ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
+                auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
+                auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
+                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data);
+                ref_kv_cache = ref_results[0];
+
+                new_token_input.set_shape(new_token_data.get_shape());
+                matmul_input.set_shape(matmul_data.get_shape());
+                new_token_data.copy_to(new_token_input);
+                matmul_data.copy_to(matmul_input);
+
+                infer_request.infer();
+
+                compare_tensors({ ref_results[1] }, {matmul_out});
+            }
+
+            auto state = infer_request.query_state()[0].get_state();
+            ASSERT_EQ(state.get_element_type(), element_type);
+            compare_tensors({ ref_kv_cache }, {state});
+
+            infer_request.reset_state();
         }
 
         if (is_caching_test) {
@@ -401,11 +444,24 @@ TEST_F(KVCacheTests, smoke_multipleIterations_cached) {
     this->test_smoke_multipleIterations(true);
 }
 
-TEST_F(KVCacheTests, smoke_multipleIterations_stateful) {
-    this->test_smoke_multipleIterations_stateful(false);
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_no_gather_no_initializer) {
+    this->test_smoke_multipleIterations_stateful(false, false, false);
 }
 
-TEST_F(KVCacheTests, smoke_multipleIterations_stateful_cached) {
-    this->test_smoke_multipleIterations_stateful(true);
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_no_gather_no_initializer_cached) {
+    this->test_smoke_multipleIterations_stateful(true, false, false);
 }
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer) {
+    this->test_smoke_multipleIterations_stateful(false, true, true);
+}
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_cached) {
+    this->test_smoke_multipleIterations_stateful(true, true, true);
+}
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_f32) {
+    this->test_smoke_multipleIterations_stateful(false, true, true, ov::element::f32);
+}
+
 } // namespace
