@@ -159,7 +159,7 @@ jobs:
 
       - name: Python ONNX operators tests
         if: fromJSON(inputs.affected-components).Python_API.test ||
-            fromJSON(inputs.affected-components).ONNX_FE.test && runner.os != 'macOS' # Ticket: 123325
+            fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
