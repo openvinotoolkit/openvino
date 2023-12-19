@@ -5,10 +5,38 @@
 #include <gtest/gtest.h>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace testing;
 using namespace ov::util;
 
 TEST(UtilsTests, get_directory_returns_root) {
     ASSERT_EQ(get_directory("/test"), "/");
+}
+
+
+TEST(UtilsTests, filter_lines_by_prefix) {
+    auto lines = "abc\nkkb\nabpp\n";
+    auto res = filter_lines_by_prefix(lines, "ab");
+    ASSERT_EQ(res, "abc\nabpp\n");
+
+    lines = "abc\nkkb\nkkabpp\n";
+    res = filter_lines_by_prefix(lines, "ab");
+    ASSERT_EQ(res, "abc\n");
+
+    lines = "abc\nkkb\nabpp\n";
+    res = filter_lines_by_prefix(lines, "k");
+    ASSERT_EQ(res, "kkb\n");
+
+    lines = "abc\nkkb\nabpp\n";
+    res = filter_lines_by_prefix(lines, "lr");
+    ASSERT_EQ(res, "");
+
+    lines = "";
+    res = filter_lines_by_prefix(lines, "ab");
+    ASSERT_EQ(res, "");
+
+    lines = "\n\n\n";
+    res = filter_lines_by_prefix(lines, "ab");
+    ASSERT_EQ(res, "");
 }
