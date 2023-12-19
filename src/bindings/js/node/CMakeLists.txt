@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (WIN32)
+if(WIN32)
     return()
 endif()
 
 if(CMAKE_VERSION VERSION_LESS 3.14)
     message(WARNING "JS API is not available with CMake version lower than 3.14, skipping")
+    return()
+endif()
+
+if(NOT cxx_std_17 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+    message(WARNING "JS API is not support compiler version lower than 17, skipping")
     return()
 endif()
 
@@ -66,9 +71,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
-if((LINUX AND ARM64) AND
-    (CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG))
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)
+endif()
+
+if(MACOS) 
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,-undefined,suppress,-flat_namespace)
+elseif(ARM64)
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
 endif()
 
