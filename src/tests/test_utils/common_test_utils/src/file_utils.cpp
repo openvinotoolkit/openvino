@@ -61,7 +61,7 @@ std::string getOpenvinoLibDirectoryA() {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getOpenvinoLibDirectoryW() {
-#ifdef _WIN32
+#   ifdef _WIN32
     WCHAR ov_library_path[MAX_PATH];
     HMODULE hm = NULL;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -73,11 +73,11 @@ std::wstring getOpenvinoLibDirectoryW() {
     }
     GetModuleFileNameW(hm, (LPWSTR)ov_library_path, sizeof(ov_library_path) / sizeof(ov_library_path[0]));
     return get_path_name(std::wstring(ov_library_path));
-#elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
+#   elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     return ov::util::string_to_wstring(getOpenvinoLibDirectoryA());
-#else
-#   error "Unsupported OS"
-#endif
+#   else
+#       error "Unsupported OS"
+#   endif
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -87,11 +87,12 @@ std::string getOpenvinoLibDirectory() {
     return ov::util::wstring_to_string(getOpenvinoLibDirectoryW());
 #else
     return getOpenvinoLibDirectoryA();
+#endif
 }
 
 std::string getExecutableDirectory() {
     std::string path;
-#ifdef _WIN32
+#   ifdef _WIN32
     char buffer[MAX_PATH];
     int len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
 #elif defined(__APPLE__)
