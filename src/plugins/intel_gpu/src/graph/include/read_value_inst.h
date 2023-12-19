@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "assign_inst.h"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "primitive_inst.h"
+#include "variable.hpp"
 
 namespace cldnn {
 

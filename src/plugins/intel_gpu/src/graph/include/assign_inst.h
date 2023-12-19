@@ -6,23 +6,9 @@
 
 #include "intel_gpu/primitives/assign.hpp"
 #include "primitive_inst.h"
+#include "variable.hpp"
 
 namespace cldnn {
-namespace memory_state {
-
-class variable {
-public:
-    explicit variable(const std::string& variable_id) : variable_id_ {variable_id} {}
-
-    const std::string& variable_id() const { return variable_id_; }
-    void set_variable_id(const std::string& variable_id) { variable_id_ = variable_id; }
-
-private:
-    std::string variable_id_;
-};
-
-} // namespace memory_state
-
 template <>
 struct typed_program_node<assign> : public typed_program_node_base<assign> {
 private:
