@@ -38,13 +38,13 @@ void Exp::SetUp() {
     ov::element::Type type;
     std::tie(inputShape0, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({inputShape0});
-    // auto f = ov::test::snippets::ExpFunction(inputDynamicShapes);
-    // function = f.getOriginal();
-    auto data0 = std::make_shared<op::v0::Parameter>(type, inputDynamicShapes[0]);
-    auto axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 3);
-    auto exp = std::make_shared<op::v1::ReduceMax>(data0, axis, true);
+    auto f = ov::test::snippets::ExpFunction(inputDynamicShapes);
+    function = f.getOriginal();
+    // auto data0 = std::make_shared<op::v0::Parameter>(type, inputDynamicShapes[0]);
+    // auto axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 3);
+    // auto exp = std::make_shared<op::v1::ReduceMax>(data0, axis, true);
     // auto exp = std::make_shared<op::v0::Relu>(data0);
-    function = std::make_shared<ov::Model>(NodeVector{exp}, ParameterVector{data0});
+    // function = std::make_shared<ov::Model>(NodeVector{exp}, ParameterVector{data0});
 
     setInferenceType(type);
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {

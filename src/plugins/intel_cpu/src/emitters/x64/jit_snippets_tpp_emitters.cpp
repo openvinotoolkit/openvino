@@ -546,44 +546,16 @@ ReferenceUnaryEltwiseTppEmitter::ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu
                                                                 dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                                 const ov::snippets::lowered::ExpressionPtr& expr) :
                                                                 UnaryEltwiseTppEmitter(h, isa, expr) {
-    auto get_dtype_byte_size = [](const libxsmm_datatype& dtype) -> size_t {
-        switch (dtype) {
-        case LIBXSMM_DATATYPE_F64:
-        case LIBXSMM_DATATYPE_I64:
-        case LIBXSMM_DATATYPE_U64:
-            return 8;
-        case LIBXSMM_DATATYPE_F32:
-        case LIBXSMM_DATATYPE_I32:
-        case LIBXSMM_DATATYPE_U32:
-            return 4;
-        case LIBXSMM_DATATYPE_F16:
-        case LIBXSMM_DATATYPE_I16:
-        case LIBXSMM_DATATYPE_U16:
-        case LIBXSMM_DATATYPE_BF16:
-            return 2;
-        case LIBXSMM_DATATYPE_BF8:
-        case LIBXSMM_DATATYPE_HF8:
-        case LIBXSMM_DATATYPE_I8:
-        case LIBXSMM_DATATYPE_U8:
-            return 1;
-        default:
-            OPENVINO_THROW("Unsupported data type in ReferenceUnaryEltwiseTppEmitter::get_dtype_byte_size");
-        }
-    };
-    in0_type_size = get_dtype_byte_size(m_shape.in0_type);
-    out0_type_size = get_dtype_byte_size(m_shape.out_type);
+ ref_executor = std::make_shared<ReferenceJITExecutor>(m_shape, static_cast<float(*)(float)>(&std::exp));
 }
 
 const uintptr_t ReferenceUnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(evaluate_reference<float, float,
-                                                           static_cast<float(*)(float)>(&std::exp),
-                                                           m_shape.n, m_shape.m, m_shape.ldi, m_shape.ldo>);
-    // return static_cast<const uintptr_t>(evaluate_reference<float, float, std::expf, m_shape.n, m_shape.m, m_shape.ldi, m_shape.ldo>);
+    return reinterpret_cast<const uintptr_t>(ref_executor->get_reference_function());
 }
 
-void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ref_eltwise_function eltwise_kernel, void *in0, void *out0) {
-    assert(eltwise_kernel);
-    eltwise_kernel(in0, out0);
+void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ref_unary_function ref_kernel, void *in0, void *out0) {
+    assert(ref_kernel);
+    ref_kernel(in0, out0);
 }
 
 
