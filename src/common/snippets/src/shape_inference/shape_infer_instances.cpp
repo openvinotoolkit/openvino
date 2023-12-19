@@ -245,5 +245,19 @@ Result ReduceShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     return {{result_shape}, ShapeInferStatus::success};
 }
 
+ReshapeShapeInfer::ReshapeShapeInfer(const std::shared_ptr<Node>& n) {
+    const auto& reshape = as_type_ptr<ov::snippets::op::Reshape>(n);
+    OPENVINO_ASSERT(reshape, "Invalid node passed to ReshapeShapeInfer.");
+    target_shape = reshape->get_target_shape();
+}
+
+Result ReshapeShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes passed ReshapeShapeInfer");
+    VectorDims result_shape = target_shape.get_shape();
+    // todo: check static and size is the same
+    return {{result_shape}, ShapeInferStatus::success};
+}
+
+
 } // namespace snippets
 } // namespace ov

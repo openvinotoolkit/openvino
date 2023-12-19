@@ -218,7 +218,14 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                // store->reshape->result
+                const auto& source = expr->get_input_port_connector(0)->get_source();
+                auto p_exp = source.get_expr();
+                if (ov::is_type<snippets::op::Reshape>(p_exp->get_node())) {
+                    desc = p_exp->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                } else {
+                    desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                }
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {

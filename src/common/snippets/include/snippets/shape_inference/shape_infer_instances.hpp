@@ -75,5 +75,12 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
+class ReshapeShapeInfer : public IShapeInferSnippets {
+    ov::PartialShape target_shape;
+public:
+    explicit ReshapeShapeInfer(const std::shared_ptr<Node>& n);
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+};
+
 } // namespace snippets
 } // namespace ov

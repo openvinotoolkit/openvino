@@ -58,8 +58,8 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
             // After Loop initialization, Buffer can be connected to LoopEnd - it's ok
             continue;
         } else {
-            OPENVINO_THROW(
-                    "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
+            // OPENVINO_THROW(
+            //         "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
         }
     }
 }

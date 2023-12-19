@@ -147,15 +147,34 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
-        const auto& parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
+        auto parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
+
+        auto first_not_reshape_parent_output = [&]() {
+            auto parent_expr = parent_expr_output.get_expr();
+            while (is_type<op::Reshape>(parent_expr->get_node())) {
+                parent_expr_output = parent_expr->get_input_port_connector(0)->get_source();
+                parent_expr = parent_expr_output.get_expr();
+            }
+        };
+        // this parent(before reshape) is used to determine if buffer needed according loopInfo
+        first_not_reshape_parent_output();
         const auto& parent_expr = parent_expr_output.get_expr();
-        const auto parent_port = parent_expr_output.get_index();
-        const auto parent = parent_expr->get_node();
+        const auto& parent_port = parent_expr_output.get_index();
+        const auto& parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||
             ov::is_type<op::VectorBuffer>(parent) ||
             ov::is_type<ov::op::v0::Parameter>(parent) ||
             ov::is_type<ov::op::v0::Constant>(parent))
             continue;
+
+        // insert buffer before reshape
+        auto buffer_child = expr;
+        bool parent_is_reshape = false;
+        auto p_exp = expr->get_input_port_connector(port_idx)->get_source().get_expr();
+        if (is_type<op::Reshape>(p_exp->get_node())) {
+            buffer_child = p_exp;
+            parent_is_reshape = true;
+        }
 
         // Each MemoryAccess op needs Buffer
         const auto parent_ma = ov::as_type_ptr<op::MemoryAccess>(parent);
@@ -178,7 +197,12 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
+            if (parent_is_reshape) {
+                linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos,
+                    { buffer_child->get_input_port(0) });
+            } else {
+                linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
+            }
         }
     }
 
