@@ -166,7 +166,12 @@ endif()
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+    if(LINUX AND ARM64)
+        # CVS-126984: system TBB is not very stable on Linux ARM64 (at least on Ubuntu 20.04)
+        set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+    else()
+        set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+    endif()
 endif()
 
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
