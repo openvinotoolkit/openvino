@@ -52,10 +52,7 @@ public:
              std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported,
              const std::unordered_set<std::string>& expected,
              uint64_t memory_size_in_bytes = 0) {
-        auto supported = ov::get_supported_nodes(m_model,
-                                                 transform,
-                                                 is_node_supported,
-                                                 memory_size_in_bytes);
+        auto supported = ov::get_supported_nodes(m_model, transform, is_node_supported, memory_size_in_bytes);
         auto const is_in_expected = [&expected](const std::string& x) {
             return expected.find(x) != expected.end();
         };

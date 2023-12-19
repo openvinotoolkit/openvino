@@ -335,10 +335,7 @@ std::unordered_set<std::string> GetSupportedNodes(
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
     std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported,
     uint64_t memory_size_in_bytes) {
-    return ov::get_supported_nodes(model,
-                                   transform,
-                                   is_node_supported,
-                                   memory_size_in_bytes);
+    return ov::get_supported_nodes(model, transform, is_node_supported, memory_size_in_bytes);
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,

@@ -10,7 +10,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
-
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -160,9 +159,9 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     };
 
     auto has_users_supported = [&](const NameSet& supported, const NodePtr& node) -> bool {
-        auto users_ = node->get_users();
-        for (auto &itt : users_) {
-            if (supported.count(itt->get_friendly_name())) {
+        auto users = node->get_users();
+        for (auto& user : users) {
+            if (supported.count(user->get_friendly_name())) {
                 return true;
             }
         }
