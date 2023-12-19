@@ -112,13 +112,8 @@ def ts_openvino(subgraph, example_inputs):
         log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
-subgraph_num = 0
 def fx_openvino(subgraph, example_inputs):
     try:
-        global subgraph_num
-        subgraph_num = subgraph_num + 1
-        if (subgraph_num == 14):
-            return subraph
         executor_parameters = None
         inputs_reversed = False
         if os.getenv("OPENVINO_TORCH_MODEL_CACHING") is not None:
