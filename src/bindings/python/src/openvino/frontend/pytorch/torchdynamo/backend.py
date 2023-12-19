@@ -10,7 +10,6 @@ from functools import partial
 from hashlib import sha256
 
 import torch
-from torch._decomp import decomposition_table, get_decompositions, register_decomposition
 from torch._decomp.decompositions import aten, pw_cast_for_opmath
 from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
@@ -154,7 +153,7 @@ aot_ovgraphs = aot_autograd(fw_compiler=openvino, bw_compiler=openvino)
 register_backend(name="aot_openvino", compiler_fn=aot_ovgraphs)
 
 def fx_openvino(subgraph, example_inputs, options):
-    #try:
+    try:
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -192,9 +191,9 @@ def fx_openvino(subgraph, example_inputs, options):
                           executor_parameters=executor_parameters, options=options)
             return res
         return _call
-    #except Exception as e:
-        #log.debug(f"Failed in OpenVINO execution: {e}")
-        #return compile_fx(subgraph, example_inputs)
+    except Exception as e:
+        log.debug(f"Failed in OpenVINO execution: {e}")
+        return compile_fx(subgraph, example_inputs)
 
 def reset():
     clear_caches()
