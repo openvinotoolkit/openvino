@@ -52,7 +52,6 @@ OutputVector translate_unbind_int_fx(const NodeContext& context) {
     return {context.mark_node(make_list_construct(chunk->outputs()))};
 }
 
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

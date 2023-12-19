@@ -98,7 +98,6 @@ OutputVector translate_max_dim_fx(const NodeContext& context) {
     out_vec.push_back(values);
     out_vec.push_back(indicies);
     return {context.mark_node(make_list_construct(out_vec))};
-
 };
 
 OutputVector translate_min(const NodeContext& context) {

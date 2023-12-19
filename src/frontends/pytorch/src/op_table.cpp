@@ -613,7 +613,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
 const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
     return {
         {"aten._adaptive_avg_pool2d.default", op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>},
-        {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default", op::translate_fake_quantize_per_tensor_affine_fx},
+        {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default",
+         op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten::_log_softmax.default", op::translate_log_softmax},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::skip_node},

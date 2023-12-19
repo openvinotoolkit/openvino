@@ -6,10 +6,10 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -96,15 +96,15 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
 };
 
 OutputVector translate_stack(const NodeContext& context) {
-
     num_inputs_check(context, 2, context.get_input_size());
-    auto dim  = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
     if (num_elements > 2)
         num_elements = num_elements - 1;
-    for(size_t i = 0; i < num_elements; i++) {
-        auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
+    for (size_t i = 0; i < num_elements; i++) {
+        auto stack_input =
+            context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
         list_elems.push_back(stack_input);
     }
     auto axis = 0;

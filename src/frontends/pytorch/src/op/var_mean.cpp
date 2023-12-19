@@ -82,9 +82,7 @@ OutputVector translate_var_mean_fx(const NodeContext& context) {
     num_inputs_check(context, 1, 4);
     auto data = context.get_input(0);
     bool unbiased = false;
-    bool keepdims = true;
     auto num_elements = numel(context, data);
-    bool keepdim_mean;
     std::shared_ptr<ov::Node> mean, t_mean;
     ov::Output<ov::Node> axes;
 
@@ -115,7 +113,6 @@ OutputVector translate_var_mean_fx(const NodeContext& context) {
     out_vec.push_back(var);
     out_vec.push_back(mean);
     return {context.mark_node(make_list_construct(out_vec))};
-
 };
 
 OutputVector translate_var(const NodeContext& context) {

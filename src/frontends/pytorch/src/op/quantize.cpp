@@ -48,8 +48,6 @@ OutputVector translate_fake_quantize_per_channel_affine_fx(const NodeContext& co
     return {context.mark_node(std::make_shared<v0::Unsqueeze>(out[0], axis_0))};
 }
 
-
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
