@@ -4,10 +4,6 @@
 
 #include "config.h"
 
-#include <algorithm>
-#include <map>
-#include <string>
-
 #include "cpu/cpu_config.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
@@ -17,6 +13,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
+
+#include <algorithm>
+#include <map>
+#include <string>
 
 namespace ov {
 namespace intel_cpu {
