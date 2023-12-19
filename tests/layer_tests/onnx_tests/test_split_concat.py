@@ -3,7 +3,7 @@
 
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 test_data_3D = [
     dict(input_shape=[1, 50, 50], output_shapes=[[1, 50, 25], [1, 50, 25]], axis=2),
@@ -155,7 +155,7 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_split_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_split_model')
 
         #
         #   Create reference IR net
@@ -247,7 +247,7 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_split_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_split_model')
 
         #
         #   Create reference IR net
@@ -356,7 +356,7 @@ class TestSplit(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_split_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_split_model')
 
         #
         #   Create reference IR net
@@ -405,7 +405,7 @@ class TestSplit(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_split_model_outputs_order')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_split_model_outputs_order')
 
         ref_net = None
 
@@ -478,7 +478,7 @@ class TestSplit(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_split_model_outputs_order')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_split_model_outputs_order')
 
         ref_net = None
 
@@ -541,7 +541,7 @@ class TestSplit(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_split_model_outputs_order')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_split_model_outputs_order')
 
         ref_net = None
 

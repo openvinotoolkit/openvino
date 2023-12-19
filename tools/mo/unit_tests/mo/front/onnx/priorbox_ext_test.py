@@ -14,7 +14,7 @@ from unit_tests.utils.extractors import PB
 
 class TestPriorBoxExt(unittest.TestCase):
     @staticmethod
-    def _create_priorbox_node(aspect_ratio=[], min_size=np.array([]), max_size=np.array([]),
+    def _create_priorbox_node(aspect_ratio=[], min_size=None, max_size=None,
                               flip=False, clip=False, variance=None, img_size=0, img_h=0,
                               img_w=0, step=0, step_h=0, step_w=0, offset=0):
         pb = onnx.helper.make_node(

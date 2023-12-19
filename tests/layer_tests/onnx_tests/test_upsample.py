@@ -7,7 +7,7 @@ import os
 import pytest
 import torch
 from common.layer_test_class import CommonLayerTest
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestUpsample(OnnxRuntimeLayerTest):
@@ -72,7 +72,7 @@ class TestUpsample(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def,
+        onnx_net = onnx_make_model(graph_def,
                                      producer_name='test_model',
                                      opset_imports=[helper.make_opsetid("", opset)])
 

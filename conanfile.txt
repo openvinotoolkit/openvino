@@ -8,7 +8,7 @@ opencl-icd-loader/[>=2023.04.17]
 rapidjson/[>=1.1.0]
 xbyak/[>=6.62]
 snappy/[>=1.1.7]
-onnx/1.14.1
+onnx/1.15.0
 pybind11/[>=2.10.1]
 flatbuffers/[>=22.9.24]
 

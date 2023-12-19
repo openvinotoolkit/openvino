@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -104,7 +104,7 @@ class TestPad(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         #
         #   Create reference IR net

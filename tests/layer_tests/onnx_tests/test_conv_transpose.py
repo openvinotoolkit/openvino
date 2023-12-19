@@ -3,7 +3,7 @@
 
 import numpy as np
 import pytest
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestConvTranspose(OnnxRuntimeLayerTest):
@@ -106,7 +106,7 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_conv_transpose_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_conv_transpose_model')
 
         #
         #   Create reference IR net
