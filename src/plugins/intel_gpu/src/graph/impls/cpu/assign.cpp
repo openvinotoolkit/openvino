@@ -68,7 +68,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
         variable.set();
 
         return events.empty() ? instance.get_network().get_stream().create_user_event(true)
-                              : events[0];
+                              : stream.group_events(events);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
