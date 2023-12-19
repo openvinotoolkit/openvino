@@ -230,6 +230,7 @@ public:
 
     void build_deps();
     void do_runtime_skip_reorder();
+    void do_runtime_skip_gather();
     void do_runtime_in_place_concat();
     void configure_shape_of_dependencies();
 
