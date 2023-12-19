@@ -291,7 +291,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::MoveConvertAfterGather>();
 
-        const bool keep_precision_sensitive_in_fp32_1 = false;
+        const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
