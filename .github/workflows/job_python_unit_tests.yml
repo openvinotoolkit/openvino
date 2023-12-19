@@ -124,7 +124,7 @@ jobs:
       - name: Python API 1.0 Tests
         # if: fromJSON(inputs.affected-components).Python_API.test # Ticket: 127101
         run: |
-          if [[ "${{ runner.arch }} != "ARM64" ]]; then
+          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
             # skipped API 1.0 tests for arm64 platforms
             python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
               --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
