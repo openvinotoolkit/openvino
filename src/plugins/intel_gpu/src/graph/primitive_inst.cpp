@@ -511,8 +511,10 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_params.output_layouts[0] = new_layout;
     }
 
-    if (updated_params.output_layouts[0].count() < updated_layout.count())
+    if (updated_params.output_layouts[0].count() < updated_layout.count()
+        || (_node->is_type<concatenation>() && need_reset_output_memory())) {
         updated_params.output_layouts[0] = updated_layout;
+    }
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
@@ -1494,7 +1496,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
                                               _node.get_preferred_impl_type() == impl_types::cpu;
     auto use_lockable_memory =
-        (is_output_buffer && !reset) || is_cpu ||
+        (is_output_buffer && reusable_across_network) || is_cpu ||
         has_any_cpu_user_not_shape_of_assign(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
