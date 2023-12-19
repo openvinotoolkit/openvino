@@ -860,17 +860,22 @@ void primitive_inst::do_runtime_skip_assign() {
     if (can_be_optimized())
         return;
 
+    if (_impl_params->has_fused_primitives())
+        return;
+
     if (get_node().is_type<concatenation>()) {
         for (auto u : get_user_insts()) {
             if (u->get_node().is_type<assign>()) {
-                if (u->can_be_optimized())
-                    continue;
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
                 u->update_shape();
                 u->update_shape_done_by_other = true;
 
-                u->set_can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_assign] set user " << u->id() << " as can_be_optimized" << std::endl;
+                if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
+                    u->set_can_be_optimized(true);
+                    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_assign] set user " << u->id() << " as can_be_optimized" << std::endl;
+                } else {
+                    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_assign] user " << u->id() << " cannot be optimized" << std::endl;
+                }
             }
         }
     }
