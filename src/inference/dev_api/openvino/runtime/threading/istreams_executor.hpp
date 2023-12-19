@@ -104,15 +104,11 @@ public:
          * @brief Create appropriate multithreaded configuration
          *        filing unconfigured values from initial configuration using hardware properties
          * @param initial Inital configuration
-         * @param fp_intesive additional hint for the the (Hybrid) core-types selection logic
-         *       whether the executor should be configured for floating point intensive work (as opposite to int8
-         * intensive)
          * @return configured values
          */
-        static Config make_default_multi_threaded(const Config& initial, const bool fp_intesive = true);
+        static Config make_default_multi_threaded(const Config& initial);
         static int get_default_num_streams(
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
-        static void update_hybrid_custom_threads(Config& config);
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information
@@ -133,11 +129,6 @@ public:
                                             //!< starting from offset
         int _threads = 0;                   //!< Number of threads distributed between streams.
                                             //!< Reserved. Should not be used.
-        int _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
-        int _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
-        int _threads_per_stream_big = 0;    //!< Threads per stream in big cores
-        int _threads_per_stream_small = 0;  //!< Threads per stream in small cores
-        int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         enum PreferredCoreType {
             ANY,
