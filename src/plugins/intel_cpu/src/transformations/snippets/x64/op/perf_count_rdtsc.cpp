@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #include "perf_count_rdtsc.hpp"
 
@@ -30,3 +31,4 @@ std::shared_ptr<PerfCountRdtscBegin> PerfCountRdtscEnd::get_pc_begin() {
     OPENVINO_ASSERT(pc_begin != nullptr, "PerfCountRdtscEnd last input is not connected to PerfCountRdtscBegin");
     return  pc_begin;
 }
+#endif // SNIPPETS_DEBUG_CAPS
