@@ -29,7 +29,7 @@ void OnnxNodeValidationFailure::create(const char* file,
     throw OnnxNodeValidationFailure(
         make_what(file, line, check_string, detail::get_error_msg_prefix(node), explanation));
 }
-}  // namespace onnx
+}  // namespace onnx_error
 }  // namespace frontend
 }  // namespace ov
 

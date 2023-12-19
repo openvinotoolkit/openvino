@@ -15,8 +15,7 @@ using namespace ov;
 using namespace ov::frontend::onnx::tests;
 
 TEST(onnx_importer, exception_throws_Exception) {
-    EXPECT_THROW(convert_model("depth_to_space_bad_blocksize.onnx"),
-                 Exception);
+    EXPECT_THROW(convert_model("depth_to_space_bad_blocksize.onnx"), Exception);
 }
 
 TEST(onnx_importer, exception_msg_Exception) {

@@ -42,7 +42,7 @@ struct invalid_external_data : ov::Exception {
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace onnx
+}  // namespace onnx_error
 }  // namespace frontend
 }  // namespace ov
 
