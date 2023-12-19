@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
-
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "data_inst.h"
@@ -28,6 +28,7 @@
 #include "condition_inst.h"
 #include "gather_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "non_max_suppression_inst.h"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
@@ -102,9 +103,9 @@ bool is_user_cpu(const program_node* user) {
         }
         return false;
     }
-    if (auto impl = user->get_selected_impl())
-        return impl->is_cpu();
-    return false;
+    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu() :
+                                              user->get_preferred_impl_type() == impl_types::cpu;
+    return is_cpu;
 }
 bool has_cpu_user_not_shape_of(const program_node* user) {
     if (user->can_be_optimized()) {
