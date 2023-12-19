@@ -18,6 +18,8 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
+class TRANSFORMATIONS_API ConvertLoopToLSTMSequence;
+
 }  // namespace pass
 }  // namespace ov
 
@@ -61,4 +63,15 @@ class ov::pass::ConvertTensorIteratorToSequence : public GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertTensorIteratorToSequence", "0");
     ConvertTensorIteratorToSequence();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Replaces Loop with LSTMCell inside to LSTMSequence
+ */
+
+class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertLoopToLSTMSequence", "0");
+    ConvertLoopToLSTMSequence();
 };
