@@ -38,13 +38,26 @@ The examples below show how TensorFlow and PyTorch models. The models are loaded
 While the above examples provide a simple and straightforward option to import models into OpenVINO, there are other options to provide more customization and flexibility. 
 
 
-TensorFlow Import Options
+Import Options
 ##############################################
 
-OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. 
+.. tab-set::
 
+   .. tab-item:: TensorFlow
 
-TF flow image
+      OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. 
+      TF flow image
+
+   .. tab-item::  PyTorch 
+
+      OpenVINO direct support of PyTorch allows developers to use their models in an OpenVINO inference pipeline without changes. OpenVINO provides multiple ways of using PyTorch. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case.
+
+      PT image
+
+      PyTorch models can be imported into OpenVINO directly from a Python object. Saved PyTorch files can be used as well. To use a saved PyTorch file, it needs to be loaded in PyTorch first to convert it to a Python object.
+      Once the model is loaded as a PyTorch Python object, you can decide whether to start using the OpenVINO framework and its features directly or to remain within the PyTorch framework while leveraging optimizations.
+
+ .. image:: _static/images/ov_workflow_diagram_convenience.svg
 
 Method 1. Convert using ov.convert_model function (Python only)
 ---------------------------------------------------------------------
