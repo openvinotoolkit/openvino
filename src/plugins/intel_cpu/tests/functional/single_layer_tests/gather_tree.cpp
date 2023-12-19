@@ -2,39 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-namespace CPULayerTestsDefinitions {
-
-using namespace ov::test;
 using namespace CPUTestUtils;
 
-using GatherTreeCPUTestParams = typename std::tuple<
-        InputShape,                        // Input tensors shape
-        ngraph::helpers::InputLayerType,   // Secondary input type
-        ov::element::Type,                 // Network precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        std::string>;                      // Device name
+namespace ov {
+namespace test {
+
+using GatherTreeCPUTestParams = typename std::tuple<InputShape,                       // Input tensors shape
+                                                    ov::test::utils::InputLayerType,  // Secondary input type
+                                                    ov::element::Type,                // Network precision
+                                                    ov::element::Type,                // Input precision
+                                                    ov::element::Type,                // Output precision
+                                                    std::string>;                     // Device name
 
 class GatherTreeLayerCPUTest : public testing::WithParamInterface<GatherTreeCPUTestParams>,
-                               virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+                               virtual public ov::test::SubgraphBaseTest,
+                               public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeCPUTestParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeCPUTestParams>& obj) {
         InputShape inputShape;
         ov::element::Type netPrecision;
-        InferenceEngine::Precision inPrc, outPrc;
-        InferenceEngine::Layout inLayout, outLayout;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::element::Type inPrc, outPrc;
+        ov::test::utils::InputLayerType secondaryInputType;
         std::string targetName;
 
-        std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
+        std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, targetName) = obj.param;
 
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -44,10 +40,8 @@ public:
         }
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << "netPRC=" << netPrecision.get_type_name() << "_";
-        result << "inPRC=" << inPrc.name() << "_";
-        result << "outPRC=" << outPrc.name() << "_";
-        result << "inL=" << inLayout << "_";
-        result << "outL=" << outLayout << "_";
+        result << "inPRC=" << inPrc.get_type_name() << "_";
+        result << "outPRC=" << outPrc.get_type_name() << "_";
         result << "trgDev=" << targetName;
 
         return result.str();
@@ -57,11 +51,10 @@ protected:
     void SetUp() override {
         InputShape inputShape;
         ov::element::Type netPrecision;
-        ngraph::helpers::InputLayerType secondaryInputType;
-        InferenceEngine::Precision inPrc, outPrc;
-        InferenceEngine::Layout inLayout, outLayout;
+        ov::test::utils::InputLayerType secondaryInputType;
+        ov::element::Type inPrc, outPrc;
 
-        std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+        std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, targetDevice) = GetParam();
         InputShape parentShape{inputShape};
         InputShape::first_type maxSeqLenFirst;
         if (inputShape.first.is_dynamic()) {
@@ -82,12 +75,12 @@ protected:
             shape.push_back({});
         }
 
-        std::shared_ptr<ngraph::Node> inp2;
-        std::shared_ptr<ngraph::Node> inp3;
-        std::shared_ptr<ngraph::Node> inp4;
+        std::shared_ptr<ov::Node> inp2;
+        std::shared_ptr<ov::Node> inp3;
+        std::shared_ptr<ov::Node> inp4;
 
         ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
+        if (ov::test::utils::InputLayerType::PARAMETER == secondaryInputType) {
             auto param2 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[1]);
             auto param3 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[2]);
             auto param4 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[3]);
@@ -98,33 +91,37 @@ protected:
             paramsIn.push_back(param2);
             paramsIn.push_back(param3);
             paramsIn.push_back(param4);
-        } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
+        } else if (ov::test::utils::InputLayerType::CONSTANT == secondaryInputType) {
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 
-            inp2 = ngraph::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ngraph::builder::makeConstant<float>(netPrecision, {inputShape.second.front().at(1)}, {}, true, maxBeamIndex);
+            inp2 =
+                ngraph::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
+            inp3 = ngraph::builder::makeConstant<float>(netPrecision,
+                                                        {inputShape.second.front().at(1)},
+                                                        {},
+                                                        true,
+                                                        maxBeamIndex);
             inp4 = ngraph::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }
 
-        auto operationResult = std::make_shared<ngraph::opset4::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
+        auto operationResult = std::make_shared<ov::op::v1::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(operationResult)};
-        function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(operationResult)};
+        function = std::make_shared<ov::Model>(results, paramsIn, "GatherTree");
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto maxBeamIndex = targetInputStaticShapes.front().at(2) - 1;
         const auto& funcInputs = function->inputs();
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
-            auto tensor =
-                ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(),
-                                                        targetInputStaticShapes[i],
-                                                        maxBeamIndex,
-                                                        (i == 2 || i == 3) ? maxBeamIndex / 2 : 0);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = (i == 2 || i == 3) ? maxBeamIndex / 2 : 0;
+            in_data.range = maxBeamIndex;
+            auto tensor = ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
         }
     }
@@ -136,62 +133,56 @@ TEST_P(GatherTreeLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::f32,
-        ov::element::i32
-};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::i32};
 
-const std::vector<InputShape> inputStaticShapes = {{{}, {{5, 1, 10}}}, {{}, {{1, 1, 10}}},
-                                                   {{}, {{20, 1, 10}}}, {{}, {{20, 20, 10}}}};
+const std::vector<InputShape> inputStaticShapes = {{{}, {{5, 1, 10}}},
+                                                   {{}, {{1, 1, 10}}},
+                                                   {{}, {{20, 1, 10}}},
+                                                   {{}, {{20, 20, 10}}}};
 
-const std::vector<InputShape> inputDynamicShapesParameter =
-    {{{-1, 1, -1}, {{7, 1, 10}, {8, 1, 20}}}, {{-1, 1, {5, 10}}, {{2, 1, 7}, {5, 1, 8}}},
-    {{-1, {1, 5}, 10}, {{20, 1, 10}, {17, 2, 10}}}, {{-1, -1, -1}, {{20, 20, 15}, {30, 30, 10}}}};
+const std::vector<InputShape> inputDynamicShapesParameter = {{{-1, 1, -1}, {{7, 1, 10}, {8, 1, 20}}},
+                                                             {{-1, 1, {5, 10}}, {{2, 1, 7}, {5, 1, 8}}},
+                                                             {{-1, {1, 5}, 10}, {{20, 1, 10}, {17, 2, 10}}},
+                                                             {{-1, -1, -1}, {{20, 20, 15}, {30, 30, 10}}}};
 
-const std::vector<InputShape> inputDynamicShapesConstant =
-    {{{-1, 1, -1}, {{7, 1, 10}}}, {{-1, 1, {5, 10}}, {{2, 1, 7}}},
-    {{-1, {1, 5}, 10}, {{20, 1, 10}}}, {{-1, -1, -1}, {{20, 20, 15}}}};
+const std::vector<InputShape> inputDynamicShapesConstant = {{{-1, 1, -1}, {{7, 1, 10}}},
+                                                            {{-1, 1, {5, 10}}, {{2, 1, 7}}},
+                                                            {{-1, {1, 5}, 10}, {{20, 1, 10}}},
+                                                            {{-1, -1, -1}, {{20, 20, 15}}}};
 
-const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
-};
+const std::vector<ov::test::utils::InputLayerType> secondaryInputTypes = {ov::test::utils::InputLayerType::CONSTANT,
+                                                                          ov::test::utils::InputLayerType::PARAMETER};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic, GatherTreeLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(inputStaticShapes),
-                            ::testing::ValuesIn(secondaryInputTypes),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        GatherTreeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic,
+                         GatherTreeLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputStaticShapes),
+                                            ::testing::ValuesIn(secondaryInputTypes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatherTreeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(inputDynamicShapesParameter),
-                            ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        GatherTreeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter,
+                         GatherTreeLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputDynamicShapesParameter),
+                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatherTreeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant, GatherTreeLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(inputDynamicShapesConstant),
-                            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        GatherTreeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant,
+                         GatherTreeLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputDynamicShapesConstant),
+                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatherTreeLayerCPUTest::getTestCaseName);
 
-} // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

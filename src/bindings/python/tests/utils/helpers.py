@@ -209,6 +209,17 @@ def generate_add_model() -> openvino._pyopenvino.Model:
     return Model(add, [param1, param2], "TestModel")
 
 
+def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.Model:
+    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
+    init_val = ops.constant(np.zeros(input_shape), data_type)
+    rv = ops.read_value(init_val, "var_id_667", data_type, input_shape)
+    add = ops.add(rv, input_data, name="MemoryAdd")
+    node = ops.assign(add, "var_id_667")
+    res = ops.result(add, "res")
+    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    return model
+
+
 def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 

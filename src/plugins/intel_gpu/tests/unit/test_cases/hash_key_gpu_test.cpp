@@ -50,11 +50,11 @@ public:
     void test_fc_basic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        const int32_t b = 1, in_f = 128, in_x = 1, in_y = 1, out_f = 65;
+        const int32_t b = 1, in_f = 128, out_f = 65;
 
-        auto input_prim = engine.allocate_memory({ { b, in_f, in_y, in_x }, data_types::f32, format::bfyx });
-        auto weights_prim = engine.allocate_memory({ { out_f, in_f, in_y, in_x }, data_types::f32, format::bfyx });
-        auto bias_prim = engine.allocate_memory({ { 1, 1, out_f, 1 }, data_types::f32, format::bfyx });
+        auto input_prim = engine.allocate_memory({ { b, in_f }, data_types::f32, format::bfyx });
+        auto weights_prim = engine.allocate_memory({ { out_f, in_f }, data_types::f32, format::bfyx });
+        auto bias_prim = engine.allocate_memory({ { out_f }, data_types::f32, format::bfyx });
 
         const auto key_prim_id = "fc";
         topology topology(
@@ -72,10 +72,10 @@ public:
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
         if (!engine.get_device_info().supports_immad) {
             ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 1637150664489130388UL);
+            ASSERT_EQ(params_hash, 3365957578641948513UL);
         } else {
             ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 6343702278017463925UL);
+            ASSERT_EQ(params_hash, 9831190959346679696UL);
         }
     }
 
@@ -104,8 +104,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
-        ASSERT_EQ(primitive_hash, 93320679543770233UL);
-        ASSERT_EQ(params_hash, 1542578941420280552UL);
+        ASSERT_EQ(primitive_hash, 8439414674502129643UL);
+        ASSERT_EQ(params_hash, 9235751886952244871UL);
     }
 
     void test_gemm_basic(bool is_caching_test) {

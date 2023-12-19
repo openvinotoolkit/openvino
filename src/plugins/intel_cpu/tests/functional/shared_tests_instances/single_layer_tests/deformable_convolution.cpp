@@ -166,7 +166,7 @@ const auto deformableConv2DParams_SingleTestCase = ::testing::Combine(
     ::testing::ValuesIn(groups),
     ::testing::ValuesIn(single_deform_groups),
     ::testing::ValuesIn(numOutChannels),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::Values(ov::op::PadType::EXPLICIT),
     ::testing::ValuesIn(with_bilinear_interpolation_pad));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(
                         ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
                         ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
                         ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::Values(ov::op::PadType::EXPLICIT),
                         ::testing::ValuesIn(with_bilinear_interpolation_pad)),
                         ::testing::Values(false),
                         ::testing::ValuesIn(netPrecisions),
@@ -234,7 +234,7 @@ INSTANTIATE_TEST_SUITE_P(
                         ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
                         ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
                         ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::Values(ov::op::PadType::EXPLICIT),
                         ::testing::ValuesIn(with_bilinear_interpolation_pad)),
                         ::testing::Values(true),
                         ::testing::ValuesIn(netPrecisions),
@@ -266,7 +266,7 @@ INSTANTIATE_TEST_SUITE_P(
                         ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
                         ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
                         ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::Values(ov::op::PadType::EXPLICIT),
                         ::testing::ValuesIn(with_bilinear_interpolation_pad)),
                         ::testing::Values(false),
                         ::testing::ValuesIn(netPrecisions),
@@ -285,7 +285,7 @@ INSTANTIATE_TEST_SUITE_P(
                         ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
                         ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
                         ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::Values(ov::op::PadType::EXPLICIT),
                         ::testing::ValuesIn(with_bilinear_interpolation_pad)),
                         ::testing::Values(true),
                         ::testing::ValuesIn(netPrecisions),

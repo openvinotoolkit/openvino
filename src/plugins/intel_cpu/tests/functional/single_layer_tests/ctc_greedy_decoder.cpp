@@ -4,21 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <ov_models/builders.hpp>
-#include <shared_test_classes/single_layer/ctc_greedy_decoder.hpp>
-#include <string>
-#include <tuple>
-#include <vector>
-
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using CtcGreedyDecoderParams = std::tuple<size_t,   // Sequence length T
                                           size_t,   // Batch size N
@@ -65,7 +57,7 @@ protected:
         bool mergeRepeated;
         InputShapeParams shapes;
         std::tie(shapes, inType, mergeRepeated) = GetParam();
-        selectedType = "ref_any_FP32";
+        selectedType = "ref_any_f32";
         targetDevice = ov::test::utils::DEVICE_CPU;
         // construct input shapes
         ASSERT_EQ(shapes.first.size(), 3);
@@ -88,11 +80,11 @@ protected:
         }
         auto ctcGreedyDecoder = std::make_shared<ov::op::v0::CTCGreedyDecoder>(params[0], params[1], mergeRepeated);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder)};
-        function = std::make_shared<ngraph::Function>(results, params, "CTCGreedyDecoderCPU");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcGreedyDecoder)};
+        function = std::make_shared<ov::Model>(results, params, "CTCGreedyDecoderCPU");
     };
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -100,14 +92,13 @@ protected:
             ov::Tensor tensor;
             if (i == 0) {
                 if (funcInput.get_element_type().is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                     targetInputStaticShapes[i],
-                                                                     10,
-                                                                     0,
-                                                                     1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                 } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                     targetInputStaticShapes[i]);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }
             } else {
                 auto T = targetInputStaticShapes[i][0];
@@ -173,4 +164,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CtcGreedyDecoderCPU,
                          CTCGreedyDecoderLayerCPUTest::getTestCaseName);
 }  // namespace
 
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -3,8 +3,10 @@
 //
 
 #include "shape_of_inst.h"
+#include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "eltwise_inst.h"
+#include "select_inst.h"
 #include "pass_manager.h"
 
 #include "intel_gpu/graph/program.hpp"
@@ -41,6 +43,17 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
 
 bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.has_fused_primitives())
+        return false;
+
+    // read_value may have initializer which is shape_of sub-graph, but read_value itself is not a part of such sub-graph
+    if (node.is_type<read_value>())
+        return false;
+
+    // CPU implementation does not support float data types for mask and mixed types for data inputs, so check them
+    // before including it into shape_of sub-graph
+    if (node.is_type<select>() &&
+        (data_type_traits::is_floating_point(node.get_input_layout(0).data_type) ||
+         node.get_input_layout(1).data_type != node.get_input_layout(2).data_type))
         return false;
 
     if (node.is_type<reshape>())
