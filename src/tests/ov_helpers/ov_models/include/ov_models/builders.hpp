@@ -21,6 +21,52 @@
 
 namespace ngraph {
 namespace builder {
+
+template <typename T>
+std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
+                                       const std::vector<size_t>& shape,
+                                       const std::vector<T>& data,
+                                       bool random = false,
+                                       T upTo = 10,
+                                       T startFrom = 1,
+                                       const int seed = 1) {
+    std::shared_ptr<ov::Node> weightsNode;
+
+#define makeNode(TYPE)                                                                                               \
+    case TYPE:                                                                                                       \
+        weightsNode = std::make_shared<ov::op::v0::Constant>(                                                        \
+            type,                                                                                                    \
+            shape,                                                                                                   \
+            random                                                                                                   \
+                ? NGraphFunctions::Utils::generateVector<TYPE>(ov::shape_size(shape),                                \
+                                                               ov::element_type_traits<TYPE>::value_type(upTo),      \
+                                                               ov::element_type_traits<TYPE>::value_type(startFrom), \
+                                                               seed)                                                 \
+                : NGraphFunctions::Utils::castVector<T, ov::element_type_traits<TYPE>::value_type>(data));           \
+        break;
+    switch (type) {
+        makeNode(ov::element::Type_t::bf16);
+        makeNode(ov::element::Type_t::f16);
+        makeNode(ov::element::Type_t::f32);
+        makeNode(ov::element::Type_t::f64);
+        makeNode(ov::element::Type_t::i8);
+        makeNode(ov::element::Type_t::i16);
+        makeNode(ov::element::Type_t::i32);
+        makeNode(ov::element::Type_t::i64);
+        makeNode(ov::element::Type_t::u8);
+        makeNode(ov::element::Type_t::u16);
+        makeNode(ov::element::Type_t::u32);
+        makeNode(ov::element::Type_t::u64);
+        makeNode(ov::element::Type_t::boolean);
+        makeNode(ov::element::Type_t::nf4);
+        makeNode(ov::element::Type_t::u4);
+        makeNode(ov::element::Type_t::i4);
+#undef makeNode
+    default:
+        throw std::runtime_error("Unhandled precision");
+    }
+    return weightsNode;
+}
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
