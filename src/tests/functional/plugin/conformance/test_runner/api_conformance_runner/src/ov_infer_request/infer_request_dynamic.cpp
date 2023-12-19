@@ -4,9 +4,9 @@
 
 #include <vector>
 
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "ov_api_conformance_helpers.hpp"
-
 
 namespace {
 using namespace ov::test::behavior;

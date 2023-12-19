@@ -8,6 +8,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
