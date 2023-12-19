@@ -147,7 +147,6 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
 
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")
-xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
 
