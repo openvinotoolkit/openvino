@@ -30,6 +30,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/bitwise_and.hpp"
+#include "op/bitwise_or.hpp"
 #include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
