@@ -22,12 +22,14 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_context(context)
-    , m_shape_predictor(shape_predictor) {
+    , m_shape_predictor(shape_predictor)
+    , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
 
 void VariableState::reset() {
     m_is_set = false;
+    set_layout(m_initial_layout);
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
