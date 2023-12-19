@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_infer_request/infer_consistency.hpp"
-#include "ov_models/builders.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <thread>
+
+#include "behavior/ov_infer_request/infer_consistency.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace ov {
 namespace test {
 namespace behavior {

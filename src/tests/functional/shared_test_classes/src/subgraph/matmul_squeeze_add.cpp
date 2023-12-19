@@ -5,7 +5,6 @@
 #include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {

@@ -8,7 +8,6 @@
 #include "nodes/input.h"
 #include "nodes/transpose.h"
 
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace ov::intel_cpu;

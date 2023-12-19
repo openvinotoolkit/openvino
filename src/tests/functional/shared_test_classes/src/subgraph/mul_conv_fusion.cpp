@@ -7,7 +7,6 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 

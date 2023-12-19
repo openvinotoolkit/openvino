@@ -3,8 +3,8 @@
 //
 
 #include "subgraph_tests/include/conv_with_zero_point_fuse.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "test_utils/convolution_params.hpp"

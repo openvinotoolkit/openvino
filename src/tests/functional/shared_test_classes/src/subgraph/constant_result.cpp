@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/constant_result.hpp"
 
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/node_builders/convolution.hpp"
-#include "common_test_utils/node_builders/group_convolution.hpp"
 
 namespace ov {
 namespace test {

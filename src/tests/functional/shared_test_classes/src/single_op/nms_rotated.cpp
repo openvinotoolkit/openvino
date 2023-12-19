@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/nms_rotated.hpp"
-#include "ov_models/builders.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/op/nms_rotated.hpp"

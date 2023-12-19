@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/mvn_multiply_add.hpp"
 
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 

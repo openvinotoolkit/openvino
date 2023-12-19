@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/subgraph/split_concat_multi_inputs.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {

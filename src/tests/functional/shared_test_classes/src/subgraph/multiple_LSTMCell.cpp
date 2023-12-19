@@ -8,8 +8,8 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {

@@ -6,7 +6,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpu/cpu_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"

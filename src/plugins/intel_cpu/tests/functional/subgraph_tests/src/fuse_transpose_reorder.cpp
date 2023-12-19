@@ -3,9 +3,8 @@
 //
 
 #include "subgraph_tests/include/fuse_transpose_reorder.hpp"
-#include "common_test_utils/node_builders/convolution.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 #include "ov_models/preprocess/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
 

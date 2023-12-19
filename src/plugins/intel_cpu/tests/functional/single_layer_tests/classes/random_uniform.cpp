@@ -3,7 +3,6 @@
 //
 
 #include "random_uniform.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace CPUTestUtils;
