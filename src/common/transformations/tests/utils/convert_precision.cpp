@@ -2516,7 +2516,6 @@ TEST(TransformationTests, ConvertPrecision_with_SubgraphOp) {
         auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
         auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
-
         auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
         auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
         auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
@@ -2538,11 +2537,12 @@ TEST(TransformationTests, ConvertPrecision_with_SubgraphOp) {
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        bool convert_input_output_precision = false;
+        bool convert_input_output_precision = true;
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32,
                                                       convert_input_output_precision);
         ASSERT_NO_THROW(manager.run_passes(f));
+        ASSERT_FALSE(has_type<element::Type_t::f32>(f));
     }
 }
