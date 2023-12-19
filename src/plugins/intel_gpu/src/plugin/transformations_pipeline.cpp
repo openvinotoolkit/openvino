@@ -201,7 +201,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
-        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
         if (enableInt8) {
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
@@ -280,8 +281,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
         // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
-        // Ignore nodes that are not related to FullyConnected and allow ConstantFolding to be applied to them
-        pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
+        if (!is_model_quantized)
+            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
         manager.register_pass<ov::intel_gpu::MoveConvertAfterGather>();
 
