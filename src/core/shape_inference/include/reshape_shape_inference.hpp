@@ -193,8 +193,22 @@ std::pair<TShape, int64_t> get_pattern_and_minus_one_idx(const Node* const op,
             NODE_VALIDATION_CHECK(op, minus_one_idx == dim::inf_bound, "More than one dimension has size of -1");
             minus_one_idx = static_cast<int64_t>(i);
         }
-        NODE_VALIDATION_CHECK(op, *bounds_iter >= minus_one_bound, "Dim size cannot be less than -1");
-        shape.emplace_back(bounds_iter->first, bounds_iter->second);
+
+        if (*bounds_iter >= minus_one_bound) {
+            shape.emplace_back(bounds_iter->first, bounds_iter->second);
+        } else if ((bounds_iter->first < 0) != (bounds_iter->second < 0)) {
+            // only one bound valid
+            shape.emplace_back(0, dim::inf_bound);
+        } else {
+            NODE_VALIDATION_CHECK(op,
+                                  false,
+                                  "Output pattern dim[",
+                                  i,
+                                  "] has invalid bounds: ",
+                                  bounds_iter->first,
+                                  ",",
+                                  bounds_iter->second);
+        }
     }
 
     return result;

@@ -13,8 +13,10 @@ namespace template_plugin {
 
 class VariableState : public ov::IVariableState {
 public:
-    VariableState(const std::string& name, const ov::SoPtr<ov::ITensor>& tensor) : ov::IVariableState(name) {
-        m_state = tensor;
+    VariableState(const std::string& name, const std::shared_ptr<op::util::VariableValue>& variable_value)
+        : ov::IVariableState(name),
+          m_variable_value(variable_value) {
+        m_state = get_tensor_impl(variable_value->get_state());
     }
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
         OPENVINO_ASSERT(state->get_shape() == m_state->get_shape(), "Wrong tensor shape.");
@@ -25,10 +27,13 @@ public:
 
     void reset() override {
         std::memset(m_state->data(), 0, m_state->get_byte_size());
+        m_variable_value->set_reset(true);
     }
 
     ~VariableState() override = default;
-};
 
+private:
+    std::shared_ptr<op::util::VariableValue> m_variable_value;
+};
 }  // namespace template_plugin
 }  // namespace ov
