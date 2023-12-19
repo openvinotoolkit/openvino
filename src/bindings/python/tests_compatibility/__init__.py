@@ -85,6 +85,7 @@ xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
                                       "AssertionError: Mismatched elements.")
+skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
 xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
