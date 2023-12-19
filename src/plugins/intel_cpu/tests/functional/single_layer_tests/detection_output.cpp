@@ -7,7 +7,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 
 namespace DetectionOutput {
-static std::ostream& operator <<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
+static std::ostream& operator<<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
     result << "Classes=" << attrs.num_classes << "_";
     result << "backgrId=" << attrs.background_label_id << "_";
     result << "topK="  << attrs.top_k << "_";
@@ -26,7 +26,7 @@ static std::ostream& operator <<(std::ostream& result, const ov::op::v0::Detecti
     result << "OS=" << attrs.objectness_score << "_";
     return result;
 }
-}
+}  // namespace DetectionOutput
 
 using namespace CPUTestUtils;
 namespace ov {
