@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -68,8 +69,8 @@ protected:
         size_t in_total_dims_size = ov::shape_size(input_shape);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ng_prc, ov::Shape{1, in_total_dims_size})};
         auto reshape_pattern =
-            std::make_shared<ngraph::opset9::Constant>(ov::element::Type_t::i64, ov::Shape{2}, input_shape);
-        auto reshape = std::make_shared<ngraph::opset9::Reshape>(params[0], reshape_pattern, false);
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{2}, input_shape);
+        auto reshape = std::make_shared<ov::opset9::Reshape>(params[0], reshape_pattern, false);
 
         ov::op::util::VariableInfo vi{};
         vi.data_shape = ov::PartialShape(input_shape);
@@ -78,7 +79,7 @@ protected:
         const auto var = std::make_shared<ov::op::util::Variable>(vi);
         std::vector<float> initial_state = ov::test::utils::generate_float_numbers(in_total_dims_size, -3.f, 3.f);
         auto initial_state_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, input_shape, initial_state);
-        auto readValue = std::make_shared<ngraph::opset9::ReadValue>(initial_state_node, var);
+        auto readValue = std::make_shared<ov::opset9::ReadValue>(initial_state_node, var);
 
         const int axis = 1;
         ov::OutputVector to_concat{readValue, reshape};
@@ -89,14 +90,14 @@ protected:
 
         auto etlwise_data = ov::test::utils::generate_float_numbers(concat_shape_size, -1.f, 1.f);
         auto etlwise_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, concat_shape, etlwise_data);
-        auto etlwise_result_node = std::make_shared<ngraph::opset9::Multiply>(concat, etlwise_node);
+        auto etlwise_result_node = std::make_shared<ov::opset9::Multiply>(concat, etlwise_node);
 
-        ov::ResultVector results{std::make_shared<ngraph::opset9::Result>(etlwise_result_node)};
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(etlwise_result_node)};
         auto split_axis_op =
             std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
         auto split_node = std::make_shared<ov::op::v1::Split>(concat, split_axis_op, 2);
 
-        auto assign_node = std::make_shared<ngraph::opset9::Assign>(split_node->output(1), var);
+        auto assign_node = std::make_shared<ov::opset9::Assign>(split_node->output(1), var);
         ngraph::SinkVector sinks{assign_node};
         function = std::make_shared<ov::Model>(results, sinks, params);
     }

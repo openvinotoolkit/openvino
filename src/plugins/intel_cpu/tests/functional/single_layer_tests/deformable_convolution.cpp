@@ -101,29 +101,48 @@ protected:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
+            ov::test::utils::InputGenerateData in_data;
             if (i == 0) {  // "a_data"
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), inShape, 2, -1, 100);
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 100;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), inShape, in_data);
             } else if (i == 1) {  // "b_offset_vals"
                 if (offsetType == OffsetType::NATURAL) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 10, 0, 1);
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1;
                 } else if (offsetType == OffsetType::ZERO) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 1, 0, 1);
+                    in_data.start_from = 0;
+                    in_data.range = 1;
+                    in_data.resolution = 1;
                 } else if (offsetType == OffsetType::REAL_POSITIVE) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 2, 0, 100);
+                    in_data.start_from = 0;
+                    in_data.range = 2;
+                    in_data.resolution = 100;
                 } else if (offsetType == OffsetType::REAL_NEGATIVE) {
-                    tensor =
-                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 2, -2, 100);
+                    in_data.start_from = -2;
+                    in_data.range = 2;
+                    in_data.resolution = 100;
                 } else if (offsetType == OffsetType::REAL_MISC) {
-                    tensor =
-                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 4, -2, 100);
+                    in_data.start_from = -2;
+                    in_data.range = 4;
+                    in_data.resolution = 100;
                 } else {
                     OPENVINO_THROW("Unexpected offset type");
                 }
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, in_data);
             } else if (i == 2) {  // "c_filter_vals"
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), filtShape, 2, -1, 100);
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 100;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), filtShape, in_data);
             } else if (i == 3) {  // "c_modulation_scalars"
                 auto modShape = targetInputStaticShapes[3];
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), modShape, 1, 0, 100);
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 100;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), modShape, in_data);
             } else {
                 OPENVINO_THROW("Unknown input of DeformableConvolution");
             }

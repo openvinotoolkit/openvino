@@ -6,15 +6,27 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -163,6 +175,61 @@ bool converts_are_equal(const Node* lhs, const Node* rhs) {
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
 
+bool divide_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_div = as_type<const v1::Divide>(lhs);
+    const auto r_div = as_type<const v1::Divide>(rhs);
+    if (!l_div || !r_div)
+        return false;
+    return l_div->get_autob() == r_div->get_autob() && l_div->is_pythondiv() == r_div->is_pythondiv() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool eltwise_arithmethic_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_eltwise = as_type<const op::util::BinaryElementwiseArithmetic>(lhs);
+    const auto r_eltwise = as_type<const op::util::BinaryElementwiseArithmetic>(rhs);
+    if (!l_eltwise || !r_eltwise)
+        return false;
+    return l_eltwise->get_autob() == r_eltwise->get_autob() && inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool pads_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_pad = as_type<const op::util::PadBase>(lhs);
+    const auto r_pad = as_type<const op::util::PadBase>(rhs);
+    if (!l_pad || !r_pad)
+        return false;
+    return l_pad->get_pad_mode() == r_pad->get_pad_mode() && inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool max_pools_8_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_pool = as_type<const v8::MaxPool>(lhs);
+    const auto r_pool = as_type<const v8::MaxPool>(rhs);
+    if (!l_pool || !r_pool)
+        return false;
+    return l_pool->get_axis() == r_pool->get_axis() && l_pool->get_auto_pad() == r_pool->get_auto_pad() &&
+           l_pool->get_strides() == r_pool->get_strides() && l_pool->get_dilations() == r_pool->get_dilations() &&
+           l_pool->get_pads_begin() == r_pool->get_pads_begin() && l_pool->get_pads_end() == r_pool->get_pads_end() &&
+           l_pool->get_kernel() == r_pool->get_kernel() && l_pool->get_rounding_type() == r_pool->get_rounding_type() &&
+           l_pool->get_index_element_type() == r_pool->get_index_element_type() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+bool broadcasts_1_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_broadcast = as_type<const v1::Broadcast>(lhs);
+    const auto r_broadcast = as_type<const v1::Broadcast>(rhs);
+    if (!l_broadcast || !r_broadcast)
+        return false;
+    return l_broadcast->get_broadcast_spec() == r_broadcast->get_broadcast_spec() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool broadcasts_3_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_broadcast = as_type<const v3::Broadcast>(lhs);
+    const auto r_broadcast = as_type<const v3::Broadcast>(rhs);
+    if (!l_broadcast || !r_broadcast)
+        return false;
+    return l_broadcast->get_broadcast_spec() == r_broadcast->get_broadcast_spec() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
 bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
     for (const auto& op : model->get_ordered_ops()) {
@@ -197,8 +264,13 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         RECORD_NO_ATTRIBUTES(v0::Tile),
         RECORD_NO_ATTRIBUTES(v0::Unsqueeze),
         RECORD_NO_ATTRIBUTES(v3::ScatterUpdate),
+        RECORD_NO_ATTRIBUTES(v0::Relu),
+        RECORD_NO_ATTRIBUTES(v0::Ceiling),
+        RECORD_NO_ATTRIBUTES(v0::Floor),
 
         // with attributes
+        RECORD(v1::Broadcast, broadcasts_1_are_equal),
+        RECORD(v3::Broadcast, broadcasts_3_are_equal),
         RECORD(v0::Concat, concats_are_equal),
         RECORD(v0::Convert, converts_are_equal),
         RECORD(v1::Gather, gathers_are_equal),
@@ -208,6 +280,15 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         RECORD(v1::Reshape, reshapes_are_equal),
         RECORD(v0::ShapeOf, shapeof_are_equal),
         RECORD(v3::ShapeOf, shapeof_are_equal),
+        RECORD(v1::Divide, divide_are_equal),
+        RECORD(v1::Multiply, eltwise_arithmethic_are_equal),
+        RECORD(v1::Add, eltwise_arithmethic_are_equal),
+        RECORD(v1::Subtract, eltwise_arithmethic_are_equal),
+        RECORD(v1::Maximum, eltwise_arithmethic_are_equal),
+        RECORD(v1::Minimum, eltwise_arithmethic_are_equal),
+        RECORD(v1::Pad, pads_are_equal),
+        RECORD(v12::Pad, pads_are_equal),
+        RECORD(v8::MaxPool, max_pools_8_are_equal),
     };  // TODO: use visit_attributes to uniformly perform attributes check in the future and get rid of rules table
 
     bool rewritten = shape_of_upgrade(model);

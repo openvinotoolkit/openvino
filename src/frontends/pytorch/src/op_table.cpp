@@ -68,6 +68,7 @@ OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
+OP_CONVERTER(translate_erfc);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
@@ -125,6 +126,7 @@ OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
+OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
@@ -177,6 +179,7 @@ OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_scatter);
+OP_CONVERTER(translate_scatter_add);
 OP_CONVERTER(translate_scatter_reduce);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
@@ -195,6 +198,7 @@ OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
+OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
@@ -348,6 +352,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erf_", op::inplace_op<op::translate_erf>},
+        {"aten::erfc", op::translate_erfc},
+        {"aten::erfc_", op::inplace_op<op::translate_erfc>},
         {"aten::exp", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
         {"aten::expand", op::translate_expand},
@@ -443,6 +449,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::mul_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::multiply", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::multiply_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
+        {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
@@ -467,6 +474,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
+        {"aten::pow_", op::translate_pow},
         {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
@@ -499,6 +507,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
         {"aten::scatter", op::translate_scatter},
         {"aten::scatter_", op::inplace_op<op::translate_scatter>},
+        {"aten::scatter_add", op::translate_scatter_add},
+        {"aten::scatter_add_", op::inplace_op<op::translate_scatter_add>},
         {"aten::scatter_reduce", op::translate_scatter_reduce},
         {"aten::scatter_reduce_", op::inplace_op<op::translate_scatter_reduce>},
         {"aten::select", op::quantizable_op<op::translate_select>},
@@ -529,6 +539,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::t_", op::inplace_op<op::translate_t>},
+        {"aten::take_along_dim", op::translate_take_along_dim},
         {"aten::tan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
         {"aten::tanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},

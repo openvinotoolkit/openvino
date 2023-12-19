@@ -87,6 +87,7 @@ class TestConvertModel:
         gc.collect()
 
     def _run(self, model_name, model_link, ie_device):
+        self.model_name = model_name
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")

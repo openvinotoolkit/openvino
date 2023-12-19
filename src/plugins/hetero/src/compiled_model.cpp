@@ -242,7 +242,8 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                   "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {
