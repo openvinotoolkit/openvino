@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "base/import_export_base.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
