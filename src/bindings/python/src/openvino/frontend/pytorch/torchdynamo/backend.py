@@ -14,6 +14,8 @@ from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 from torch.fx.experimental.proxy_tensor import make_fx
+from torch._decomp import decomposition_table, register_decomposition, get_decompositions
+from torch._decomp.decompositions import aten, pw_cast_for_opmath
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
@@ -110,9 +112,13 @@ def ts_openvino(subgraph, example_inputs):
         log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
-
+subgraph_num = 0
 def fx_openvino(subgraph, example_inputs):
     try:
+        global subgraph_num
+        subgraph_num = subgraph_num + 1
+        if (subgraph_num == 14):
+            return subraph
         executor_parameters = None
         inputs_reversed = False
         if os.getenv("OPENVINO_TORCH_MODEL_CACHING") is not None:
@@ -133,6 +139,7 @@ def fx_openvino(subgraph, example_inputs):
         if inputs_reversed:
             example_inputs.reverse()
         model = make_fx(subgraph)(*example_inputs)
+
         with torch.no_grad():
             model.eval()
         partitioner = Partitioner()
