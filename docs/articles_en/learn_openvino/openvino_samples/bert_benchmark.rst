@@ -21,33 +21,10 @@ The sample downloads a model and a tokenizer, exports the model to ONNX format, 
 exported model and reshapes it to enforce dynamic input shapes. Then, it compiles the 
 resulting model, downloads a dataset and runs a benchmark on the dataset.
 
-.. tab-set::
+.. scrollbox::
 
-   .. tab-item:: Sample Code
-
-      .. scrollbox::
-
-         .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
-            :language: python
-
-   .. tab-item:: Python API
-
-      The following API is used in the application:
-
-      +--------------------------------+-------------------------------------------------+----------------------------------------------+
-      | Feature                        | API                                             | Description                                  |
-      +================================+=================================================+==============================================+
-      | OpenVINO Runtime Version       | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
-      +--------------------------------+-------------------------------------------------+----------------------------------------------+
-      | Basic Infer Flow               | [openvino.runtime.Core],                        | Common API to do inference: compile a model. |
-      |                                | [openvino.runtime.Core.compile_model]           |                                              |
-      +--------------------------------+-------------------------------------------------+----------------------------------------------+
-      | Asynchronous Infer             | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
-      |                                | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
-      |                                | [openvino.runtime.AsyncInferQueue.wait_all]     |                                              |
-      +--------------------------------+-------------------------------------------------+----------------------------------------------+
-      | Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
-      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+   .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
+      :language: python
 
 
 You can see the explicit description of each sample step at 

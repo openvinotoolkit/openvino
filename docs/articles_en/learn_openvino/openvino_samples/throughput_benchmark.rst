@@ -39,74 +39,19 @@ Then, it processes and reports performance results.
    .. tab-item:: Python
       :sync: python
 
-      .. tab-set::
-
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/python/benchmark/throughput_benchmark/throughput_benchmark.py
-                  :language: python
-
-         .. tab-item:: API
-
-            The following Python API is used in the application:
-
-            +--------------------------------+-------------------------------------------------+----------------------------------------------+
-            | Feature                        | API                                             | Description                                  |
-            +================================+=================================================+==============================================+
-            | OpenVINO Runtime Version       | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
-            +--------------------------------+-------------------------------------------------+----------------------------------------------+
-            | Basic Infer Flow               | [openvino.runtime.Core],                        | Common API to do inference: compile a model, |
-            |                                | [openvino.runtime.Core.compile_model]           | configure input tensors.                     |
-            |                                | [openvino.runtime.InferRequest.get_tensor]      |                                              |
-            +--------------------------------+-------------------------------------------------+----------------------------------------------+
-            | Asynchronous Infer             | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
-            |                                | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
-            |                                | [openvino.runtime.AsyncInferQueue.wait_all],    |                                              |
-            |                                | [openvino.runtime.InferRequest.results]         |                                              |
-            +--------------------------------+-------------------------------------------------+----------------------------------------------+
-            | Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
-            +--------------------------------+-------------------------------------------------+----------------------------------------------+
-            | Tensor Operations              | [openvino.runtime.Tensor.get_shape],            | Get a tensor shape and its data.             |
-            |                                | [openvino.runtime.Tensor.data]                  |                                              |
-            +--------------------------------+-------------------------------------------------+----------------------------------------------+
-
+      .. scrollbox::
+      
+         .. doxygensnippet:: samples/python/benchmark/throughput_benchmark/throughput_benchmark.py
+            :language: python
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. tab-set::
+      .. scrollbox::
       
-         .. tab-item:: Sample Code
-      
-            .. scrollbox::
+         .. doxygensnippet:: samples/cpp/benchmark/throughput_benchmark/main.cpp
+            :language: cpp
 
-               .. doxygensnippet:: samples/cpp/benchmark/throughput_benchmark/main.cpp
-                  :language: cpp
-
-         .. tab-item:: API
-            
-            The following C++ API is used in the application:
-      
-            +--------------------------+----------------------------------------------+----------------------------------------------+
-            | Feature                  | API                                          | Description                                  |
-            +==========================+==============================================+==============================================+
-            | OpenVINO Runtime Version | ``ov::get_openvino_version``                 | Get Openvino API version.                    |
-            +--------------------------+----------------------------------------------+----------------------------------------------+
-            | Basic Infer Flow         | ``ov::Core``, ``ov::Core::compile_model``,   | Common API to do inference: compile a model, |
-            |                          | ``ov::CompiledModel::create_infer_request``, | create an infer request,                     |
-            |                          | ``ov::InferRequest::get_tensor``             | configure input tensors.                     |
-            +--------------------------+----------------------------------------------+----------------------------------------------+
-            | Asynchronous Infer       | ``ov::InferRequest::start_async``,           | Do asynchronous inference with callback.     |
-            |                          | ``ov::InferRequest::set_callback``           |                                              |
-            +--------------------------+----------------------------------------------+----------------------------------------------+
-            | Model Operations         | ``ov::CompiledModel::inputs``                | Get inputs of a model.                       |
-            +--------------------------+----------------------------------------------+----------------------------------------------+
-            | Tensor Operations        | ``ov::Tensor::get_shape``,                   | Get a tensor shape and its data.             |
-            |                          | ``ov::Tensor::data``                         |                                              |
-            +--------------------------+----------------------------------------------+----------------------------------------------+
-      
 
 You can see the explicit description of each sample step at 
 :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 

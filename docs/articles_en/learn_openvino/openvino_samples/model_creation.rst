@@ -35,96 +35,22 @@ data, logging each step in a standard output stream.
    .. tab-item:: Python
       :sync: python
 
-      .. tab-set::
+      .. scrollbox::
       
-         .. tab-item:: Sample Code
-      
-            .. scrollbox::
-      
-               .. doxygensnippet:: samples/python/model_creation_sample/model_creation_sample.py  
-                  :language: python
-
-         .. tab-item:: API
-      
-            The following OpenVINO Python API is used in the application:
-      
-            +------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-            | Feature                                  | API                                                                                                                                                          | Description                                                                        |
-            +==========================================+==============================================================================================================================================================+====================================================================================+
-            | Model Operations                         | `openvino.runtime.Model <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ ,                                    | Managing of model                                                                  |
-            |                                          | `openvino.runtime.set_batch <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.set_batch.html>`__ ,                            |                                                                                    |
-            |                                          | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__   |                                                                                    |
-            +------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-            | Opset operations                         | `openvino.runtime.op.Parameter <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.op.Parameter.html>`__ ,                      | Description of a model topology using OpenVINO Python API                          |
-            |                                          | `openvino.runtime.op.Constant <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.op.Constant.html>`__ ,                        |                                                                                    |
-            |                                          | `openvino.runtime.opset8.convolution <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset8.convolution.html>`__ ,          |                                                                                    |
-            |                                          | `openvino.runtime.opset8.add <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset8.add.html>`__ ,                          |                                                                                    |
-            |                                          | `openvino.runtime.opset1.max_pool <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset1.max_pool.html>`__ ,                |                                                                                    |
-            |                                          | `openvino.runtime.opset8.reshape <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset8.reshape.html>`__ ,                  |                                                                                    |
-            |                                          | `openvino.runtime.opset8.matmul <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset8.matmul.html>`__ ,                    |                                                                                    |
-            |                                          | `openvino.runtime.opset8.relu <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset8.relu.html>`__ ,                        |                                                                                    |
-            |                                          | `openvino.runtime.opset8.softmax <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.opset8.softmax.html>`__                    |                                                                                    |
-            +------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-      
-            Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_sample_hello_classification>`.
+         .. doxygensnippet:: samples/python/model_creation_sample/model_creation_sample.py  
+            :language: python
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. tab-set::
+      .. important::
       
-         .. tab-item:: Sample Code
-
-            .. important::
-
-               **Deprecation Notice:** This sample has been deprecated since June 1, 2020. The date of removal was set to December 1, 2020.
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/cpp/model_creation_sample/main.cpp 
-                  :language: cpp
-
-         .. tab-item:: API
-
-            .. important::
-
-               **Deprecation Notice:** This sample has been deprecated since June 1, 2020. The date of removal was set to December 1, 2020.
-
-            The following C++ API is used in the application:
+         **Deprecation Notice:** This sample has been deprecated since June 1, 2020. The date of removal was set to December 1, 2020.
       
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
-            | Feature                                  | API                                     | Description                           |
-            +==========================================+=========================================+=======================================+
-            | OpenVINO Runtime Info                    | ``ov::Core::get_versions``              | Get device plugins versions           |
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
-            | Shape Operations                         | ``ov::Output::get_shape``,              | Operate with shape                    |
-            |                                          | ``ov::Shape::size``,                    |                                       |
-            |                                          | ``ov::shape_size``                      |                                       |
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
-            | Tensor Operations                        | ``ov::Tensor::get_byte_size``,          | Get tensor byte size and its data     |
-            |                                          | ``ov::Tensor:data``                     |                                       |
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
-            | Model Operations                         | ``ov::set_batch``                       | Operate with model batch size         |
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
-            | Infer Request Operations                 | ``ov::InferRequest::get_input_tensor``  | Get a input tensor                    |
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
-            | Model creation objects                   | ``ov::opset8::Parameter``,              | Used to construct an OpenVINO model   |
-            |                                          | ``ov::Node::output``,                   |                                       |
-            |                                          | ``ov::opset8::Constant``,               |                                       |
-            |                                          | ``ov::opset8::Convolution``,            |                                       |
-            |                                          | ``ov::opset8::Add``,                    |                                       |
-            |                                          | ``ov::opset1::MaxPool``,                |                                       |
-            |                                          | ``ov::opset8::Reshape``,                |                                       |
-            |                                          | ``ov::opset8::MatMul``,                 |                                       |
-            |                                          | ``ov::opset8::Relu``,                   |                                       |
-            |                                          | ``ov::opset8::Softmax``,                |                                       |
-            |                                          | ``ov::descriptor::Tensor::set_names``,  |                                       |
-            |                                          | ``ov::opset8::Result``,                 |                                       |
-            |                                          | ``ov::Model``,                          |                                       |
-            |                                          | ``ov::ParameterVector::vector``         |                                       |
-            +------------------------------------------+-----------------------------------------+---------------------------------------+
+      .. scrollbox::
       
-            Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_sample_hello_classification>`.
+         .. doxygensnippet:: samples/cpp/model_creation_sample/main.cpp 
+            :language: cpp
 
 
 You can see the explicit description of each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.

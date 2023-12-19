@@ -26,53 +26,20 @@ supported metrics and plugin configuration parameters.
    .. tab-item:: Python
       :sync: python
 
-      .. tab-set::
-
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/python/hello_query_device/hello_query_device.py
-                  :language: python
-
-         .. tab-item:: API
+      .. scrollbox::
       
-            The following Python API is used in the application:
-      
-            +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
-            | Feature                               | API                                                                                                                                                                                        | Description                            |
-            +=======================================+============================================================================================================================================================================================+========================================+
-            | Basic                                 | `openvino.runtime.Core <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__                                                                      | Common API                             |
-            +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
-            | Query Device                          | `openvino.runtime.Core.available_devices <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices>`__ ,          | Get device properties                  |
-            |                                       | `openvino.runtime.Core.get_metric <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_metric>`__ ,  |                                        |
-            |                                       | `openvino.runtime.Core.get_config <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config>`__    |                                        |
-            +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
+         .. doxygensnippet:: samples/python/hello_query_device/hello_query_device.py
+            :language: python
+
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. tab-set::
-
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/cpp/hello_query_device/main.cpp
-                  :language: cpp
-
-         .. tab-item:: API
+      .. scrollbox::
       
-            The following C++ API is used in the application:
-      
-            +----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
-            | Feature                                | API                                   | Description                                                       |
-            +========================================+=======================================+===================================================================+
-            | Available Devices                      | ``ov::Core::get_available_devices``,  | Get available devices information and configuration for inference |
-            |                                        | ``ov::Core::get_property``            |                                                                   |
-            +----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
-      
-            Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_sample_hello_classification>`.
+         .. doxygensnippet:: samples/cpp/hello_query_device/main.cpp
+            :language: cpp
+
 
 Running
 ####################

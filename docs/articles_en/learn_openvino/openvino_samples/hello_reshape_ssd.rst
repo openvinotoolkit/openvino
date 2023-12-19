@@ -34,65 +34,19 @@ As a result, the program creates an output image, logging each step in a standar
    .. tab-item:: Python
       :sync: python
 
-      .. tab-set::
-
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/python/hello_reshape_ssd/hello_reshape_ssd.py
-                  :language: python
-
-         .. tab-item:: API
+      .. scrollbox::
       
-            The following Python API is used in the application:
-      
-            +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
-            | Feature                            | API                                                                                                                                                                            | Description                          |
-            +====================================+================================================================================================================================================================================+======================================+
-            | Model Operations                   | `openvino.runtime.Model.reshape <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ ,               | Managing of model                    |
-            |                                    | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__ ,                   |                                      |
-            |                                    | `openvino.runtime.Output.get_any_name <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name>`__ ,  |                                      |
-            |                                    | `openvino.runtime.PartialShape <https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html>`__                                          |                                      |
-            +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
-      
-            Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_sample_hello_classification>`.
-      
+         .. doxygensnippet:: samples/python/hello_reshape_ssd/hello_reshape_ssd.py
+            :language: python
+
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. tab-set::
+      .. scrollbox::
       
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp 
-                  :language: cpp
-
-         .. tab-item:: API
-      
-            The following C++ API is used in the application:
-      
-            +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-            | Feature                          | API                                                         | Description                                    |
-            +==================================+=============================================================+================================================+
-            | Node operations                  | ``ov::Node::get_type_info``,                                | Get a node info                                |
-            |                                  | ``ngraph::op::DetectionOutput::get_type_info_static``,      |                                                |
-            |                                  | ``ov::Output::get_any_name``,                               |                                                |
-            |                                  | ``ov::Output::get_shape``                                   |                                                |
-            +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-            | Model Operations                 | ``ov::Model::get_ops``,                                     | Get model nodes, reshape input                 |
-            |                                  | ``ov::Model::reshape``                                      |                                                |
-            +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-            | Tensor Operations                | ``ov::Tensor::data``                                        | Get a tensor data                              |
-            +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-            | Preprocessing                    | ``ov::preprocess::PreProcessSteps::convert_element_type``,  | Model input preprocessing                      |
-            |                                  | ``ov::preprocess::PreProcessSteps::convert_layout``         |                                                |
-            +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-      
-            Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_sample_hello_classification>`.
+         .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp 
+            :language: cpp
 
 
 You can see the explicit description of

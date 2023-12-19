@@ -36,62 +36,18 @@ model to get pretty output.
    .. tab-item:: C++
       :sync: cpp
 
-      .. tab-set::
-
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/cpp/hello_nv12_input_classification/main.cpp
-                  :language: cpp
-
-         .. tab-item:: API
+      .. scrollbox::
       
-            The following C++ API is used in the application:
-      
-            +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-            | Feature                             | API                                                         | Description                               |
-            +=====================================+=============================================================+===========================================+
-            | Node Operations                     | ``ov::Output::get_any_name``                                | Get a layer name                          |
-            +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-            | Infer Request Operations            | ``ov::InferRequest::set_tensor``,                           | Operate with tensors                      |
-            |                                     | ``ov::InferRequest::get_tensor``                            |                                           |
-            +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-            | Preprocessing                       | ``ov::preprocess::InputTensorInfo::set_color_format``,      | Change the color format of the input data |
-            |                                     | ``ov::preprocess::PreProcessSteps::convert_element_type``,  |                                           |
-            |                                     | ``ov::preprocess::PreProcessSteps::convert_color``          |                                           |
-            +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-      
-            Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_sample_hello_classification>`.
+         .. doxygensnippet:: samples/cpp/hello_nv12_input_classification/main.cpp
+            :language: cpp
 
    .. tab-item:: C
       :sync: c
 
-      .. tab-set::
-
-         .. tab-item:: Sample Code
-
-            .. scrollbox::
-
-               .. doxygensnippet:: samples/c/hello_nv12_input_classification/main.c
-                  :language: c
-
-         .. tab-item:: API
-
-            +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
-            | Feature                                 | API                                                       | Description                                            |
-            +=========================================+===========================================================+========================================================+
-            | Node Operations                         | ``ov_port_get_any_name``                                  | Get a layer name                                       |
-            +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
-            | Infer Request Operations                | ``ov_infer_request_set_tensor``,                          | Operate with tensors                                   |
-            |                                         | ``ov_infer_request_get_output_tensor_by_index``           |                                                        |
-            +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
-            | Preprocessing                           | ``ov_preprocess_input_tensor_info_set_color_format``,     | Change the color format of the input data              |
-            |                                         | ``ov_preprocess_preprocess_steps_convert_element_type``,  |                                                        |
-            |                                         | ``ov_preprocess_preprocess_steps_convert_color``          |                                                        |
-            +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
+      .. scrollbox::
       
-            Basic Inference Engine API is covered by :doc:`Hello Classification C sample <openvino_sample_hello_classification>`.
+         .. doxygensnippet:: samples/c/hello_nv12_input_classification/main.c
+            :language: c
 
 
 You can see the explicit description of each sample step at 
