@@ -96,7 +96,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         const auto& default_device = (!allow_exception || !fallback_device) ? get_device_name() : "";
         // const auto& default_device = get_device_name();
         auto& device_config = properties_per_device.at(device_name);
-        if (fallback_device) {
+        if (fallback_device && strcmp(device_name.c_str(), "CPU") != 0) {
             // Turn off memory control to get all supported nodes
             device_config[ov::query_model_uses_device_mem.name()] = false;
         }
