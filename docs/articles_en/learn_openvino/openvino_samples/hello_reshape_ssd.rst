@@ -10,27 +10,18 @@ Hello Reshape SSD Sample
                  Inference Request API (Python, C++).
 
 
-This sample demonstrates how to do synchronous inference of object detection models using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`.  
+This sample demonstrates how to do synchronous inference of object detection models 
+using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`. Before 
+using the sample, refer to the following requirements:
 
-Models with only one input and output are supported.
-
-
-Requirements
-####################
-
-+-------------------+--------------------------------------------------------------------------------------+
-| Options           | Values                                                                               |
-+===================+======================================================================================+
-| Validated Models  || :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`                               |
-|                   || :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>` |
-+-------------------+--------------------------------------------------------------------------------------+
-| Validated Layout  | NCHW                                                                                 |
-+-------------------+--------------------------------------------------------------------------------------+
-| Model Format      | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)            |
-+-------------------+--------------------------------------------------------------------------------------+
-| Supported devices | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                 |
-+-------------------+--------------------------------------------------------------------------------------+
-
+- Models with only one input and output are supported.
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample has been validated with: :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`, 
+  :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>` 
+  models and the NCHW layout format.
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+  section in "Get Started with Samples" guide.
 
 How It Works
 ####################
@@ -106,11 +97,6 @@ As a result, the program creates an output image, logging each step in a standar
 
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
-
-Building
-####################
-
-To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` section in OpenVINO™ Toolkit Samples guide.
 
 Running
 ####################

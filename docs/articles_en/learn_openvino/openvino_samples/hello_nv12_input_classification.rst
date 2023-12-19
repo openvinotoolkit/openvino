@@ -11,24 +11,15 @@ Hello NV12 Input Classification Sample
 
 
 This sample demonstrates how to execute an inference of image classification models 
-with images in NV12 color format using Synchronous Inference Request API.
+with images in NV12 color format using Synchronous Inference Request API. Before 
+using the sample, refer to the following requirements:
 
-
-Requirements
-####################
-
-+-------------------+---------------------------------------------------------------------------------+
-| Options           | Values                                                                          |
-+===================+=================================================================================+
-| Validated Models  | :doc:`alexnet <omz_models_model_alexnet>`                                       |
-+-------------------+---------------------------------------------------------------------------------+
-| Model Format      | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
-+-------------------+---------------------------------------------------------------------------------+
-| Validated images  | An uncompressed image in the NV12 color format - \*.yuv                         |
-+-------------------+---------------------------------------------------------------------------------+
-| Supported devices | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`            |
-+-------------------+---------------------------------------------------------------------------------+
-
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>` model and
+  uncompressed images in the NV12 color format - \*.yuv
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+  section in "Get Started with Samples" guide.
 
 How It Works
 ####################
@@ -106,13 +97,6 @@ model to get pretty output.
 You can see the explicit description of each sample step at 
 :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
-
-Building
-####################
-
-To build the sample, please use instructions available at 
-:ref:`Build the Sample Applications <build-samples>` section in OpenVINO™ Toolkit 
-Samples guide.
 
 Running
 ####################

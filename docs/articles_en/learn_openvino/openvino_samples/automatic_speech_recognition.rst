@@ -26,20 +26,16 @@ on Kaldi neural models and speech feature vectors.
 The sample works with Kaldi ARK or Numpy uncompressed NPZ files, so it does not 
 cover an end-to-end speech recognition scenario (speech to text), requiring additional 
 preprocessing (feature extraction) to get a feature vector from a speech signal, 
-as well as postprocessing (decoding) to produce text from scores.
+as well as postprocessing (decoding) to produce text from scores. Before using the 
+sample, refer to the following requirements:
 
-Requirements
-####################
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+  format that does not require preprocessing.
+- The sample has been validated with an acoustic model based on Kaldi neural models 
+  (see :ref:`Model Preparation <model-preparation-speech>` section)
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+  section in "Get Started with Samples" guide.
 
-+-------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Options           | Values                                                                                                                                                      |
-+===================+=============================================================================================================================================================+
-| Validated Models  | Acoustic model based on Kaldi neural models (see :ref:`Model Preparation <model-preparation-speech-python>` section)                                        |
-+-------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Model Format      | OpenVINO™ toolkit Intermediate Representation (.xml + .bin)                                                                                                 |
-+-------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Supported devices | See :ref:`Execution Modes <execution-modes>` section below and :doc:`a list of supported devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` |
-+-------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 How It Works
 ####################

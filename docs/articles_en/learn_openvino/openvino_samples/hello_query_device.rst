@@ -12,7 +12,8 @@ Hello Query Device Sample
 
 This sample demonstrates how to show OpenVINO™ Runtime devices and prints their 
 metrics and default configuration values using :doc:`Query Device API feature <openvino_docs_OV_UG_query_api>`.
-
+To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+section in "Get Started with Samples" guide.
 
 How It Works
 ####################
@@ -72,13 +73,6 @@ supported metrics and plugin configuration parameters.
             +----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
       
             Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_sample_hello_classification>`.
-
-
-Building
-####################
-
-To build the sample, use instructions available at 
-:ref:`Build the Sample Applications <build-samples>` section in OpenVINO™ Toolkit Samples guide.
 
 Running
 ####################

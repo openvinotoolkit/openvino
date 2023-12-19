@@ -17,23 +17,15 @@ The reported results may deviate from what :doc:`benchmark_app <openvino_sample_
 reports. One example is model input precision for computer vision tasks. benchmark_app 
 sets ``uint8``, while the sample uses default model precision which is usually ``float32``.
 
-Requirements
-####################
+Before using the sample, refer to the following requirements:
 
-+-------------------+----------------------------------------------------------------------+
-| Options           | Values                                                               |
-+===================+======================================================================+
-| Validated Models  | :doc:`alexnet <omz_models_model_alexnet>`,                           |
-|                   | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                 |
-|                   | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                     |
-|                   | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`    |
-+-------------------+----------------------------------------------------------------------+
-| Model Format      | OpenVINO™ toolkit Intermediate Representation                        |
-|                   | (\*.xml + \*.bin), ONNX (\*.onnx)                                    |
-+-------------------+----------------------------------------------------------------------+
-| Supported devices | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` |
-+-------------------+----------------------------------------------------------------------+
-
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`, 
+  :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`, :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,
+  :doc:`face-detection-0200 <omz_models_model_face_detection_0200>` models.
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+  section in "Get Started with Samples" guide.
 
 How It Works
 ####################
@@ -119,11 +111,6 @@ Then, it processes and reports performance results.
 You can see the explicit description of each sample step at 
 :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
-
-Building
-####################
-
-To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` section in OpenVINO™ Toolkit Samples guide.
 
 Running
 ####################

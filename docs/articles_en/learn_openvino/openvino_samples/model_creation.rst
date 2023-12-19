@@ -13,20 +13,13 @@ Model Creation Sample
 This sample demonstrates how to run inference using a :doc:`model <openvino_docs_OV_UG_Model_Representation>` 
 built on the fly that uses weights from the LeNet classification model, which is 
 known to work well on digit classification tasks. You do not need an XML file, 
-the model is created from the source code on the fly.
+the model is created from the source code on the fly. Before using the sample, 
+refer to the following requirements:
 
-Requirements
-####################
-
-+-------------------+----------------------------------------------------------------------+
-| Options           | Values                                                               |
-+===================+======================================================================+
-| Validated Models  | LeNet                                                                |
-+-------------------+----------------------------------------------------------------------+
-| Model Format      | Model weights file (\*.bin)                                          |
-+-------------------+----------------------------------------------------------------------+
-| Supported devices | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` |
-+-------------------+----------------------------------------------------------------------+
+- The sample accepts a model weights file (\*.bin).
+- The sample has been validated with a LeNet model.
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+  section in "Get Started with Samples" guide.
 
 
 How It Works
@@ -135,14 +128,6 @@ data, logging each step in a standard output stream.
 
 
 You can see the explicit description of each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
-
-Building
-####################
-
-To build the sample, use instructions available at 
-:doc:`Build the Sample Applications <openvino_docs_OV_UG_Samples_Overview>` section 
-in OpenVINO™ Toolkit Samples guide.
-
 
 Running
 ####################
