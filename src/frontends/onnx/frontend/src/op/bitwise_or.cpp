@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/bitwise_or.hpp"  
+#include "op/bitwise_or.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "default_opset.hpp"
