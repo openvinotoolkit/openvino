@@ -5,11 +5,15 @@ from json import JSONDecodeError
 from sphinx.errors import ExtensionError
 import jinja2
 from docutils.parsers import rst
+from docutils.parsers.rst import roles
+from docutils import nodes
 from pathlib import Path
 from bs4 import BeautifulSoup
 from sphinx.util import logging
 from pydata_sphinx_theme import index_toctree
 from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox, Showcase, Nodeshowcase, visit_showcase, depart_showcase
+import re
+import subprocess
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -207,6 +211,27 @@ def read_doxygen_configs(app, env, docnames):
         except (JSONDecodeError, FileNotFoundError):
             app.config.html_context['doxygen_mapping_file'] = dict()
 
+def get_branch_name():
+    branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
+    if not branch_name:
+        raise Exception("This is neither a valid branch name nor any repository.", branch_name)
+    return branch_name
+
+def link_to_repo(repo_file_path):
+    def role(name, rawtext, text, lineno, inliner, options={}, content=[]):
+        title_only = re.compile("<.*?>")
+        title = title_only.sub('', text)
+        path = text[text.find("<")+1:text.find(">")]
+        url = repo_file_path % (path,)
+        node = nodes.reference(rawtext, title, refuri=url, **options)
+        return [node], []
+    return role
+
+ov_repo_link = 'https://github.com/openvinotoolkit/openvino'
+ovms_repo_link = 'https://github.com/openvinotoolkit/model_server'
+current_branch = get_branch_name()
+roles.register_canonical_role('ovlink', link_to_repo('{}/blob/{}/%s'.format(ov_repo_link, current_branch)))
+roles.register_canonical_role('ovmslink', link_to_repo('{}/blob/{}/%s'.format(ovms_repo_link, current_branch)))
 
 def setup(app):
     theme_path = get_theme_path()

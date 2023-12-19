@@ -147,5 +147,4 @@ See Also
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
 - :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
-
-
+- :ovlink:`Hello Classification Sample on Github <samples/python/hello_classification/README.md>`
