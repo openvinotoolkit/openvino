@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (WIN32 OR AARCH64)
+if (WIN32)
     return()
 endif()
 
