@@ -7,12 +7,12 @@ if(WIN32)
 endif()
 
 if(CMAKE_VERSION VERSION_LESS 3.14)
-    message(WARNING "JS API is not available with CMake version lower than 3.14, skipping")
+    message(WARNING "JS API is not available with CMake version less than 3.14, skipping")
     return()
 endif()
 
-if(NOT cxx_std_17 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
-    message(WARNING "JS API is not support compiler version lower than 17, skipping")
+if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND AARCH64 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+    message(WARNING "JS API is not support compiler version less than 7, skipping")
     return()
 endif()
 
