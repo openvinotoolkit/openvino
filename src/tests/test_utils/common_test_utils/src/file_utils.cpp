@@ -27,6 +27,19 @@ namespace ov {
 namespace test {
 namespace utils {
 
+namespace {
+
+template <typename C,
+          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
+std::basic_string<C> get_path_name(const std::basic_string<C>& s) {
+    size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
+    if (i != std::string::npos) {
+        return (s.substr(0, i));
+    }
+
+    return {};
+}
+
 #if defined __GNUC__ || defined __clang__
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wunused-function"
@@ -81,6 +94,8 @@ std::wstring getOpenvinoLibDirectoryW() {
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+}  // namespace
 
 std::string getOpenvinoLibDirectory() {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
