@@ -155,7 +155,7 @@ xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionErro
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
-                                      "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
+                                      "DFT, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
@@ -164,6 +164,7 @@ xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSeque
 
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
 
+# ONNX 1.14
 xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
 xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
                                        "half_pixel_symmetric - this type of coordinate transformation mode "
@@ -176,3 +177,14 @@ xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): 
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+
+# ONNX 1.15
+xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
+xfail_issue_125486 = xfail_test(reason="Gelu operation is not supported")
+xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
+xfail_issue_125487 = xfail_test(reason="GridSample doesn't support cubic and linear modes, and 4D tensor")
+xfail_issue_125489 = xfail_test(reason="IsInf changed behavior since opset-20")
+xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
+xfail_issue_125492 = xfail_test(reason="DFT mismatch")
+xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
+xfail_issue_125495 = xfail_test(reason="ReduceMin/Max doesn't support boolean")
