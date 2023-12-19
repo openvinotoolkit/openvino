@@ -161,16 +161,20 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Subgraph, ov::snippets::op)
         NGRAPH_OP(VectorBuffer, ov::snippets::op)
         NGRAPH_OP(RankNormalization, ov::snippets::op)
+#ifdef SNIPPETS_DEBUG_CAPS
         NGRAPH_OP(PerfCountBegin, ov::snippets::op)
         NGRAPH_OP(PerfCountEnd, ov::snippets::op)
+#endif
         NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
+#ifdef SNIPPETS_DEBUG_CAPS
         NGRAPH_OP_X64(PerfCountRdtscBegin, ov::intel_cpu)
         NGRAPH_OP_X64(PerfCountRdtscEnd, ov::intel_cpu)
+#endif
 #undef NGRAPH_OP
 
         return opset;

@@ -49,7 +49,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
@@ -206,3 +206,17 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+
+  Overall_Status:
+    name: ci/gha_overall_status_linux_riscv
+    needs: [Smart_CI, Build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') || 
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

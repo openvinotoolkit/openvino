@@ -3,9 +3,9 @@
 //
 
 #include <memory>
-#include <openvino/opsets/opset13.hpp>
 
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 namespace ngraph {

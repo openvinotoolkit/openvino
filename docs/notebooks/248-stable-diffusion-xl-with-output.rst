@@ -68,7 +68,7 @@ The tutorial consists of the following steps:
 **Table of contents:**
 
 
--  `Install Prerequisites <#install-prerequisites>`__
+-  `Install prerequisites <#install-prerequisites>`__
 -  `SDXL Base model <#sdxl-base-model>`__
 
    -  `Select inference device SDXL Base
@@ -79,28 +79,34 @@ The tutorial consists of the following steps:
       Demo <#textimage-generation-interactive-demo>`__
    -  `Run Image2Image generation
       pipeline <#run-imageimage-generation-pipeline>`__
+
+      -  `Select inference device SDXL Refiner
+         model <#select-inference-device-sdxl-refiner-model>`__
+
    -  `Image2Image Generation Interactive
       Demo <#imageimage-generation-interactive-demo>`__
 
 -  `SDXL Refiner model <#sdxl-refiner-model>`__
 
-   -  `Select inference device SDXL Refiner
-      model <#select-inference-device-sdxl-refiner-model>`__
+   -  `Select inference device <#select-inference-device>`__
    -  `Run Text2Image generation with
       Refinement <#run-textimage-generation-with-refinement>`__
 
-Install prerequisites 
----------------------------------------------------------------
+Install prerequisites
+---------------------
+
+
 
 .. code:: ipython3
 
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" 
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-    %pip install -q "openvino>=2023.1.0"
-    %pip install -q --upgrade-strategy eager "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.30.2" "accelerate" "onnx" "onnxruntime"
-    %pip install -q gradio
+    %pip install -q "openvino>=2023.1.0" gradio
 
-SDXL Base model 
----------------------------------------------------------
+SDXL Base model
+---------------
+
+
 
 We will start with the base model part, which is responsible for the
 generation of images of the desired output size.
@@ -144,8 +150,10 @@ You can save the model on disk using the ``save_pretrained`` method.
       warnings.warn(
 
 
-Select inference device SDXL Base model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device SDXL Base model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -194,8 +202,10 @@ select device from dropdown list for running inference using OpenVINO
     Compiling the text_encoder_2...
 
 
-Run Text2Image generation pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Text2Image generation pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, we can run the model for the generation of images using text
 prompts. To speed up evaluation and reduce the required memory we
@@ -240,8 +250,10 @@ numpy random state with a specific seed for results reproducibility.
 
 
 
-Text2image Generation Interactive Demo 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text2image Generation Interactive Demo
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -294,6 +306,7 @@ Text2image Generation Interactive Demo
 ..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
+
 .. code:: ipython3
 
     demo.close()
@@ -306,16 +319,20 @@ Text2image Generation Interactive Demo
     Closing server running on port: 7860
 
 
-Run Image2Image generation pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Image2Image generation pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 We can reuse the already converted model for running the Image2Image
 generation pipeline. For that, we should replace
 ``OVStableDiffusionXLPipeline`` with
 ``OVStableDiffusionXLImage2ImagePipeline``.
 
-Select inference device SDXL Refiner model 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Select inference device SDXL Refiner model
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -384,8 +401,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Image2Image Generation Interactive Demo 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image2Image Generation Interactive Demo
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -463,8 +482,10 @@ Image2Image Generation Interactive Demo
 
 
 
-SDXL Refiner model 
-------------------------------------------------------------
+SDXL Refiner model
+------------------
+
+
 
 As we discussed above, Stable Diffusion XL can be used in a 2-stages
 approach: first, the base model is used to generate latents of the
@@ -493,8 +514,10 @@ prompt for improving generated image.
         del refiner
         gc.collect()
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -511,8 +534,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Run Text2Image generation with Refinement 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Text2Image generation with Refinement
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 

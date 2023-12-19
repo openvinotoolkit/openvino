@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "data_inst.h"
@@ -25,7 +26,9 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "condition_inst.h"
+#include "gather_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "non_max_suppression_inst.h"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
@@ -100,9 +103,9 @@ bool is_user_cpu(const program_node* user) {
         }
         return false;
     }
-    if (auto impl = user->get_selected_impl())
-        return impl->is_cpu();
-    return false;
+    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu() :
+                                              user->get_preferred_impl_type() == impl_types::cpu;
+    return is_cpu;
 }
 bool has_cpu_user_not_shape_of(const program_node* user) {
     if (user->can_be_optimized()) {
@@ -265,8 +268,30 @@ void primitive_inst::update_shape() {
     }
 
     if (get_node().is_type<read_value>()) {
-        const auto& variable_id = get_node().as<read_value>().get_primitive()->variable_id;
-        auto new_layout = get_network().get_variable(variable_id).get_layout();
+        auto prim = get_node().as<read_value>().get_primitive();
+        const auto& variable_id = prim->variable_id;
+        auto& variable = get_network().get_variable(variable_id);
+        // Initial variable shape is taken from variable itself
+        auto new_layout = variable.get_layout();
+
+        // If variable is not set and we have an initializer - use it's shape as shape of variable
+        if (!variable.is_set() && _impl_params->input_layouts.size() == 1) {
+            new_layout = _impl_params->get_input_layout(0);
+        }
+
+        // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace dynamic dims with 0
+        if (new_layout.is_dynamic()) {
+            auto pshape = new_layout.get_partial_shape();
+            for (auto& d : pshape) {
+                if (d.is_dynamic()) {
+                    d = 0;
+                }
+            }
+            new_layout.set_partial_shape(pshape);
+        }
+
+        variable.set_layout(new_layout);
+
         if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
             _impl_params->state_layout = new_layout;
             input_shape_changed = true;
@@ -299,7 +324,7 @@ void primitive_inst::update_shape() {
             }
         }
         if (!subgraph_input_changed) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgrap and input shape is not changed\n";
+            GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             reset_shape_change();
             return;
         }
@@ -402,20 +427,6 @@ void primitive_inst::update_shape() {
         get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
         _impl_params->state_layout = _impl_params->get_output_layout();
     }
-
-    if (get_node().is_type<read_value>()) {
-        auto desc = get_node().as<read_value>().get_primitive();
-        if (_impl_params->output_layouts[0].is_dynamic()) {
-            auto pshape = _impl_params->output_layouts[0].get_partial_shape();
-            for (auto& d : pshape) {
-                if (d.is_dynamic()) {
-                    d = 0;
-                }
-            }
-            _impl_params->output_layouts[0].set_partial_shape(pshape);
-        }
-        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
-    }
 }
 
 event::ptr primitive_inst::realloc_if_needed() {
@@ -445,10 +456,17 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
+    // read_value/assign nodes are supposed to always use variable memory
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
         std::string variable_id = stateful_prim->variable_id();
-        auto variable = get_network().get_variable(variable_id);
+        auto& variable = get_network().get_variable(variable_id);
         variable.set_layout(actual_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": use variable memory " << variable.get_memory()
+                               << " (size=" << variable.get_memory()->size() << ")" << std::endl;
+        // For nodes that can be optimized, variable memory is used as output memory
+        // so there is no need for output memory reallocation
+        if (can_be_optimized())
+            return ev;
     }
 
     // Update output layout with respect to FC's fake alignment
@@ -772,6 +790,63 @@ void primitive_inst::do_runtime_skip_reorder() {
     }
 }
 
+void primitive_inst::do_runtime_skip_gather() {
+    // Check pattern
+    if (!get_node().is_type<gather>()
+        || _impl_params->has_fused_primitives()
+        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
+        || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
+        return;
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
+    auto input_shape = _impl_params->get_input_layout(0).get_shape();
+    auto axis = _impl_params->typed_desc<gather>()->axis;
+    auto idx_id = get_node().get_dependency(1).id();
+    auto idx_shape = _impl_params->get_input_layout(1).get_shape();
+    auto idx_rank = idx_shape.size();
+
+    if (idx_rank > 1) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_shape.size() << std::endl;
+        return;
+    }
+
+    // Check runtime shape (need to reset can_be_optimized)
+    if (idx_shape[0] != input_shape[axis]) {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input shape[0] " << idx_shape[0] << " != input_shape[axis]" << input_shape[axis] << std::endl;
+        return;
+    }
+
+    // If the overhead for checking the index is bigger than doing gather itself, it does not make sense for skipping
+    const int MAX_INDICES_SIZE = 10*1024;
+    if (input_shape[axis] > MAX_INDICES_SIZE) {
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase data length along with the axis is too big" << input_shape[axis] << std::endl;
+        set_can_be_optimized(false);
+        return;
+    }
+    if (input_shape[axis] != 1) {
+        auto queue_type = get_network().get_stream().get_queue_type();
+        if (queue_type == QueueTypes::out_of_order)
+            get_network().get_stream().wait_for_events({_network.get_primitive_event(idx_id)});
+        else
+            _network.get_stream().finish();
+        mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), _network.get_stream());
+        for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
+            if (idx_data[i] != i) {
+                GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
+                set_can_be_optimized(false);
+                return;
+            }
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Gather axis : " << axis << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -856,6 +931,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
+        do_runtime_skip_gather();
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
@@ -931,8 +1007,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (out_of_order_queue || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
-                if (input->is_input() && !out_of_order_queue)
-                    continue;
                 auto id = input->id();
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
@@ -1389,7 +1463,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
+    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
+                                              _node.get_preferred_impl_type() == impl_types::cpu;
     auto use_lockable_memory =
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
