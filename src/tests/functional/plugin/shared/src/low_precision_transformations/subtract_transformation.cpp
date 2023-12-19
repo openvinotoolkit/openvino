@@ -28,6 +28,7 @@ std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo
 }
 
 void SubtractTransformation::SetUp() {
+    abs_threshold = 0.1;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

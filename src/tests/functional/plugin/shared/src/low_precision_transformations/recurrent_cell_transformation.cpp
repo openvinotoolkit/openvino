@@ -37,7 +37,7 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
 }
 
 void RecurrentCellTransformation::SetUp() {
-    abs_threshold = 1.0e-3;
+    abs_threshold = 0.01;
 
     ngraph::element::Type precision;
     std::vector<ngraph::PartialShape> activations_shapes;

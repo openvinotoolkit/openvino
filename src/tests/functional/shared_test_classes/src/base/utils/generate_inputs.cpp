@@ -330,7 +330,7 @@ bool get_const_scalar_value(const std::shared_ptr<ov::Node>& node, float& value)
     if (!const_node)
         return false;
 
-    auto const_value = const_node->get_vector<float>();
+    auto const_value = const_node->cast_vector<float>();
     // check if it is not scalar
     if (const_value.size() > 1)
         return false;
