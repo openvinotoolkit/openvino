@@ -108,15 +108,9 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             errorMessage = "Only Constant operation on 'bias' input is supported";
             return false;
         }
-        const auto inRank = fc->get_input_partial_shape(DATA_ID).size();
         const auto weightRank = fc->get_input_partial_shape(WEIGHTS_ID).size();
-        if (!one_of(inRank, 2u, 3u, 4u)) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
-            return false;
-        }
-        if (one_of(inRank, 2u, 3u, 4u) && weightRank != 2) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank) +
-                           " and 'weight' input with rank: " + std::to_string(weightRank);
+        if (weightRank != 2) {
+            errorMessage = "Doesn't support 'weight' input with rank: " + std::to_string(weightRank);
             return false;
         }
     } catch (...) {
