@@ -13,10 +13,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-using memoryStateParams = std::tuple<std::shared_ptr<ngraph::Function>,  // CNNNetwork to work with
-                                     std::vector<std::string>,           //  Memory States to query
-                                     std::string,                        // Target device name
-                                     ov::AnyMap>;                        // device configuration
+using memoryStateParams = std::tuple<std::shared_ptr<ov::Model>,  // Model to work with
+                                     std::vector<std::string>,    //  Memory States to query
+                                     std::string,                 // Target device name
+                                     ov::AnyMap>;                 // device configuration
 
 class OVInferRequestVariableStateTest : public testing::WithParamInterface<memoryStateParams>,
                                         public OVInferRequestTestBase {
@@ -27,7 +27,7 @@ public:
     static std::shared_ptr<ngraph::Function> get_network();
 
 protected:
-    std::shared_ptr<ngraph::Function> net;
+    std::shared_ptr<ov::Model> net;
     std::vector<std::string> statesToQuery;
     std::string deviceName;
     ov::AnyMap configuration;
